@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block baslik %}Lotlar{% endblock %}
+{% block icerik %}
+<h1>Üretim Lotları</h1>
+<form class="filtre" method="get">
+  <select name="durum">
+    <option value="aktif" {% if durum == "aktif" %}selected{% endif %}>Aktif (bitmemiş)</option>
+    {% for kod, ad in durumlar %}<option value="{{ kod }}" {% if durum == kod %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+    <option value="hepsi" {% if durum == "hepsi" %}selected{% endif %}>Hepsi</option>
+  </select>
+  <input name="ara" value="{{ ara }}" placeholder="Lot / ham deri / sipariş no">
+  <button class="btn kucuk" type="submit">Filtrele</button>
+  {% if user.is_staff %}<a class="btn kucuk ikincil" href="{% url 'admin:uretim_uretimlotu_add' %}">+ Yeni lot</a>{% endif %}
+</form>
+<div class="kart tablo-kap">
+  <table>
+    <tr><th>Lot</th><th>Ham deri</th><th>Sipariş</th><th>Son aşama</th><th>Durum</th>
+        <th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th><th></th></tr>
+    {% for l in lotlar %}
+    <tr>
+      <td><a href="{% url 'lot_detay' l.pk %}"><b>{{ l.lot_no }}</b></a></td>
+      <td>{{ l.ham_deri.lot_no }}<br><span class="soluk">{{ l.ham_deri.deri_turu }} – {{ l.ham_deri.tedarikci }}</span></td>
+      <td>{{ l.siparis.siparis_no|default:"–" }}</td>
+      <td>{{ l.son_asama.ad|default:"Başlamadı" }}</td>
+      <td><span class="rozet {{ l.durum }}">{{ l.get_durum_display }}</span></td>
+      <td class="sayi">{{ l.baslangic_m2 }}</td>
+      <td class="sayi">{{ l.mevcut_m2 }}</td>
+      <td class="sayi">{{ l.mevcut_kg }}</td>
+      <td>{% if l.durum == "bekliyor" %}<a class="btn kucuk" href="{% url 'islem_baslat' %}?lot={{ l.pk }}">▶</a>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" class="soluk">Kayıt bulunamadı.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

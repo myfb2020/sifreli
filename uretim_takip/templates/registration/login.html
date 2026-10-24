@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block baslik %}Giriş – Üretim Takip{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:420px;margin:40px auto">
+  <h1>Üretim Takip – Giriş</h1>
+  <form method="post" class="dikey">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>Kullanıcı adı veya şifre hatalı.</li>{% endfor %}</ul>{% endif %}
+    <p><label for="id_username">Kullanıcı adı</label>{{ form.username }}</p>
+    <p><label for="id_password">Şifre</label>{{ form.password }}</p>
+    <button class="btn buyuk" type="submit" style="width:100%">Giriş</button>
+  </form>
+</div>
+{% endblock %}

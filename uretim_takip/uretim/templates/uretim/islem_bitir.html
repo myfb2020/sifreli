@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block baslik %}İşlem Bitir{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:560px;margin:0 auto">
+  <h1>■ İşlem Bitir</h1>
+  <table style="margin-bottom:16px">
+    <tr><th>Lot</th><td><b>{{ islem.lot }}</b></td></tr>
+    <tr><th>Aşama</th><td>{{ islem.asama.ad }}</td></tr>
+    <tr><th>Başlatan</th><td>{{ islem.personel }} – {{ islem.baslangic|date:"d.m.Y H:i" }}</td></tr>
+    <tr><th>Giriş</th><td>{{ islem.giris_kg }} kg / {{ islem.giris_m2 }} m²</td></tr>
+  </table>
+  <p class="soluk">Bu aşamadan çıkan miktarı girin. Aradaki fark fire olarak kaydedilir.</p>
+  <form method="post" class="dikey">
+    {% include "uretim/_form.html" %}
+    <button class="btn buyuk" type="submit" style="width:100%">Bitir</button>
+  </form>
+</div>
+{% endblock %}

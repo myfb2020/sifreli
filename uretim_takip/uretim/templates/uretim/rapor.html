@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block baslik %}Raporlar{% endblock %}
+{% block icerik %}
+<h1>Raporlar</h1>
+<form class="filtre" method="get">
+  <label>{{ form.baslangic.label }}<br>{{ form.baslangic }}</label>
+  <label>{{ form.bitis.label }}<br>{{ form.bitis }}</label>
+  <button class="btn kucuk" type="submit">Göster</button>
+  <a class="btn kucuk ikincil" href="{% url 'rapor_excel' %}?baslangic={{ bas|date:'Y-m-d' }}&bitis={{ son|date:'Y-m-d' }}">⬇ Excel'e aktar</a>
+</form>
+{% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors.0 }}</div>{% endif %}
+<p class="soluk">{{ bas|date:"d.m.Y" }} – {{ son|date:"d.m.Y" }} arasında <b>tamamlanan</b> işlemler. İş, başlatan personelin hanesine yazılır.</p>
+
+<div class="kart tablo-kap">
+  <h2>Personel performansı</h2>
+  <table>
+    <tr><th>Personel</th><th class="sayi">İşlem</th><th class="sayi">Giriş kg</th><th class="sayi">Çıkış kg</th>
+        <th class="sayi">Giriş m²</th><th class="sayi">Çıkış m²</th><th class="sayi">Fire m²</th><th class="sayi">Fire %</th><th class="sayi">Toplam süre</th></tr>
+    {% for s in personel %}
+    <tr><td><b>{{ s.personel__ad_soyad }}</b></td><td class="sayi">{{ s.islem_sayisi }}</td>
+        <td class="sayi">{{ s.giris_kg }}</td><td class="sayi">{{ s.cikis_kg }}</td>
+        <td class="sayi">{{ s.giris_m2 }}</td><td class="sayi">{{ s.cikis_m2 }}</td>
+        <td class="sayi">{{ s.fire_m2 }}</td><td class="sayi">{{ s.fire_yuzde_m2|default:"–" }}</td>
+        <td class="sayi">{{ s.sure_metni }}</td></tr>
+    {% empty %}<tr><td colspan="9" class="soluk">Bu aralıkta kayıt yok.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="kart tablo-kap">
+  <h2>Aşamalara göre fire</h2>
+  <table>
+    <tr><th>Aşama</th><th class="sayi">İşlem</th><th class="sayi">Giriş kg</th><th class="sayi">Çıkış kg</th>
+        <th class="sayi">Giriş m²</th><th class="sayi">Çıkış m²</th><th class="sayi">Fire m²</th><th class="sayi">Fire %</th><th class="sayi">Toplam süre</th></tr>
+    {% for s in asama %}
+    <tr><td><b>{{ s.asama__sira }}. {{ s.asama__ad }}</b></td><td class="sayi">{{ s.islem_sayisi }}</td>
+        <td class="sayi">{{ s.giris_kg }}</td><td class="sayi">{{ s.cikis_kg }}</td>
+        <td class="sayi">{{ s.giris_m2 }}</td><td class="sayi">{{ s.cikis_m2 }}</td>
+        <td class="sayi">{{ s.fire_m2 }}</td><td class="sayi">{{ s.fire_yuzde_m2|default:"–" }}</td>
+        <td class="sayi">{{ s.sure_metni }}</td></tr>
+    {% empty %}<tr><td colspan="9" class="soluk">Bu aralıkta kayıt yok.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

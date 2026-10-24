@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block baslik %}Üretim Takip{% endblock %}</title>
+  <style>
+    :root { --ana:#7a4b2a; --ana-koyu:#5a361d; --zemin:#f6f2ee; --kart:#fff; --cizgi:#e2d9d0; --yazi:#2b211a;
+            --soluk:#7d6f64; --yesil:#2e7d4f; --kirmizi:#b23a2e; --sari:#b7791f; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--zemin);
+           color:var(--yazi); font-size:16px; }
+    header { background:var(--ana); color:#fff; padding:0 16px; display:flex; align-items:center; gap:16px;
+             flex-wrap:wrap; min-height:56px; }
+    header a { color:#fff; text-decoration:none; padding:8px 4px; }
+    header .marka { font-weight:700; font-size:18px; margin-right:auto; }
+    header form { margin:0; }
+    header button { background:none; border:1px solid #fff8; color:#fff; border-radius:6px; padding:6px 10px; cursor:pointer; }
+    main { max-width:1200px; margin:0 auto; padding:16px; }
+    h1 { font-size:22px; margin:8px 0 16px; }
+    h2 { font-size:18px; margin:0 0 12px; }
+    .kart { background:var(--kart); border:1px solid var(--cizgi); border-radius:10px; padding:16px; margin-bottom:16px; }
+    .izgara { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+    .btn { display:inline-block; background:var(--ana); color:#fff; border:0; border-radius:8px; padding:12px 18px;
+           font-size:16px; text-decoration:none; cursor:pointer; }
+    .btn:hover { background:var(--ana-koyu); }
+    .btn.buyuk { padding:18px 28px; font-size:20px; }
+    .btn.ikincil { background:#fff; color:var(--ana); border:1px solid var(--ana); }
+    .btn.kucuk { padding:6px 12px; font-size:14px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid var(--cizgi); vertical-align:top; }
+    th { font-size:13px; color:var(--soluk); font-weight:600; }
+    td.sayi, th.sayi { text-align:right; font-variant-numeric:tabular-nums; }
+    .tablo-kap { overflow-x:auto; }
+    .rozet { display:inline-block; padding:2px 8px; border-radius:999px; font-size:13px; background:#eee; }
+    .rozet.islemde { background:#fff3cd; color:#7a5a00; }
+    .rozet.bekliyor { background:#e7eef7; color:#24476b; }
+    .rozet.tamamlandi { background:#dff3e6; color:var(--yesil); }
+    .rozet.iptal { background:#f6dcd9; color:var(--kirmizi); }
+    .uyari { color:var(--kirmizi); font-weight:600; }
+    .soluk { color:var(--soluk); font-size:14px; }
+    .mesaj { padding:12px 16px; border-radius:8px; margin-bottom:12px; background:#dff3e6; color:#1d5535; }
+    .mesaj.error { background:#f6dcd9; color:#7d231a; }
+    .mesaj.info { background:#e7eef7; color:#24476b; }
+    form.dikey p { margin:0 0 14px; }
+    form.dikey label { display:block; font-weight:600; margin-bottom:4px; }
+    form.dikey input, form.dikey select, form.dikey textarea { width:100%; padding:12px; font-size:18px;
+           border:1px solid var(--cizgi); border-radius:8px; background:#fff; }
+    .errorlist { color:var(--kirmizi); margin:4px 0; padding-left:18px; }
+    .asama-seridi { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
+    .asama-kutu { border:1px solid var(--cizgi); border-radius:8px; padding:10px; background:#fff; }
+    .asama-kutu b { display:block; font-size:14px; margin-bottom:6px; }
+    .filtre { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:12px; }
+    .filtre input, .filtre select { padding:8px; border:1px solid var(--cizgi); border-radius:6px; font-size:15px; }
+  </style>
+</head>
+<body>
+{% if user.is_authenticated %}
+<header>
+  <a class="marka" href="{% url 'pano' %}">Üretim Takip</a>
+  <a href="{% url 'pano' %}">Pano</a>
+  <a href="{% url 'islem_baslat' %}">İşlem Başlat</a>
+  <a href="{% url 'lot_listesi' %}">Lotlar</a>
+  <a href="{% url 'rapor' %}">Raporlar</a>
+  {% if user.is_staff %}<a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
+  <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Çıkış</button></form>
+</header>
+{% endif %}
+<main>
+  {% for m in messages %}<div class="mesaj {{ m.tags }}">{{ m }}</div>{% endfor %}
+  {% block icerik %}{% endblock %}
+</main>
+</body>
+</html>
