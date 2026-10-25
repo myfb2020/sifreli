@@ -6,3 +6,4 @@ db.sqlite3
 uretim_takip/staticfiles/
 uretim_takip/yedekler/
 *.zip
+/uretim_aktarim_sablonu.xlsx
