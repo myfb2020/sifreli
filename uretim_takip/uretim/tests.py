@@ -422,3 +422,146 @@ class ExcelAktarimTesti(TestCase):
         self.client.force_login(get_user_model().objects.create_superuser("y", password="x"))
         yanit = self.client.post(reverse("excel_aktar"), {"dosya": SimpleUploadedFile("eski.xls", b"x")})
         self.assertContains(yanit, "Farklı Kaydet")
+
+
+class SiparisEkraniTesti(TemelVeri):
+    def setUp(self):
+        self.yonetici = get_user_model().objects.create_superuser("y", password="x")
+        self.tablet = get_user_model().objects.create_user("tablet", password="x")
+
+    def bitir(self, lot, m2):
+        islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[-1], personel=self.ahmet)
+        servisler.islem_bitir(islem=islem, personel=self.ahmet, cikis_kg=Decimal("10"), cikis_m2=Decimal(m2))
+
+    def test_ilerleme_m2_ve_lot_sayisina_gore(self):
+        self.siparis.toplam_m2 = Decimal("20")
+        self.siparis.save()
+        l1, l2 = self.yeni_lot(siparis=self.siparis), self.yeni_lot(siparis=self.siparis)
+        self.yeni_lot(siparis=self.siparis, durum="iptal")
+        servisler.islem_baslat(lot=l2, asama=self.asamalar[2], personel=self.ayse)
+        self.bitir(l1, "9")
+        i = self.siparis.ilerleme()
+        self.assertEqual((i["yuzde"], i["lot_sayisi"], i["biten_lot"]), (45, 2, 1))
+        self.assertIn(("Bitti", 1), i["dagilim"])
+        self.assertIn((self.asamalar[2].ad, 1), i["dagilim"])
+        self.siparis.toplam_m2 = None
+        self.assertEqual(self.siparis.ilerleme()["yuzde"], 50)
+
+    def test_liste_ve_detay_tablete_acik_form_kapali(self):
+        self.yeni_lot(siparis=self.siparis)
+        self.client.force_login(self.tablet)
+        yanit = self.client.get(reverse("siparis_listesi"))
+        self.assertContains(yanit, self.siparis.siparis_no)
+        self.assertNotContains(yanit, "+ Yeni sipariş")
+        self.assertContains(self.client.get(reverse("siparis_detay", args=[self.siparis.pk])), "Lotlar (1)")
+        self.assertEqual(self.client.get(reverse("siparis_yeni")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("siparis_durum", args=[self.siparis.pk]), {"durum": "sevk"}).status_code, 403)
+
+    def test_geciken_siparis_uyarisi_ve_sekmeler(self):
+        self.siparis.teslim_tarihi = timezone.localdate() - timedelta(days=3)
+        self.siparis.save()
+        self.client.force_login(self.tablet)
+        yanit = self.client.get(reverse("siparis_listesi"))
+        self.assertContains(yanit, "3 gün gecikti")
+        self.assertContains(yanit, "1 sipariş teslim tarihini geçti")
+        self.assertNotContains(self.client.get(reverse("siparis_listesi"), {"durum": "sevk"}), self.siparis.siparis_no)
+        self.assertContains(self.client.get(reverse("siparis_listesi"), {"ara": "M"}), self.siparis.siparis_no)
+
+    def test_yeni_siparis_yeni_musteriyle(self):
+        self.client.force_login(self.yonetici)
+        veri = {"musteri": "", "yeni_musteri": "Yıldız Otel", "urun": "Lobi halısı", "adet": 1,
+                "toplam_m2": "12,5", "teslim_tarihi": "2026-12-01"}
+        yanit = self.client.post(reverse("siparis_yeni"), veri)
+        yeni = Siparis.objects.get(urun="Lobi halısı")
+        self.assertRedirects(yanit, reverse("siparis_detay", args=[yeni.pk]))
+        self.assertEqual(yeni.musteri.ad, "Yıldız Otel")
+        # Aynı müşteri adı ikinci kez yazılırsa yeni müşteri açılmaz
+        self.client.post(reverse("siparis_yeni"), {**veri, "yeni_musteri": "yıldız otel", "urun": "İkinci"})
+        self.assertEqual(Musteri.objects.filter(ad__iexact="Yıldız Otel").count(), 1)
+
+    def test_musterisiz_siparis_reddedilir_ve_kayit_olusmaz(self):
+        self.client.force_login(self.yonetici)
+        yanit = self.client.post(reverse("siparis_yeni"), {"urun": "X", "adet": 1, "teslim_tarihi": ""})
+        self.assertContains(yanit, "Bir müşteri seçin")
+        self.assertFalse(Siparis.objects.filter(urun="X").exists())
+        # Diğer alanlar hatalıysa yazılan yeni müşteri de oluşturulmaz
+        self.client.post(reverse("siparis_yeni"), {"yeni_musteri": "Hayalet", "urun": "", "adet": 1})
+        self.assertFalse(Musteri.objects.filter(ad="Hayalet").exists())
+
+    def test_sevk_ve_geri_alma(self):
+        self.client.force_login(self.yonetici)
+        url = reverse("siparis_durum", args=[self.siparis.pk])
+        self.client.post(url, {"durum": "sevk"})
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "sevk")
+        self.client.post(url, {"durum": "iptal"})  # sevk edilmiş sipariş iptal edilemez
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "sevk")
+        self.client.post(url, {"durum": "uretimde"})
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "uretimde")
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+
+class OndalikGirisTesti(TemelVeri):
+    def test_islem_bitirken_virgul_ve_nokta_kabul_edilir(self):
+        from .forms import IslemBitirForm
+
+        for kg, m2, beklenen in [("47,5", "9,25", Decimal("9.25")), ("47.5", "9.25", Decimal("9.25"))]:
+            f = IslemBitirForm({"personel": self.ahmet.pk, "pin": "1234", "cikis_kg": kg, "cikis_m2": m2})
+            self.assertTrue(f.is_valid(), f.errors)
+            self.assertEqual(f.cleaned_data["cikis_m2"], beklenen)
+        self.assertFalse(IslemBitirForm({"personel": self.ahmet.pk, "pin": "1234", "cikis_kg": "-1", "cikis_m2": "1"}).is_valid())
+
+    def test_bitir_ekrani_virgullu_baslangic_degerini_geri_alir(self):
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+        lot = self.yeni_lot(baslangic_kg=Decimal("47.50"))
+        islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
+        sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
+        self.assertContains(sayfa, 'value="47,50"')
+        yanit = self.client.post(reverse("islem_bitir", args=[islem.pk]),
+                                 {"personel": self.ahmet.pk, "pin": "1234", "cikis_kg": "47,50", "cikis_m2": "9,8"})
+        self.assertRedirects(yanit, reverse("pano"))
+        islem.refresh_from_db()
+        self.assertEqual(islem.cikis_m2, Decimal("9.80"))
+
+
+class SiparisDurumuTesti(TemelVeri):
+    def test_tamamlanan_siparise_yeni_lot_eklenince_uretime_doner(self):
+        l1 = self.yeni_lot(siparis=self.siparis)
+        islem = servisler.islem_baslat(lot=l1, asama=self.asamalar[-1], personel=self.ahmet)
+        servisler.islem_bitir(islem=islem, personel=self.ahmet, cikis_kg=Decimal("1"), cikis_m2=Decimal("1"))
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "tamamlandi")
+        self.yeni_lot(siparis=self.siparis)
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "uretimde")
+
+    def test_sevk_edilmis_siparis_lot_eklenince_degismez(self):
+        self.siparis.durum = "sevk"
+        self.siparis.save()
+        self.yeni_lot(siparis=self.siparis)
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "sevk")
+
+
+class OfisHesabiTesti(TestCase):
+    def test_personel_durumlu_ofis_hesabi_yedek_ve_aktarima_giremez(self):
+        from django.contrib.auth.models import Permission
+
+        ofis = get_user_model().objects.create_user("ofis", password="x", is_staff=True)
+        ofis.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="uretim", codename__in=["add_siparis", "change_siparis", "view_siparis"]))
+        self.client.force_login(ofis)
+        for ad in ("yedek_indir", "excel_aktar", "sablon_indir"):
+            with self.subTest(ad=ad):
+                self.assertEqual(self.client.get(reverse(ad)).status_code, 302)
+        self.assertEqual(self.client.get(reverse("siparis_yeni")).status_code, 200)
+        pano = self.client.get(reverse("pano"))
+        self.assertContains(pano, "Yönetim")
+        self.assertNotContains(pano, "💾 Yedek")
+
+    def test_yonetici_yedek_indirir(self):
+        self.client.force_login(get_user_model().objects.create_superuser("y", password="x"))
+        yanit = self.client.get(reverse("sablon_indir"))
+        self.assertEqual(yanit.status_code, 200)

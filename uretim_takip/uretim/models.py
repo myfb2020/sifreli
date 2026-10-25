@@ -204,6 +204,49 @@ class Siparis(models.Model):
     def gecikti_mi(self):
         return self.durum in ("acik", "uretimde") and self.teslim_tarihi < timezone.localdate()
 
+    @property
+    def kalan_gun(self):
+        return (self.teslim_tarihi - timezone.localdate()).days
+
+    @property
+    def gecikme_gun(self):
+        return max(0, -self.kalan_gun)
+
+    def ilerleme(self):
+        """Siparişin üretim durumu: tamamlanma yüzdesi ve lotların aşamalara dağılımı.
+
+        Toplam m² girilmişse yüzde, biten lotların m²'sine göre; girilmemişse biten lot sayısına göre
+        hesaplanır. İptal edilen lotlar sayılmaz.
+        """
+        lotlar = [lot for lot in self.lotlar.all() if lot.durum != "iptal"]
+        biten = [lot for lot in lotlar if lot.durum == "tamamlandi"]
+        uretilen_m2 = sum((lot.mevcut_m2 or SIFIR for lot in biten), SIFIR)
+        if self.toplam_m2:
+            yuzde = min(100, round(uretilen_m2 / self.toplam_m2 * 100))
+        elif lotlar:
+            yuzde = round(len(biten) / len(lotlar) * 100)
+        else:
+            yuzde = 0
+
+        dagilim = {}
+        for lot in lotlar:
+            if lot.durum == "tamamlandi":
+                etiket = "Bitti"
+            elif lot.son_asama is None:
+                etiket = "Başlamadı"
+            elif lot.durum == "islemde":
+                etiket = lot.son_asama.ad
+            else:
+                etiket = f"{lot.son_asama.ad} bitti"
+            dagilim[etiket] = dagilim.get(etiket, 0) + 1
+        return {
+            "yuzde": yuzde,
+            "lot_sayisi": len(lotlar),
+            "biten_lot": len(biten),
+            "uretilen_m2": uretilen_m2,
+            "dagilim": sorted(dagilim.items(), key=lambda x: x[0] == "Bitti"),
+        }
+
 
 # --- Üretim -------------------------------------------------------------------
 
@@ -251,6 +294,9 @@ class UretimLotu(models.Model):
         if self.mevcut_m2 is None:
             self.mevcut_m2 = self.baslangic_m2
         super().save(*args, **kwargs)
+        # Tamamlanmış bir siparişe bitmemiş lot eklenirse sipariş yeniden üretime döner.
+        if self.siparis_id and self.durum not in ("tamamlandi", "iptal"):
+            Siparis.objects.filter(pk=self.siparis_id, durum="tamamlandi").update(durum="uretimde")
 
     @property
     def siradaki_asama(self):

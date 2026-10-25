@@ -4,11 +4,11 @@ import tempfile
 from pathlib import Path
 
 from django.contrib import messages
-from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
 from .excel_aktar import SAYFALAR, ice_aktar, sablon_olustur
+from .yedek import sadece_yonetici
 
 AZAMI_BOYUT = 5 * 1024 * 1024
 GECICI_KLASOR = Path(tempfile.gettempdir()) / "uretim_aktarim"
@@ -21,7 +21,7 @@ def _gecici_yol(anahtar):
     return GECICI_KLASOR / f"{anahtar}.xlsx"
 
 
-@staff_member_required
+@sadece_yonetici
 def sablon_indir(request):
     yanit = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     yanit["Content-Disposition"] = 'attachment; filename="uretim_aktarim_sablonu.xlsx"'
@@ -29,7 +29,7 @@ def sablon_indir(request):
     return yanit
 
 
-@staff_member_required
+@sadece_yonetici
 def excel_aktar(request):
     baglam = {"sayfalar": SAYFALAR}
 

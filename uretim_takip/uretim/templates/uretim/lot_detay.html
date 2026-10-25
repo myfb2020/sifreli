@@ -19,7 +19,7 @@
       <tr><th>Ham deri lotu</th><td>{{ lot.ham_deri.lot_no }} ({{ lot.ham_deri.tarih|date:"d.m.Y" }})</td></tr>
       <tr><th>Tedarikçi</th><td>{{ lot.ham_deri.tedarikci }}</td></tr>
       <tr><th>Deri türü / kalite</th><td>{{ lot.ham_deri.deri_turu }} / {{ lot.ham_deri.get_kalite_display }}</td></tr>
-      <tr><th>Sipariş</th><td>{% if lot.siparis %}{{ lot.siparis.siparis_no }} – {{ lot.siparis.musteri }}<br>
+      <tr><th>Sipariş</th><td>{% if lot.siparis %}<a href="{% url 'siparis_detay' lot.siparis.pk %}">{{ lot.siparis.siparis_no }}</a> – {{ lot.siparis.musteri }}<br>
         <span class="soluk">{{ lot.siparis.urun }} · teslim {{ lot.siparis.teslim_tarihi|date:"d.m.Y" }}</span>{% else %}–{% endif %}</td></tr>
     </table>
   </div>

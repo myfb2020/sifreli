@@ -71,6 +71,26 @@
     .etiket-bilgi { font-size:13px; line-height:1.4; }
     .etiket-no { font-size:20px; font-weight:700; margin-bottom:2px; }
     .kur-bandi { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .ilerleme { height:10px; background:#eee5dc; border-radius:999px; overflow:hidden; }
+    .ilerleme-dolu { height:100%; background:var(--ana); border-radius:999px; }
+    .ilerleme-dolu.tam { background:var(--yesil); }
+    .dagilim { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .siparis-izgara { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); }
+    .siparis-kart { display:block; color:inherit; text-decoration:none; margin:0; }
+    .siparis-kart:hover { border-color:var(--ana); }
+    .siparis-kart.gecikmis { border-left:4px solid var(--kirmizi); }
+    .siparis-ust { display:flex; justify-content:space-between; gap:8px; }
+    .siparis-no { font-size:13px; color:var(--soluk); }
+    .teslim { text-align:right; font-weight:600; }
+    .uyari-sari { color:var(--sari); }
+    .sekmeler { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:12px; border-bottom:1px solid var(--cizgi); }
+    .sekme { padding:8px 14px; color:var(--soluk); text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-1px; }
+    .sekme.secili { color:var(--ana); border-bottom-color:var(--ana); font-weight:600; }
+    @media (max-width: 760px) {
+      header { flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; gap:14px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+      header::-webkit-scrollbar { display:none; }
+      header .marka { margin-right:8px; }
+    }
     @media print {
       header, .yazdirma-gizle, .mesaj { display:none !important; }
       body, main { background:#fff; padding:0; margin:0; max-width:none; }
@@ -86,10 +106,11 @@
   <a href="{% url 'pano' %}">Pano</a>
   <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a href="{% url 'islem_baslat' %}">İşlem Başlat</a>
+  <a href="{% url 'siparis_listesi' %}">Siparişler</a>
   <a href="{% url 'lot_listesi' %}">Lotlar</a>
   <a href="{% url 'rapor' %}">Raporlar</a>
-  {% if user.is_staff %}<a href="{% url 'admin:index' %}">Yönetim</a>
-  <a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
+  {% if user.is_staff %}<a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
+  {% if user.is_superuser %}<a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
   <a href="{% url 'yedek_indir' %}" title="Veritabanının yedeğini indir">💾 Yedek</a>{% endif %}
   <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Çıkış</button></form>
 </header>

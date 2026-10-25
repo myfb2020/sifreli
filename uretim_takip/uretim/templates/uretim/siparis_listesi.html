@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block baslik %}Siparişler{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">Siparişler</h1>
+  {% if perms.uretim.add_siparis %}<a class="btn" href="{% url 'siparis_yeni' %}">+ Yeni sipariş</a>{% endif %}
+</div>
+
+<div class="sekmeler">
+  {% for kod, ad in sekmeler %}<a class="sekme{% if sekme == kod %} secili{% endif %}" href="?durum={{ kod }}">{{ ad }}</a>{% endfor %}
+</div>
+<form class="filtre" method="get">
+  <input type="hidden" name="durum" value="{{ sekme }}">
+  <input name="ara" value="{{ ara }}" placeholder="Sipariş no, müşteri veya ürün">
+  <button class="btn kucuk" type="submit">Ara</button>
+</form>
+
+{% if geciken %}<div class="mesaj error">⚠️ {{ geciken }} sipariş teslim tarihini geçti.</div>{% endif %}
+
+<div class="siparis-izgara">
+  {% for siparis, i in satirlar %}
+  <a class="kart siparis-kart{% if siparis.gecikti_mi %} gecikmis{% endif %}" href="{% url 'siparis_detay' siparis.pk %}">
+    <div class="siparis-ust">
+      <div>
+        <div class="siparis-no">{{ siparis.siparis_no }}</div>
+        <div><b>{{ siparis.musteri }}</b></div>
+      </div>
+      <div class="teslim">
+        {% if siparis.durum == "acik" or siparis.durum == "uretimde" %}
+          {% if siparis.gecikti_mi %}<span class="uyari">{{ siparis.gecikme_gun }} gün gecikti</span>
+          {% elif siparis.kalan_gun == 0 %}<span class="uyari">Bugün teslim</span>
+          {% else %}<span{% if siparis.kalan_gun <= 3 %} class="uyari-sari"{% endif %}>{{ siparis.kalan_gun }} gün kaldı</span>{% endif %}
+        {% else %}<span class="rozet {{ siparis.durum }}">{{ siparis.get_durum_display }}</span>{% endif %}
+        <div class="soluk">Teslim {{ siparis.teslim_tarihi|date:"d.m.Y" }}</div>
+      </div>
+    </div>
+    <div class="soluk" style="margin:6px 0 10px">{{ siparis.urun }}{% if siparis.adet > 1 %} · {{ siparis.adet }} adet{% endif %}</div>
+    {% include "uretim/_ilerleme.html" %}
+  </a>
+  {% empty %}
+  <div class="kart soluk">Bu listede sipariş yok.</div>
+  {% endfor %}
+</div>
+{% endblock %}

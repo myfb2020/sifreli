@@ -49,6 +49,29 @@ Giriş bilgileri: `yonetici / yonetici123` (yönetim) ve `tablet / tablet123` (�
 2. **Tablet** (ortak hesapla açık kalır): çalışan işe başlarken **İşlem Başlat**'a basar, iş bitince panodan **Bitir**'e basar.
 3. **Yönetici:** **Raporlar** sayfasından kimin ne yaptığını ve fireyi görür, gerekirse Excel'e aktarır.
 
+## Siparişler
+
+Üst menüdeki **Siparişler** sayfası her siparişi bir kartta gösterir:
+- **İlerleme çubuğu:** Toplam m² girildiyse biten lotların m²'sine göre, girilmediyse biten lot sayısına göre hesaplanır.
+- **Lotların dağılımı:** Lotlar aşamalara göre gruplanır, örneğin "2 × Kesim · 1 × Bitti".
+- **Teslime kalan gün:** Gecikenler kırmızı kenarlıkla en üstte görünür.
+- **Sekmeler:** Devam eden, tamamlanan, sevk edilen, iptal edilen. Sipariş no, müşteri veya ürüne göre arama yapılabilir.
+
+Sipariş detayında siparişe bağlı lotlar listelenir. Buradan **"Bu siparişe lot ekle"** ve **"Sevk edildi"** işlemleri yapılır.
+Sipariş durumu kendiliğinden ilerler:
+- ilk işlem başlayınca **Üretimde**,
+- bütün lotlar bitince **Tamamlandı**,
+- tamamlanmış bir siparişe yeni lot eklenince yeniden **Üretimde**.
+
+**"+ Yeni sipariş"** formu yönetim paneline girmeden kullanılır. Müşteri listede yoksa adı yazılır, sistem otomatik ekler.
+
+### Ofis çalışanı için hesap
+Siparişleri girecek kişiye yönetici şifresini vermek yerine ayrı bir hesap açın:
+1. **Yönetim → Kullanıcılar → Ekle** ile kullanıcı adı (ör. `ofis`) ve şifre belirleyip kaydedin.
+2. Açılan sayfada **Personel durumu** (staff) kutusunu işaretleyin. Bu, yönetim paneline girebilmesi için gerekir. **Süper kullanıcı durumu**nu işaretlemeyin.
+3. **Kullanıcı izinleri** listesinden şunları seçip sağa aktarın: *sipariş* (ekle, değiştir, görüntüle), *müşteri* (ekle, değiştir, görüntüle), *üretim lotu* (ekle, değiştir, görüntüle), *ham deri girişi* (ekle, değiştir, görüntüle).
+4. Kaydedin. Bu hesap sipariş, müşteri, lot ve ham deri girebilir. Personel PIN'lerine, yedeğe ve Excel aktarmaya erişemez.
+
 ## Mevcut Excel verilerini aktarma
 
 Yönetici hesabıyla üst menüden **📥 Excel'den aktar** sayfasına girin:

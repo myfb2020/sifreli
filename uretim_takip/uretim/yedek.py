@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from django.conf import settings
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 from django.http import FileResponse
 from django.utils import timezone
 
@@ -31,7 +31,12 @@ def dosya_adi():
     return f"uretim_yedek_{timezone.localtime():%Y-%m-%d_%H%M}.sqlite3"
 
 
-@staff_member_required
+def sadece_yonetici(gorunum):
+    """Yalnızca süper kullanıcı (yönetici): tüm veriler ve personel PIN'leri bu sayfalardan geçer."""
+    return user_passes_test(lambda u: u.is_active and u.is_superuser, login_url="admin:login")(gorunum)
+
+
+@sadece_yonetici
 def yedek_indir(request):
     gecici = tempfile.NamedTemporaryFile(suffix=".sqlite3", delete=False)
     gecici.close()

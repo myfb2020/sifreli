@@ -1,0 +1,11 @@
+<div class="ilerleme" title="%{{ i.yuzde }}"><div class="ilerleme-dolu{% if i.yuzde >= 100 %} tam{% endif %}" style="width:{{ i.yuzde }}%"></div></div>
+<div class="soluk" style="margin-top:4px">
+  <b>%{{ i.yuzde }}</b>
+  {% if siparis.toplam_m2 %} · {{ i.uretilen_m2|floatformat:"-2" }} / {{ siparis.toplam_m2|floatformat:"-2" }} m²{% endif %}
+  · {{ i.biten_lot }}/{{ i.lot_sayisi }} lot bitti
+</div>
+{% if i.dagilim %}
+<div class="dagilim">{% for etiket, sayi in i.dagilim %}<span class="rozet {% if etiket == 'Bitti' %}tamamlandi{% elif etiket == 'Başlamadı' %}{% elif 'bitti' in etiket %}bekliyor{% else %}islemde{% endif %}">{{ sayi }} × {{ etiket }}</span> {% endfor %}</div>
+{% elif not i.lot_sayisi %}
+<div class="soluk">Henüz lot ayrılmadı</div>
+{% endif %}

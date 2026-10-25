@@ -56,17 +56,17 @@
   </div>
 
   <div class="kart">
-    <h2>Siparişler</h2>
+    <h2 style="display:flex;justify-content:space-between">Siparişler <a href="{% url 'siparis_listesi' %}" style="font-size:14px;font-weight:normal">Tümü →</a></h2>
     {% if geciken_siparisler %}
       <p class="uyari">Geciken siparişler</p>
       <table>{% for s in geciken_siparisler %}
-        <tr><td>{{ s.siparis_no }}</td><td>{{ s.musteri }}</td><td class="uyari">{{ s.teslim_tarihi|date:"d.m.Y" }}</td></tr>
+        <tr><td><a href="{% url 'siparis_detay' s.pk %}">{{ s.siparis_no }}</a></td><td>{{ s.musteri }}</td><td class="uyari">{{ s.teslim_tarihi|date:"d.m.Y" }}</td></tr>
       {% endfor %}</table>
     {% endif %}
     <p><b>Önümüzdeki 7 gün teslim</b></p>
     {% if yaklasan_siparisler %}
       <table>{% for s in yaklasan_siparisler %}
-        <tr><td>{{ s.siparis_no }}</td><td>{{ s.musteri }}</td><td>{{ s.urun }}</td><td>{{ s.teslim_tarihi|date:"d.m.Y" }}</td></tr>
+        <tr><td><a href="{% url 'siparis_detay' s.pk %}">{{ s.siparis_no }}</a></td><td>{{ s.musteri }}</td><td>{{ s.urun }}</td><td>{{ s.teslim_tarihi|date:"d.m.Y" }}</td></tr>
       {% endfor %}</table>
     {% else %}<p class="soluk">Yaklaşan teslim yok.</p>{% endif %}
   </div>
