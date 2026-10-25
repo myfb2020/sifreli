@@ -89,6 +89,7 @@
   <a href="{% url 'lot_listesi' %}">Lotlar</a>
   <a href="{% url 'rapor' %}">Raporlar</a>
   {% if user.is_staff %}<a href="{% url 'admin:index' %}">Yönetim</a>
+  <a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
   <a href="{% url 'yedek_indir' %}" title="Veritabanının yedeğini indir">💾 Yedek</a>{% endif %}
   <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Çıkış</button></form>
 </header>

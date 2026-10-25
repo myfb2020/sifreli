@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import pwa, qr, views, yedek
+from . import aktarim_views, pwa, qr, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -17,4 +17,6 @@ urlpatterns = [
     path("sw.js", pwa.service_worker, name="service_worker"),
     path("cevrimdisi/", pwa.cevrimdisi, name="cevrimdisi"),
     path("yedek/", yedek.yedek_indir, name="yedek_indir"),
+    path("aktar/", aktarim_views.excel_aktar, name="excel_aktar"),
+    path("aktar/sablon/", aktarim_views.sablon_indir, name="sablon_indir"),
 ]

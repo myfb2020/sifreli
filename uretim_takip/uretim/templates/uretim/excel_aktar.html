@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block baslik %}Excel'den Aktar{% endblock %}
+{% block icerik %}
+<h1>📥 Excel'den Veri Aktarma</h1>
+
+{% if rapor %}
+<div class="kart">
+  {% if rapor.kaydedildi %}
+    <h2>✅ Kaydedildi</h2>
+  {% elif onizleme and not rapor.hatalar %}
+    <h2>Önizleme – henüz hiçbir şey kaydedilmedi</h2>
+  {% else %}
+    <h2>⚠️ Dosyada düzeltilmesi gereken satırlar var</h2>
+    <p>Hatalı satır olduğu sürece <b>hiçbir kayıt kaydedilmez</b>. Excel'de düzeltip dosyayı tekrar yükleyin.</p>
+  {% endif %}
+  <p class="soluk">Dosya: {{ dosya_adi }}{% if rapor.bulunan_sayfalar %} · Okunan sayfalar: {{ rapor.bulunan_sayfalar|join:", " }}{% endif %}</p>
+
+  {% if rapor.eklenen or rapor.guncellenen %}
+  <table style="max-width:520px">
+    <tr><th>Sayfa</th><th class="sayi">Yeni</th><th class="sayi">Güncellenen</th></tr>
+    {% for ad, yeni, guncel in rapor.ozet %}
+      <tr><td>{{ ad }}</td><td class="sayi">{{ yeni }}</td><td class="sayi">{{ guncel }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if rapor.yeni_tanimlar %}
+  <p><b>Sistemde olmayıp otomatik eklenecek tanımlar</b> <span class="soluk">(yazım hatası olup olmadığını kontrol edin)</span>:</p>
+  <ul>{% for t in rapor.yeni_tanimlar %}<li>{{ t }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if rapor.uyarilar %}
+  <p><b>Uyarılar</b> <span class="soluk">(kaydı engellemez)</span>:</p>
+  <ul>{% for u in rapor.uyarilar %}<li>{{ u }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if rapor.hatalar %}
+  <div class="tablo-kap"><table>
+    <tr><th>Sayfa</th><th>Satır</th><th>Hata</th></tr>
+    {% for sayfa, satir, hata in rapor.hatalar %}
+    <tr><td>{{ sayfa }}</td><td>{{ satir }}</td><td class="uyari">{{ hata }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+
+  {% if onizleme and not rapor.hatalar and rapor.toplam %}
+  <form method="post" style="margin-top:16px">
+    {% csrf_token %}
+    <button class="btn buyuk" name="onayla" value="1" type="submit">✔ {{ rapor.toplam }} kaydı kaydet</button>
+    <a class="btn ikincil" href="{% url 'excel_aktar' %}">Vazgeç</a>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="izgara">
+  <div class="kart">
+    <h2>1. Şablonu indirin</h2>
+    <p>Şablonda <b>Personel, Tedarikçiler, Müşteriler, Ham Deri, Siparişler</b> ve <b>Üretim Lotları</b> sayfaları vardır.
+       Mevcut Excel'inizdeki verileri ilgili sütunlara kopyalayıp yapıştırın. Kullanmadığınız sayfaları boş bırakın.</p>
+    <a class="btn" href="{% url 'sablon_indir' %}">⬇ Şablonu indir</a>
+  </div>
+  <div class="kart">
+    <h2>2. Dosyayı yükleyin</h2>
+    <form method="post" enctype="multipart/form-data" class="dikey">
+      {% csrf_token %}
+      <p><input type="file" name="dosya" accept=".xlsx,.xlsm" required></p>
+      <button class="btn" type="submit">Önizle</button>
+    </form>
+    <p class="soluk">Önce önizleme gösterilir; siz onaylamadan hiçbir şey kaydedilmez. Aynı dosyayı tekrar yüklemek kayıtları çoğaltmaz, günceller.</p>
+  </div>
+</div>
+
+<div class="kart tablo-kap">
+  <h2>Sütunlar</h2>
+  <p class="soluk"><b>Kalın</b> sütunlar zorunludur. Başlık adları büyük/küçük harf ve Türkçe karakter farkına duyarlı değildir (“m2” = “m²”).</p>
+  <table>
+    <tr><th>Sayfa</th><th>Sütunlar</th></tr>
+    {% for s in sayfalar %}
+    <tr><td><b>{{ s.ad }}</b><br><span class="soluk">{{ s.aciklama }}</span></td>
+        <td>{% for c in s.sutunlar %}{% if c.zorunlu %}<b>{{ c.baslik }}</b>{% else %}{{ c.baslik }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -49,6 +49,22 @@ Giriş bilgileri: `yonetici / yonetici123` (yönetim) ve `tablet / tablet123` (�
 2. **Tablet** (ortak hesapla açık kalır): çalışan işe başlarken **İşlem Başlat**'a basar, iş bitince panodan **Bitir**'e basar.
 3. **Yönetici:** **Raporlar** sayfasından kimin ne yaptığını ve fireyi görür, gerekirse Excel'e aktarır.
 
+## Mevcut Excel verilerini aktarma
+
+Yönetici hesabıyla üst menüden **📥 Excel'den aktar** sayfasına girin:
+
+1. **Şablonu indirin.** Şablonda *Personel, Tedarikçiler, Müşteriler, Ham Deri, Siparişler* ve *Üretim Lotları* sayfaları ve her sütunun açıklaması bulunur.
+2. Mevcut Excel'inizdeki verileri ilgili sütunlara **kopyalayıp yapıştırın**. Kullanmadığınız sayfaları boş bırakın.
+3. Dosyayı yükleyin. Sistem önce bir **önizleme** gösterir: kaç kayıt eklenecek ya da güncellenecek, hangi tedarikçi, müşteri veya deri türü yeni tanımlanacak, hangi satırda ne hata var.
+4. Hata yoksa **Kaydet**'e basın. Tek bir hatalı satır bile varsa **hiçbir şey kaydedilmez**. Excel'de düzeltip tekrar yükleyin.
+
+İpuçları:
+- Eski lot ve sipariş numaralarınızı yazarsanız aynen korunur. Boş bırakırsanız sistem numara verir.
+- Aynı dosya tekrar yüklenirse kayıtlar çoğalmaz. Lot No, Sipariş No veya ad eşleşen kayıtlar güncellenir.
+- Sayılar `12,5`, `12.5` ya da `1.250,75` biçiminde, tarihler `25.10.2026` biçiminde yazılabilir.
+- Excel `0123` gibi PIN'lerin baştaki sıfırını silebilir. PIN sütununu **Metin** biçimine çevirin.
+- Eski `.xls` dosyalarını önce **Farklı Kaydet → .xlsx** ile kaydedin.
+
 ## Telefon uygulaması ve QR etiketler
 
 **Telefona kurma:** Android'de Chrome ile sistemi açın. Üstte çıkan **"Uygulamayı yükle"** butonuna ya da menüdeki **"Ana ekrana ekle"**ye dokunun.
@@ -96,4 +112,3 @@ python manage.py test uretim
 - Bir üretim lotunun birden fazla ham deri lotundan oluşabilmesi
 - Kimyasal ve malzeme stoğu
 - Kalite kontrol hata türleri, yeniden işleme
-- Mevcut Excel verilerinin içe aktarılması

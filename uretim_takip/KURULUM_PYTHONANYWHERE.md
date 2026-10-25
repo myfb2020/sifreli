@@ -96,7 +96,7 @@ application = get_wsgi_application()
 1. **Kullanıcılar → Ekle:** Tabletler ve telefonlar için ortak bir hesap açın (ör. `tablet`). Bu hesaba "personel durumu" (staff) **vermeyin**.
 2. **Personel:** 15 çalışanı ekleyin ve her birine 4-6 haneli bir **PIN** verin.
 3. **Aşamalar:** Varsayılan aşamaları kendi akışınıza göre düzenleyin.
-4. **Tedarikçiler, müşteriler, deri türleri** → sonra **ham deri girişleri, siparişler, üretim lotları**.
+4. **Mevcut Excel verileriniz için:** üst menüden **📥 Excel'den aktar** → **Şablonu indir** → verileri yapıştırın → yükleyin → önizlemeyi kontrol edip **Kaydet**'e basın. Personeli PIN'leriyle birlikte buradan da toplu ekleyebilirsiniz. Ayrıntılar README'de.
 5. **Lotlar** sayfasından **🏷 etiketleri** yazdırın.
 
 Telefonlarda adresi açıp `tablet` hesabıyla girin, sonra **"Uygulamayı yükle"** ya da iPhone'da **Paylaş → Ana Ekrana Ekle** deyin.

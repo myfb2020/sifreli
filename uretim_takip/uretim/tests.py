@@ -269,3 +269,156 @@ class YedekTesti(TestCase):
             yedekler = sorted(hedef.glob("uretim_yedek_*.sqlite3"))
             self.assertEqual(len(yedekler), 2)
             self.assertEqual(sqlite3.connect(yedekler[-1]).execute("select x from t").fetchone(), (42,))
+
+
+class ExcelAktarimTesti(TestCase):
+    def doldur(self, sayfalar):
+        """Şablonu oluşturur, verilen sayfalara satır ekler ve dosya nesnesi döner."""
+        import io
+
+        from .excel_aktar import sablon_olustur
+
+        kitap = sablon_olustur()
+        for ad, satirlar in sayfalar.items():
+            for satir in satirlar:
+                kitap[ad].append(satir)
+        tampon = io.BytesIO()
+        kitap.save(tampon)
+        tampon.seek(0)
+        return tampon
+
+    def tam_dosya(self):
+        return self.doldur({
+            "Personel": [["Ahmet Yılmaz", "1234", "Kesim", "Evet"], ["Ayşe Demir", "0789", "", ""]],
+            "Tedarikçiler": [["Anadolu Deri", "0532 111", ""]],
+            "Ham Deri": [["HD-ESKI-1", "01.10.2026", "Anadolu Deri", "Kuzu", "A", 200, "640", "110,5", ""],
+                         ["", "2026-10-02", "Yeni Tedarikçi", "Merinos", "Karışık", "", "1.250,75", 90, ""]],
+            "Siparişler": [["SP-ESKI-7", "Örnek Mobilya", "05.10.2026", "200x300 halı", "Kuzu", 4, 24,
+                            "30.10.2026", "Üretimde", ""]],
+            "Üretim Lotları": [["L-15", "hd-eski-1", "SP-ESKI-7", 320, 55, 284, "50,5", "Tabaklama", "", ""],
+                               ["", "HD-ESKI-1", "", 100, 20, "", "", "", "", ""]],
+        })
+
+    def test_onizleme_hicbir_sey_kaydetmez(self):
+        from .excel_aktar import ice_aktar
+
+        rapor = ice_aktar(self.tam_dosya(), kaydet=False)
+        self.assertEqual(rapor.hatalar, [])
+        self.assertEqual(rapor.toplam, 8)
+        self.assertFalse(rapor.kaydedildi)
+        self.assertFalse(Personel.objects.exists())
+        self.assertFalse(UretimLotu.objects.exists())
+        self.assertIn("Tedarikçi: Yeni Tedarikçi", rapor.yeni_tanimlar)
+        self.assertIn("Deri türü: Merinos", rapor.yeni_tanimlar)
+
+    def test_kaydet_ve_tekrar_yukleme_cogaltmaz(self):
+        from .excel_aktar import ice_aktar
+
+        rapor = ice_aktar(self.tam_dosya(), kaydet=True)
+        self.assertTrue(rapor.kaydedildi, rapor.hatalar)
+        self.assertTrue(Personel.objects.get(ad_soyad="Ayşe Demir").pin_dogru_mu("0789"))
+        hd = HamDeriGirisi.objects.get(lot_no="HD-ESKI-1")
+        self.assertEqual((hd.kg, hd.m2), (Decimal("640.00"), Decimal("110.50")))
+        otomatik = HamDeriGirisi.objects.exclude(lot_no="HD-ESKI-1").get()
+        self.assertEqual(otomatik.kg, Decimal("1250.75"))
+        self.assertTrue(otomatik.lot_no.startswith("HD-"))
+        lot = UretimLotu.objects.get(lot_no="L-15")
+        self.assertEqual(lot.son_asama.ad, "Tabaklama")
+        self.assertEqual(lot.durum, "bekliyor")
+        self.assertEqual(lot.mevcut_m2, Decimal("50.50"))
+        self.assertEqual(lot.siparis.siparis_no, "SP-ESKI-7")
+        self.assertEqual(Siparis.objects.get().durum, "uretimde")
+        # Mevcut kayıtlar güncellenir; numarasız satırlar (otomatik numara) yeniden eklenir.
+        ikinci = ice_aktar(self.tam_dosya(), kaydet=True)
+        self.assertTrue(ikinci.kaydedildi, ikinci.hatalar)
+        self.assertEqual(Personel.objects.count(), 2)
+        self.assertEqual(ikinci.guncellenen["Personel"], 2)
+        self.assertEqual(UretimLotu.objects.filter(lot_no="L-15").count(), 1)
+
+    def test_hatali_satir_varsa_hicbiri_kaydedilmez(self):
+        from .excel_aktar import ice_aktar
+
+        dosya = self.doldur({
+            "Personel": [["Ali", "12", "", ""], ["Veli", "5678", "", ""], ["Can", "", "", ""]],
+            "Ham Deri": [["", "", "T", "Kuzu", "", "", "abc", "5", ""],
+                         ["", "32.13.2026", "T", "Kuzu", "", "", "5", "5", ""],
+                         ["", "", "T", "Kuzu", "Z", "", "5", "5", ""],
+                         ["", "", "T", "Kuzu", "", "", "5", "-5", ""]],
+            "Üretim Lotları": [["", "YOK-1", "", 1, 1, "", "", "Uçurma", "", ""]],
+        })
+        rapor = ice_aktar(dosya, kaydet=True)
+        self.assertFalse(rapor.kaydedildi)
+        self.assertFalse(Personel.objects.filter(ad_soyad="Veli").exists())
+        mesajlar = " | ".join(h[2] for h in rapor.hatalar)
+        self.assertIn("PIN 4-6 haneli", mesajlar)
+        self.assertIn("Yeni personel için PIN zorunlu", mesajlar)
+        self.assertIn("“Kg” sayı olmalı", mesajlar)
+        self.assertIn("“Tarih” tarih olmalı", mesajlar)
+        self.assertIn("“Kalite” şunlardan biri olmalı", mesajlar)
+        self.assertIn("“m²” negatif olamaz", mesajlar)
+        self.assertIn("YOK-1", mesajlar)
+        satirlar = {(h[0], h[1]) for h in rapor.hatalar}
+        self.assertIn(("Personel", 2), satirlar)
+        self.assertIn(("Personel", 4), satirlar)
+
+    def test_pin_bastaki_sifir_ipucu(self):
+        from .excel_aktar import ice_aktar
+
+        rapor = ice_aktar(self.doldur({"Personel": [["Ali", 123, "", ""]]}))
+        self.assertIn("baştaki sıfırı", rapor.hatalar[0][2])
+
+    def test_farkli_baslik_yazimi_ve_sayfa_adi(self):
+        import io
+
+        from openpyxl import Workbook
+
+        from .excel_aktar import ice_aktar
+
+        kitap = Workbook()
+        ws = kitap.active
+        ws.title = "TEDARIKCI"
+        ws.append(["Tedarikçi Listesi"])  # başlıktan önce açıklama satırı
+        ws.append(["AD", "telefon", "Fazladan Sütun"])
+        ws.append(["Deri A.Ş.", 5321112233, "x"])
+        tampon = io.BytesIO()
+        kitap.save(tampon)
+        tampon.seek(0)
+        rapor = ice_aktar(tampon, kaydet=True)
+        self.assertTrue(rapor.kaydedildi, rapor.hatalar)
+        self.assertEqual(Tedarikci.objects.get().telefon, "5321112233")
+        self.assertTrue(any("Fazladan Sütun" in u for u in rapor.uyarilar))
+
+    def test_bozuk_dosya(self):
+        import io
+
+        from .excel_aktar import ice_aktar
+
+        rapor = ice_aktar(io.BytesIO(b"bu bir excel degil"))
+        self.assertIn("okunamadı", rapor.hatalar[0][2])
+
+    def test_ekran_onizle_ve_onayla(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        yonetici = get_user_model().objects.create_superuser("y", password="x")
+        self.client.force_login(yonetici)
+        self.assertEqual(self.client.get(reverse("sablon_indir")).status_code, 200)
+        dosya = SimpleUploadedFile("veri.xlsx", self.tam_dosya().read())
+        yanit = self.client.post(reverse("excel_aktar"), {"dosya": dosya})
+        self.assertContains(yanit, "Önizleme")
+        self.assertContains(yanit, "8 kaydı kaydet")
+        self.assertFalse(Personel.objects.exists())
+        yanit = self.client.post(reverse("excel_aktar"), {"onayla": "1"})
+        self.assertContains(yanit, "Kaydedildi")
+        self.assertEqual(Personel.objects.count(), 2)
+        # Aynı onay ikinci kez gönderilirse dosya artık yoktur
+        yanit = self.client.post(reverse("excel_aktar"), {"onayla": "1"}, follow=True)
+        self.assertContains(yanit, "tekrar yükleyin")
+
+    def test_xls_reddedilir_ve_tablet_erisemez(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+        self.assertEqual(self.client.get(reverse("excel_aktar")).status_code, 302)
+        self.client.force_login(get_user_model().objects.create_superuser("y", password="x"))
+        yanit = self.client.post(reverse("excel_aktar"), {"dosya": SimpleUploadedFile("eski.xls", b"x")})
+        self.assertContains(yanit, "Farklı Kaydet")

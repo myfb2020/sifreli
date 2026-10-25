@@ -41,7 +41,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
-# Canlı ortam (DJANGO_DEBUG=0): HTTPS arkasında güvenli çerezler.
+# Canlı ortam (DJANGO_DEBUG=0): HTTPS arkasında güvenli çerezler, statik dosyalar WhiteNoise ile.
 if not DEBUG:
     if SECRET_KEY == GELISTIRME_ANAHTARI:
         raise ImproperlyConfigured("Canlı ortamda DJANGO_SECRET_KEY ortam değişkeni ayarlanmalı.")
@@ -65,7 +65,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -135,6 +134,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+
+if not DEBUG:
+    MIDDLEWARE.insert(MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+                      "whitenoise.middleware.WhiteNoiseMiddleware")
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
