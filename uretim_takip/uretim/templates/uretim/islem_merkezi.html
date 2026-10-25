@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}İşlem Başlat{% endblock %}
+{% block icerik %}
+<div style="max-width:640px;margin:0 auto">
+  <h1>İşlem Başlat</h1>
+  <a class="kart secim-karti" href="{% url 'yeni_is' %}">
+    <span class="secim-ikon">🆕</span>
+    <span><b>Yeni iş başlat</b><br><span class="soluk">Bir sipariş için stoktan malzeme alıp işe başlayın. Stok etiketlerini okutursunuz.</span></span>
+  </a>
+  <a class="kart secim-karti" href="{% url 'qr_tara' %}">
+    <span class="secim-ikon">📷</span>
+    <span><b>Malın etiketini okut</b><br><span class="soluk">Üzerinde çalışılan malın stok etiketini okutun; işe devam edin ya da bitirin.</span></span>
+  </a>
+
+  <div class="kart">
+    <h2>Sıradaki aşamayı bekleyen işler ({{ bekleyen|length }})</h2>
+    {% for lot in bekleyen %}
+    <a class="bekleyen-is" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">
+      <span><b>{{ lot.lot_no }}</b>{% if lot.siparis %} · {{ lot.siparis.musteri }}{% endif %}<br>
+        <span class="soluk">{{ lot.son_asama.ad }} bitti → sıradaki: <b>{{ lot.siradaki_asama.ad|default:"–" }}</b></span></span>
+      <span class="btn kucuk">▶</span>
+    </a>
+    {% empty %}
+    <p class="soluk">Bekleyen iş yok.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block baslik %}{{ malzeme.ad }}{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px"><a href="{% url 'malzeme_listesi' %}">← Malzemeler</a></p>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+  <h1 style="margin:0;margin-right:auto">{{ malzeme.ad }}</h1>
+  {% if perms.uretim.add_malzemehareketi %}
+  <a class="btn" href="{% url 'malzeme_giris' %}?malzeme={{ malzeme.pk }}">+ Giriş</a>
+  <a class="btn ikincil" href="{% url 'malzeme_duzelt' malzeme.pk %}">Düzeltme (sayım / fire)</a>
+  {% endif %}
+  <a class="btn ikincil" href="{% url 'etiketler' %}?malzeme={{ malzeme.pk }}">🏷 Etiket bas</a>
+  {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_malzeme_change' malzeme.pk %}">Düzenle</a>{% endif %}
+</div>
+<div class="kart">
+  <div style="font-size:28px"><b class="{% if malzeme.azaldi_mi %}uyari{% endif %}">{{ malzeme.stok|floatformat:"-2" }} {{ malzeme.get_birim_display }}</b></div>
+  <div class="soluk">{{ malzeme.kod }} · {{ malzeme.get_kategori_display }}{% if malzeme.min_stok is not None %} · en az stok {{ malzeme.min_stok|floatformat:"-2" }} {{ malzeme.get_birim_display }}{% endif %}</div>
+  {% if malzeme.azaldi_mi %}<p class="uyari">⚠️ Stok en az stok sınırının altında, sipariş verin.</p>{% endif %}
+</div>
+<div class="kart tablo-kap">
+  <h2>Hareketler</h2>
+  <table>
+    <tr><th>Tarih</th><th>Tür</th><th class="sayi">Miktar</th><th>Kim / nerede</th><th>Açıklama</th></tr>
+    {% for h in hareketler %}
+    <tr>
+      <td>{{ h.tarih|date:"d.m.Y H:i" }}</td>
+      <td>{{ h.get_tur_display }}</td>
+      <td class="sayi {% if h.miktar < 0 %}uyari{% endif %}">{% if h.miktar > 0 %}+{% endif %}{{ h.miktar|floatformat:"-2" }}</td>
+      <td>{% if h.islem %}{{ h.personel|default:"" }} · <a href="{% url 'lot_detay' h.islem.lot_id %}">{{ h.islem.lot }}</a> / {{ h.islem.asama.ad }}
+          {% elif h.kullanici %}{{ h.kullanici }}{% endif %}{% if h.tedarikci %} · {{ h.tedarikci }}{% endif %}</td>
+      <td>{{ h.aciklama }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="soluk">Henüz hareket yok.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+  <h1 style="margin:0;margin-right:auto">Üretim Panosu</h1>
+  {% if not user.is_staff or user.is_superuser %}
+  <a class="btn buyuk" href="{% url 'istasyon_secimi' %}">🏭 İstasyon ekranım</a>
+  <a class="btn buyuk ikincil" href="{% url 'qr_tara' %}">📷 QR Okut</a>
+  <a class="btn buyuk ikincil" href="{% url 'islem_merkezi' %}">▶ İşlem Başlat</a>
+  {% endif %}
+  {% if perms.uretim.add_siparis and user.is_staff and not user.is_superuser %}
+  <a class="btn buyuk" href="{% url 'siparis_yeni' %}">+ Yeni sipariş</a>
+  {% endif %}
+</div>
+
+{% if gecikmeler or azalan_stoklar %}
+<div class="izgara">
+  {% if gecikmeler %}
+  <div class="kart uyari-karti">
+    <h2>⏰ Süre sınırını aşan işler ({{ gecikmeler|length }})</h2>
+    <table>
+      {% for k in gecikmeler %}
+      <tr>
+        <td><a href="{% url 'istasyon_ekrani' k.asama.pk %}"><b>{{ k.asama.ad }}</b></a></td>
+        <td>{% if k.tur == "siparis" %}Yeni sipariş {{ k.siparis.siparis_no }}{% else %}<a href="{% url 'lot_detay' k.lot.pk %}">{{ k.lot.lot_no }}</a>{% endif %}
+          {% if k.siparis %}<span class="soluk"> · {{ k.siparis.musteri }}</span>{% endif %}</td>
+        <td class="uyari">{% if k.tur == "calisilan" %}çalışma{% else %}bekleme{% endif %} {{ k.asim_metni }} aştı</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  {% if azalan_stoklar %}
+  <div class="kart uyari-karti">
+    <h2>📉 Azalan stok ({{ azalan_stoklar|length }})</h2>
+    <table>
+      {% for s in azalan_stoklar %}
+      <tr><td><a href="{{ s.adres }}"><b>{{ s.ad }}</b></a></td>
+          <td class="sayi uyari">{{ s.mevcut|floatformat:"-2" }} {{ s.birim }}</td>
+          <td class="sayi soluk">en az {{ s.sinir|floatformat:"-2" }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="kart">
+  <h2>Şu an çalışılan işler ({{ acik_islemler|length }})</h2>
+  {% if acik_islemler %}
+  <div class="tablo-kap"><table>
+    <tr><th></th><th>Personel</th><th>İş</th><th>Aşama</th><th>Başlangıç</th><th class="sayi">Giriş kg</th><th class="sayi">Giriş m²</th></tr>
+    {% for i in acik_islemler %}
+    <tr>
+      <td>{% if not user.is_staff or user.is_superuser %}<a class="btn kucuk" href="{% url 'islem_bitir' i.pk %}">■ Bitir</a>{% endif %}</td>
+      <td><b>{{ i.personel }}</b></td>
+      <td><a href="{% url 'lot_detay' i.lot_id %}">{{ i.lot }}</a></td>
+      <td>{{ i.asama.ad }}</td>
+      <td>{{ i.baslangic|date:"d.m H:i" }} <span class="soluk">({{ i.baslangic|timesince }})</span></td>
+      <td class="sayi">{{ i.giris_kg }}</td>
+      <td class="sayi">{{ i.giris_m2 }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p class="soluk">Şu anda açık işlem yok.</p>{% endif %}
+</div>
+
+<div class="kart">
+  <h2>Aşamalara göre işler</h2>
+  <div class="asama-seridi">
+    <div class="asama-kutu"><b>Yeni (başlamadı)</b><a href="{% url 'lot_listesi' %}?durum=bekliyor">{{ yeni_lot_sayisi }} iş</a></div>
+    {% for a in asamalar %}
+    <div class="asama-kutu">
+      <b>{{ a.sira }}. {{ a.ad }}</b>
+      {% if a.islemde %}<span class="rozet islemde">{{ a.islemde }} işlemde</span>{% endif %}
+      {% if a.bekleyen %}<span class="rozet bekliyor">{{ a.bekleyen }} bitti, sırada</span>{% endif %}
+      {% if not a.islemde and not a.bekleyen %}<span class="soluk">–</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="izgara">
+  <div class="kart">
+    <h2>Bugün kim ne yaptı?</h2>
+    {% if bugun_personel %}
+    <table>
+      <tr><th>Personel</th><th class="sayi">İşlem</th><th class="sayi">Çıkış m²</th><th class="sayi">Fire m²</th></tr>
+      {% for s in bugun_personel %}
+      <tr><td>{{ s.personel__ad_soyad }}</td><td class="sayi">{{ s.islem_sayisi }}</td>
+          <td class="sayi">{{ s.cikis_m2 }}</td><td class="sayi">{{ s.fire_m2 }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="soluk">Bugün henüz tamamlanan işlem yok.</p>{% endif %}
+  </div>
+
+  {% if perms.uretim.view_siparis %}
+  <div class="kart">
+    <h2 style="display:flex;justify-content:space-between">Siparişler <a href="{% url 'siparis_listesi' %}" style="font-size:14px;font-weight:normal">Tümü →</a></h2>
+    {% if geciken_siparisler %}
+      <p class="uyari">Geciken siparişler</p>
+      <table>{% for s in geciken_siparisler %}
+        <tr><td><a href="{% url 'siparis_detay' s.pk %}">{{ s.siparis_no }}</a></td><td>{{ s.musteri }}</td><td class="uyari">{{ s.teslim_tarihi|date:"d.m.Y" }}</td></tr>
+      {% endfor %}</table>
+    {% endif %}
+    <p><b>Önümüzdeki 7 gün teslim</b></p>
+    {% if yaklasan_siparisler %}
+      <table>{% for s in yaklasan_siparisler %}
+        <tr><td><a href="{% url 'siparis_detay' s.pk %}">{{ s.siparis_no }}</a></td><td>{{ s.musteri }}</td><td>{{ s.urun }}</td><td>{{ s.teslim_tarihi|date:"d.m.Y" }}</td></tr>
+      {% endfor %}</table>
+    {% else %}<p class="soluk">Yaklaşan teslim yok.</p>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

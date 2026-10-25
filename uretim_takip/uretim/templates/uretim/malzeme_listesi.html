@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block baslik %}Malzemeler{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">Stok</h1>
+  {% if perms.uretim.add_malzemehareketi %}<a class="btn" href="{% url 'malzeme_giris' %}">+ Malzeme girişi</a>{% endif %}
+  {% if perms.uretim.add_malzeme %}<a class="btn ikincil" href="{% url 'malzeme_yeni' %}">+ Yeni malzeme</a>{% endif %}
+</div>
+{% with stok_sekme="malzeme" %}{% include "uretim/_stok_sekmeleri.html" %}{% endwith %}
+<form class="filtre" method="get">
+  {% if satirlar %}<a class="btn kucuk ikincil" href="{% url 'etiketler' %}?{% for s in satirlar %}malzeme={{ s.m.pk }}{% if not forloop.last %}&amp;{% endif %}{% endfor %}">🏷 Listedekilerin etiketleri</a>{% endif %}
+  <select name="kategori" onchange="this.form.submit()">
+    <option value="">Tüm kategoriler</option>
+    {% for kod, ad in kategoriler %}<option value="{{ kod }}" {% if kategori == kod %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+  </select>
+</form>
+{% if azalan %}<div class="mesaj error">⚠️ {{ azalan }} malzemenin stoğu en az stok sınırının altında.</div>{% endif %}
+<div class="kart tablo-kap">
+  <table>
+    <tr><th>Malzeme</th><th>Kategori</th><th class="sayi">Stok</th><th class="sayi">En az</th><th></th></tr>
+    {% for s in satirlar %}
+    <tr>
+      <td><a href="{% url 'malzeme_detay' s.m.pk %}"><b>{{ s.m.ad }}</b></a><br><span class="soluk">{{ s.m.kod }}</span></td>
+      <td>{{ s.m.get_kategori_display }}</td>
+      <td class="sayi {% if s.azaldi %}uyari{% endif %}"><b>{{ s.stok|floatformat:"-2" }}</b> {{ s.m.get_birim_display }}</td>
+      <td class="sayi soluk">{% if s.m.min_stok is not None %}{{ s.m.min_stok|floatformat:"-2" }}{% else %}–{% endif %}</td>
+      <td>{% if s.azaldi %}<span class="rozet iptal">Azaldı</span>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="soluk">Henüz malzeme tanımlanmadı.{% if perms.uretim.add_malzeme %} “+ Yeni malzeme” ile ekleyin.{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

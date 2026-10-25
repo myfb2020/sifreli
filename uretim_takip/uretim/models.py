@@ -1,0 +1,536 @@
+from decimal import Decimal
+
+from django.contrib.auth.hashers import check_password, make_password
+from django.core.validators import MinValueValidator, RegexValidator
+from django.db import models
+from django.utils import timezone
+
+SIFIR = Decimal("0")
+pozitif = [MinValueValidator(SIFIR)]
+
+
+def sonraki_numara(model, alan, onek):
+    """ONEK-YIL-0001 biçiminde sıradaki numarayı üretir."""
+    yil = timezone.localdate().year
+    bas = f"{onek}-{yil}-"
+    son = (
+        model.objects.filter(**{f"{alan}__startswith": bas})
+        .order_by(f"-{alan}")
+        .values_list(alan, flat=True)
+        .first()
+    )
+    sira = int(son.rsplit("-", 1)[1]) + 1 if son else 1
+    return f"{bas}{sira:04d}"
+
+
+# --- Tanımlar -----------------------------------------------------------------
+
+
+class Asama(models.Model):
+    """Üretim aşaması; her aşama bir istasyondur."""
+
+    ad = models.CharField("aşama adı", max_length=60, unique=True)
+    sira = models.PositiveSmallIntegerField("sıra", unique=True)
+    aktif = models.BooleanField(default=True)
+    azami_sure_saat = models.DecimalField(
+        "en fazla çalışma süresi (saat)", max_digits=6, decimal_places=1, null=True, blank=True,
+        help_text="İş bu istasyonda bu süreden uzun kalırsa uyarı verilir. Boş: sınır yok.",
+    )
+    azami_bekleme_saat = models.DecimalField(
+        "en fazla bekleme süresi (saat)", max_digits=6, decimal_places=1, null=True, blank=True,
+        help_text="İş bu istasyona geldikten sonra bu süre içinde başlanmazsa uyarı verilir. Boş: sınır yok.",
+    )
+
+    class Meta:
+        ordering = ["sira"]
+        verbose_name = "aşama"
+        verbose_name_plural = "aşamalar"
+
+    def __str__(self):
+        return f"{self.sira}. {self.ad}"
+
+    def sonraki(self):
+        return Asama.objects.filter(aktif=True, sira__gt=self.sira).first()
+
+    @property
+    def son_asama_mi(self):
+        return self.sonraki() is None
+
+
+class Personel(models.Model):
+    ad_soyad = models.CharField("ad soyad", max_length=100)
+    pin = models.CharField(
+        "PIN",
+        max_length=128,
+        help_text="4-6 haneli rakam. Kaydedilirken şifrelenir.",
+    )
+    gorev = models.CharField("görev", max_length=60, blank=True)
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["ad_soyad"]
+        verbose_name = "personel"
+        verbose_name_plural = "personel"
+
+    def __str__(self):
+        return self.ad_soyad
+
+    def pin_ayarla(self, ham_pin):
+        self.pin = make_password(ham_pin)
+
+    def pin_dogru_mu(self, ham_pin):
+        return check_password(ham_pin, self.pin)
+
+    def save(self, *args, **kwargs):
+        # Admin'den düz PIN girildiyse şifrele.
+        if self.pin and not self.pin.startswith(("pbkdf2_", "argon2", "bcrypt")):
+            self.pin_ayarla(self.pin)
+        super().save(*args, **kwargs)
+
+
+pin_dogrulayici = RegexValidator(r"^\d{4,6}$", "PIN 4-6 haneli rakam olmalı.")
+
+
+class Tedarikci(models.Model):
+    ad = models.CharField(max_length=120, unique=True)
+    telefon = models.CharField(max_length=30, blank=True)
+    notlar = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["ad"]
+        verbose_name = "tedarikçi"
+        verbose_name_plural = "tedarikçiler"
+
+    def __str__(self):
+        return self.ad
+
+
+class Musteri(models.Model):
+    ad = models.CharField(max_length=120, unique=True)
+    telefon = models.CharField(max_length=30, blank=True)
+    notlar = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["ad"]
+        verbose_name = "müşteri"
+        verbose_name_plural = "müşteriler"
+
+    def __str__(self):
+        return self.ad
+
+
+class DeriTuru(models.Model):
+    ad = models.CharField(max_length=60, unique=True)
+    min_kg = models.DecimalField(
+        "en az stok (kg)", max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Bu türün toplam stoğu bunun altına düşünce uyarı verilir.",
+    )
+
+    class Meta:
+        ordering = ["ad"]
+        verbose_name = "deri türü"
+        verbose_name_plural = "deri türleri"
+
+    def __str__(self):
+        return self.ad
+
+
+# --- Hammadde ve sipariş ------------------------------------------------------
+
+
+class HamDeriGirisi(models.Model):
+    KALITE = [("A", "A"), ("B", "B"), ("C", "C"), ("K", "Karışık")]
+
+    lot_no = models.CharField("stok lot no", max_length=20, unique=True, blank=True)
+    tarih = models.DateField(default=timezone.localdate)
+    tedarikci = models.ForeignKey(Tedarikci, on_delete=models.PROTECT, verbose_name="tedarikçi")
+    deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, verbose_name="deri türü")
+    kalite = models.CharField(max_length=1, choices=KALITE, default="K")
+    adet = models.PositiveIntegerField(null=True, blank=True)
+    kg = models.DecimalField(max_digits=10, decimal_places=2, validators=pozitif)
+    m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, validators=pozitif)
+    notlar = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-tarih", "-lot_no"]
+        verbose_name = "stok lotu (ham deri)"
+        verbose_name_plural = "stok lotları (ham deri)"
+
+    def __str__(self):
+        return f"{self.lot_no} – {self.tedarikci} ({self.deri_turu})"
+
+    def save(self, *args, **kwargs):
+        if not self.lot_no:
+            self.lot_no = sonraki_numara(HamDeriGirisi, "lot_no", "HD")
+        super().save(*args, **kwargs)
+
+    @property
+    def kullanilan_kg(self):
+        return self.cikislar.aggregate(t=models.Sum("kg"))["t"] or SIFIR
+
+    @property
+    def kullanilan_m2(self):
+        return self.cikislar.aggregate(t=models.Sum("m2"))["t"] or SIFIR
+
+    @property
+    def duzeltme_kg(self):
+        return self.duzeltmeler.aggregate(t=models.Sum("kg"))["t"] or SIFIR
+
+    @property
+    def duzeltme_m2(self):
+        return self.duzeltmeler.aggregate(t=models.Sum("m2"))["t"] or SIFIR
+
+    @property
+    def kalan_kg(self):
+        return self.kg - self.kullanilan_kg + self.duzeltme_kg
+
+    @property
+    def kalan_m2(self):
+        return self.m2 - self.kullanilan_m2 + self.duzeltme_m2
+
+    def aktif_isler(self):
+        """Bu stok lotundan malzeme almış, bitmemiş işler."""
+        return (
+            UretimLotu.objects.filter(kaynaklar__ham_deri=self)
+            .exclude(durum__in=["tamamlandi", "iptal"])
+            .select_related("siparis__musteri", "son_asama")
+            .distinct()
+            .order_by("olusturma")
+        )
+
+
+class Siparis(models.Model):
+    DURUM = [
+        ("acik", "Açık"),
+        ("uretimde", "Üretimde"),
+        ("tamamlandi", "Tamamlandı"),
+        ("sevk", "Sevk edildi"),
+        ("iptal", "İptal"),
+    ]
+
+    siparis_no = models.CharField("sipariş no", max_length=20, unique=True, blank=True)
+    musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, verbose_name="müşteri")
+    tarih = models.DateField(default=timezone.localdate)
+    olusturma = models.DateTimeField("kayıt zamanı", default=timezone.now, editable=False)
+    urun = models.CharField("ürün açıklaması", max_length=200, help_text="Örn: 200x300 krem kuzu patchwork halı")
+    deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="deri türü")
+    adet = models.PositiveIntegerField(default=1)
+    toplam_m2 = models.DecimalField("toplam m²", max_digits=10, decimal_places=2, null=True, blank=True)
+    teslim_tarihi = models.DateField("teslim tarihi")
+    durum = models.CharField(max_length=12, choices=DURUM, default="acik")
+    notlar = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["teslim_tarihi"]
+        verbose_name = "sipariş"
+        verbose_name_plural = "siparişler"
+
+    def __str__(self):
+        return f"{self.siparis_no} – {self.musteri}"
+
+    def save(self, *args, **kwargs):
+        if not self.siparis_no:
+            self.siparis_no = sonraki_numara(Siparis, "siparis_no", "SP")
+        super().save(*args, **kwargs)
+
+    @property
+    def gecikti_mi(self):
+        return self.durum in ("acik", "uretimde") and self.teslim_tarihi < timezone.localdate()
+
+    @property
+    def kalan_gun(self):
+        return (self.teslim_tarihi - timezone.localdate()).days
+
+    @property
+    def gecikme_gun(self):
+        return max(0, -self.kalan_gun)
+
+    def ilerleme(self):
+        """Siparişin üretim durumu: tamamlanma yüzdesi ve lotların aşamalara dağılımı.
+
+        Toplam m² girilmişse yüzde, biten lotların m²'sine göre; girilmemişse biten lot sayısına göre
+        hesaplanır. İptal edilen lotlar sayılmaz.
+        """
+        lotlar = [lot for lot in self.lotlar.all() if lot.durum != "iptal"]
+        biten = [lot for lot in lotlar if lot.durum == "tamamlandi"]
+        uretilen_m2 = sum((lot.mevcut_m2 or SIFIR for lot in biten), SIFIR)
+        if self.toplam_m2:
+            yuzde = min(100, round(uretilen_m2 / self.toplam_m2 * 100))
+        elif lotlar:
+            yuzde = round(len(biten) / len(lotlar) * 100)
+        else:
+            yuzde = 0
+
+        dagilim = {}
+        for lot in lotlar:
+            if lot.durum == "tamamlandi":
+                etiket = "Bitti"
+            elif lot.son_asama is None:
+                etiket = "Başlamadı"
+            elif lot.durum == "islemde":
+                etiket = lot.son_asama.ad
+            else:
+                etiket = f"{lot.son_asama.ad} bitti"
+            dagilim[etiket] = dagilim.get(etiket, 0) + 1
+        return {
+            "yuzde": yuzde,
+            "lot_sayisi": len(lotlar),
+            "biten_lot": len(biten),
+            "uretilen_m2": uretilen_m2,
+            "dagilim": sorted(dagilim.items(), key=lambda x: x[0] == "Bitti"),
+        }
+
+
+# --- Üretim -------------------------------------------------------------------
+
+
+class UretimLotu(models.Model):
+    DURUM = [
+        ("bekliyor", "Sıradaki aşamayı bekliyor"),
+        ("islemde", "İşlemde"),
+        ("tamamlandi", "Tamamlandı"),
+        ("iptal", "İptal"),
+    ]
+
+    lot_no = models.CharField("iş no", max_length=20, unique=True, blank=True)
+    siparis = models.ForeignKey(
+        Siparis, on_delete=models.SET_NULL, null=True, blank=True, related_name="lotlar", verbose_name="sipariş"
+    )
+    olusturma = models.DateTimeField("oluşturma", default=timezone.now)
+    baslangic_kg = models.DecimalField("başlangıç kg", max_digits=10, decimal_places=2, validators=pozitif)
+    baslangic_m2 = models.DecimalField("başlangıç m²", max_digits=10, decimal_places=2, validators=pozitif)
+    mevcut_kg = models.DecimalField("mevcut kg", max_digits=10, decimal_places=2, blank=True, null=True)
+    mevcut_m2 = models.DecimalField("mevcut m²", max_digits=10, decimal_places=2, blank=True, null=True)
+    son_asama = models.ForeignKey(
+        Asama, on_delete=models.PROTECT, null=True, blank=True, verbose_name="son aşama",
+        help_text="Lotun en son işlem gördüğü aşama.",
+    )
+    durum = models.CharField(max_length=12, choices=DURUM, default="bekliyor")
+    notlar = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-olusturma"]
+        verbose_name = "iş"
+        verbose_name_plural = "işler"
+
+    def __str__(self):
+        return self.lot_no
+
+    def save(self, *args, **kwargs):
+        if not self.lot_no:
+            self.lot_no = sonraki_numara(UretimLotu, "lot_no", "IS")
+        if self.mevcut_kg is None:
+            self.mevcut_kg = self.baslangic_kg
+        if self.mevcut_m2 is None:
+            self.mevcut_m2 = self.baslangic_m2
+        super().save(*args, **kwargs)
+        # Tamamlanmış bir siparişe bitmemiş lot eklenirse sipariş yeniden üretime döner.
+        if self.siparis_id and self.durum not in ("tamamlandi", "iptal"):
+            Siparis.objects.filter(pk=self.siparis_id, durum="tamamlandi").update(durum="uretimde")
+
+    @property
+    def kaynak_listesi(self):
+        """Malzemenin alındığı stok lotları, ör. 'HD-2026-0001, HD-2026-0004'."""
+        return ", ".join(k.ham_deri.lot_no for k in self.kaynaklar.all())
+
+    @property
+    def siradaki_asama(self):
+        if self.durum in ("tamamlandi", "iptal"):
+            return None
+        if self.son_asama is None:
+            return Asama.objects.filter(aktif=True).first()
+        return self.son_asama.sonraki()
+
+    @property
+    def acik_islem(self):
+        return self.islemler.filter(bitis__isnull=True).first()
+
+    @property
+    def toplam_fire_kg(self):
+        return self.baslangic_kg - (self.mevcut_kg or SIFIR)
+
+    @property
+    def toplam_fire_m2(self):
+        return self.baslangic_m2 - (self.mevcut_m2 or SIFIR)
+
+
+class LotKaynagi(models.Model):
+    """Bir işe hangi stok lotundan ne kadar malzeme alındığı."""
+
+    uretim_lotu = models.ForeignKey(UretimLotu, on_delete=models.CASCADE, related_name="kaynaklar", verbose_name="iş")
+    ham_deri = models.ForeignKey(
+        HamDeriGirisi, on_delete=models.PROTECT, related_name="cikislar", verbose_name="stok lotu"
+    )
+    kg = models.DecimalField(max_digits=10, decimal_places=2, validators=pozitif)
+    m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, validators=pozitif)
+    tarih = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["tarih"]
+        verbose_name = "malzeme çıkışı"
+        verbose_name_plural = "malzeme çıkışları"
+        constraints = [models.UniqueConstraint(fields=["uretim_lotu", "ham_deri"], name="is_basina_stok_lotu_tek")]
+
+    def __str__(self):
+        return f"{self.ham_deri.lot_no} → {self.uretim_lotu.lot_no}"
+
+
+class IslemKaydi(models.Model):
+    lot = models.ForeignKey(UretimLotu, on_delete=models.CASCADE, related_name="islemler")
+    asama = models.ForeignKey(Asama, on_delete=models.PROTECT, verbose_name="aşama")
+    personel = models.ForeignKey(Personel, on_delete=models.PROTECT, related_name="islemler")
+    bitiren = models.ForeignKey(
+        Personel, on_delete=models.PROTECT, null=True, blank=True, related_name="bitirdigi_islemler",
+        verbose_name="bitiren personel",
+    )
+    baslangic = models.DateTimeField("başlangıç", default=timezone.now)
+    bitis = models.DateTimeField("bitiş", null=True, blank=True)
+    giris_kg = models.DecimalField("giriş kg", max_digits=10, decimal_places=2, validators=pozitif)
+    giris_m2 = models.DecimalField("giriş m²", max_digits=10, decimal_places=2, validators=pozitif)
+    cikis_kg = models.DecimalField("çıkış kg", max_digits=10, decimal_places=2, null=True, blank=True, validators=pozitif)
+    cikis_m2 = models.DecimalField("çıkış m²", max_digits=10, decimal_places=2, null=True, blank=True, validators=pozitif)
+    aciklama = models.TextField("açıklama", blank=True)
+
+    class Meta:
+        ordering = ["-baslangic"]
+        verbose_name = "işlem kaydı"
+        verbose_name_plural = "işlem kayıtları"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["lot"], condition=models.Q(bitis__isnull=True), name="lot_basina_tek_acik_islem"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.lot} / {self.asama.ad} / {self.personel}"
+
+    @property
+    def tamamlandi(self):
+        return self.bitis is not None
+
+    @property
+    def fire_kg(self):
+        return None if self.cikis_kg is None else self.giris_kg - self.cikis_kg
+
+    @property
+    def fire_m2(self):
+        return None if self.cikis_m2 is None else self.giris_m2 - self.cikis_m2
+
+    @property
+    def fire_yuzde_m2(self):
+        if self.fire_m2 is None or not self.giris_m2:
+            return None
+        return round(self.fire_m2 / self.giris_m2 * 100, 1)
+
+    @property
+    def sure(self):
+        return (self.bitis or timezone.now()) - self.baslangic
+
+
+# --- Stok düzeltme ve malzemeler ----------------------------------------------
+
+
+NEDENLER = [
+    ("sayim", "Sayım farkı"),
+    ("fire", "Fire / bozulma"),
+    ("iade", "Tedarikçiye iade"),
+    ("diger", "Diğer"),
+]
+
+
+class DeriDuzeltme(models.Model):
+    """Stok lotunun kalan miktarına elle yapılan düzeltme. Eksi: stoktan düşer, artı: stoğa eklenir."""
+
+    ham_deri = models.ForeignKey(HamDeriGirisi, on_delete=models.CASCADE, related_name="duzeltmeler",
+                                 verbose_name="stok lotu")
+    neden = models.CharField(max_length=10, choices=NEDENLER)
+    kg = models.DecimalField(max_digits=10, decimal_places=2, default=SIFIR)
+    m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, default=SIFIR)
+    aciklama = models.CharField("açıklama", max_length=200, blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="giren")
+    tarih = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-tarih"]
+        verbose_name = "deri stok düzeltmesi"
+        verbose_name_plural = "deri stok düzeltmeleri"
+
+    def __str__(self):
+        return f"{self.ham_deri.lot_no} {self.get_neden_display()} {self.kg} kg / {self.m2} m²"
+
+
+class Malzeme(models.Model):
+    """Deri dışındaki sarf malzemeleri: kimyasal, iplik, astar, yapıştırıcı…"""
+
+    BIRIMLER = [("kg", "kg"), ("lt", "litre"), ("m", "metre"), ("m2", "m²"), ("adet", "adet"), ("makara", "makara")]
+    KATEGORILER = [("kimyasal", "Kimyasal"), ("iplik", "İplik"), ("astar", "Astar / taban"),
+                   ("yapistirici", "Yapıştırıcı"), ("ambalaj", "Ambalaj"), ("diger", "Diğer")]
+
+    kod = models.CharField(max_length=20, unique=True, blank=True, help_text="Etiketteki kod; boşsa otomatik verilir.")
+    ad = models.CharField(max_length=100, unique=True)
+    kategori = models.CharField(max_length=12, choices=KATEGORILER, default="diger")
+    birim = models.CharField(max_length=6, choices=BIRIMLER, default="kg")
+    min_stok = models.DecimalField("en az stok", max_digits=10, decimal_places=2, null=True, blank=True,
+                                   help_text="Stok bunun altına düşünce uyarı verilir.")
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["kategori", "ad"]
+        verbose_name = "malzeme"
+        verbose_name_plural = "malzemeler"
+
+    def __str__(self):
+        return f"{self.ad} ({self.get_birim_display()})"
+
+    def save(self, *args, **kwargs):
+        if not self.kod:
+            self.kod = malzeme_kodu_uret()
+        self.kod = self.kod.upper()
+        super().save(*args, **kwargs)
+
+    @property
+    def lot_no(self):
+        """Etiket ve QR adresi için (stok lotlarıyla aynı arayüz)."""
+        return self.kod
+
+    @property
+    def stok(self):
+        return self.hareketler.aggregate(t=models.Sum("miktar"))["t"] or SIFIR
+
+    @property
+    def azaldi_mi(self):
+        return self.min_stok is not None and self.stok < self.min_stok
+
+
+def malzeme_kodu_uret():
+    son = Malzeme.objects.filter(kod__startswith="MZ-").order_by("-kod").values_list("kod", flat=True).first()
+    sira = int(son.split("-")[1]) + 1 if son and son.split("-")[1].isdigit() else 1
+    return f"MZ-{sira:04d}"
+
+
+class MalzemeHareketi(models.Model):
+    """Malzeme stoğundaki her değişiklik. Miktar işaretlidir: giriş artı, kullanım/fire eksi."""
+
+    TURLER = [("giris", "Giriş"), ("kullanim", "Üretimde kullanım"), *NEDENLER]
+
+    malzeme = models.ForeignKey(Malzeme, on_delete=models.PROTECT, related_name="hareketler")
+    tur = models.CharField("tür", max_length=10, choices=TURLER)
+    miktar = models.DecimalField(max_digits=10, decimal_places=2)
+    islem = models.ForeignKey("IslemKaydi", on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name="malzeme_kullanimlari", verbose_name="işlem")
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="giren")
+    tedarikci = models.ForeignKey(Tedarikci, on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="tedarikçi")
+    aciklama = models.CharField("açıklama", max_length=200, blank=True)
+    tarih = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-tarih"]
+        verbose_name = "malzeme hareketi"
+        verbose_name_plural = "malzeme hareketleri"
+
+    def __str__(self):
+        return f"{self.malzeme.ad} {self.get_tur_display()} {self.miktar}"

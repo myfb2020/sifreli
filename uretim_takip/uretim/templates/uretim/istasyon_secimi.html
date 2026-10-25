@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block baslik %}İstasyonlar{% endblock %}
+{% block icerik %}
+<h1>İstasyon Seçin</h1>
+<p class="soluk">Bu tablet hangi istasyonda duruyorsa onu seçin. Tablet seçiminizi hatırlar; menüdeki “İstasyon” her zaman bu ekranı açar.</p>
+<div class="istasyon-izgara">
+  {% for s in satirlar %}
+  <a class="kart istasyon-kart{% if s.geciken %} gecikmis{% endif %}" href="{% url 'istasyon_ekrani' s.asama.pk %}" data-istasyon="{{ s.asama.pk }}">
+    <div class="istasyon-ad">{{ s.asama.ad }}</div>
+    <div class="soluk">{% if s.gelen %}<b>{{ s.gelen }}</b> iş bekliyor{% else %}Bekleyen iş yok{% endif %}{% if s.calisilan %} · <b>{{ s.calisilan }}</b> çalışılıyor{% endif %}</div>
+    {% if s.geciken %}<div class="uyari">⏰ {{ s.geciken }} iş süreyi aştı</div>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+<script>
+  // Bu tablet daha önce bir istasyon seçtiyse doğrudan onun ekranını aç.
+  try {
+    const kayitli = localStorage.getItem("istasyon");
+    const link = kayitli && document.querySelector('[data-istasyon="' + kayitli + '"]');
+    if (link && !new URLSearchParams(location.search).has("degistir")) location.replace(link.href);
+  } catch (e) {}
+  document.querySelectorAll("[data-istasyon]").forEach((a) => a.addEventListener("click", () => {
+    try { localStorage.setItem("istasyon", a.dataset.istasyon); } catch (e) {}
+  }));
+</script>
+{% endblock %}

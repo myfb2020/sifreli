@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}Etiketler{% endblock %}
+{% block icerik %}
+<div class="yazdirma-gizle" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+  <h1 style="margin:0;margin-right:auto">Etiketler ({{ etiketler|length }})</h1>
+  <form method="get" class="filtre" style="margin:0">
+    {% for ad, degerler in request.GET.lists %}{% if ad != "kopya" %}{% for d in degerler %}<input type="hidden" name="{{ ad }}" value="{{ d }}">{% endfor %}{% endif %}{% endfor %}
+    <label>Her etiketten <input type="number" name="kopya" value="{{ kopya }}" min="1" max="50" style="width:70px"> adet</label>
+    <button class="btn kucuk ikincil" type="submit">Uygula</button>
+  </form>
+  <button class="btn" onclick="window.print()">🖨 Yazdır</button>
+</div>
+<p class="soluk yazdirma-gizle">Etiketi yazdırıp malın üzerine yapıştırın: deri destesine ya da kimyasal bidonu, iplik kolisi gibi malzemenin üzerine. Islak aşamalardan geçecek mallar için suya dayanıklı etiket kullanın.</p>
+<div class="etiket-izgara">
+  {% for e in etiketler %}
+  <div class="etiket">
+    <div class="etiket-qr">{{ e.qr }}</div>
+    <div class="etiket-bilgi">
+      <div class="etiket-no">{{ e.no }}</div>
+      {% if e.baslik %}<div><b>{{ e.baslik }}</b></div>{% endif %}
+      {% for satir in e.satirlar %}<div>{{ satir }}</div>{% endfor %}
+    </div>
+  </div>
+  {% empty %}
+  <p class="soluk">Yazdırılacak etiket yok.</p>
+  {% endfor %}
+</div>
+{% endblock %}

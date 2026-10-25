@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block baslik %}{{ lot.lot_no }}{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+  <h1 style="margin:0;margin-right:auto">{{ lot.lot_no }} <span class="rozet {{ lot.durum }}">{{ lot.get_durum_display }}</span></h1>
+  {% if not user.is_staff or user.is_superuser %}{% if lot.acik_islem %}
+    <a class="btn" href="{% url 'islem_bitir' lot.acik_islem.pk %}">■ Açık işlemi bitir</a>
+  {% elif lot.durum == "bekliyor" %}
+    <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ Sıradaki: {{ lot.siradaki_asama.ad|default:"aşama seç" }}</a>
+  {% endif %}{% endif %}
+  {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_uretimlotu_change' lot.pk %}">Düzenle</a>{% endif %}
+</div>
+
+<div class="izgara">
+  <div class="kart">
+    <h2>Malzeme ve sipariş</h2>
+    <table>
+      {% for k in lot.kaynaklar.all %}
+      <tr><th>Stok lotu</th><td><a href="{% url 'stok_detay' k.ham_deri.pk %}">{{ k.ham_deri.lot_no }}</a> · {{ k.kg }} kg / {{ k.m2 }} m²<br>
+        <span class="soluk">{{ k.ham_deri.deri_turu }} / {{ k.ham_deri.get_kalite_display }} · {{ k.ham_deri.tedarikci }} · giriş {{ k.ham_deri.tarih|date:"d.m.Y" }}</span></td></tr>
+      {% empty %}
+      <tr><th>Stok lotu</th><td class="soluk">Kayıtlı değil</td></tr>
+      {% endfor %}
+      <tr><th>Sipariş</th><td>{% if lot.siparis %}{% if perms.uretim.view_siparis %}<a href="{% url 'siparis_detay' lot.siparis.pk %}">{{ lot.siparis.siparis_no }}</a>{% else %}{{ lot.siparis.siparis_no }}{% endif %} – {{ lot.siparis.musteri }}<br>
+        <span class="soluk">{{ lot.siparis.urun }} · teslim {{ lot.siparis.teslim_tarihi|date:"d.m.Y" }}</span>{% else %}–{% endif %}</td></tr>
+    </table>
+  </div>
+  <div class="kart">
+    <h2>Miktar</h2>
+    <table>
+      <tr><th></th><th class="sayi">kg</th><th class="sayi">m²</th></tr>
+      <tr><td>Başlangıç</td><td class="sayi">{{ lot.baslangic_kg }}</td><td class="sayi">{{ lot.baslangic_m2 }}</td></tr>
+      <tr><td>Mevcut</td><td class="sayi">{{ lot.mevcut_kg }}</td><td class="sayi">{{ lot.mevcut_m2 }}</td></tr>
+      <tr><td><b>Toplam fark (fire)</b></td><td class="sayi"><b>{{ lot.toplam_fire_kg }}</b></td><td class="sayi"><b>{{ lot.toplam_fire_m2 }}</b></td></tr>
+    </table>
+    <p class="soluk">Not: Islatma ve tabaklamada kg artabilir. Bu durumda fark eksi görünür.</p>
+  </div>
+</div>
+
+<div class="kart tablo-kap">
+  <h2>İşlem geçmişi (izlenebilirlik)</h2>
+  <table>
+    <tr><th>Aşama</th><th>Personel</th><th>Başlangıç</th><th>Bitiş</th><th>Süre</th>
+        <th class="sayi">Giriş kg → Çıkış</th><th class="sayi">Giriş m² → Çıkış</th><th class="sayi">Fire m²</th><th>Not</th></tr>
+    {% for i in islemler %}
+    <tr>
+      <td>{{ i.asama.ad }}</td>
+      <td>{{ i.personel }}{% if i.bitiren and i.bitiren != i.personel %}<br><span class="soluk">bitiren: {{ i.bitiren }}</span>{% endif %}</td>
+      <td>{{ i.baslangic|date:"d.m.Y H:i" }}</td>
+      <td>{% if i.bitis %}{{ i.bitis|date:"d.m.Y H:i" }}{% else %}<span class="rozet islemde">devam ediyor</span>{% endif %}</td>
+      <td>{{ i.baslangic|timesince:i.bitis }}</td>
+      <td class="sayi">{{ i.giris_kg }} → {{ i.cikis_kg|default:"…" }}</td>
+      <td class="sayi">{{ i.giris_m2 }} → {{ i.cikis_m2|default:"…" }}</td>
+      <td class="sayi">{% if i.fire_m2 is not None %}{{ i.fire_m2 }} <span class="soluk">(%{{ i.fire_yuzde_m2 }})</span>{% endif %}</td>
+      <td>{{ i.aciklama|linebreaksbr }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" class="soluk">Bu işte henüz işlem yapılmadı.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

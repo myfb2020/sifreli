@@ -1,0 +1,9 @@
+{% csrf_token %}
+{% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
+{% for alan in form %}
+<p>
+  <label for="{{ alan.id_for_label }}">{{ alan.label }}</label>
+  {{ alan }}
+  {% if alan.errors %}<ul class="errorlist">{% for e in alan.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</p>
+{% endfor %}

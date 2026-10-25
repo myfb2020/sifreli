@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block baslik %}Bağlantı yok{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:480px;margin:40px auto;text-align:center">
+  <h1>📡 Sunucuya ulaşılamıyor</h1>
+  <p>Telefonun fabrika Wi-Fi'sine bağlı olduğundan ve sunucu bilgisayarın açık olduğundan emin olun.</p>
+  <button class="btn buyuk" onclick="location.reload()">Tekrar dene</button>
+</div>
+{% endblock %}

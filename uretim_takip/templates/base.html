@@ -1,0 +1,188 @@
+{% load static %}<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block baslik %}Üretim Takip{% endblock %}</title>
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <meta name="theme-color" content="#7a4b2a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Üretim">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="{% static 'uretim/ikon/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" href="{% static 'uretim/ikon/favicon-32.png' %}">
+  <style>
+    :root { --ana:#7a4b2a; --ana-koyu:#5a361d; --zemin:#f6f2ee; --kart:#fff; --cizgi:#e2d9d0; --yazi:#2b211a;
+            --soluk:#7d6f64; --yesil:#2e7d4f; --kirmizi:#b23a2e; --sari:#b7791f; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--zemin);
+           color:var(--yazi); font-size:16px; }
+    header { background:var(--ana); color:#fff; padding:0 16px; display:flex; align-items:center; gap:16px;
+             flex-wrap:wrap; min-height:56px; }
+    header a { color:#fff; text-decoration:none; padding:8px 4px; }
+    header .marka { font-weight:700; font-size:18px; margin-right:auto; }
+    header form { margin:0; }
+    header button { background:none; border:1px solid #fff8; color:#fff; border-radius:6px; padding:6px 10px; cursor:pointer; }
+    main { max-width:1200px; margin:0 auto; padding:16px; }
+    h1 { font-size:22px; margin:8px 0 16px; }
+    h2 { font-size:18px; margin:0 0 12px; }
+    .kart { background:var(--kart); border:1px solid var(--cizgi); border-radius:10px; padding:16px; margin-bottom:16px; }
+    .izgara { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+    .btn { display:inline-block; background:var(--ana); color:#fff; border:0; border-radius:8px; padding:12px 18px;
+           font-size:16px; text-decoration:none; cursor:pointer; }
+    .btn:hover { background:var(--ana-koyu); }
+    .btn.buyuk { padding:18px 28px; font-size:20px; }
+    .btn.ikincil { background:#fff; color:var(--ana); border:1px solid var(--ana); }
+    .btn.kucuk { padding:6px 12px; font-size:14px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid var(--cizgi); vertical-align:top; }
+    th { font-size:13px; color:var(--soluk); font-weight:600; }
+    td.sayi, th.sayi { text-align:right; font-variant-numeric:tabular-nums; }
+    .tablo-kap { overflow-x:auto; }
+    .rozet { display:inline-block; padding:2px 8px; border-radius:999px; font-size:13px; background:#eee; }
+    .rozet.islemde { background:#fff3cd; color:#7a5a00; }
+    .rozet.bekliyor { background:#e7eef7; color:#24476b; }
+    .rozet.tamamlandi { background:#dff3e6; color:var(--yesil); }
+    .rozet.iptal { background:#f6dcd9; color:var(--kirmizi); }
+    .uyari { color:var(--kirmizi); font-weight:600; }
+    .soluk { color:var(--soluk); font-size:14px; }
+    .mesaj { padding:12px 16px; border-radius:8px; margin-bottom:12px; background:#dff3e6; color:#1d5535; }
+    .mesaj.error { background:#f6dcd9; color:#7d231a; }
+    .mesaj.info { background:#e7eef7; color:#24476b; }
+    form.dikey p { margin:0 0 14px; }
+    form.dikey label { display:block; font-weight:600; margin-bottom:4px; }
+    form.dikey input, form.dikey select, form.dikey textarea { width:100%; padding:12px; font-size:18px;
+           border:1px solid var(--cizgi); border-radius:8px; background:#fff; }
+    .errorlist { color:var(--kirmizi); margin:4px 0; padding-left:18px; }
+    .asama-seridi { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
+    .asama-kutu { border:1px solid var(--cizgi); border-radius:8px; padding:10px; background:#fff; }
+    .asama-kutu b { display:block; font-size:14px; margin-bottom:6px; }
+    .filtre { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:12px; }
+    .filtre input, .filtre select { padding:8px; border:1px solid var(--cizgi); border-radius:6px; font-size:15px; }
+    header { padding-top:env(safe-area-inset-top); }
+    .kamera-kap { position:relative; background:#000; border-radius:10px; overflow:hidden; aspect-ratio:1/1; }
+    .kamera-kap video { width:100%; height:100%; object-fit:cover; display:block; }
+    .nisangah { position:absolute; inset:18%; border:3px solid #fff; border-radius:14px; box-shadow:0 0 0 999px #0006; }
+    .etiket-izgara { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+    .etiket { display:flex; gap:10px; align-items:center; background:#fff; border:1px dashed #999; border-radius:6px;
+              padding:8px; break-inside:avoid; page-break-inside:avoid; }
+    .etiket-qr svg { display:block; width:120px; height:120px; }
+    .etiket-bilgi { font-size:13px; line-height:1.4; }
+    .etiket-no { font-size:20px; font-weight:700; margin-bottom:2px; }
+    .kur-bandi { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .ilerleme { height:10px; background:#eee5dc; border-radius:999px; overflow:hidden; }
+    .ilerleme-dolu { height:100%; background:var(--ana); border-radius:999px; }
+    .ilerleme-dolu.tam { background:var(--yesil); }
+    .dagilim { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .siparis-izgara { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); }
+    .siparis-kart { display:block; color:inherit; text-decoration:none; margin:0; }
+    .siparis-kart:hover { border-color:var(--ana); }
+    .siparis-kart.gecikmis { border-left:4px solid var(--kirmizi); }
+    .siparis-ust { display:flex; justify-content:space-between; gap:8px; }
+    .siparis-no { font-size:13px; color:var(--soluk); }
+    .teslim { text-align:right; font-weight:600; }
+    .uyari-sari { color:var(--sari); }
+    .secim-karti { display:flex; gap:16px; align-items:center; color:inherit; text-decoration:none; }
+    .secim-karti:hover { border-color:var(--ana); }
+    .secim-ikon { font-size:34px; }
+    .bekleyen-is, .aktif-is { display:flex; justify-content:space-between; align-items:center; gap:12px;
+      padding:10px 0; border-bottom:1px solid var(--cizgi); color:inherit; text-decoration:none; }
+    .kaynak-satir { display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; padding:10px 0; border-top:1px solid var(--cizgi); }
+    .kaynak-satir label { font-size:14px; }
+    .tara-grup { display:flex; gap:6px; }
+    .tara-grup input { flex:1; min-width:0; }
+    .tara-dugme { padding:8px 12px; font-size:20px; }
+    .stok-ozet { font-size:13px; margin-top:4px; }
+    .tarama-perde { position:fixed; inset:0; background:#000a; display:flex; align-items:center; justify-content:center;
+      padding:16px; z-index:50; }
+    .tarama-perde[hidden] { display:none; }
+    @media (max-width: 520px) { .kaynak-satir { grid-template-columns:1fr 1fr; } .kaynak-no { grid-column:1 / -1; } }
+    .ozet-izgara { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); margin-bottom:12px; }
+    .ozet-kart { margin:0; padding:12px; }
+    .ozet-kart.azaldi { border-color:var(--kirmizi); border-left:4px solid var(--kirmizi); }
+    .ozet-sayi { font-size:22px; font-weight:700; }
+    .alt-sekme .sekme { padding:6px 12px; font-size:14px; }
+    .istasyon-izgara { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+    .istasyon-kart { display:block; color:inherit; text-decoration:none; margin:0; }
+    .istasyon-kart:hover { border-color:var(--ana); }
+    .istasyon-kart.gecikmis, .ist-satir.gecikmis { border-left:4px solid var(--kirmizi); }
+    .istasyon-ad { font-size:18px; font-weight:700; margin-bottom:4px; }
+    .ist-baslik { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    .ist-satir { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 8px;
+      border-bottom:1px solid var(--cizgi); }
+    .ist-satir.gecikmis { background:#fdf1ef; }
+    .ist-satir.yeni { animation:yanip-son 1s ease-in-out 6; background:#fff3cd; }
+    .ist-sure { font-size:14px; margin-top:4px; }
+    .yeni-is-bandi { background:var(--kirmizi); color:#fff; font-size:22px; font-weight:700; text-align:center;
+      padding:16px; border-radius:10px; margin-bottom:12px; animation:yanip-son 0.8s ease-in-out infinite; }
+    .yeni-is-bandi[hidden] { display:none; }
+    @keyframes yanip-son { 50% { opacity:0.45; } }
+    .uyari-karti { border-left:4px solid var(--kirmizi); }
+    .malzeme-satir { display:grid; grid-template-columns:2fr 1fr; gap:10px; margin-bottom:8px; }
+    .sekmeler { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:12px; border-bottom:1px solid var(--cizgi); }
+    .sekme { padding:8px 14px; color:var(--soluk); text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-1px; }
+    .sekme.secili { color:var(--ana); border-bottom-color:var(--ana); font-weight:600; }
+    @media (max-width: 760px) {
+      header { flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; gap:14px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+      header::-webkit-scrollbar { display:none; }
+      header .marka { margin-right:8px; }
+    }
+    @media print {
+      header, .yazdirma-gizle, .mesaj { display:none !important; }
+      body, main { background:#fff; padding:0; margin:0; max-width:none; }
+      .etiket-izgara { grid-template-columns:repeat(2, 1fr); gap:4mm; }
+      .etiket { border:1px dashed #666; }
+    }
+  </style>
+</head>
+<body>
+{% if user.is_authenticated %}
+<header>
+  <a class="marka" href="{% url 'pano' %}">Üretim Takip</a>
+  <a href="{% url 'pano' %}">Pano</a>
+  {# Üretim ekranları: tablet hesabı ve yönetici. Ofis hesabı (personel durumlu) görmez. #}
+  {% if not user.is_staff or user.is_superuser %}
+  <a href="{% url 'istasyon_secimi' %}">🏭 İstasyon</a>
+  <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
+  <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
+  {% endif %}
+  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}">Siparişler</a>{% endif %}
+  <a href="{% url 'stok_listesi' %}">Stok</a>
+  <a href="{% url 'lot_listesi' %}">İşler</a>
+  {% if user.is_staff %}<a href="{% url 'rapor' %}">Raporlar</a>
+  <a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
+  {% if user.is_superuser %}<a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
+  <a href="{% url 'yedek_indir' %}" title="Veritabanının yedeğini indir">💾 Yedek</a>{% endif %}
+  <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Çıkış</button></form>
+</header>
+{% endif %}
+<main>
+  {% for m in messages %}<div class="mesaj {{ m.tags }}">{{ m }}</div>{% endfor %}
+  <div id="kur-bandi" class="kart kur-bandi yazdirma-gizle" hidden>
+    <span style="margin-right:auto">📱 Bu sistemi telefonunuza uygulama olarak ekleyebilirsiniz.</span>
+    <button id="kur-dugme" class="btn kucuk">Uygulamayı yükle</button>
+  </div>
+  {% block icerik %}{% endblock %}
+</main>
+<script>
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register("{% url 'service_worker' %}", { scope: "/" });
+  }
+  // Android/Chrome: "Ana ekrana ekle" önerisini kendi butonumuzla göster.
+  let kurulumOlayi = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    kurulumOlayi = e;
+    document.getElementById("kur-bandi").hidden = false;
+  });
+  document.getElementById("kur-dugme").addEventListener("click", async () => {
+    if (!kurulumOlayi) return;
+    kurulumOlayi.prompt();
+    await kurulumOlayi.userChoice;
+    kurulumOlayi = null;
+    document.getElementById("kur-bandi").hidden = true;
+  });
+</script>
+</body>
+</html>
