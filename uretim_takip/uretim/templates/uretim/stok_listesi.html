@@ -3,7 +3,7 @@
 {% block icerik %}
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
   <h1 style="margin:0;margin-right:auto">Stok</h1>
-  {% if perms.uretim.add_hamderigirisi %}<a class="btn" href="{% url 'stok_yeni' %}">+ Stok girişi</a>{% endif %}
+  {% if perms.uretim.add_hamderigirisi %}<a class="btn" href="{% url 'stok_yeni' %}">+ Deri girişi</a>{% endif %}
 </div>
 {% with stok_sekme="deri" %}{% include "uretim/_stok_sekmeleri.html" %}{% endwith %}
 

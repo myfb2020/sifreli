@@ -1,10 +1,11 @@
 {% extends "base.html" %}
-{% block baslik %}Stok Girişi{% endblock %}
+{% block baslik %}Deri Girişi{% endblock %}
 {% block icerik %}
 <div class="kart" style="max-width:560px;margin:0 auto">
   <p style="margin:0 0 8px"><a href="{% url 'stok_listesi' %}">← Stok</a></p>
-  <h1>+ Stok Girişi</h1>
+  <h1>+ Deri Girişi</h1>
   <p class="soluk">Gelen ham deri partisini girin. Lot numarası otomatik verilir; kaydettikten sonra etiketini basıp malın üzerine yapıştırın.</p>
+  <div class="mesaj info">Kimyasal, iplik, astar gibi deri dışı bir malzeme mi geldi? <a href="{% url 'malzeme_giris' %}">Malzeme girişi</a> sayfasını kullanın.</div>
   <form method="post" class="dikey">
     {% include "uretim/_form.html" %}
     <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>
