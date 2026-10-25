@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 
 # Önbellek sürümü: statik dosyalar değişince artırın, telefonlar yenisini indirir.
-SURUM = "v1"
+SURUM = "v2"
 
 
 def manifest(request):

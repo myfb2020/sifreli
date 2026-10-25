@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block baslik %}{{ stok.lot_no }}{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px"><a href="{% url 'stok_listesi' %}">← Stok</a></p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+  <h1 style="margin:0;margin-right:auto">{{ stok.lot_no }}</h1>
+  <a class="btn ikincil" href="{% url 'etiketler' %}?stok={{ stok.pk }}">🏷 Etiket bas</a>
+  {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_hamderigirisi_change' stok.pk %}">Düzenle</a>{% endif %}
+</div>
+
+{% if not user.is_staff or user.is_superuser %}
+<div class="kart">
+  <h2>Bu lottan malzeme alan devam eden işler</h2>
+  {% for lot in aktif %}
+  <div class="aktif-is">
+    <div>
+      <b>{{ lot.lot_no }}</b>{% if lot.siparis %} · {{ lot.siparis.siparis_no }} · <b>{{ lot.siparis.musteri }}</b>{% endif %}<br>
+      <span class="soluk">{% if lot.siparis %}{{ lot.siparis.urun }} · {% endif %}
+        {% if lot.acik %}Şu an: {{ lot.acik.asama.ad }} ({{ lot.acik.personel }}){% elif lot.son_asama %}{{ lot.son_asama.ad }} bitti{% else %}başlamadı{% endif %}</span>
+    </div>
+    {% if lot.acik %}
+      <a class="btn" href="{% url 'islem_bitir' lot.acik.pk %}">■ {{ lot.acik.asama.ad }} – Bitir</a>
+    {% else %}
+      <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ {{ lot.siradaki_asama.ad|default:"Aşama seç" }}</a>
+    {% endif %}
+  </div>
+  {% empty %}
+  <p class="soluk">Bu lottan malzeme alan devam eden iş yok.</p>
+  {% endfor %}
+  {% if stok.kalan_kg > 0 or stok.kalan_m2 > 0 %}
+  <a class="btn buyuk ikincil" style="width:100%;text-align:center;margin-top:12px" href="{% url 'yeni_is' %}?stok={{ stok.lot_no|urlencode }}">🆕 Bu lottan yeni iş başlat</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="izgara">
+  <div class="kart">
+    <h2>Stok lotu</h2>
+    <table>
+      <tr><th>Tedarikçi</th><td>{{ stok.tedarikci }}</td></tr>
+      <tr><th>Deri türü / kalite</th><td>{{ stok.deri_turu }} / {{ stok.get_kalite_display }}</td></tr>
+      <tr><th>Giriş tarihi</th><td>{{ stok.tarih|date:"d.m.Y" }}</td></tr>
+      {% if stok.adet %}<tr><th>Adet</th><td>{{ stok.adet }}</td></tr>{% endif %}
+      {% if stok.notlar %}<tr><th>Not</th><td>{{ stok.notlar|linebreaksbr }}</td></tr>{% endif %}
+    </table>
+  </div>
+  <div class="kart">
+    <h2>Miktar</h2>
+    <table>
+      <tr><th></th><th class="sayi">kg</th><th class="sayi">m²</th></tr>
+      <tr><td>Giriş</td><td class="sayi">{{ stok.kg }}</td><td class="sayi">{{ stok.m2 }}</td></tr>
+      <tr><td>Kullanılan</td><td class="sayi">{{ stok.kullanilan_kg }}</td><td class="sayi">{{ stok.kullanilan_m2 }}</td></tr>
+      <tr><td><b>Kalan</b></td><td class="sayi"><b>{{ stok.kalan_kg }}</b></td><td class="sayi"><b>{{ stok.kalan_m2 }}</b></td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="kart tablo-kap">
+  <h2>Bu lottan alınan malzemeler</h2>
+  <table>
+    <tr><th>Tarih</th><th>İş</th><th>Sipariş</th><th>Durum</th><th class="sayi">kg</th><th class="sayi">m²</th></tr>
+    {% for c in cikislar %}
+    <tr>
+      <td>{{ c.tarih|date:"d.m.Y H:i" }}</td>
+      <td><a href="{% url 'lot_detay' c.uretim_lotu.pk %}">{{ c.uretim_lotu.lot_no }}</a></td>
+      <td>{% if c.uretim_lotu.siparis %}{{ c.uretim_lotu.siparis.siparis_no }} · {{ c.uretim_lotu.siparis.musteri }}{% else %}–{% endif %}</td>
+      <td><span class="rozet {{ c.uretim_lotu.durum }}">{{ c.uretim_lotu.get_durum_display }}</span></td>
+      <td class="sayi">{{ c.kg }}</td><td class="sayi">{{ c.m2 }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="soluk">Bu lottan henüz malzeme alınmadı.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -2,17 +2,36 @@
 
 Sensörsüz, lot bazlı (kg + m²) üretim takip sistemi. Amaç: **hangi lot hangi aşamada, kim ne yaptı, ne kadar fire verdi** sorularına anında cevap vermek ve Excel'deki elle takibi bitirmek.
 
-## Neler yapar? (Faz 1)
+## Akış
 
-- **Ham deri girişi:** tedarikçi, deri türü, kalite, adet, kg, m². Otomatik lot no (`HD-2026-0001`). Kalan miktar takip edilir.
-- **Sipariş:** müşteri, ürün, teslim tarihi. Geciken siparişler kırmızı görünür.
-- **Üretim lotu:** ham deri lotundan pay ayrılır (`UL-2026-0001`), isteğe bağlı bir siparişe bağlanır.
-- **İşlem başlat / bitir (tablet ekranı):** çalışan adını seçer, **PIN'ini girer**, lotu ve aşamayı seçer. Bitirirken çıkış kg ve m² girer, fark fire olarak kaydedilir.
-  Bir lotta aynı anda tek açık işlem olabilir. Sıradaki işlem, bir önceki aşamanın çıkış miktarıyla başlar.
-- **Pano:** şu an kim hangi lotta çalışıyor, aşamalarda kaç lot var, bugün kim ne yaptı, geciken ve yaklaşan siparişler.
-- **Lot geçmişi (izlenebilirlik):** bir lotun tedarikçiden pakete kadar her adımı: kim, ne zaman, ne kadar süre, ne kadar fire.
-- **Raporlar:** tarih aralığına göre personel performansı ve aşama bazında fire. **Excel'e aktarma** desteklenir.
-- **Yönetim paneli (`/yonetim/`):** personel, aşamalar, tedarikçi, müşteri, deri türü, ham deri, sipariş ve lot tanımları.
+```
+Ofis:     Stok girişi (HD-2026-0001) ──► QR etiketi malın üzerine     Sipariş girişi (SP-2026-0001)
+                                              │                                │
+Üretim:   İşlem Başlat → Yeni iş: siparişi seç + stok etiket(ler)ini okut + alınan kg/m²
+                                              │
+                         Sistem işi açar (IS-2026-0001) ve ilk aşamayı başlatır
+                                              │
+          Sonraki aşamalar: malın üzerindeki aynı stok etiketi okutulur → işe devam / bitir
+```
+
+## Neler yapar?
+
+- **Stok lotları:** Gelen ham deri partisi tedarikçi, deri türü, kalite, adet, kg ve m² ile girilir. Lot numarası otomatik verilir (`HD-2026-0001`). QR etiketi basılıp malın üzerine yapıştırılır. Stokta ne kadar kaldığı her an görünür.
+- **Siparişler:** Müşteri, ürün ve teslim tarihi girilir. İlerleme çubuğu ve geciken siparişler gösterilir.
+- **Yeni iş (tablet):** Çalışan adını seçer, **PIN'ini girer**, **siparişi seçer** ve malzeme aldığı **stok lotlarının QR'ını okutur**. Bir iş birden fazla stok lotundan malzeme alabilir. Her lottan alınan kg ve m² girilir. Sistem stokta olandan fazlasının alınmasına izin vermez. İş açılır (`IS-2026-0001`) ve ilk aşama başlar.
+- **Sonraki aşamalar:** Malın üzerindeki stok etiketi okutulunca o lottan malzeme alan devam eden işler listelenir. Çalışan, açık aşamayı **bitirir** ya da **sıradaki aşamayı başlatır**. Bitirirken çıkış kg ve m² girilir, fark fire olarak kaydedilir.
+- **Pano:** Kim hangi işte çalışıyor, aşamalarda kaç iş var, bugün kim ne yaptı. Ofis hesabında siparişler de görünür.
+- **İzlenebilirlik:** Bir işin hangi stok lotlarından, hangi tedarikçinin malından yapıldığı, kimin hangi aşamayı ne zaman yaptığı ve ne kadar fire verdiği görünür. Stok lotu sayfasında da o lottan hangi işlere ne kadar malzeme alındığı listelenir.
+- **Raporlar (ofis):** Tarih aralığına göre personel performansı ve aşama bazında fire. Excel'e aktarılabilir.
+- **Yönetim paneli (`/yonetim/`):** Personel ve PIN'ler, aşamalar, tanımlar, düzeltmeler.
+
+### Kim ne görür?
+
+| Hesap | Menü |
+|---|---|
+| **Tablet** (üretim; personel durumu yok) | Pano, QR Okut, İşlem Başlat, Stok, İşler |
+| **Ofis** (personel durumu + izinler) | Pano, Siparişler, Stok (+ Stok girişi), İşler, Raporlar, Yönetim |
+| **Yönetici** (süper kullanıcı) | Hepsi + Excel'den aktar + Yedek |
 
 Varsayılan aşamalar: Tasnif → Islatma → Tabaklama → Kurutma → Tıraş/germe → Kesim → Dikim → Astar/taban → Son işlem → Kalite kontrol → Paketleme.
 Aşamalar yönetim panelinden eklenip çıkarılabilir. Sıra numaraları 10'ar arayla verildiği için araya yeni aşama eklenebilir (ör. 25).
@@ -45,23 +64,25 @@ Giriş bilgileri: `yonetici / yonetici123` (yönetim) ve `tablet / tablet123` (�
 
 ## Günlük kullanım
 
-1. **Yönetici** (`/yonetim/`): personeli PIN'leriyle ekler, ham deri girişini ve siparişi kaydeder, üretim lotunu oluşturur.
-2. **Tablet** (ortak hesapla açık kalır): çalışan işe başlarken **İşlem Başlat**'a basar, iş bitince panodan **Bitir**'e basar.
-3. **Yönetici:** **Raporlar** sayfasından kimin ne yaptığını ve fireyi görür, gerekirse Excel'e aktarır.
+1. **Ofis, mal gelince:** **Stok → + Stok girişi**'ne girer, kaydeder, sonra **🏷 Etiket bas** ile etiketi yazdırıp malın üzerine yapıştırır.
+2. **Ofis, sipariş gelince:** **Siparişler → + Yeni sipariş**.
+3. **Çalışan, işe başlarken:** **İşlem Başlat → Yeni iş**'e girer, siparişi seçer, malın etiketini 📷 ile okutur, aldığı miktarı girip **İşi başlat**'a basar.
+4. **Çalışan, sonraki aşamada:** **QR Okut** ile malın etiketini okutur, listeden işini seçip **Bitir** ya da **▶ sıradaki aşama**'ya basar.
+5. **Ofis veya yönetici:** **Siparişler** ve **Raporlar** sayfalarından ilerlemeyi, kimin ne yaptığını ve fireyi takip eder.
 
 ## Siparişler
 
 Üst menüdeki **Siparişler** sayfası her siparişi bir kartta gösterir:
-- **İlerleme çubuğu:** Toplam m² girildiyse biten lotların m²'sine göre, girilmediyse biten lot sayısına göre hesaplanır.
-- **Lotların dağılımı:** Lotlar aşamalara göre gruplanır, örneğin "2 × Kesim · 1 × Bitti".
+- **İlerleme çubuğu:** Toplam m² girildiyse biten işlerin m²'sine göre, girilmediyse biten iş sayısına göre hesaplanır.
+- **İşlerin dağılımı:** Siparişin işleri aşamalara göre gruplanır, örneğin "2 × Kesim · 1 × Bitti".
 - **Teslime kalan gün:** Gecikenler kırmızı kenarlıkla en üstte görünür.
 - **Sekmeler:** Devam eden, tamamlanan, sevk edilen, iptal edilen. Sipariş no, müşteri veya ürüne göre arama yapılabilir.
 
-Sipariş detayında siparişe bağlı lotlar listelenir. Buradan **"Bu siparişe lot ekle"** ve **"Sevk edildi"** işlemleri yapılır.
+Sipariş detayında siparişin işleri ve hangi stok lotlarından malzeme alındığı listelenir. Buradan **"Sevk edildi"** işaretlenir.
 Sipariş durumu kendiliğinden ilerler:
 - ilk işlem başlayınca **Üretimde**,
 - bütün lotlar bitince **Tamamlandı**,
-- tamamlanmış bir siparişe yeni lot eklenince yeniden **Üretimde**.
+- tamamlanmış bir sipariş için yeni iş açılınca yeniden **Üretimde**.
 
 **"+ Yeni sipariş"** formu yönetim paneline girmeden kullanılır. Müşteri listede yoksa adı yazılır, sistem otomatik ekler.
 
@@ -69,14 +90,14 @@ Sipariş durumu kendiliğinden ilerler:
 Siparişleri girecek kişiye yönetici şifresini vermek yerine ayrı bir hesap açın:
 1. **Yönetim → Kullanıcılar → Ekle** ile kullanıcı adı (ör. `ofis`) ve şifre belirleyip kaydedin.
 2. Açılan sayfada **Personel durumu** (staff) kutusunu işaretleyin. Bu, yönetim paneline girebilmesi için gerekir. **Süper kullanıcı durumu**nu işaretlemeyin.
-3. **Kullanıcı izinleri** listesinden şunları seçip sağa aktarın: *sipariş* (ekle, değiştir, görüntüle), *müşteri* (ekle, değiştir, görüntüle), *üretim lotu* (ekle, değiştir, görüntüle), *ham deri girişi* (ekle, değiştir, görüntüle).
-4. Kaydedin. Bu hesap sipariş, müşteri, lot ve ham deri girebilir. Personel PIN'lerine, yedeğe ve Excel aktarmaya erişemez.
+3. **Kullanıcı izinleri** listesinden şunları seçip sağa aktarın: *sipariş* (ekle, değiştir, görüntüle), *müşteri* (ekle, değiştir, görüntüle), *stok lotu (ham deri)* (ekle, değiştir, görüntüle), *tedarikçi* (ekle, görüntüle), *iş* (görüntüle).
+4. Kaydedin. Bu hesap sipariş, müşteri ve stok girebilir. Personel PIN'lerine, yedeğe ve Excel aktarmaya erişemez.
 
 ## Mevcut Excel verilerini aktarma
 
 Yönetici hesabıyla üst menüden **📥 Excel'den aktar** sayfasına girin:
 
-1. **Şablonu indirin.** Şablonda *Personel, Tedarikçiler, Müşteriler, Ham Deri, Siparişler* ve *Üretim Lotları* sayfaları ve her sütunun açıklaması bulunur.
+1. **Şablonu indirin.** Şablonda *Personel, Tedarikçiler, Müşteriler, Stok Lotları, Siparişler* ve *Devam Eden İşler* sayfaları ve her sütunun açıklaması bulunur.
 2. Mevcut Excel'inizdeki verileri ilgili sütunlara **kopyalayıp yapıştırın**. Kullanmadığınız sayfaları boş bırakın.
 3. Dosyayı yükleyin. Sistem önce bir **önizleme** gösterir: kaç kayıt eklenecek ya da güncellenecek, hangi tedarikçi, müşteri veya deri türü yeni tanımlanacak, hangi satırda ne hata var.
 4. Hata yoksa **Kaydet**'e basın. Tek bir hatalı satır bile varsa **hiçbir şey kaydedilmez**. Excel'de düzeltip tekrar yükleyin.
@@ -93,11 +114,13 @@ Yönetici hesabıyla üst menüden **📥 Excel'den aktar** sayfasına girin:
 **Telefona kurma:** Android'de Chrome ile sistemi açın. Üstte çıkan **"Uygulamayı yükle"** butonuna ya da menüdeki **"Ana ekrana ekle"**ye dokunun.
 iPhone'da Safari'de **Paylaş → Ana Ekrana Ekle** yolunu izleyin. Uygulama kendi simgesiyle tam ekran açılır.
 
-**QR etiket:** *Lotlar* sayfasında **"Listedekilerin etiketleri"**, lot sayfasında **"Etiket"** butonuyla etiketler A4'e yazdırılır.
-Etiket okutulunca sistem duruma göre şu ekranı açar:
-- lotta açık işlem varsa → **Bitir** ekranı,
-- lot sıradaki aşamayı bekliyorsa → **Başlat** ekranı (lot ve sıradaki aşama seçili gelir),
-- lot bittiyse → lot geçmişi.
+**QR etiket:** Etiketler **stok lotlarına** basılır. *Stok* sayfasında **"Listedekilerin etiketleri"**, stok lotu sayfasında **"🏷 Etiket bas"** butonuyla A4'e yazdırılır.
+Etiket mal üretim boyunca üzerinde kalır. Okutulunca stok lotunun sayfası açılır:
+- o lottan malzeme alan **devam eden işler** listelenir. Her işin yanında **Bitir** ya da **▶ sıradaki aşama** düğmesi bulunur.
+- **"Bu lottan yeni iş başlat"** düğmesiyle Yeni iş ekranı açılır, stok lotu hazır yazılı gelir.
+- Yeni iş ekranında her satırın yanındaki 📷 düğmesiyle stok etiketi okutularak satır doldurulur.
+
+Eski sürümde işlere basılmış etiketler (UL-…) de çalışmaya devam eder.
 
 Okutmanın iki yolu var:
 1. **Telefonun kendi kamera uygulaması:** Her zaman çalışır, HTTPS gerekmez.
@@ -132,6 +155,5 @@ python manage.py test uretim
 
 ## Sonraki adımlar (Faz 2+)
 
-- Bir üretim lotunun birden fazla ham deri lotundan oluşabilmesi
 - Kimyasal ve malzeme stoğu
 - Kalite kontrol hata türleri, yeniden işleme

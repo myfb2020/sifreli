@@ -4,7 +4,6 @@
 <p style="margin:0 0 8px"><a href="{% url 'siparis_listesi' %}">← Siparişler</a></p>
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
   <h1 style="margin:0;margin-right:auto">{{ siparis.siparis_no }} <span class="rozet {% if siparis.durum == 'uretimde' %}islemde{% elif siparis.durum == 'acik' %}bekliyor{% elif siparis.durum == 'sevk' %}tamamlandi{% else %}{{ siparis.durum }}{% endif %}">{{ siparis.get_durum_display }}</span></h1>
-  {% if perms.uretim.add_uretimlotu and siparis.durum != "sevk" and siparis.durum != "iptal" %}<a class="btn" href="{{ lot_ekle_adresi }}">+ Bu siparişe lot ekle</a>{% endif %}
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_siparis_change' siparis.pk %}">Düzenle</a>{% endif %}
 </div>
 
@@ -46,19 +45,19 @@
 </div>
 
 <div class="kart tablo-kap">
-  <h2>Lotlar ({{ lotlar|length }})</h2>
+  <h2>İşler ({{ lotlar|length }})</h2>
   <table>
-    <tr><th>Lot</th><th>Ham deri</th><th>Son aşama</th><th>Durum</th><th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th></tr>
+    <tr><th>İş</th><th>Stok lotları</th><th>Son aşama</th><th>Durum</th><th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th></tr>
     {% for l in lotlar %}
     <tr>
       <td><a href="{% url 'lot_detay' l.pk %}"><b>{{ l.lot_no }}</b></a></td>
-      <td>{{ l.ham_deri.lot_no }}<br><span class="soluk">{{ l.ham_deri.deri_turu }} – {{ l.ham_deri.tedarikci }}</span></td>
+      <td>{% for k in l.kaynaklar.all %}{{ k.ham_deri.lot_no }}{% if not forloop.last %}, {% endif %}{% endfor %}<br><span class="soluk">{% for k in l.kaynaklar.all %}{% ifchanged k.ham_deri.deri_turu %}{{ k.ham_deri.deri_turu }} {% endifchanged %}{% endfor %}</span></td>
       <td>{{ l.son_asama.ad|default:"Başlamadı" }}</td>
       <td><span class="rozet {{ l.durum }}">{{ l.get_durum_display }}</span></td>
       <td class="sayi">{{ l.baslangic_m2 }}</td><td class="sayi">{{ l.mevcut_m2 }}</td><td class="sayi">{{ l.mevcut_kg }}</td>
     </tr>
     {% empty %}
-    <tr><td colspan="7" class="soluk">Bu siparişe henüz lot ayrılmadı.{% if perms.uretim.add_uretimlotu %} Yukarıdaki “Bu siparişe lot ekle” ile ham deriden pay ayırın.{% endif %}</td></tr>
+    <tr><td colspan="7" class="soluk">Bu sipariş için henüz iş başlamadı. Çalışanlar “İşlem Başlat → Yeni iş” ekranında bu siparişi seçip stoktan malzeme alarak işe başlar.</td></tr>
     {% endfor %}
   </table>
 </div>

@@ -4,7 +4,7 @@
 <div class="kart" style="max-width:560px;margin:0 auto">
   <h1>■ İşlem Bitir</h1>
   <table style="margin-bottom:16px">
-    <tr><th>Lot</th><td><b>{{ islem.lot }}</b></td></tr>
+    <tr><th>İş</th><td><b>{{ islem.lot }}</b>{% if islem.lot.siparis %} · {{ islem.lot.siparis.musteri }}{% endif %}<br><span class="soluk">Stok: {{ islem.lot.kaynak_listesi }}</span></td></tr>
     <tr><th>Aşama</th><td>{{ islem.asama.ad }}</td></tr>
     <tr><th>Başlatan</th><td>{{ islem.personel }} – {{ islem.baslangic|date:"d.m.Y H:i" }}</td></tr>
     <tr><th>Giriş</th><td>{{ islem.giris_kg }} kg / {{ islem.giris_m2 }} m²</td></tr>

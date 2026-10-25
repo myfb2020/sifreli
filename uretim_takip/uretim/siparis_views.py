@@ -2,7 +2,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .forms import SiparisForm
@@ -24,6 +23,7 @@ def _lotlu(qs):
 
 
 @login_required
+@permission_required("uretim.view_siparis", raise_exception=True)
 def siparis_listesi(request):
     sekme = request.GET.get("durum", "aktif")
     siparisler = _lotlu(Siparis.objects.all())
@@ -46,12 +46,12 @@ def siparis_listesi(request):
 
 
 @login_required
+@permission_required("uretim.view_siparis", raise_exception=True)
 def siparis_detay(request, pk):
     siparis = get_object_or_404(_lotlu(Siparis.objects.all()), pk=pk)
-    lotlar = siparis.lotlar.select_related("son_asama", "ham_deri__deri_turu", "ham_deri__tedarikci").order_by("lot_no")
+    lotlar = siparis.lotlar.select_related("son_asama").prefetch_related("kaynaklar__ham_deri__deri_turu").order_by("lot_no")
     return render(request, "uretim/siparis_detay.html", {
         "siparis": siparis, "ilerleme": siparis.ilerleme(), "lotlar": lotlar,
-        "lot_ekle_adresi": f"{reverse('admin:uretim_uretimlotu_add')}?siparis={siparis.pk}",
     })
 
 

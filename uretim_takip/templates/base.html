@@ -83,6 +83,21 @@
     .siparis-no { font-size:13px; color:var(--soluk); }
     .teslim { text-align:right; font-weight:600; }
     .uyari-sari { color:var(--sari); }
+    .secim-karti { display:flex; gap:16px; align-items:center; color:inherit; text-decoration:none; }
+    .secim-karti:hover { border-color:var(--ana); }
+    .secim-ikon { font-size:34px; }
+    .bekleyen-is, .aktif-is { display:flex; justify-content:space-between; align-items:center; gap:12px;
+      padding:10px 0; border-bottom:1px solid var(--cizgi); color:inherit; text-decoration:none; }
+    .kaynak-satir { display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; padding:10px 0; border-top:1px solid var(--cizgi); }
+    .kaynak-satir label { font-size:14px; }
+    .tara-grup { display:flex; gap:6px; }
+    .tara-grup input { flex:1; min-width:0; }
+    .tara-dugme { padding:8px 12px; font-size:20px; }
+    .stok-ozet { font-size:13px; margin-top:4px; }
+    .tarama-perde { position:fixed; inset:0; background:#000a; display:flex; align-items:center; justify-content:center;
+      padding:16px; z-index:50; }
+    .tarama-perde[hidden] { display:none; }
+    @media (max-width: 520px) { .kaynak-satir { grid-template-columns:1fr 1fr; } .kaynak-no { grid-column:1 / -1; } }
     .sekmeler { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:12px; border-bottom:1px solid var(--cizgi); }
     .sekme { padding:8px 14px; color:var(--soluk); text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-1px; }
     .sekme.secili { color:var(--ana); border-bottom-color:var(--ana); font-weight:600; }
@@ -104,12 +119,16 @@
 <header>
   <a class="marka" href="{% url 'pano' %}">Üretim Takip</a>
   <a href="{% url 'pano' %}">Pano</a>
+  {# Üretim ekranları: tablet hesabı ve yönetici. Ofis hesabı (personel durumlu) görmez. #}
+  {% if not user.is_staff or user.is_superuser %}
   <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
-  <a href="{% url 'islem_baslat' %}">İşlem Başlat</a>
-  <a href="{% url 'siparis_listesi' %}">Siparişler</a>
-  <a href="{% url 'lot_listesi' %}">Lotlar</a>
-  <a href="{% url 'rapor' %}">Raporlar</a>
-  {% if user.is_staff %}<a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
+  <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
+  {% endif %}
+  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}">Siparişler</a>{% endif %}
+  <a href="{% url 'stok_listesi' %}">Stok</a>
+  <a href="{% url 'lot_listesi' %}">İşler</a>
+  {% if user.is_staff %}<a href="{% url 'rapor' %}">Raporlar</a>
+  <a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
   {% if user.is_superuser %}<a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
   <a href="{% url 'yedek_indir' %}" title="Veritabanının yedeğini indir">💾 Yedek</a>{% endif %}
   <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Çıkış</button></form>

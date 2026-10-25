@@ -47,21 +47,24 @@ class Command(BaseCommand):
         Siparis.objects.create(musteri=mus, urun="160x230 gri koyun halı", deri_turu=koyun, adet=2,
                                toplam_m2=Decimal("7.4"), teslim_tarihi=timezone.localdate() - timedelta(days=2))
 
-        l1 = UretimLotu.objects.create(ham_deri=hd1, siparis=sp, baslangic_kg=Decimal("320"), baslangic_m2=Decimal("55"))
-        l2 = UretimLotu.objects.create(ham_deri=hd1, siparis=sp, baslangic_kg=Decimal("320"), baslangic_m2=Decimal("55"))
-        UretimLotu.objects.create(ham_deri=hd2, baslangic_kg=Decimal("260"), baslangic_m2=Decimal("47"))
-
         asamalar = list(Asama.objects.filter(aktif=True))
-        # l1: ilk üç aşama bitti, dördüncüsü devam ediyor
-        kg, m2 = Decimal("320"), Decimal("55")
+        D = Decimal
+        # 1. iş: tek stok lotundan; ilk üç aşama bitti, dördüncüsü devam ediyor
+        islem = servisler.yeni_is_baslat(personel=personel[0], siparis=sp, kaynaklar=[(hd1, D("320"), D("55"))],
+                                         asama=asamalar[0])
+        l1 = islem.lot
+        kg, m2 = D("320"), D("55")
         for i, asama in enumerate(asamalar[:3]):
-            islem = servisler.islem_baslat(lot=l1, asama=asama, personel=personel[i % 2])
-            kg, m2 = kg - Decimal("12"), m2 - Decimal("1.5")
+            if i:
+                islem = servisler.islem_baslat(lot=l1, asama=asama, personel=personel[i % 2])
+            kg, m2 = kg - D("12"), m2 - D("1.5")
             servisler.islem_bitir(islem=islem, personel=personel[i % 2], cikis_kg=kg, cikis_m2=m2)
         servisler.islem_baslat(lot=l1, asama=asamalar[3], personel=personel[0])
-        # l2: tasnif bitti
-        islem = servisler.islem_baslat(lot=l2, asama=asamalar[0], personel=personel[3])
-        servisler.islem_bitir(islem=islem, personel=personel[3], cikis_kg=Decimal("305"), cikis_m2=Decimal("52.5"))
+        # 2. iş: iki stok lotundan malzeme; tasnif bitti, sıradaki aşamayı bekliyor
+        islem = servisler.yeni_is_baslat(personel=personel[3], siparis=sp,
+                                         kaynaklar=[(hd1, D("200"), D("35")), (hd2, D("100"), D("18"))],
+                                         asama=asamalar[0])
+        servisler.islem_bitir(islem=islem, personel=personel[3], cikis_kg=D("290"), cikis_m2=D("51.5"))
 
         self.stdout.write(self.style.SUCCESS(
             "Örnek veri yüklendi.\n"

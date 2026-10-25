@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Asama, DeriTuru, HamDeriGirisi, IslemKaydi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    Asama, DeriTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
 
@@ -55,6 +55,21 @@ class PersonelAdmin(admin.ModelAdmin):
 admin.site.register([Tedarikci, Musteri, DeriTuru], admin.ModelAdmin)
 
 
+class CikisInline(admin.TabularInline):
+    """Stok lotunun hangi işlere ne kadar malzeme verdiği (salt okunur)."""
+
+    model = LotKaynagi
+    fk_name = "ham_deri"
+    fields = ["uretim_lotu", "kg", "m2", "tarih"]
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+    verbose_name_plural = "bu lottan malzeme alan işler"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(HamDeriGirisi)
 class HamDeriGirisiAdmin(admin.ModelAdmin):
     list_display = ["lot_no", "tarih", "tedarikci", "deri_turu", "kalite", "adet", "kg", "m2", "kalan_kg", "kalan_m2"]
@@ -62,6 +77,7 @@ class HamDeriGirisiAdmin(admin.ModelAdmin):
     search_fields = ["lot_no"]
     date_hierarchy = "tarih"
     readonly_fields = ["lot_no"]
+    inlines = [CikisInline]
 
     @admin.display(description="kalan kg")
     def kalan_kg(self, obj):
@@ -74,10 +90,18 @@ class HamDeriGirisiAdmin(admin.ModelAdmin):
 
 class LotInline(admin.TabularInline):
     model = UretimLotu
-    fields = ["lot_no", "ham_deri", "baslangic_kg", "baslangic_m2", "durum"]
-    readonly_fields = ["lot_no", "durum"]
+    fields = ["lot_no", "kaynak_listesi", "baslangic_kg", "baslangic_m2", "durum"]
+    readonly_fields = ["lot_no", "kaynak_listesi", "baslangic_kg", "baslangic_m2", "durum"]
     extra = 0
     show_change_link = True
+    verbose_name_plural = "işler"
+
+    @admin.display(description="stok lotları")
+    def kaynak_listesi(self, obj):
+        return obj.kaynak_listesi
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Siparis)
@@ -101,34 +125,32 @@ class IslemInline(admin.TabularInline):
     can_delete = False
 
 
-class UretimLotuForm(forms.ModelForm):
-    class Meta:
-        model = UretimLotu
-        fields = "__all__"
-
-    def clean(self):
-        veri = super().clean()
-        ham = veri.get("ham_deri")
-        if ham and veri.get("baslangic_kg") is not None and veri.get("baslangic_m2") is not None:
-            onceki_kg = onceki_m2 = 0
-            if self.instance.pk and self.instance.ham_deri_id == ham.pk:
-                onceki_kg, onceki_m2 = self.instance.baslangic_kg, self.instance.baslangic_m2
-            if veri["baslangic_kg"] > ham.kalan_kg + onceki_kg:
-                self.add_error("baslangic_kg", f"Ham deri lotunda kalan: {ham.kalan_kg + onceki_kg} kg")
-            if veri["baslangic_m2"] > ham.kalan_m2 + onceki_m2:
-                self.add_error("baslangic_m2", f"Ham deri lotunda kalan: {ham.kalan_m2 + onceki_m2} m²")
-        return veri
+class KaynakInline(admin.TabularInline):
+    model = LotKaynagi
+    fk_name = "uretim_lotu"
+    fields = ["ham_deri", "kg", "m2", "tarih"]
+    autocomplete_fields = ["ham_deri"]
+    extra = 0
+    verbose_name_plural = "malzemenin alındığı stok lotları"
 
 
 @admin.register(UretimLotu)
 class UretimLotuAdmin(admin.ModelAdmin):
-    form = UretimLotuForm
-    list_display = ["lot_no", "ham_deri", "siparis", "son_asama", "durum", "baslangic_m2", "mevcut_m2"]
+    """İşler çalışanların 'Yeni iş' ekranında oluşur; burası düzeltme içindir."""
+
+    list_display = ["lot_no", "kaynaklar", "siparis", "son_asama", "durum", "baslangic_m2", "mevcut_m2"]
     list_filter = ["durum", "son_asama"]
-    search_fields = ["lot_no", "ham_deri__lot_no", "siparis__siparis_no"]
+    search_fields = ["lot_no", "kaynaklar__ham_deri__lot_no", "siparis__siparis_no"]
     readonly_fields = ["lot_no"]
-    autocomplete_fields = ["ham_deri", "siparis"]
-    inlines = [IslemInline]
+    autocomplete_fields = ["siparis"]
+    inlines = [KaynakInline, IslemInline]
+
+    @admin.display(description="stok lotları")
+    def kaynaklar(self, obj):
+        return obj.kaynak_listesi
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("kaynaklar__ham_deri")
 
 
 @admin.register(IslemKaydi)

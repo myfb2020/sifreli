@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block baslik %}Stok{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">Stok Lotları</h1>
+  {% if perms.uretim.add_hamderigirisi %}<a class="btn" href="{% url 'stok_yeni' %}">+ Stok girişi</a>{% endif %}
+</div>
+<div class="sekmeler">
+  <a class="sekme{% if durum == 'stokta' %} secili{% endif %}" href="?durum=stokta">Stokta olan</a>
+  <a class="sekme{% if durum == 'bitti' %} secili{% endif %}" href="?durum=bitti">Biten</a>
+  <a class="sekme{% if durum == 'hepsi' %} secili{% endif %}" href="?durum=hepsi">Hepsi</a>
+</div>
+<form class="filtre" method="get">
+  <input type="hidden" name="durum" value="{{ durum }}">
+  <input name="ara" value="{{ ara }}" placeholder="Lot no, tedarikçi veya deri türü">
+  <button class="btn kucuk" type="submit">Ara</button>
+  {% if satirlar %}<a class="btn kucuk ikincil" href="{% url 'etiketler' %}?{% for r in satirlar %}stok={{ r.stok.pk }}{% if not forloop.last %}&amp;{% endif %}{% endfor %}">🏷 Listedekilerin etiketleri</a>{% endif %}
+</form>
+<div class="kart tablo-kap">
+  <table>
+    <tr><th>Stok lotu</th><th>Tarih</th><th>Deri / kalite</th><th>Tedarikçi</th><th class="sayi">Giriş</th><th class="sayi">Kalan</th><th style="min-width:120px">Kullanım</th></tr>
+    {% for r in satirlar %}
+    <tr>
+      <td><a href="{% url 'stok_detay' r.stok.pk %}"><b>{{ r.stok.lot_no }}</b></a></td>
+      <td>{{ r.stok.tarih|date:"d.m.Y" }}</td>
+      <td>{{ r.stok.deri_turu }} · {{ r.stok.get_kalite_display }}</td>
+      <td>{{ r.stok.tedarikci }}</td>
+      <td class="sayi">{{ r.stok.kg }} kg<br>{{ r.stok.m2 }} m²</td>
+      <td class="sayi"><b>{{ r.kalan_kg }} kg<br>{{ r.kalan_m2 }} m²</b></td>
+      <td><div class="ilerleme"><div class="ilerleme-dolu" style="width:{{ r.yuzde }}%"></div></div><span class="soluk">%{{ r.yuzde }} kullanıldı</span></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="soluk">Kayıt yok.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

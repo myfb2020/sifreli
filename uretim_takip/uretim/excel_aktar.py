@@ -17,7 +17,9 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 
-from .models import Asama, DeriTuru, HamDeriGirisi, Musteri, Personel, Siparis, Tedarikci, UretimLotu, pin_dogrulayici
+from .models import (
+    Asama, DeriTuru, HamDeriGirisi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu, pin_dogrulayici,
+)
 
 
 class SatirHatasi(Exception):
@@ -119,6 +121,7 @@ class Sutun:
     zorunlu: bool = False
     aciklama: str = ""
     ornek: str = ""
+    takma_adlar: tuple = ()  # eski şablonlardaki başlıklar
 
 
 @dataclass
@@ -257,11 +260,11 @@ class Aktarici:
         return yeni
 
     def lot(self, s, satir_no):
-        self._zorunlu(s, "Ham Deri Lot No", "Başlangıç kg", "Başlangıç m²")
-        ham_no = kod(s["Ham Deri Lot No"], "Ham Deri Lot No")
+        self._zorunlu(s, "Stok Lot No", "Başlangıç kg", "Başlangıç m²")
+        ham_no = kod(s["Stok Lot No"], "Stok Lot No")
         ham = HamDeriGirisi.objects.filter(lot_no=ham_no).first()
         if ham is None:
-            raise SatirHatasi(f"“{ham_no}” numaralı ham deri bulunamadı (Ham Deri sayfasında veya sistemde olmalı)")
+            raise SatirHatasi(f"“{ham_no}” numaralı stok lotu bulunamadı (Stok Lotları sayfasında veya sistemde olmalı)")
         siparis = None
         if metin(s.get("Sipariş No")):
             sp_no = kod(s["Sipariş No"], "Sipariş No")
@@ -285,13 +288,12 @@ class Aktarici:
         if durum is None:
             durum = "tamamlandi" if asama and asama.son_asama_mi else "bekliyor"
 
-        lot_no = kod(s.get("Lot No"), "Lot No")
+        lot_no = kod(s.get("İş No"), "İş No")
         lot = UretimLotu.objects.filter(lot_no=lot_no).first() if lot_no else None
         yeni = lot is None
         if not yeni and lot.islemler.filter(bitis__isnull=True).exists():
-            raise SatirHatasi(f"{lot_no} lotunda sistemde açık bir işlem var, Excel'den güncellenemez")
+            raise SatirHatasi(f"{lot_no} işinde sistemde açık bir işlem var, Excel'den güncellenemez")
         lot = lot or UretimLotu(lot_no=lot_no)
-        lot.ham_deri = ham
         lot.siparis = siparis
         lot.baslangic_kg = sayi(s["Başlangıç kg"], "Başlangıç kg")
         lot.baslangic_m2 = sayi(s["Başlangıç m²"], "Başlangıç m²")
@@ -305,10 +307,12 @@ class Aktarici:
         lot.durum = durum
         lot.notlar = metin(s.get("Not")) or lot.notlar
         lot.save()
+        lot.kaynaklar.all().delete()
+        LotKaynagi.objects.create(uretim_lotu=lot, ham_deri=ham, kg=lot.baslangic_kg, m2=lot.baslangic_m2)
 
         if ham.kalan_kg < 0 or ham.kalan_m2 < 0:
             self.rapor.uyarilar.append(
-                f"Üretim Lotları, satır {satir_no}: {ham.lot_no} ham deri lotundan girişten fazla pay ayrılmış "
+                f"Devam Eden İşler, satır {satir_no}: {ham.lot_no} stok lotundan girişten fazla malzeme alınmış "
                 f"(kalan {ham.kalan_kg} kg / {ham.kalan_m2} m²)."
             )
         return yeni
@@ -331,7 +335,7 @@ SAYFALAR = [
         Sutun("Telefon", False),
         Sutun("Not", False),
     ], "musteri", ("musteri",)),
-    Sayfa("Ham Deri", "Gelen ham deri partileri. Tedarikçi ve deri türü sistemde yoksa otomatik eklenir.", [
+    Sayfa("Stok Lotları", "Stoğa gelen ham deri partileri. Tedarikçi ve deri türü sistemde yoksa otomatik eklenir.", [
         Sutun("Lot No", False, "Boş bırakılırsa sistem numara verir (HD-2026-0001). Eski numaralarınızı yazarsanız onlar kullanılır.", "HD-2026-0001"),
         Sutun("Tarih", False, "Giriş tarihi (boşsa bugün)", "01.10.2026"),
         Sutun("Tedarikçi", True, "", "Anadolu Deri Ltd."),
@@ -341,7 +345,7 @@ SAYFALAR = [
         Sutun("Kg", True, "Toplam ağırlık", "640"),
         Sutun("m²", True, "Toplam alan", "110,5"),
         Sutun("Not", False),
-    ], "ham_deri", ("hamderigirisleri", "hamderi", "hammadde")),
+    ], "ham_deri", ("hamderigirisleri", "hamderi", "hammadde", "stok")),
     Sayfa("Siparişler", "Müşteri siparişleri. Müşteri sistemde yoksa otomatik eklenir.", [
         Sutun("Sipariş No", False, "Boş bırakılırsa sistem numara verir (SP-2026-0001)", "SP-2026-0001"),
         Sutun("Müşteri", True, "", "Örnek Mobilya A.Ş."),
@@ -354,18 +358,18 @@ SAYFALAR = [
         Sutun("Durum", False, "Açık / Üretimde / Tamamlandı / Sevk edildi / İptal (boşsa Açık)", "Açık"),
         Sutun("Not", False),
     ], "siparis", ("siparis",)),
-    Sayfa("Üretim Lotları", "Şu an üretimde olan (veya biten) lotlar. Ham deri ve sipariş numaraları yukarıdaki sayfalarda ya da sistemde bulunmalı.", [
-        Sutun("Lot No", False, "Boş bırakılırsa sistem numara verir (UL-2026-0001)", "UL-2026-0001"),
-        Sutun("Ham Deri Lot No", True, "Ham Deri sayfasındaki Lot No", "HD-2026-0001"),
+    Sayfa("Devam Eden İşler", "Sistemi kurarken üretimde yarım kalan işler. Stok lotu ve sipariş numaraları yukarıdaki sayfalarda ya da sistemde bulunmalı.", [
+        Sutun("İş No", False, "Boş bırakılırsa sistem numara verir (IS-2026-0001)", "IS-2026-0001", ("Lot No",)),
+        Sutun("Stok Lot No", True, "Malzemenin alındığı stok lotu (Stok Lotları sayfasındaki Lot No)", "HD-2026-0001", ("Ham Deri Lot No",)),
         Sutun("Sipariş No", False, "", "SP-2026-0001"),
         Sutun("Başlangıç kg", True, "", "320"),
         Sutun("Başlangıç m²", True, "", "55"),
         Sutun("Mevcut kg", False, "Şu anki ağırlık (boşsa başlangıç)", "284"),
         Sutun("Mevcut m²", False, "Şu anki alan (boşsa başlangıç)", "50,5"),
-        Sutun("Son Tamamlanan Aşama", False, "Lotun bitirdiği son aşama: adı (ör. Tabaklama) ya da sıra no (ör. 30). Hiç başlamadıysa boş.", "Tabaklama"),
+        Sutun("Son Tamamlanan Aşama", False, "İşin bitirdiği son aşama: adı (ör. Tabaklama) ya da sıra no (ör. 30). Hiç başlamadıysa boş.", "Tabaklama"),
         Sutun("Durum", False, "Bekliyor / Tamamlandı / İptal (boşsa otomatik)", ""),
         Sutun("Not", False),
-    ], "lot", ("uretimlotu", "lotlar", "lot")),
+    ], "lot", ("uretimlotlari", "uretimlotu", "lotlar", "lot", "isler")),
 ]
 
 
@@ -380,6 +384,7 @@ def _sayfa_bul(kitap, sayfa):
 def _satirlar(ws, sayfa):
     """Başlık satırını bulur (ilk 10 satırda) ve her veri satırını {Başlık: değer} olarak verir."""
     beklenen = {normal(s.baslik): s.baslik for s in sayfa.sutunlar}
+    beklenen.update({normal(t): s.baslik for s in sayfa.sutunlar for t in s.takma_adlar})
     for baslik_satiri, satir in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=True), start=1):
         eslesme = {i: beklenen[normal(h)] for i, h in enumerate(satir) if normal(h) in beklenen}
         if len(eslesme) >= max(1, len([s for s in sayfa.sutunlar if s.zorunlu])):
@@ -439,7 +444,7 @@ def ice_aktar(dosya, kaydet=False):
 
         if not rapor.bulunan_sayfalar and not rapor.hatalar:
             rapor.hatalar.append(("Dosya", "-", "Aktarılacak veri bulunamadı. Sayfa adları şablondaki gibi olmalı "
-                                                "(Personel, Ham Deri, …) ve başlıkların altında veri bulunmalı."))
+                                                "(Personel, Stok Lotları, …) ve başlıkların altında veri bulunmalı."))
         if kaydet and not rapor.hatalar:
             rapor.kaydedildi = True
         else:

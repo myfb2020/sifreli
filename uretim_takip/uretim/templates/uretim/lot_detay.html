@@ -3,23 +3,25 @@
 {% block icerik %}
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
   <h1 style="margin:0;margin-right:auto">{{ lot.lot_no }} <span class="rozet {{ lot.durum }}">{{ lot.get_durum_display }}</span></h1>
-  {% if lot.acik_islem %}
+  {% if not user.is_staff or user.is_superuser %}{% if lot.acik_islem %}
     <a class="btn" href="{% url 'islem_bitir' lot.acik_islem.pk %}">■ Açık işlemi bitir</a>
   {% elif lot.durum == "bekliyor" %}
     <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ Sıradaki: {{ lot.siradaki_asama.ad|default:"aşama seç" }}</a>
-  {% endif %}
-  <a class="btn ikincil" href="{% url 'etiketler' %}?lot={{ lot.pk }}">🏷 Etiket</a>
+  {% endif %}{% endif %}
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_uretimlotu_change' lot.pk %}">Düzenle</a>{% endif %}
 </div>
 
 <div class="izgara">
   <div class="kart">
-    <h2>Kaynak</h2>
+    <h2>Malzeme ve sipariş</h2>
     <table>
-      <tr><th>Ham deri lotu</th><td>{{ lot.ham_deri.lot_no }} ({{ lot.ham_deri.tarih|date:"d.m.Y" }})</td></tr>
-      <tr><th>Tedarikçi</th><td>{{ lot.ham_deri.tedarikci }}</td></tr>
-      <tr><th>Deri türü / kalite</th><td>{{ lot.ham_deri.deri_turu }} / {{ lot.ham_deri.get_kalite_display }}</td></tr>
-      <tr><th>Sipariş</th><td>{% if lot.siparis %}<a href="{% url 'siparis_detay' lot.siparis.pk %}">{{ lot.siparis.siparis_no }}</a> – {{ lot.siparis.musteri }}<br>
+      {% for k in lot.kaynaklar.all %}
+      <tr><th>Stok lotu</th><td><a href="{% url 'stok_detay' k.ham_deri.pk %}">{{ k.ham_deri.lot_no }}</a> · {{ k.kg }} kg / {{ k.m2 }} m²<br>
+        <span class="soluk">{{ k.ham_deri.deri_turu }} / {{ k.ham_deri.get_kalite_display }} · {{ k.ham_deri.tedarikci }} · giriş {{ k.ham_deri.tarih|date:"d.m.Y" }}</span></td></tr>
+      {% empty %}
+      <tr><th>Stok lotu</th><td class="soluk">Kayıtlı değil</td></tr>
+      {% endfor %}
+      <tr><th>Sipariş</th><td>{% if lot.siparis %}{% if perms.uretim.view_siparis %}<a href="{% url 'siparis_detay' lot.siparis.pk %}">{{ lot.siparis.siparis_no }}</a>{% else %}{{ lot.siparis.siparis_no }}{% endif %} – {{ lot.siparis.musteri }}<br>
         <span class="soluk">{{ lot.siparis.urun }} · teslim {{ lot.siparis.teslim_tarihi|date:"d.m.Y" }}</span>{% else %}–{% endif %}</td></tr>
     </table>
   </div>
@@ -53,7 +55,7 @@
       <td>{{ i.aciklama|linebreaksbr }}</td>
     </tr>
     {% empty %}
-    <tr><td colspan="9" class="soluk">Bu lotta henüz işlem yapılmadı.</td></tr>
+    <tr><td colspan="9" class="soluk">Bu işte henüz işlem yapılmadı.</td></tr>
     {% endfor %}
   </table>
 </div>

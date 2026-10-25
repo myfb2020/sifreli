@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,6 +13,16 @@ from openpyxl.styles import Font
 from . import raporlar, servisler
 from .forms import IslemBaslatForm, IslemBitirForm, TarihAraligiForm
 from .models import Asama, IslemKaydi, Siparis, UretimLotu
+
+
+def sadece_ofis(gorunum):
+    """Raporlar gibi ofis ekranları: personel durumlu hesaplar ve yönetici. Tablet hesabı göremez."""
+    @login_required
+    def sarmal(request, *args, **kwargs):
+        if not request.user.is_staff:
+            raise PermissionDenied
+        return gorunum(request, *args, **kwargs)
+    return sarmal
 
 
 @login_required
@@ -56,7 +66,7 @@ def islem_baslat(request):
         except ValidationError as hata:
             form.add_error(None, hata)
         else:
-            messages.success(request, f"{islem.personel} – {islem.lot} lotunda “{islem.asama.ad}” başladı.")
+            messages.success(request, f"{islem.personel} – {islem.lot} işinde “{islem.asama.ad}” başladı.")
             return redirect("pano")
     return render(request, "uretim/islem_baslat.html", {"form": form})
 
@@ -90,7 +100,7 @@ def islem_bitir(request, pk):
 @login_required
 def lot_listesi(request):
     durum = request.GET.get("durum", "aktif")
-    lotlar = UretimLotu.objects.select_related("ham_deri__tedarikci", "ham_deri__deri_turu", "siparis", "son_asama")
+    lotlar = UretimLotu.objects.select_related("siparis__musteri", "son_asama").prefetch_related("kaynaklar__ham_deri__deri_turu")
     if durum == "aktif":
         lotlar = lotlar.exclude(durum__in=["tamamlandi", "iptal"])
     elif durum in dict(UretimLotu.DURUM):
@@ -98,18 +108,18 @@ def lot_listesi(request):
     ara = request.GET.get("ara", "").strip()
     if ara:
         lotlar = lotlar.filter(
-            Q(lot_no__icontains=ara) | Q(ham_deri__lot_no__icontains=ara) | Q(siparis__siparis_no__icontains=ara)
+            Q(lot_no__icontains=ara) | Q(kaynaklar__ham_deri__lot_no__icontains=ara) | Q(siparis__siparis_no__icontains=ara)
         )
     return render(
         request, "uretim/lot_listesi.html",
-        {"lotlar": lotlar[:300], "durum": durum, "ara": ara, "durumlar": UretimLotu.DURUM},
+        {"lotlar": lotlar.distinct()[:300], "durum": durum, "ara": ara, "durumlar": UretimLotu.DURUM},
     )
 
 
 @login_required
 def lot_detay(request, pk):
     lot = get_object_or_404(
-        UretimLotu.objects.select_related("ham_deri__tedarikci", "ham_deri__deri_turu", "siparis__musteri"), pk=pk
+        UretimLotu.objects.select_related("siparis__musteri"), pk=pk
     )
     islemler = lot.islemler.select_related("asama", "personel", "bitiren").order_by("baslangic")
     return render(request, "uretim/lot_detay.html", {"lot": lot, "islemler": islemler})
@@ -123,7 +133,7 @@ def _tarih_araligi(request):
     return form, bugun.replace(day=1), bugun
 
 
-@login_required
+@sadece_ofis
 def rapor(request):
     form, bas, son = _tarih_araligi(request)
     personel = raporlar.personel_ozeti(bas, son)
@@ -136,7 +146,7 @@ def rapor(request):
     )
 
 
-@login_required
+@sadece_ofis
 def rapor_excel(request):
     _, bas, son = _tarih_araligi(request)
     kitap = Workbook()
@@ -171,7 +181,7 @@ def rapor_excel(request):
     yerel = timezone.localtime
     sayfa_yaz(
         kitap.create_sheet("İşlem detayı"),
-        ["Lot", "Aşama", "Personel", "Bitiren", "Başlangıç", "Bitiş", "Giriş kg", "Çıkış kg", "Giriş m²", "Çıkış m²", "Not"],
+        ["İş", "Aşama", "Personel", "Bitiren", "Başlangıç", "Bitiş", "Giriş kg", "Çıkış kg", "Giriş m²", "Çıkış m²", "Not"],
         [
             [i.lot.lot_no, i.asama.ad, i.personel.ad_soyad, i.bitiren.ad_soyad if i.bitiren else "",
              yerel(i.baslangic).replace(tzinfo=None), yerel(i.bitis).replace(tzinfo=None),

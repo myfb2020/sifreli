@@ -127,7 +127,7 @@ class DeriTuru(models.Model):
 class HamDeriGirisi(models.Model):
     KALITE = [("A", "A"), ("B", "B"), ("C", "C"), ("K", "Karışık")]
 
-    lot_no = models.CharField("ham deri lot no", max_length=20, unique=True, blank=True)
+    lot_no = models.CharField("stok lot no", max_length=20, unique=True, blank=True)
     tarih = models.DateField(default=timezone.localdate)
     tedarikci = models.ForeignKey(Tedarikci, on_delete=models.PROTECT, verbose_name="tedarikçi")
     deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, verbose_name="deri türü")
@@ -139,8 +139,8 @@ class HamDeriGirisi(models.Model):
 
     class Meta:
         ordering = ["-tarih", "-lot_no"]
-        verbose_name = "ham deri girişi"
-        verbose_name_plural = "ham deri girişleri"
+        verbose_name = "stok lotu (ham deri)"
+        verbose_name_plural = "stok lotları (ham deri)"
 
     def __str__(self):
         return f"{self.lot_no} – {self.tedarikci} ({self.deri_turu})"
@@ -152,11 +152,11 @@ class HamDeriGirisi(models.Model):
 
     @property
     def kullanilan_kg(self):
-        return self.uretim_lotlari.aggregate(t=models.Sum("baslangic_kg"))["t"] or SIFIR
+        return self.cikislar.aggregate(t=models.Sum("kg"))["t"] or SIFIR
 
     @property
     def kullanilan_m2(self):
-        return self.uretim_lotlari.aggregate(t=models.Sum("baslangic_m2"))["t"] or SIFIR
+        return self.cikislar.aggregate(t=models.Sum("m2"))["t"] or SIFIR
 
     @property
     def kalan_kg(self):
@@ -165,6 +165,16 @@ class HamDeriGirisi(models.Model):
     @property
     def kalan_m2(self):
         return self.m2 - self.kullanilan_m2
+
+    def aktif_isler(self):
+        """Bu stok lotundan malzeme almış, bitmemiş işler."""
+        return (
+            UretimLotu.objects.filter(kaynaklar__ham_deri=self)
+            .exclude(durum__in=["tamamlandi", "iptal"])
+            .select_related("siparis__musteri", "son_asama")
+            .distinct()
+            .order_by("olusturma")
+        )
 
 
 class Siparis(models.Model):
@@ -259,10 +269,7 @@ class UretimLotu(models.Model):
         ("iptal", "İptal"),
     ]
 
-    lot_no = models.CharField("lot no", max_length=20, unique=True, blank=True)
-    ham_deri = models.ForeignKey(
-        HamDeriGirisi, on_delete=models.PROTECT, related_name="uretim_lotlari", verbose_name="ham deri lotu"
-    )
+    lot_no = models.CharField("iş no", max_length=20, unique=True, blank=True)
     siparis = models.ForeignKey(
         Siparis, on_delete=models.SET_NULL, null=True, blank=True, related_name="lotlar", verbose_name="sipariş"
     )
@@ -280,15 +287,15 @@ class UretimLotu(models.Model):
 
     class Meta:
         ordering = ["-olusturma"]
-        verbose_name = "üretim lotu"
-        verbose_name_plural = "üretim lotları"
+        verbose_name = "iş"
+        verbose_name_plural = "işler"
 
     def __str__(self):
         return self.lot_no
 
     def save(self, *args, **kwargs):
         if not self.lot_no:
-            self.lot_no = sonraki_numara(UretimLotu, "lot_no", "UL")
+            self.lot_no = sonraki_numara(UretimLotu, "lot_no", "IS")
         if self.mevcut_kg is None:
             self.mevcut_kg = self.baslangic_kg
         if self.mevcut_m2 is None:
@@ -297,6 +304,11 @@ class UretimLotu(models.Model):
         # Tamamlanmış bir siparişe bitmemiş lot eklenirse sipariş yeniden üretime döner.
         if self.siparis_id and self.durum not in ("tamamlandi", "iptal"):
             Siparis.objects.filter(pk=self.siparis_id, durum="tamamlandi").update(durum="uretimde")
+
+    @property
+    def kaynak_listesi(self):
+        """Malzemenin alındığı stok lotları, ör. 'HD-2026-0001, HD-2026-0004'."""
+        return ", ".join(k.ham_deri.lot_no for k in self.kaynaklar.all())
 
     @property
     def siradaki_asama(self):
@@ -317,6 +329,27 @@ class UretimLotu(models.Model):
     @property
     def toplam_fire_m2(self):
         return self.baslangic_m2 - (self.mevcut_m2 or SIFIR)
+
+
+class LotKaynagi(models.Model):
+    """Bir işe hangi stok lotundan ne kadar malzeme alındığı."""
+
+    uretim_lotu = models.ForeignKey(UretimLotu, on_delete=models.CASCADE, related_name="kaynaklar", verbose_name="iş")
+    ham_deri = models.ForeignKey(
+        HamDeriGirisi, on_delete=models.PROTECT, related_name="cikislar", verbose_name="stok lotu"
+    )
+    kg = models.DecimalField(max_digits=10, decimal_places=2, validators=pozitif)
+    m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, validators=pozitif)
+    tarih = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["tarih"]
+        verbose_name = "malzeme çıkışı"
+        verbose_name_plural = "malzeme çıkışları"
+        constraints = [models.UniqueConstraint(fields=["uretim_lotu", "ham_deri"], name="is_basina_stok_lotu_tek")]
+
+    def __str__(self):
+        return f"{self.ham_deri.lot_no} → {self.uretim_lotu.lot_no}"
 
 
 class IslemKaydi(models.Model):

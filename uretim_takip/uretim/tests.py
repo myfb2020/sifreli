@@ -8,7 +8,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import raporlar, servisler
-from .models import Asama, DeriTuru, HamDeriGirisi, IslemKaydi, Musteri, Personel, Siparis, Tedarikci, UretimLotu
+from .models import (
+    Asama, DeriTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+)
 
 
 class TemelVeri(TestCase):
@@ -29,11 +31,13 @@ class TemelVeri(TestCase):
         )
         cls.asamalar = list(Asama.objects.filter(aktif=True))
 
-    def yeni_lot(self, **kw):
-        kw.setdefault("ham_deri", self.ham)
+    def yeni_lot(self, ham_deri=None, **kw):
+        """Doğrudan iş kaydı (testlerin çoğu için yeterli); malzeme tek stok lotundan alınmış sayılır."""
         kw.setdefault("baslangic_kg", Decimal("50"))
         kw.setdefault("baslangic_m2", Decimal("10"))
-        return UretimLotu.objects.create(**kw)
+        lot = UretimLotu.objects.create(**kw)
+        LotKaynagi.objects.create(uretim_lotu=lot, ham_deri=ham_deri or self.ham, kg=lot.baslangic_kg, m2=lot.baslangic_m2)
+        return lot
 
 
 class NumaralamaTesti(TemelVeri):
@@ -41,8 +45,8 @@ class NumaralamaTesti(TemelVeri):
         yil = timezone.localdate().year
         self.assertEqual(self.ham.lot_no, f"HD-{yil}-0001")
         a, b = self.yeni_lot(), self.yeni_lot()
-        self.assertEqual(a.lot_no, f"UL-{yil}-0001")
-        self.assertEqual(b.lot_no, f"UL-{yil}-0002")
+        self.assertEqual(a.lot_no, f"IS-{yil}-0001")
+        self.assertEqual(b.lot_no, f"IS-{yil}-0002")
         self.assertEqual(self.siparis.siparis_no, f"SP-{yil}-0001")
 
     def test_ham_deri_kalan_miktar(self):
@@ -153,10 +157,15 @@ class EkranTesti(TemelVeri):
     def test_sayfalar_acilir(self):
         lot = self.yeni_lot()
         islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
-        for url in [reverse("pano"), reverse("islem_baslat"), reverse("lot_listesi"),
-                    reverse("lot_detay", args=[lot.pk]), reverse("islem_bitir", args=[islem.pk]), reverse("rapor")]:
+        for url in [reverse("pano"), reverse("islem_merkezi"), reverse("yeni_is"), reverse("islem_baslat"),
+                    reverse("lot_listesi"), reverse("lot_detay", args=[lot.pk]), reverse("islem_bitir", args=[islem.pk]),
+                    reverse("stok_listesi"), reverse("stok_detay", args=[self.ham.pk]), reverse("qr_tara")]:
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
+        # Tablet hesabı ofis ekranlarına giremez
+        for url in [reverse("rapor"), reverse("rapor_excel"), reverse("siparis_listesi"), reverse("stok_yeni")]:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 403)
 
     def test_yanlis_pin_ile_islem_baslamaz(self):
         lot = self.yeni_lot()
@@ -185,6 +194,7 @@ class EkranTesti(TemelVeri):
         lot = self.yeni_lot()
         islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
         servisler.islem_bitir(islem=islem, personel=self.ahmet, cikis_kg=Decimal("49"), cikis_m2=Decimal("9.9"))
+        self.client.force_login(get_user_model().objects.create_user("ofis", password="x", is_staff=True))
         yanit = self.client.get(reverse("rapor_excel"))
         self.assertEqual(yanit.status_code, 200)
         self.assertIn("spreadsheetml", yanit["Content-Type"])
@@ -222,11 +232,19 @@ class QrVePwaTesti(TemelVeri):
         self.assertRedirects(yanit, reverse("qr_yonlendir", args=[lot.lot_no]), fetch_redirect_response=False)
         self.assertContains(self.client.get(reverse("qr_tara"), {"lot_no": "UL-1999-9999"}), "bulunamadı")
 
-    def test_etiketlerde_lot_adresi_qr_olarak_bulunur(self):
-        lot = self.yeni_lot()
-        yanit = self.client.get(reverse("etiketler"), {"lot": lot.pk})
-        self.assertContains(yanit, lot.lot_no)
+    def test_etiketler_stok_lotlarina_basilir(self):
+        yanit = self.client.get(reverse("etiketler"), {"stok": self.ham.pk})
+        self.assertContains(yanit, self.ham.lot_no)
         self.assertContains(yanit, "<svg")
+        # Parametresiz: stokta malı kalan lotlar; tamamen kullanılan lot listelenmez
+        self.yeni_lot(baslangic_kg=Decimal("100"), baslangic_m2=Decimal("20"))
+        self.assertNotContains(self.client.get(reverse("etiketler")), self.ham.lot_no)
+
+    def test_stok_etiketi_okutulunca_stok_sayfasi_acilir(self):
+        yanit = self.client.get(reverse("qr_yonlendir", args=[self.ham.lot_no.lower()]))
+        self.assertRedirects(yanit, reverse("stok_detay", args=[self.ham.pk]))
+        yanit = self.client.get(reverse("qr_tara"), {"lot_no": self.ham.lot_no})
+        self.assertRedirects(yanit, reverse("qr_yonlendir", args=[self.ham.lot_no]), fetch_redirect_response=False)
 
     def test_manifest_ve_service_worker(self):
         self.client.logout()
@@ -291,11 +309,11 @@ class ExcelAktarimTesti(TestCase):
         return self.doldur({
             "Personel": [["Ahmet Yılmaz", "1234", "Kesim", "Evet"], ["Ayşe Demir", "0789", "", ""]],
             "Tedarikçiler": [["Anadolu Deri", "0532 111", ""]],
-            "Ham Deri": [["HD-ESKI-1", "01.10.2026", "Anadolu Deri", "Kuzu", "A", 200, "640", "110,5", ""],
+            "Stok Lotları": [["HD-ESKI-1", "01.10.2026", "Anadolu Deri", "Kuzu", "A", 200, "640", "110,5", ""],
                          ["", "2026-10-02", "Yeni Tedarikçi", "Merinos", "Karışık", "", "1.250,75", 90, ""]],
             "Siparişler": [["SP-ESKI-7", "Örnek Mobilya", "05.10.2026", "200x300 halı", "Kuzu", 4, 24,
                             "30.10.2026", "Üretimde", ""]],
-            "Üretim Lotları": [["L-15", "hd-eski-1", "SP-ESKI-7", 320, 55, 284, "50,5", "Tabaklama", "", ""],
+            "Devam Eden İşler": [["L-15", "hd-eski-1", "SP-ESKI-7", 320, 55, 284, "50,5", "Tabaklama", "", ""],
                                ["", "HD-ESKI-1", "", 100, 20, "", "", "", "", ""]],
         })
 
@@ -340,11 +358,11 @@ class ExcelAktarimTesti(TestCase):
 
         dosya = self.doldur({
             "Personel": [["Ali", "12", "", ""], ["Veli", "5678", "", ""], ["Can", "", "", ""]],
-            "Ham Deri": [["", "", "T", "Kuzu", "", "", "abc", "5", ""],
+            "Stok Lotları": [["", "", "T", "Kuzu", "", "", "abc", "5", ""],
                          ["", "32.13.2026", "T", "Kuzu", "", "", "5", "5", ""],
                          ["", "", "T", "Kuzu", "Z", "", "5", "5", ""],
                          ["", "", "T", "Kuzu", "", "", "5", "-5", ""]],
-            "Üretim Lotları": [["", "YOK-1", "", 1, 1, "", "", "Uçurma", "", ""]],
+            "Devam Eden İşler": [["", "YOK-1", "", 1, 1, "", "", "Uçurma", "", ""]],
         })
         rapor = ice_aktar(dosya, kaydet=True)
         self.assertFalse(rapor.kaydedildi)
@@ -447,20 +465,24 @@ class SiparisEkraniTesti(TemelVeri):
         self.siparis.toplam_m2 = None
         self.assertEqual(self.siparis.ilerleme()["yuzde"], 50)
 
-    def test_liste_ve_detay_tablete_acik_form_kapali(self):
+    def test_siparis_ekranlari_tablete_kapali(self):
         self.yeni_lot(siparis=self.siparis)
         self.client.force_login(self.tablet)
-        yanit = self.client.get(reverse("siparis_listesi"))
-        self.assertContains(yanit, self.siparis.siparis_no)
-        self.assertNotContains(yanit, "+ Yeni sipariş")
-        self.assertContains(self.client.get(reverse("siparis_detay", args=[self.siparis.pk])), "Lotlar (1)")
+        self.assertEqual(self.client.get(reverse("siparis_listesi")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("siparis_detay", args=[self.siparis.pk])).status_code, 403)
+        pano = self.client.get(reverse("pano"))
+        self.assertNotContains(pano, reverse("siparis_listesi"))
+        self.assertContains(pano, "İşlem Başlat")
+        self.client.force_login(self.yonetici)
+        self.assertContains(self.client.get(reverse("siparis_detay", args=[self.siparis.pk])), "İşler (1)")
+        self.client.force_login(self.tablet)
         self.assertEqual(self.client.get(reverse("siparis_yeni")).status_code, 403)
         self.assertEqual(self.client.post(reverse("siparis_durum", args=[self.siparis.pk]), {"durum": "sevk"}).status_code, 403)
 
     def test_geciken_siparis_uyarisi_ve_sekmeler(self):
         self.siparis.teslim_tarihi = timezone.localdate() - timedelta(days=3)
         self.siparis.save()
-        self.client.force_login(self.tablet)
+        self.client.force_login(self.yonetici)
         yanit = self.client.get(reverse("siparis_listesi"))
         self.assertContains(yanit, "3 gün gecikti")
         self.assertContains(yanit, "1 sipariş teslim tarihini geçti")
@@ -565,3 +587,160 @@ class OfisHesabiTesti(TestCase):
         self.client.force_login(get_user_model().objects.create_superuser("y", password="x"))
         yanit = self.client.get(reverse("sablon_indir"))
         self.assertEqual(yanit.status_code, 200)
+
+
+class YeniIsAkisiTesti(TemelVeri):
+    """Çalışan siparişi seçer, stok lotlarını okutur, iş kendiliğinden açılır."""
+
+    def setUp(self):
+        self.ham2 = HamDeriGirisi.objects.create(
+            tedarikci=self.ham.tedarikci, deri_turu=self.ham.deri_turu, kg=Decimal("40"), m2=Decimal("8"),
+        )
+
+    def test_iki_stok_lotundan_is_acilir_ve_ilk_asama_baslar(self):
+        islem = servisler.yeni_is_baslat(
+            personel=self.ahmet, siparis=self.siparis, asama=self.asamalar[0],
+            kaynaklar=[(self.ham, Decimal("30"), Decimal("6")), (self.ham2, Decimal("10"), Decimal("2.5"))],
+        )
+        lot = islem.lot
+        self.assertEqual((lot.baslangic_kg, lot.baslangic_m2), (Decimal("40"), Decimal("8.5")))
+        self.assertEqual(lot.durum, "islemde")
+        self.assertEqual(lot.siparis, self.siparis)
+        self.assertEqual(sorted(lot.kaynak_listesi.split(", ")), sorted([self.ham.lot_no, self.ham2.lot_no]))
+        self.assertEqual((self.ham.kalan_kg, self.ham2.kalan_m2), (Decimal("70"), Decimal("5.5")))
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "uretimde")
+        self.assertEqual([i.lot_no for i in self.ham2.aktif_isler()], [lot.lot_no])
+
+    def test_ayni_lot_iki_kez_okutulursa_toplanir(self):
+        islem = servisler.yeni_is_baslat(
+            personel=self.ahmet, siparis=self.siparis, asama=self.asamalar[0],
+            kaynaklar=[(self.ham, Decimal("5"), Decimal("1")), (self.ham, Decimal("5"), Decimal("1"))],
+        )
+        kaynak = islem.lot.kaynaklar.get()
+        self.assertEqual((kaynak.kg, kaynak.m2), (Decimal("10"), Decimal("2")))
+
+    def test_stoktan_fazla_alinamaz_ve_hicbir_sey_kaydedilmez(self):
+        with self.assertRaises(ValidationError) as hata:
+            servisler.yeni_is_baslat(
+                personel=self.ahmet, siparis=self.siparis, asama=self.asamalar[0],
+                kaynaklar=[(self.ham, Decimal("5"), Decimal("1")), (self.ham2, Decimal("41"), Decimal("1"))],
+            )
+        self.assertIn("stokta 40.00 kg", " ".join(hata.exception.messages))
+        self.assertFalse(UretimLotu.objects.exists())
+        self.assertFalse(LotKaynagi.objects.exists())
+
+    def test_sevk_edilmis_siparise_is_acilamaz(self):
+        self.siparis.durum = "sevk"
+        self.siparis.save()
+        with self.assertRaises(ValidationError):
+            servisler.yeni_is_baslat(personel=self.ahmet, siparis=self.siparis, asama=self.asamalar[0],
+                                     kaynaklar=[(self.ham, Decimal("1"), Decimal("1"))])
+
+    def veri(self, **kw):
+        v = {"personel": self.ahmet.pk, "pin": "1234", "siparis": self.siparis.pk, "asama": self.asamalar[0].pk,
+             "kaynak-TOTAL_FORMS": "4", "kaynak-INITIAL_FORMS": "0", "kaynak-MIN_NUM_FORMS": "0",
+             "kaynak-MAX_NUM_FORMS": "10"}
+        v.update(kw)
+        return v
+
+    def test_ekrandan_yeni_is(self):
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+        sayfa = self.client.get(reverse("yeni_is"), {"stok": self.ham.lot_no.lower()})
+        self.assertContains(sayfa, f'value="{self.ham.lot_no}"')
+        yanit = self.client.post(reverse("yeni_is"), self.veri(**{
+            "kaynak-0-stok_no": self.ham.lot_no, "kaynak-0-kg": "20,5", "kaynak-0-m2": "4",
+            "kaynak-1-stok_no": self.ham2.lot_no.lower(), "kaynak-1-m2": "2",
+        }))
+        self.assertRedirects(yanit, reverse("pano"))
+        lot = UretimLotu.objects.get()
+        self.assertEqual(lot.kaynaklar.count(), 2)
+        self.assertEqual(lot.baslangic_m2, Decimal("6"))
+        self.assertEqual(lot.islemler.get().personel, self.ahmet)
+
+    def test_ekranda_hatalar(self):
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+        bos = self.client.post(reverse("yeni_is"), self.veri())
+        self.assertContains(bos, "En az bir stok lotundan malzeme girin")
+        yok = self.client.post(reverse("yeni_is"), self.veri(**{"kaynak-0-stok_no": "HD-1999-0001", "kaynak-0-m2": "1"}))
+        self.assertContains(yok, "stok lotu bulunamadı")
+        miktarsiz = self.client.post(reverse("yeni_is"), self.veri(**{"kaynak-0-stok_no": self.ham.lot_no}))
+        self.assertContains(miktarsiz, "Alınan miktarı girin")
+        fazla = self.client.post(reverse("yeni_is"), self.veri(**{"kaynak-0-stok_no": self.ham.lot_no, "kaynak-0-m2": "999"}))
+        self.assertContains(fazla, "stokta")
+        pin = self.client.post(reverse("yeni_is"), self.veri(pin="0000", **{"kaynak-0-stok_no": self.ham.lot_no, "kaynak-0-m2": "1"}))
+        self.assertContains(pin, "PIN hatalı")
+        self.assertFalse(UretimLotu.objects.exists())
+
+    def test_stok_bilgi_ve_stok_sayfasi(self):
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+        bilgi = self.client.get(reverse("stok_bilgi", args=[self.ham2.lot_no])).json()
+        self.assertEqual((bilgi["kalan_kg"], bilgi["kalan_m2"]), ("40.00", "8.00"))
+        self.assertEqual(self.client.get(reverse("stok_bilgi", args=["YOK"])).status_code, 404)
+        islem = servisler.yeni_is_baslat(personel=self.ahmet, siparis=self.siparis, asama=self.asamalar[0],
+                                         kaynaklar=[(self.ham2, Decimal("10"), Decimal("2"))])
+        sayfa = self.client.get(reverse("stok_detay", args=[self.ham2.pk]))
+        self.assertContains(sayfa, islem.lot.lot_no)
+        self.assertContains(sayfa, reverse("islem_bitir", args=[islem.pk]))
+        self.assertContains(sayfa, "Bu lottan yeni iş başlat")
+        self.assertContains(self.client.get(reverse("stok_listesi")), self.ham2.lot_no)
+
+    def test_stok_girisi_formu_yeni_tedarikciyle(self):
+        self.client.force_login(get_user_model().objects.create_superuser("y", password="x"))
+        yanit = self.client.post(reverse("stok_yeni"), {
+            "yeni_tedarikci": "Ege Deri", "tarih": "2026-10-20", "deri_turu": self.ham.deri_turu.pk, "kalite": "A",
+            "kg": "480,5", "m2": "82",
+        })
+        stok = HamDeriGirisi.objects.get(tedarikci__ad="Ege Deri")
+        self.assertRedirects(yanit, reverse("stok_detay", args=[stok.pk]))
+        self.assertEqual(stok.kg, Decimal("480.50"))
+        self.assertTrue(stok.lot_no.startswith("HD-"))
+
+
+class RolMenuTesti(TestCase):
+    def test_ofis_ve_tablet_menuleri_ayrik(self):
+        from django.contrib.auth.models import Permission
+
+        User = get_user_model()
+        tablet = User.objects.create_user("tablet", password="x")
+        ofis = User.objects.create_user("ofis", password="x", is_staff=True)
+        ofis.user_permissions.add(*Permission.objects.filter(content_type__app_label="uretim",
+                                                              codename__in=["view_siparis", "add_siparis"]))
+        self.client.force_login(tablet)
+        pano = self.client.get(reverse("pano")).content.decode()
+        self.assertIn(reverse("islem_merkezi"), pano)
+        self.assertNotIn(reverse("siparis_listesi"), pano)
+        self.assertNotIn(reverse("rapor"), pano)
+        self.client.force_login(ofis)
+        pano = self.client.get(reverse("pano")).content.decode()
+        self.assertNotIn(reverse("islem_merkezi"), pano)
+        self.assertNotIn(reverse("qr_tara"), pano)
+        self.assertIn(reverse("siparis_listesi"), pano)
+        self.assertIn(reverse("siparis_yeni"), pano)
+        self.assertIn(reverse("rapor"), pano)
+
+
+class EskiExcelSablonuTesti(TestCase):
+    def test_eski_sayfa_ve_sutun_adlari_okunur(self):
+        import io
+
+        from openpyxl import Workbook
+
+        from .excel_aktar import ice_aktar
+
+        kitap = Workbook()
+        ham = kitap.active
+        ham.title = "Ham Deri"
+        ham.append(["Lot No", "Tedarikçi", "Deri Türü", "Kg", "m²"])
+        ham.append(["ESKI-1", "T", "Kuzu", 100, 20])
+        lotlar = kitap.create_sheet("Üretim Lotları")
+        lotlar.append(["Lot No", "Ham Deri Lot No", "Başlangıç kg", "Başlangıç m²"])
+        lotlar.append(["UL-ESKI-9", "ESKI-1", 40, 8])
+        tampon = io.BytesIO()
+        kitap.save(tampon)
+        tampon.seek(0)
+        rapor = ice_aktar(tampon, kaydet=True)
+        self.assertTrue(rapor.kaydedildi, rapor.hatalar)
+        lot = UretimLotu.objects.get(lot_no="UL-ESKI-9")
+        self.assertEqual(lot.kaynak_listesi, "ESKI-1")
+        self.assertEqual(HamDeriGirisi.objects.get(lot_no="ESKI-1").kalan_m2, Decimal("12.00"))

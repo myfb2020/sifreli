@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block baslik %}Lot Etiketleri{% endblock %}
+{% block baslik %}Stok Etiketleri{% endblock %}
 {% block icerik %}
 <div class="yazdirma-gizle" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-  <h1 style="margin:0;margin-right:auto">Lot Etiketleri ({{ etiketler|length }})</h1>
+  <h1 style="margin:0;margin-right:auto">Stok Etiketleri ({{ etiketler|length }})</h1>
   <button class="btn" onclick="window.print()">🖨 Yazdır</button>
 </div>
-<p class="soluk yazdirma-gizle">Etiketleri yazdırıp lot kasasına veya deri destesine iliştirin. Telefonla okutulunca ilgili işlem ekranı açılır.</p>
+<p class="soluk yazdirma-gizle">Etiketi yazdırıp ham deri destesine yapıştırın. Mal üretim boyunca etiketiyle gider; her aşamada bu etiket okutulur.</p>
 <div class="etiket-izgara">
   {% for e in etiketler %}
   <div class="etiket">
     <div class="etiket-qr">{{ e.qr }}</div>
     <div class="etiket-bilgi">
-      <div class="etiket-no">{{ e.lot.lot_no }}</div>
-      <div>{{ e.lot.ham_deri.deri_turu }} · {{ e.lot.ham_deri.get_kalite_display }}</div>
-      <div>Ham: {{ e.lot.ham_deri.lot_no }}</div>
-      <div>{{ e.lot.baslangic_kg }} kg · {{ e.lot.baslangic_m2 }} m²</div>
-      {% if e.lot.siparis %}<div>Sip: {{ e.lot.siparis.siparis_no }}</div>{% endif %}
+      <div class="etiket-no">{{ e.stok.lot_no }}</div>
+      <div>{{ e.stok.deri_turu }} · {{ e.stok.get_kalite_display }}</div>
+      <div>{{ e.stok.tedarikci }}</div>
+      <div>{{ e.stok.kg }} kg · {{ e.stok.m2 }} m²{% if e.stok.adet %} · {{ e.stok.adet }} adet{% endif %}</div>
+      <div>Giriş: {{ e.stok.tarih|date:"d.m.Y" }}</div>
     </div>
   </div>
   {% empty %}
-  <p class="soluk">Yazdırılacak lot yok.</p>
+  <p class="soluk">Yazdırılacak stok lotu yok.</p>
   {% endfor %}
 </div>
 {% endblock %}
