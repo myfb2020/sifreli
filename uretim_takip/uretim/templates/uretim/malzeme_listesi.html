@@ -3,8 +3,8 @@
 {% block icerik %}
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
   <h1 style="margin:0;margin-right:auto">Stok</h1>
-  {% if perms.uretim.add_malzemehareketi %}<a class="btn" href="{% url 'malzeme_giris' %}">+ Malzeme girişi</a>{% endif %}
-  {% if perms.uretim.add_malzeme %}<a class="btn ikincil" href="{% url 'malzeme_yeni' %}">+ Yeni malzeme</a>{% endif %}
+  {% if perms.uretim.add_malzemehareketi %}<a class="btn" href="{% url 'malzeme_giris' %}">📥 Gelen malzemeyi gir</a>{% endif %}
+  {% if perms.uretim.add_malzeme %}<a class="btn ikincil" href="{% url 'malzeme_yeni' %}">🏷️ Malzeme tanıt</a>{% endif %}
 </div>
 {% with stok_sekme="malzeme" %}{% include "uretim/_stok_sekmeleri.html" %}{% endwith %}
 <form class="filtre" method="get">
@@ -27,7 +27,7 @@
       <td>{% if s.azaldi %}<span class="rozet iptal">Azaldı</span>{% endif %}</td>
     </tr>
     {% empty %}
-    <tr><td colspan="5" class="soluk">Henüz malzeme tanımlanmadı.{% if perms.uretim.add_malzeme %} “+ Yeni malzeme” ile ekleyin.{% endif %}</td></tr>
+    <tr><td colspan="5" class="soluk">Henüz malzeme tanımlanmadı.{% if perms.uretim.add_malzeme %} Önce “Malzeme tanıt” ile kullandığınız malzemeleri ekleyin.{% endif %}</td></tr>
     {% endfor %}
   </table>
 </div>

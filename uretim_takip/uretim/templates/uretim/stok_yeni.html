@@ -5,7 +5,7 @@
   <p style="margin:0 0 8px"><a href="{% url 'stok_listesi' %}">← Stok</a></p>
   <h1>+ Deri Girişi</h1>
   <p class="soluk">Gelen ham deri partisini girin. Lot numarası otomatik verilir; kaydettikten sonra etiketini basıp malın üzerine yapıştırın.</p>
-  <div class="mesaj info">Kimyasal, iplik, astar gibi deri dışı bir malzeme mi geldi? <a href="{% url 'malzeme_giris' %}">Malzeme girişi</a> sayfasını kullanın.</div>
+  <div class="mesaj info">Kimyasal, iplik, astar gibi deri dışı bir malzeme mi geldi? Stok → Malzemeler → <a href="{% url 'malzeme_giris' %}">Gelen malzemeyi gir</a> sayfasını kullanın.</div>
   <form method="post" class="dikey">
     {% include "uretim/_form.html" %}
     <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>

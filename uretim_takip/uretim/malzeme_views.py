@@ -43,8 +43,8 @@ def malzeme_yeni(request):
         messages.success(request, f"“{malzeme.ad}” eklendi. Şimdi stoğa giriş yapabilirsiniz.")
         return redirect(f"{reverse('malzeme_giris')}?malzeme={malzeme.pk}")
     return render(request, "uretim/basit_form.html", {
-        "form": form, "baslik": "+ Yeni Malzeme", "geri": "malzeme_listesi",
-        "aciklama": "Kimyasal, iplik, astar gibi sarf malzemesini tanımlayın. "
+        "form": form, "baslik": "🏷️ Malzeme Tanıt", "geri": "malzeme_listesi",
+        "aciklama": "Kimyasal, iplik, astar gibi sarf malzemesini sisteme bir kez tanıtın. "
                     "“En az stok” girerseniz stok bunun altına düşünce uyarı verilir.",
     })
 
@@ -60,8 +60,8 @@ def malzeme_giris(request):
         messages.success(request, f"{v['malzeme'].ad}: {v['miktar']} {v['malzeme'].get_birim_display()} stoğa eklendi.")
         return redirect("malzeme_detay", pk=v["malzeme"].pk)
     return render(request, "uretim/basit_form.html", {
-        "form": form, "baslik": "+ Malzeme Girişi", "geri": "malzeme_listesi",
-        "aciklama": "Gelen malzemeyi stoğa ekleyin. Listede yoksa önce “Yeni malzeme” ile tanımlayın.",
+        "form": form, "baslik": "📥 Gelen Malzemeyi Gir", "geri": "malzeme_listesi",
+        "aciklama": "Gelen malzemeyi stoğa ekleyin. Listede yoksa önce “Malzeme tanıt” ile ekleyin.",
     })
 
 

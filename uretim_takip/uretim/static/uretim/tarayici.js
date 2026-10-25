@@ -58,40 +58,64 @@
         bildir("Bu bağlantıda kamera açılamıyor (HTTPS gerekir). Numarayı elle yazın.", true);
         return;
       }
-      try {
-        akis = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-      } catch (e) {
+      // Önce arka kamerayı yüksek çözünürlükte iste; olmazsa herhangi bir kamerayı dene (dizüstü vb.).
+      const istekler = [
+        { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        { video: true, audio: false },
+      ];
+      let sonHata = null;
+      for (const istek of istekler) {
+        try { akis = await navigator.mediaDevices.getUserMedia(istek); break; } catch (e) { sonHata = e; }
+      }
+      if (!akis) {
         if (kap) kap.hidden = true;
-        bildir("Kameraya izin verilmedi. Numarayı elle yazabilirsiniz.", true);
+        const ad = sonHata && sonHata.name;
+        bildir(ad === "NotAllowedError" || ad === "SecurityError"
+          ? "Kameraya izin verilmedi. Adres çubuğundaki kilit simgesinden kamera iznini açın ya da numarayı elle yazın."
+          : ad === "NotFoundError" || ad === "OverconstrainedError"
+            ? "Bu cihazda kamera bulunamadı. Numarayı elle yazın."
+            : ad === "NotReadableError"
+              ? "Kamera başka bir uygulama tarafından kullanılıyor. O uygulamayı kapatıp tekrar deneyin."
+              : "Kamera açılamadı. Numarayı elle yazabilirsiniz.", true);
         return;
       }
       if (bitti) { durdur(); return; }
+      video.setAttribute("playsinline", "");
+      video.muted = true;
       video.srcObject = akis;
-      await video.play();
+      try { await video.play(); } catch (e) { /* bazı tarayıcılar otomatik oynatmayı geciktirir */ }
       bildir("Etiketteki QR kodu çerçevenin içine tutun.");
 
+      // Yerleşik dedektör bazı cihazlarda var görünür ama QR bulamaz; bu yüzden her karede
+      // önce onu, sonuç yoksa jsQR'ı dener.
+      let dedektor = null;
       if ("BarcodeDetector" in window) {
         try {
-          const dedektor = new BarcodeDetector({ formats: ["qr_code"] });
-          dongu(async () => {
-            const sonuc = await dedektor.detect(video);
-            return sonuc.length ? sonuc[0].rawValue : null;
-          });
-          return;
-        } catch (e) { /* jsQR'a geç */ }
+          const turler = BarcodeDetector.getSupportedFormats ? await BarcodeDetector.getSupportedFormats() : ["qr_code"];
+          if (turler.includes("qr_code")) dedektor = new BarcodeDetector({ formats: ["qr_code"] });
+        } catch (e) { dedektor = null; }
       }
       const tuval = document.createElement("canvas");
       const ctx = tuval.getContext("2d", { willReadFrequently: true });
-      dongu(async () => {
+      function jsqrIleOku() {
         const g = video.videoWidth, y = video.videoHeight;
-        if (!g || !y) return null;
-        const oran = Math.min(1, 640 / Math.max(g, y));
+        if (!g || !y || !window.jsQR) return null;
+        const oran = Math.min(1, 800 / Math.max(g, y));
         tuval.width = Math.round(g * oran);
         tuval.height = Math.round(y * oran);
         ctx.drawImage(video, 0, 0, tuval.width, tuval.height);
         const veri = ctx.getImageData(0, 0, tuval.width, tuval.height);
-        const kod = window.jsQR(veri.data, veri.width, veri.height, { inversionAttempts: "dontInvert" });
+        const kod = window.jsQR(veri.data, veri.width, veri.height, { inversionAttempts: "attemptBoth" });
         return kod ? kod.data : null;
+      }
+      dongu(async () => {
+        if (dedektor) {
+          try {
+            const sonuc = await dedektor.detect(video);
+            if (sonuc.length) return sonuc[0].rawValue;
+          } catch (e) { dedektor = null; }
+        }
+        return jsqrIleOku();
       });
     })();
 
