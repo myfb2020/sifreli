@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+{% block baslik %}QR Okut{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:560px;margin:0 auto">
+  <h1>📷 Lot QR Okut</h1>
+  {% if hata %}<div class="mesaj error">{{ hata }}</div>{% endif %}
+  <div id="tarama-durum" class="mesaj info">Kamera açılıyor…</div>
+  <div id="kamera-kap" class="kamera-kap">
+    <video id="kamera" playsinline muted></video>
+    <div class="nisangah"></div>
+  </div>
+  <form method="get" class="dikey" style="margin-top:16px">
+    <p><label for="lot_no">veya lot numarasını yazın</label>
+      <input id="lot_no" name="lot_no" value="{{ lot_no|default:'' }}" placeholder="UL-2026-0001" autocapitalize="characters"></p>
+    <button class="btn" type="submit" style="width:100%">Aç</button>
+  </form>
+  <p class="soluk">Okutulan lotta açık bir işlem varsa <b>Bitir</b> ekranı, lot sıradaki aşamayı bekliyorsa <b>Başlat</b> ekranı açılır.</p>
+</div>
+<script src="{% static 'uretim/vendor/jsQR.js' %}"></script>
+<script src="{% static 'uretim/tarayici.js' %}"></script>
+{% endblock %}

@@ -10,6 +10,7 @@
   </select>
   <input name="ara" value="{{ ara }}" placeholder="Lot / ham deri / sipariş no">
   <button class="btn kucuk" type="submit">Filtrele</button>
+  <a class="btn kucuk ikincil" href="{% url 'etiketler' %}{% if lotlar %}?{% for l in lotlar %}lot={{ l.pk }}{% if not forloop.last %}&amp;{% endif %}{% endfor %}{% endif %}">🏷 Listedekilerin etiketleri</a>
   {% if user.is_staff %}<a class="btn kucuk ikincil" href="{% url 'admin:uretim_uretimlotu_add' %}">+ Yeni lot</a>{% endif %}
 </form>
 <div class="kart tablo-kap">

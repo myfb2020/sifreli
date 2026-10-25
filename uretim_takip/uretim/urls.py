@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import pwa, qr, views
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -10,4 +10,10 @@ urlpatterns = [
     path("lotlar/<int:pk>/", views.lot_detay, name="lot_detay"),
     path("rapor/", views.rapor, name="rapor"),
     path("rapor/excel/", views.rapor_excel, name="rapor_excel"),
+    path("qr/", qr.qr_tara, name="qr_tara"),
+    path("q/<str:lot_no>/", qr.qr_yonlendir, name="qr_yonlendir"),
+    path("etiketler/", qr.etiketler, name="etiketler"),
+    path("manifest.webmanifest", pwa.manifest, name="manifest"),
+    path("sw.js", pwa.service_worker, name="service_worker"),
+    path("cevrimdisi/", pwa.cevrimdisi, name="cevrimdisi"),
 ]

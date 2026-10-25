@@ -8,6 +8,7 @@
   {% elif lot.durum == "bekliyor" %}
     <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ Sıradaki: {{ lot.siradaki_asama.ad|default:"aşama seç" }}</a>
   {% endif %}
+  <a class="btn ikincil" href="{% url 'etiketler' %}?lot={{ lot.pk }}">🏷 Etiket</a>
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_uretimlotu_change' lot.pk %}">Düzenle</a>{% endif %}
 </div>
 

@@ -1,9 +1,17 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block baslik %}Üretim Takip{% endblock %}</title>
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <meta name="theme-color" content="#7a4b2a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Üretim">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="{% static 'uretim/ikon/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" href="{% static 'uretim/ikon/favicon-32.png' %}">
   <style>
     :root { --ana:#7a4b2a; --ana-koyu:#5a361d; --zemin:#f6f2ee; --kart:#fff; --cizgi:#e2d9d0; --yazi:#2b211a;
             --soluk:#7d6f64; --yesil:#2e7d4f; --kirmizi:#b23a2e; --sari:#b7791f; }
@@ -52,6 +60,23 @@
     .asama-kutu b { display:block; font-size:14px; margin-bottom:6px; }
     .filtre { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:12px; }
     .filtre input, .filtre select { padding:8px; border:1px solid var(--cizgi); border-radius:6px; font-size:15px; }
+    header { padding-top:env(safe-area-inset-top); }
+    .kamera-kap { position:relative; background:#000; border-radius:10px; overflow:hidden; aspect-ratio:1/1; }
+    .kamera-kap video { width:100%; height:100%; object-fit:cover; display:block; }
+    .nisangah { position:absolute; inset:18%; border:3px solid #fff; border-radius:14px; box-shadow:0 0 0 999px #0006; }
+    .etiket-izgara { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+    .etiket { display:flex; gap:10px; align-items:center; background:#fff; border:1px dashed #999; border-radius:6px;
+              padding:8px; break-inside:avoid; page-break-inside:avoid; }
+    .etiket-qr svg { display:block; width:120px; height:120px; }
+    .etiket-bilgi { font-size:13px; line-height:1.4; }
+    .etiket-no { font-size:20px; font-weight:700; margin-bottom:2px; }
+    .kur-bandi { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    @media print {
+      header, .yazdirma-gizle, .mesaj { display:none !important; }
+      body, main { background:#fff; padding:0; margin:0; max-width:none; }
+      .etiket-izgara { grid-template-columns:repeat(2, 1fr); gap:4mm; }
+      .etiket { border:1px dashed #666; }
+    }
   </style>
 </head>
 <body>
@@ -59,6 +84,7 @@
 <header>
   <a class="marka" href="{% url 'pano' %}">Üretim Takip</a>
   <a href="{% url 'pano' %}">Pano</a>
+  <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a href="{% url 'islem_baslat' %}">İşlem Başlat</a>
   <a href="{% url 'lot_listesi' %}">Lotlar</a>
   <a href="{% url 'rapor' %}">Raporlar</a>
@@ -68,7 +94,30 @@
 {% endif %}
 <main>
   {% for m in messages %}<div class="mesaj {{ m.tags }}">{{ m }}</div>{% endfor %}
+  <div id="kur-bandi" class="kart kur-bandi yazdirma-gizle" hidden>
+    <span style="margin-right:auto">📱 Bu sistemi telefonunuza uygulama olarak ekleyebilirsiniz.</span>
+    <button id="kur-dugme" class="btn kucuk">Uygulamayı yükle</button>
+  </div>
   {% block icerik %}{% endblock %}
 </main>
+<script>
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register("{% url 'service_worker' %}", { scope: "/" });
+  }
+  // Android/Chrome: "Ana ekrana ekle" önerisini kendi butonumuzla göster.
+  let kurulumOlayi = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    kurulumOlayi = e;
+    document.getElementById("kur-bandi").hidden = false;
+  });
+  document.getElementById("kur-dugme").addEventListener("click", async () => {
+    if (!kurulumOlayi) return;
+    kurulumOlayi.prompt();
+    await kurulumOlayi.userChoice;
+    kurulumOlayi = null;
+    document.getElementById("kur-bandi").hidden = true;
+  });
+</script>
 </body>
 </html>

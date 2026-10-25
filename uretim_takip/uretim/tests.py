@@ -189,3 +189,51 @@ class EkranTesti(TemelVeri):
         self.assertEqual(yanit.status_code, 200)
         self.assertIn("spreadsheetml", yanit["Content-Type"])
         self.assertTrue(yanit.content.startswith(b"PK"))
+
+
+class QrVePwaTesti(TemelVeri):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+
+    def test_bekleyen_lot_qr_ile_baslat_ekranina_gider(self):
+        lot = self.yeni_lot()
+        yanit = self.client.get(reverse("qr_yonlendir", args=[lot.lot_no]))
+        self.assertRedirects(yanit, f"{reverse('islem_baslat')}?lot={lot.pk}")
+
+    def test_acik_islemli_lot_qr_ile_bitir_ekranina_gider(self):
+        lot = self.yeni_lot()
+        islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
+        yanit = self.client.get(reverse("qr_yonlendir", args=[lot.lot_no.lower()]))
+        self.assertRedirects(yanit, reverse("islem_bitir", args=[islem.pk]))
+
+    def test_tamamlanan_lot_qr_ile_gecmise_gider(self):
+        lot = self.yeni_lot()
+        islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[-1], personel=self.ahmet)
+        servisler.islem_bitir(islem=islem, personel=self.ahmet, cikis_kg=Decimal("1"), cikis_m2=Decimal("1"))
+        yanit = self.client.get(reverse("qr_yonlendir", args=[lot.lot_no]))
+        self.assertRedirects(yanit, reverse("lot_detay", args=[lot.pk]))
+
+    def test_bilinmeyen_lot_404(self):
+        self.assertEqual(self.client.get(reverse("qr_yonlendir", args=["UL-1999-9999"])).status_code, 404)
+
+    def test_elle_lot_no_girisi(self):
+        lot = self.yeni_lot()
+        yanit = self.client.get(reverse("qr_tara"), {"lot_no": lot.lot_no.lower()})
+        self.assertRedirects(yanit, reverse("qr_yonlendir", args=[lot.lot_no]), fetch_redirect_response=False)
+        self.assertContains(self.client.get(reverse("qr_tara"), {"lot_no": "UL-1999-9999"}), "bulunamadı")
+
+    def test_etiketlerde_lot_adresi_qr_olarak_bulunur(self):
+        lot = self.yeni_lot()
+        yanit = self.client.get(reverse("etiketler"), {"lot": lot.pk})
+        self.assertContains(yanit, lot.lot_no)
+        self.assertContains(yanit, "<svg")
+
+    def test_manifest_ve_service_worker(self):
+        self.client.logout()
+        manifest = self.client.get(reverse("manifest")).json()
+        self.assertEqual(manifest["display"], "standalone")
+        self.assertTrue(any(i["sizes"] == "512x512" for i in manifest["icons"]))
+        sw = self.client.get(reverse("service_worker"))
+        self.assertEqual(sw["Content-Type"], "application/javascript")
+        self.assertIn(reverse("cevrimdisi").encode(), sw.content)
+        self.assertNotIn(b"&quot;", sw.content)

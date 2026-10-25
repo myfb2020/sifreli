@@ -45,6 +45,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -120,6 +121,9 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# QR etiketlerine yazılacak adres (ör. https://uretim.firmam.com). Boşsa o anki adres kullanılır.
+SITE_ADRESI = os.environ.get("SITE_ADRESI", "")
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "pano"

@@ -49,9 +49,33 @@ Giriş bilgileri: `yonetici / yonetici123` (yönetim) ve `tablet / tablet123` (�
 2. **Tablet** (ortak hesapla açık kalır): çalışan işe başlarken **İşlem Başlat**'a basar, iş bitince panodan **Bitir**'e basar.
 3. **Yönetici:** **Raporlar** sayfasından kimin ne yaptığını ve fireyi görür, gerekirse Excel'e aktarır.
 
+## Telefon uygulaması ve QR etiketler
+
+**Telefona kurma:** Android'de Chrome ile sistemi açın. Üstte çıkan **"Uygulamayı yükle"** butonuna ya da menüdeki **"Ana ekrana ekle"**ye dokunun.
+iPhone'da Safari'de **Paylaş → Ana Ekrana Ekle** yolunu izleyin. Uygulama kendi simgesiyle tam ekran açılır.
+
+**QR etiket:** *Lotlar* sayfasında **"Listedekilerin etiketleri"**, lot sayfasında **"Etiket"** butonuyla etiketler A4'e yazdırılır.
+Etiket okutulunca sistem duruma göre şu ekranı açar:
+- lotta açık işlem varsa → **Bitir** ekranı,
+- lot sıradaki aşamayı bekliyorsa → **Başlat** ekranı (lot ve sıradaki aşama seçili gelir),
+- lot bittiyse → lot geçmişi.
+
+Okutmanın iki yolu var:
+1. **Telefonun kendi kamera uygulaması:** Her zaman çalışır, HTTPS gerekmez.
+2. **Uygulamadaki "📷 QR Okut" ekranı:** Kamera tarayıcının içinde açılır.
+
+> ⚠️ **HTTPS gereklidir:** Tarayıcılar *uygulama olarak kurmaya* ve *uygulama içinden kamera açmaya* yalnızca güvenli bağlantıda (`https://`) izin verir.
+> `http://192.168.1.50:8000` gibi düz bir yerel adreste sistem tarayıcıda çalışır ve telefonun kendi kamerasıyla QR okutulur, ama bu iki özellik çalışmaz.
+> HTTPS için en kolay yollar:
+> - Sistemi alan adı olan bir bulut sunucusuna kurmak (Let's Encrypt ile ücretsiz sertifika), ya da
+> - fabrikadaki bilgisayarı **Cloudflare Tunnel** veya **Tailscale** ile güvenli bir adrese açmak.
+>
+> Etiketlerdeki QR adresi, etiketin yazdırıldığı adresten alınır. Sabit bir adres istiyorsanız `SITE_ADRESI=https://uretim.firmaniz.com` ayarlayın ve etiketleri ondan sonra basın.
+
 ## Canlıya alırken
 
 - `DJANGO_SECRET_KEY` ortam değişkenine uzun ve rastgele bir değer verin, `DJANGO_DEBUG=0` yapın.
+- `python manage.py collectstatic` komutunu çalıştırın (simgeler, QR okuyucu gibi dosyalar WhiteNoise ile sunulur).
 - Veritabanı dosyasını (`db.sqlite3`) **her gün yedekleyin**.
 - 15 kişilik kullanım için SQLite yeterlidir. Büyürseniz PostgreSQL'e geçilebilir.
 
@@ -63,7 +87,6 @@ python manage.py test uretim
 
 ## Sonraki adımlar (Faz 2+)
 
-- Lot etiketleri için QR kod basma ve okutma
 - Bir üretim lotunun birden fazla ham deri lotundan oluşabilmesi
 - Kimyasal ve malzeme stoğu
 - Kalite kontrol hata türleri, yeniden işleme
