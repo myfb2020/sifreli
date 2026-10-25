@@ -8,6 +8,7 @@
 </div>
 {% with stok_sekme="malzeme" %}{% include "uretim/_stok_sekmeleri.html" %}{% endwith %}
 <form class="filtre" method="get">
+  {% if satirlar %}<a class="btn kucuk ikincil" href="{% url 'etiketler' %}?{% for s in satirlar %}malzeme={{ s.m.pk }}{% if not forloop.last %}&amp;{% endif %}{% endfor %}">🏷 Listedekilerin etiketleri</a>{% endif %}
   <select name="kategori" onchange="this.form.submit()">
     <option value="">Tüm kategoriler</option>
     {% for kod, ad in kategoriler %}<option value="{{ kod }}" {% if kategori == kod %}selected{% endif %}>{{ ad }}</option>{% endfor %}
@@ -19,7 +20,7 @@
     <tr><th>Malzeme</th><th>Kategori</th><th class="sayi">Stok</th><th class="sayi">En az</th><th></th></tr>
     {% for s in satirlar %}
     <tr>
-      <td><a href="{% url 'malzeme_detay' s.m.pk %}"><b>{{ s.m.ad }}</b></a></td>
+      <td><a href="{% url 'malzeme_detay' s.m.pk %}"><b>{{ s.m.ad }}</b></a><br><span class="soluk">{{ s.m.kod }}</span></td>
       <td>{{ s.m.get_kategori_display }}</td>
       <td class="sayi {% if s.azaldi %}uyari{% endif %}"><b>{{ s.stok|floatformat:"-2" }}</b> {{ s.m.get_birim_display }}</td>
       <td class="sayi soluk">{% if s.m.min_stok is not None %}{{ s.m.min_stok|floatformat:"-2" }}{% else %}–{% endif %}</td>

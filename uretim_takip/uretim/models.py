@@ -467,6 +467,7 @@ class Malzeme(models.Model):
     KATEGORILER = [("kimyasal", "Kimyasal"), ("iplik", "İplik"), ("astar", "Astar / taban"),
                    ("yapistirici", "Yapıştırıcı"), ("ambalaj", "Ambalaj"), ("diger", "Diğer")]
 
+    kod = models.CharField(max_length=20, unique=True, blank=True, help_text="Etiketteki kod; boşsa otomatik verilir.")
     ad = models.CharField(max_length=100, unique=True)
     kategori = models.CharField(max_length=12, choices=KATEGORILER, default="diger")
     birim = models.CharField(max_length=6, choices=BIRIMLER, default="kg")
@@ -482,6 +483,17 @@ class Malzeme(models.Model):
     def __str__(self):
         return f"{self.ad} ({self.get_birim_display()})"
 
+    def save(self, *args, **kwargs):
+        if not self.kod:
+            self.kod = malzeme_kodu_uret()
+        self.kod = self.kod.upper()
+        super().save(*args, **kwargs)
+
+    @property
+    def lot_no(self):
+        """Etiket ve QR adresi için (stok lotlarıyla aynı arayüz)."""
+        return self.kod
+
     @property
     def stok(self):
         return self.hareketler.aggregate(t=models.Sum("miktar"))["t"] or SIFIR
@@ -489,6 +501,12 @@ class Malzeme(models.Model):
     @property
     def azaldi_mi(self):
         return self.min_stok is not None and self.stok < self.min_stok
+
+
+def malzeme_kodu_uret():
+    son = Malzeme.objects.filter(kod__startswith="MZ-").order_by("-kod").values_list("kod", flat=True).first()
+    sira = int(son.split("-")[1]) + 1 if son and son.split("-")[1].isdigit() else 1
+    return f"MZ-{sira:04d}"
 
 
 class MalzemeHareketi(models.Model):

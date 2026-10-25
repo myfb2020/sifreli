@@ -79,7 +79,8 @@ Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda d
 
 - **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.
 - **Malzemeler (Stok → Malzemeler):** Kimyasal, iplik, astar, yapıştırıcı, ambalaj gibi malzemeler kendi birimiyle (kg, litre, metre, m², adet, makara) tanımlanır. **"+ Malzeme girişi"** ile gelen mal eklenir.
-- **Üretimde kullanım:** Çalışan bir aşamayı **bitirirken** kullandığı malzemeyi seçip miktarını girer. Malzeme stoktan düşer, hangi işte ve kim tarafından kullanıldığı kaydedilir.
+- **Malzeme etiketleri:** Her malzemeye otomatik bir kod verilir (`MZ-0001`). Malzeme sayfasındaki **🏷 Etiket bas** düğmesiyle QR etiket yazdırılır. "Her etiketten N adet" seçeneğiyle örneğin 10 bidonun her birine etiket basılabilir.
+- **Üretimde kullanım:** Çalışan bir aşamayı **bitirirken** kullandığı malzemeyi seçip miktarını girer. Malzemeyi listeden seçmek yerine **📷** ile bidonun etiketini okutabilir. Malzeme stoktan düşer, hangi işte ve kim tarafından kullanıldığı kaydedilir.
 - **Düzeltme:** Hem deri lotunda hem malzemede **"Düzeltme (sayım / fire)"** düğmesi bulunur. *Sayım farkı* seçilirse sayılan gerçek miktar yazılır, sistem farkı kaydeder. *Fire*, *iade* ya da *diğer* seçilirse stoktan düşülecek miktar yazılır.
 - **Azalan stok:** En az stok sınırının altına düşen deri türleri ve malzemeler ofis panosundaki **"📉 Azalan stok"** kartında görünür.
 

@@ -901,3 +901,41 @@ class IstasyonUyariTesti(TemelVeri):
         pano = self.client.get(reverse("pano"))
         self.assertContains(pano, "Süre sınırını aşan işler (1)")
         self.assertContains(pano, "bekleme 1 sa 0 dk aştı")
+
+
+class MalzemeEtiketiTesti(TemelVeri):
+    def setUp(self):
+        from .models import Malzeme
+
+        self.krom = Malzeme.objects.create(ad="Krom tuzu", kategori="kimyasal", birim="kg")
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+
+    def test_malzemeye_otomatik_kod_ve_etiket(self):
+        from .models import Malzeme
+
+        self.assertEqual(self.krom.kod, "MZ-0001")
+        self.assertEqual(Malzeme.objects.create(ad="İplik").kod, "MZ-0002")
+        yanit = self.client.get(reverse("etiketler"), {"malzeme": self.krom.pk, "kopya": "3"})
+        self.assertContains(yanit, "MZ-0001", count=3)
+        self.assertContains(yanit, "Krom tuzu", count=3)
+        from django.test import RequestFactory
+
+        from .qr import lot_adresi
+        self.assertEqual(lot_adresi(RequestFactory().get("/"), self.krom), "http://testserver/q/MZ-0001/")
+        # Malzeme etiketi istenince deri lotları basılmaz
+        self.assertNotContains(yanit, self.ham.lot_no)
+        self.assertEqual(self.client.get(reverse("etiketler"), {"malzeme": self.krom.pk, "kopya": "999"})
+                         .content.decode().count('class="etiket-no"'), 50)
+
+    def test_malzeme_etiketi_okutulunca_malzeme_sayfasi(self):
+        self.assertRedirects(self.client.get(reverse("qr_yonlendir", args=["mz-0001"])),
+                             reverse("malzeme_detay", args=[self.krom.pk]))
+        self.assertRedirects(self.client.get(reverse("qr_tara"), {"lot_no": "MZ-0001"}),
+                             reverse("qr_yonlendir", args=["MZ-0001"]), fetch_redirect_response=False)
+
+    def test_bitir_ekraninda_malzeme_kodlari(self):
+        lot = self.yeni_lot()
+        islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
+        sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
+        self.assertContains(sayfa, f'"MZ-0001": {self.krom.pk}')
+        self.assertContains(sayfa, "malzeme-tara")

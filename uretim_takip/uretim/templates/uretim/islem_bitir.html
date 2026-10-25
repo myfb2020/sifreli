@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block baslik %}İşlem Bitir{% endblock %}
 {% block icerik %}
 <div class="kart" style="max-width:560px;margin:0 auto">
@@ -17,11 +18,51 @@
     {{ malzemeler.management_form }}
     {% for m in malzemeler %}
     <div class="malzeme-satir">
-      <div>{{ m.malzeme }}{% for e in m.malzeme.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}</div>
+      <div class="tara-grup">{{ m.malzeme }}<button type="button" class="btn tara-dugme malzeme-tara" aria-label="Malzeme etiketini okut">📷</button></div>
+      {% for e in m.malzeme.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}
       <div>{{ m.miktar }}{% for e in m.miktar.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}</div>
     </div>
     {% endfor %}
     <button class="btn buyuk" type="submit" style="width:100%">Bitir</button>
   </form>
 </div>
+<div id="tarama-perde" class="tarama-perde" hidden>
+  <div class="kart" style="max-width:480px;width:100%">
+    <div id="tarama-durum" class="mesaj info">Kamera açılıyor…</div>
+    <div id="kamera-kap" class="kamera-kap"><video id="kamera" playsinline muted></video><div class="nisangah"></div></div>
+    <button type="button" class="btn ikincil" id="tarama-kapat" style="width:100%;margin-top:12px">Kapat</button>
+  </div>
+</div>
+{{ malzeme_kodlari|json_script:"malzeme-kodlari" }}
+<script src="{% static 'uretim/vendor/jsQR.js' %}"></script>
+<script src="{% static 'uretim/tarayici.js' %}"></script>
+<script>
+(function () {
+  // Malzeme etiketindeki QR okutulunca o satırdaki listeden malzeme seçilir.
+  const kodlar = JSON.parse(document.getElementById("malzeme-kodlari").textContent);
+  const perde = document.getElementById("tarama-perde");
+  let tarayici = null;
+  function kapat() { if (tarayici) tarayici.durdur(); tarayici = null; perde.hidden = true; }
+  document.getElementById("tarama-kapat").addEventListener("click", kapat);
+  document.querySelectorAll(".malzeme-tara").forEach((dugme) => dugme.addEventListener("click", () => {
+    const secim = dugme.parentElement.querySelector("select");
+    const durum = document.getElementById("tarama-durum");
+    perde.hidden = false;
+    document.getElementById("kamera-kap").hidden = false;
+    tarayici = QrTarayici.baslat({
+      video: document.getElementById("kamera"), durum, kap: document.getElementById("kamera-kap"),
+      onKod: (kod) => {
+        if (!(kod in kodlar)) {
+          kapat();
+          alert(kod + " bir malzeme etiketi değil.");
+          return;
+        }
+        secim.value = String(kodlar[kod]);
+        kapat();
+        dugme.closest(".malzeme-satir").querySelector("input").focus();
+      },
+    });
+  }));
+})();
+</script>
 {% endblock %}

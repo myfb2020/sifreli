@@ -13,7 +13,7 @@ from openpyxl.styles import Font
 
 from . import raporlar, servisler, uyarilar
 from .forms import IslemBaslatForm, IslemBitirForm, MalzemeKullanimFormSet, TarihAraligiForm
-from .models import Asama, IslemKaydi, Siparis, UretimLotu
+from .models import Asama, IslemKaydi, Malzeme, Siparis, UretimLotu
 
 
 def geri_don(request, varsayilan):
@@ -110,7 +110,9 @@ def islem_bitir(request, pk):
         else:
             messages.success(request, f"{islem.lot} – “{islem.asama.ad}” bitti.")
             return geri_don(request, "pano")
-    return render(request, "uretim/islem_bitir.html", {"form": form, "islem": islem, "malzemeler": malzemeler})
+    malzeme_kodlari = dict(Malzeme.objects.filter(aktif=True).values_list("kod", "pk"))
+    return render(request, "uretim/islem_bitir.html",
+                  {"form": form, "islem": islem, "malzemeler": malzemeler, "malzeme_kodlari": malzeme_kodlari})
 
 
 @login_required

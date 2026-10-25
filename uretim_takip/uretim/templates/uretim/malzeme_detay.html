@@ -8,11 +8,12 @@
   <a class="btn" href="{% url 'malzeme_giris' %}?malzeme={{ malzeme.pk }}">+ Giriş</a>
   <a class="btn ikincil" href="{% url 'malzeme_duzelt' malzeme.pk %}">Düzeltme (sayım / fire)</a>
   {% endif %}
+  <a class="btn ikincil" href="{% url 'etiketler' %}?malzeme={{ malzeme.pk }}">🏷 Etiket bas</a>
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_malzeme_change' malzeme.pk %}">Düzenle</a>{% endif %}
 </div>
 <div class="kart">
   <div style="font-size:28px"><b class="{% if malzeme.azaldi_mi %}uyari{% endif %}">{{ malzeme.stok|floatformat:"-2" }} {{ malzeme.get_birim_display }}</b></div>
-  <div class="soluk">{{ malzeme.get_kategori_display }}{% if malzeme.min_stok is not None %} · en az stok {{ malzeme.min_stok|floatformat:"-2" }} {{ malzeme.get_birim_display }}{% endif %}</div>
+  <div class="soluk">{{ malzeme.kod }} · {{ malzeme.get_kategori_display }}{% if malzeme.min_stok is not None %} · en az stok {{ malzeme.min_stok|floatformat:"-2" }} {{ malzeme.get_birim_display }}{% endif %}</div>
   {% if malzeme.azaldi_mi %}<p class="uyari">⚠️ Stok en az stok sınırının altında, sipariş verin.</p>{% endif %}
 </div>
 <div class="kart tablo-kap">
