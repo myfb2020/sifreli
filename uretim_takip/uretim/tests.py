@@ -237,3 +237,35 @@ class QrVePwaTesti(TemelVeri):
         self.assertEqual(sw["Content-Type"], "application/javascript")
         self.assertIn(reverse("cevrimdisi").encode(), sw.content)
         self.assertNotIn(b"&quot;", sw.content)
+
+
+class YedekTesti(TestCase):
+    def test_yedek_sadece_yoneticiye_acik(self):
+        User = get_user_model()
+        self.client.force_login(User.objects.create_user("tablet", password="x"))
+        self.assertEqual(self.client.get(reverse("yedek_indir")).status_code, 302)
+
+    def test_yedek_komutu_eski_yedekleri_temizler(self):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as klasor:
+            kaynak = Path(klasor) / "kaynak.sqlite3"
+            baglanti = sqlite3.connect(kaynak)
+            baglanti.execute("create table t (x)")
+            baglanti.execute("insert into t values (42)")
+            baglanti.commit()
+            baglanti.close()
+            hedef = Path(klasor) / "yedekler"
+            hedef.mkdir()
+            for i in range(3):
+                (hedef / f"uretim_yedek_2020-01-0{i + 1}_0000.sqlite3").write_bytes(b"")
+            with mock.patch("uretim.yedek.veritabani_yolu", return_value=kaynak):
+                call_command("yedekle", klasor=str(hedef), tut=2, stdout=open(Path(klasor) / "log", "w"))
+            yedekler = sorted(hedef.glob("uretim_yedek_*.sqlite3"))
+            self.assertEqual(len(yedekler), 2)
+            self.assertEqual(sqlite3.connect(yedekler[-1]).execute("select x from t").fetchone(), (42,))

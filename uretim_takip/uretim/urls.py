@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import pwa, qr, views
+from . import pwa, qr, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -16,4 +16,5 @@ urlpatterns = [
     path("manifest.webmanifest", pwa.manifest, name="manifest"),
     path("sw.js", pwa.service_worker, name="service_worker"),
     path("cevrimdisi/", pwa.cevrimdisi, name="cevrimdisi"),
+    path("yedek/", yedek.yedek_indir, name="yedek_indir"),
 ]

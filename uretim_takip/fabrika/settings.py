@@ -13,22 +13,42 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Sunucuda ayarlar proje klasöründeki .env dosyasından okunur (ANAHTAR=değer satırları).
+# Gerçek ortam değişkenleri varsa onlar önceliklidir.
+_env = BASE_DIR / ".env"
+if _env.exists():
+    for _satir in _env.read_text(encoding="utf-8").splitlines():
+        _satir = _satir.strip()
+        if _satir and not _satir.startswith("#") and "=" in _satir:
+            _anahtar, _deger = _satir.split("=", 1)
+            os.environ.setdefault(_anahtar.strip(), _deger.strip())
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY", "yerel-gelistirme-anahtari-canliya-alirken-degistirin"
-)
+GELISTIRME_ANAHTARI = "yerel-gelistirme-anahtari-canliya-alirken-degistirin"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or GELISTIRME_ANAHTARI
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+
+# Canlı ortam (DJANGO_DEBUG=0): HTTPS arkasında güvenli çerezler.
+if not DEBUG:
+    if SECRET_KEY == GELISTIRME_ANAHTARI:
+        raise ImproperlyConfigured("Canlı ortamda DJANGO_SECRET_KEY ortam değişkeni ayarlanmalı.")
+    CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS if h not in ("localhost", "127.0.0.1")]
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = os.environ.get("DJANGO_HTTPS", "1") == "1"
+    CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 
 # Application definition

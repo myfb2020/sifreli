@@ -72,6 +72,12 @@ Okutmanın iki yolu var:
 >
 > Etiketlerdeki QR adresi, etiketin yazdırıldığı adresten alınır. Sabit bir adres istiyorsanız `SITE_ADRESI=https://uretim.firmaniz.com` ayarlayın ve etiketleri ondan sonra basın.
 
+## Ücretsiz buluta kurulum
+
+Adım adım anlatım için: **[KURULUM_PYTHONANYWHERE.md](KURULUM_PYTHONANYWHERE.md)**. Sunucuda tek komutla kurulum: `bash kurulum.sh`.
+
+Yönetici hesabıyla üst menüdeki **💾 Yedek** butonu veritabanının tam yedeğini indirir. Sunucuda `python manage.py yedekle` komutu da yedekler klasörüne kopya alır.
+
 ## Canlıya alırken
 
 - `DJANGO_SECRET_KEY` ortam değişkenine uzun ve rastgele bir değer verin, `DJANGO_DEBUG=0` yapın.
