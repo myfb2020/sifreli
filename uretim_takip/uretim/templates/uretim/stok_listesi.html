@@ -2,10 +2,25 @@
 {% block baslik %}Stok{% endblock %}
 {% block icerik %}
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-  <h1 style="margin:0;margin-right:auto">Stok Lotları</h1>
+  <h1 style="margin:0;margin-right:auto">Stok</h1>
   {% if perms.uretim.add_hamderigirisi %}<a class="btn" href="{% url 'stok_yeni' %}">+ Stok girişi</a>{% endif %}
 </div>
-<div class="sekmeler">
+{% with stok_sekme="deri" %}{% include "uretim/_stok_sekmeleri.html" %}{% endwith %}
+
+{% if ozet %}
+<div class="ozet-izgara">
+  {% for o in ozet %}
+  <div class="kart ozet-kart{% if o.azaldi %} azaldi{% endif %}">
+    <div class="soluk">{{ o.tur.ad }}</div>
+    <div class="ozet-sayi">{{ o.kalan_kg|floatformat:"-2" }} kg</div>
+    <div class="soluk">{{ o.kalan_m2|floatformat:"-2" }} m²{% if o.tur.min_kg is not None %} · en az {{ o.tur.min_kg|floatformat:"-2" }} kg{% endif %}</div>
+    {% if o.azaldi %}<div class="uyari">⚠️ Azaldı</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="sekmeler alt-sekme">
   <a class="sekme{% if durum == 'stokta' %} secili{% endif %}" href="?durum=stokta">Stokta olan</a>
   <a class="sekme{% if durum == 'bitti' %} secili{% endif %}" href="?durum=bitti">Biten</a>
   <a class="sekme{% if durum == 'hepsi' %} secili{% endif %}" href="?durum=hepsi">Hepsi</a>

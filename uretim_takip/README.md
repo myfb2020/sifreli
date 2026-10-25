@@ -29,7 +29,7 @@ Ofis:     Stok girişi (HD-2026-0001) ──► QR etiketi malın üzerine     S
 
 | Hesap | Menü |
 |---|---|
-| **Tablet** (üretim; personel durumu yok) | Pano, QR Okut, İşlem Başlat, Stok, İşler |
+| **Tablet** (üretim; personel durumu yok) | Pano, İstasyon, QR Okut, İşlem Başlat, Stok, İşler |
 | **Ofis** (personel durumu + izinler) | Pano, Siparişler, Stok (+ Stok girişi), İşler, Raporlar, Yönetim |
 | **Yönetici** (süper kullanıcı) | Hepsi + Excel'den aktar + Yedek |
 
@@ -62,6 +62,27 @@ python manage.py ornek_veri
 Giriş bilgileri: `yonetici / yonetici123` (yönetim) ve `tablet / tablet123` (üretim tableti). Bütün örnek personelin PIN'i `1234`.
 **Bu komutu gerçek verinin olduğu veritabanında çalıştırmayın.**
 
+## İstasyon ekranları ve süre uyarıları
+
+Her istasyondaki tablette **🏭 İstasyon** menüsünden o istasyon seçilir. Tablet seçimi hatırlar ve ekran açık bırakılır:
+- **Gelen işler:** Sipariş girilince ilk istasyonda **"Yeni sipariş"**, bir aşama bitince sıradaki istasyonda o iş belirir. Yeni iş gelince ekran **kırmızı "Yeni iş geldi" bandı** gösterir ve ses çıkarır. Ses için ekran açıldıktan sonra bir kez **"🔔 Sesli uyarıyı aç"** düğmesine basılmalıdır (tarayıcı kuralı).
+- **Bu istasyonda çalışılanlar:** Kim, ne zamandan beri çalışıyor. **Bitir** düğmesi buradadır.
+- Ekran her 20 saniyede bir kendini yeniler.
+
+**Süre sınırları:** **Yönetim → Aşamalar** listesinde her istasyon için iki süre girilir (saat cinsinden, boş bırakılırsa sınır yok):
+- **En fazla bekleme süresi:** İş istasyona geldikten sonra bu süre içinde başlanmazsa uyarı verilir.
+- **En fazla çalışma süresi:** İş istasyonda bu süreden uzun kalırsa uyarı verilir.
+
+Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda da **"⏰ Süre sınırını aşan işler"** kartında listelenir.
+
+## Stok: deri ve malzemeler
+
+- **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.
+- **Malzemeler (Stok → Malzemeler):** Kimyasal, iplik, astar, yapıştırıcı, ambalaj gibi malzemeler kendi birimiyle (kg, litre, metre, m², adet, makara) tanımlanır. **"+ Malzeme girişi"** ile gelen mal eklenir.
+- **Üretimde kullanım:** Çalışan bir aşamayı **bitirirken** kullandığı malzemeyi seçip miktarını girer. Malzeme stoktan düşer, hangi işte ve kim tarafından kullanıldığı kaydedilir.
+- **Düzeltme:** Hem deri lotunda hem malzemede **"Düzeltme (sayım / fire)"** düğmesi bulunur. *Sayım farkı* seçilirse sayılan gerçek miktar yazılır, sistem farkı kaydeder. *Fire*, *iade* ya da *diğer* seçilirse stoktan düşülecek miktar yazılır.
+- **Azalan stok:** En az stok sınırının altına düşen deri türleri ve malzemeler ofis panosundaki **"📉 Azalan stok"** kartında görünür.
+
 ## Günlük kullanım
 
 1. **Ofis, mal gelince:** **Stok → + Stok girişi**'ne girer, kaydeder, sonra **🏷 Etiket bas** ile etiketi yazdırıp malın üzerine yapıştırır.
@@ -90,7 +111,7 @@ Sipariş durumu kendiliğinden ilerler:
 Siparişleri girecek kişiye yönetici şifresini vermek yerine ayrı bir hesap açın:
 1. **Yönetim → Kullanıcılar → Ekle** ile kullanıcı adı (ör. `ofis`) ve şifre belirleyip kaydedin.
 2. Açılan sayfada **Personel durumu** (staff) kutusunu işaretleyin. Bu, yönetim paneline girebilmesi için gerekir. **Süper kullanıcı durumu**nu işaretlemeyin.
-3. **Kullanıcı izinleri** listesinden şunları seçip sağa aktarın: *sipariş* (ekle, değiştir, görüntüle), *müşteri* (ekle, değiştir, görüntüle), *stok lotu (ham deri)* (ekle, değiştir, görüntüle), *tedarikçi* (ekle, görüntüle), *iş* (görüntüle).
+3. **Kullanıcı izinleri** listesinden şunları seçip sağa aktarın: *sipariş* (ekle, değiştir, görüntüle), *müşteri* (ekle, değiştir, görüntüle), *stok lotu (ham deri)* (ekle, değiştir, görüntüle), *tedarikçi* (ekle, görüntüle), *iş* (görüntüle), *malzeme* (ekle, görüntüle), *malzeme hareketi* (ekle, görüntüle), *deri stok düzeltmesi* (ekle, görüntüle).
 4. Kaydedin. Bu hesap sipariş, müşteri ve stok girebilir. Personel PIN'lerine, yedeğe ve Excel aktarmaya erişemez.
 
 ## Mevcut Excel verilerini aktarma
@@ -155,5 +176,4 @@ python manage.py test uretim
 
 ## Sonraki adımlar (Faz 2+)
 
-- Kimyasal ve malzeme stoğu
 - Kalite kontrol hata türleri, yeniden işleme

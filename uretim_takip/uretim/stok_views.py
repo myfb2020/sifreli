@@ -7,7 +7,8 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from . import servisler
+from . import servisler, uyarilar
+from .views import geri_don
 from .forms import KaynakFormSet, StokGirisForm, YeniIsForm
 from .models import HamDeriGirisi, UretimLotu
 
@@ -48,7 +49,7 @@ def yeni_is(request):
                 request, f"{islem.personel} – {islem.lot} işi açıldı ({islem.lot.kaynak_listesi}), "
                          f"“{islem.asama.ad}” başladı."
             )
-            return redirect("pano")
+            return geri_don(request, "pano")
     return render(request, "uretim/yeni_is.html", {"form": form, "satirlar": satirlar})
 
 
@@ -67,31 +68,36 @@ def stok_bilgi(request, lot_no):
 @login_required
 def stok_listesi(request):
     durum = request.GET.get("durum", "stokta")
-    stoklar = HamDeriGirisi.objects.select_related("tedarikci", "deri_turu").prefetch_related("cikislar")
+    stoklar = HamDeriGirisi.objects.select_related("tedarikci", "deri_turu").prefetch_related("cikislar", "duzeltmeler")
     ara = request.GET.get("ara", "").strip()
     if ara:
         stoklar = stoklar.filter(Q(lot_no__icontains=ara) | Q(tedarikci__ad__icontains=ara) | Q(deri_turu__ad__icontains=ara))
     satirlar = []
     for s in stoklar[:500]:
-        kullanilan_kg = sum((c.kg for c in s.cikislar.all()), 0)
-        kullanilan_m2 = sum((c.m2 for c in s.cikislar.all()), 0)
+        kullanilan_kg = sum((c.kg for c in s.cikislar.all()), 0) - sum((d.kg for d in s.duzeltmeler.all()), 0)
+        kullanilan_m2 = sum((c.m2 for c in s.cikislar.all()), 0) - sum((d.m2 for d in s.duzeltmeler.all()), 0)
         kalan_kg, kalan_m2 = s.kg - kullanilan_kg, s.m2 - kullanilan_m2
         bitti = kalan_kg <= 0 and kalan_m2 <= 0
         if (durum == "stokta" and bitti) or (durum == "bitti" and not bitti):
             continue
         yuzde = round(kullanilan_m2 / s.m2 * 100) if s.m2 else 0
         satirlar.append({"stok": s, "kalan_kg": kalan_kg, "kalan_m2": kalan_m2, "yuzde": min(100, yuzde)})
-    return render(request, "uretim/stok_listesi.html", {"satirlar": satirlar, "durum": durum, "ara": ara})
+    ozet = sorted(uyarilar.deri_ozeti().values(), key=lambda o: o["tur"].ad)
+    for o in ozet:
+        o["azaldi"] = o["tur"].min_kg is not None and o["kalan_kg"] < o["tur"].min_kg
+    return render(request, "uretim/stok_listesi.html", {"satirlar": satirlar, "durum": durum, "ara": ara, "ozet": ozet})
 
 
 @login_required
 def stok_detay(request, pk):
     stok = get_object_or_404(HamDeriGirisi.objects.select_related("tedarikci", "deri_turu"), pk=pk)
     cikislar = stok.cikislar.select_related("uretim_lotu__siparis__musteri", "uretim_lotu__son_asama")
+    duzeltmeler = stok.duzeltmeler.select_related("kullanici")
     aktif = list(stok.aktif_isler())
     for lot in aktif:
         lot.acik = lot.acik_islem
-    return render(request, "uretim/stok_detay.html", {"stok": stok, "aktif": aktif, "cikislar": cikislar})
+    return render(request, "uretim/stok_detay.html",
+                  {"stok": stok, "aktif": aktif, "cikislar": cikislar, "duzeltmeler": duzeltmeler})
 
 
 @login_required

@@ -5,6 +5,7 @@
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
   <h1 style="margin:0;margin-right:auto">{{ stok.lot_no }}</h1>
   <a class="btn ikincil" href="{% url 'etiketler' %}?stok={{ stok.pk }}">🏷 Etiket bas</a>
+  {% if perms.uretim.add_deriduzeltme %}<a class="btn ikincil" href="{% url 'deri_duzelt' stok.pk %}">Düzeltme (sayım / fire)</a>{% endif %}
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_hamderigirisi_change' stok.pk %}">Düzenle</a>{% endif %}
 </div>
 
@@ -49,7 +50,8 @@
     <table>
       <tr><th></th><th class="sayi">kg</th><th class="sayi">m²</th></tr>
       <tr><td>Giriş</td><td class="sayi">{{ stok.kg }}</td><td class="sayi">{{ stok.m2 }}</td></tr>
-      <tr><td>Kullanılan</td><td class="sayi">{{ stok.kullanilan_kg }}</td><td class="sayi">{{ stok.kullanilan_m2 }}</td></tr>
+      <tr><td>Üretime verilen</td><td class="sayi">{{ stok.kullanilan_kg }}</td><td class="sayi">{{ stok.kullanilan_m2 }}</td></tr>
+      {% if duzeltmeler %}<tr><td>Düzeltmeler</td><td class="sayi">{{ stok.duzeltme_kg }}</td><td class="sayi">{{ stok.duzeltme_m2 }}</td></tr>{% endif %}
       <tr><td><b>Kalan</b></td><td class="sayi"><b>{{ stok.kalan_kg }}</b></td><td class="sayi"><b>{{ stok.kalan_m2 }}</b></td></tr>
     </table>
   </div>
@@ -72,4 +74,17 @@
     {% endfor %}
   </table>
 </div>
+{% if duzeltmeler %}
+<div class="kart tablo-kap">
+  <h2>Stok düzeltmeleri</h2>
+  <table>
+    <tr><th>Tarih</th><th>Neden</th><th class="sayi">kg</th><th class="sayi">m²</th><th>Giren</th><th>Açıklama</th></tr>
+    {% for d in duzeltmeler %}
+    <tr><td>{{ d.tarih|date:"d.m.Y H:i" }}</td><td>{{ d.get_neden_display }}</td>
+        <td class="sayi">{% if d.kg > 0 %}+{% endif %}{{ d.kg }}</td><td class="sayi">{% if d.m2 > 0 %}+{% endif %}{{ d.m2 }}</td>
+        <td>{{ d.kullanici|default:"" }}</td><td>{{ d.aciklama }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
 {% endblock %}

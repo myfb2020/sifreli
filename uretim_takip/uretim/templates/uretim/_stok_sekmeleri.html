@@ -1,0 +1,4 @@
+<div class="sekmeler">
+  <a class="sekme{% if stok_sekme == 'deri' %} secili{% endif %}" href="{% url 'stok_listesi' %}">🐑 Deri stoğu</a>
+  <a class="sekme{% if stok_sekme == 'malzeme' %} secili{% endif %}" href="{% url 'malzeme_listesi' %}">🧪 Malzemeler</a>
+</div>

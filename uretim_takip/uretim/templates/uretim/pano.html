@@ -3,13 +3,46 @@
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
   <h1 style="margin:0;margin-right:auto">Üretim Panosu</h1>
   {% if not user.is_staff or user.is_superuser %}
-  <a class="btn buyuk" href="{% url 'qr_tara' %}">📷 QR Okut</a>
+  <a class="btn buyuk" href="{% url 'istasyon_secimi' %}">🏭 İstasyon ekranım</a>
+  <a class="btn buyuk ikincil" href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a class="btn buyuk ikincil" href="{% url 'islem_merkezi' %}">▶ İşlem Başlat</a>
   {% endif %}
   {% if perms.uretim.add_siparis and user.is_staff and not user.is_superuser %}
   <a class="btn buyuk" href="{% url 'siparis_yeni' %}">+ Yeni sipariş</a>
   {% endif %}
 </div>
+
+{% if gecikmeler or azalan_stoklar %}
+<div class="izgara">
+  {% if gecikmeler %}
+  <div class="kart uyari-karti">
+    <h2>⏰ Süre sınırını aşan işler ({{ gecikmeler|length }})</h2>
+    <table>
+      {% for k in gecikmeler %}
+      <tr>
+        <td><a href="{% url 'istasyon_ekrani' k.asama.pk %}"><b>{{ k.asama.ad }}</b></a></td>
+        <td>{% if k.tur == "siparis" %}Yeni sipariş {{ k.siparis.siparis_no }}{% else %}<a href="{% url 'lot_detay' k.lot.pk %}">{{ k.lot.lot_no }}</a>{% endif %}
+          {% if k.siparis %}<span class="soluk"> · {{ k.siparis.musteri }}</span>{% endif %}</td>
+        <td class="uyari">{% if k.tur == "calisilan" %}çalışma{% else %}bekleme{% endif %} {{ k.asim_metni }} aştı</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  {% if azalan_stoklar %}
+  <div class="kart uyari-karti">
+    <h2>📉 Azalan stok ({{ azalan_stoklar|length }})</h2>
+    <table>
+      {% for s in azalan_stoklar %}
+      <tr><td><a href="{{ s.adres }}"><b>{{ s.ad }}</b></a></td>
+          <td class="sayi uyari">{{ s.mevcut|floatformat:"-2" }} {{ s.birim }}</td>
+          <td class="sayi soluk">en az {{ s.sinir|floatformat:"-2" }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 
 <div class="kart">
   <h2>Şu an çalışılan işler ({{ acik_islemler|length }})</h2>

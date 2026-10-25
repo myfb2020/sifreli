@@ -1,9 +1,12 @@
 from django.urls import path
 
-from . import aktarim_views, pwa, qr, siparis_views, stok_views, views, yedek
+from . import aktarim_views, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
+    path("istasyon/", istasyon_views.istasyon_secimi, name="istasyon_secimi"),
+    path("istasyon/<int:pk>/", istasyon_views.istasyon_ekrani, name="istasyon_ekrani"),
+    path("istasyon/<int:pk>/parca/", istasyon_views.istasyon_parca, name="istasyon_parca"),
     path("islem/", stok_views.islem_merkezi, name="islem_merkezi"),
     path("islem/yeni/", stok_views.yeni_is, name="yeni_is"),
     path("islem/baslat/", views.islem_baslat, name="islem_baslat"),
@@ -14,6 +17,12 @@ urlpatterns = [
     path("stok/yeni/", stok_views.stok_yeni, name="stok_yeni"),
     path("stok/<int:pk>/", stok_views.stok_detay, name="stok_detay"),
     path("stok/bilgi/<str:lot_no>/", stok_views.stok_bilgi, name="stok_bilgi"),
+    path("stok/<int:pk>/duzelt/", malzeme_views.deri_duzelt, name="deri_duzelt"),
+    path("malzemeler/", malzeme_views.malzeme_listesi, name="malzeme_listesi"),
+    path("malzemeler/yeni/", malzeme_views.malzeme_yeni, name="malzeme_yeni"),
+    path("malzemeler/giris/", malzeme_views.malzeme_giris, name="malzeme_giris"),
+    path("malzemeler/<int:pk>/", malzeme_views.malzeme_detay, name="malzeme_detay"),
+    path("malzemeler/<int:pk>/duzelt/", malzeme_views.malzeme_duzelt, name="malzeme_duzelt"),
     path("siparisler/", siparis_views.siparis_listesi, name="siparis_listesi"),
     path("siparisler/yeni/", siparis_views.siparis_yeni, name="siparis_yeni"),
     path("siparisler/<int:pk>/", siparis_views.siparis_detay, name="siparis_detay"),

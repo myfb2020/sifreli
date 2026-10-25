@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block baslik %}{{ asama.ad }} – İstasyon{% endblock %}
+{% block icerik %}
+<div class="ist-baslik">
+  <div>
+    <div class="soluk"><a href="{% url 'istasyon_secimi' %}?degistir=1">İstasyon değiştir</a></div>
+    <h1 style="margin:4px 0">{{ asama.ad }}</h1>
+    <div class="soluk">{% if asama.azami_bekleme_saat %}Bekleme sınırı {{ asama.azami_bekleme_saat|floatformat:"-1" }} sa{% endif %}{% if asama.azami_bekleme_saat and asama.azami_sure_saat %} · {% endif %}{% if asama.azami_sure_saat %}çalışma sınırı {{ asama.azami_sure_saat|floatformat:"-1" }} sa{% endif %}</div>
+  </div>
+  <button type="button" id="ses-ac" class="btn ikincil">🔔 Sesli uyarıyı aç</button>
+</div>
+<div id="yeni-is-bandi" class="yeni-is-bandi" hidden>🔔 Yeni iş geldi!</div>
+<div id="gecikme-bandi" class="mesaj error" {% if not geciken %}hidden{% endif %}>⏰ <span id="geciken-sayi">{{ geciken }}</span> iş süre sınırını aştı.</div>
+
+{% include "uretim/_istasyon_parca.html" %}
+
+<p class="soluk" style="text-align:center">Ekran her 20 saniyede bir kendini yeniler · son yenileme <span id="son-yenileme">{% now "H:i:s" %}</span></p>
+
+<script>
+(function () {
+  const ANAHTAR = "istasyon-gorulen-{{ asama.pk }}";
+  const parcaAdresi = "{% url 'istasyon_parca' asama.pk %}";
+  let sesAcik = false;
+  let ses = null;
+
+  try { localStorage.setItem("istasyon", "{{ asama.pk }}"); } catch (e) {}
+
+  function gorulenler() {
+    // null: bu tablet bu istasyonu ilk kez açıyor (o anki işler için uyarı verilmez)
+    try {
+      const v = localStorage.getItem(ANAHTAR);
+      return v === null ? null : new Set(JSON.parse(v));
+    } catch (e) { return null; }
+  }
+  function kaydet(kume) {
+    try { localStorage.setItem(ANAHTAR, JSON.stringify([...kume])); } catch (e) {}
+  }
+
+  function bip() {
+    if (!sesAcik || !ses) return;
+    [0, 0.35, 0.7].forEach((t) => {
+      const o = ses.createOscillator(), g = ses.createGain();
+      o.frequency.value = 880; o.type = "square";
+      g.gain.setValueAtTime(0.25, ses.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, ses.currentTime + t + 0.25);
+      o.connect(g).connect(ses.destination);
+      o.start(ses.currentTime + t); o.stop(ses.currentTime + t + 0.3);
+    });
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }
+
+  document.getElementById("ses-ac").addEventListener("click", (e) => {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { ses = ses || new AC(); ses.resume(); }
+    sesAcik = true;
+    e.target.textContent = "🔔 Sesli uyarı açık";
+    e.target.disabled = true;
+    bip();
+  });
+
+  function yeniGeldiMi(parca, ilkYukleme) {
+    const simdiki = new Set((parca.dataset.anahtarlar || "").split(" ").filter(Boolean));
+    const eski = gorulenler();
+    const yeniler = eski === null ? [] : [...simdiki].filter((a) => !eski.has(a));
+    parca.querySelectorAll("[data-anahtar]").forEach((satir) => {
+      if (yeniler.includes(satir.dataset.anahtar)) satir.classList.add("yeni");
+    });
+    if (yeniler.length) {
+      const bant = document.getElementById("yeni-is-bandi");
+      bant.textContent = "🔔 " + yeniler.length + " yeni iş geldi!";
+      bant.hidden = false;
+      bip();
+      setTimeout(() => { bant.hidden = true; }, 15000);
+    }
+    kaydet(simdiki);
+    const geciken = parseInt(parca.dataset.geciken || "0", 10);
+    document.getElementById("gecikme-bandi").hidden = !geciken;
+    document.getElementById("geciken-sayi").textContent = geciken;
+  }
+
+  async function yenile() {
+    try {
+      const yanit = await fetch(parcaAdresi, { headers: { "X-Requested-With": "fetch" }, cache: "no-store" });
+      if (!yanit.ok) return;
+      const kap = document.createElement("div");
+      kap.innerHTML = await yanit.text();
+      const yeni = kap.querySelector("#istasyon-parca");
+      document.getElementById("istasyon-parca").replaceWith(yeni);
+      yeniGeldiMi(yeni, false);
+      document.getElementById("son-yenileme").textContent = new Date().toLocaleTimeString("tr-TR");
+    } catch (e) { /* bağlantı yoksa sonra tekrar dener */ }
+  }
+
+  yeniGeldiMi(document.getElementById("istasyon-parca"), true);
+  setInterval(yenile, 20000);
+})();
+</script>
+{% endblock %}

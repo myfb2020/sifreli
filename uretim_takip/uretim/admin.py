@@ -3,7 +3,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Asama, DeriTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    Asama, DeriDuzeltme, DeriTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
+    Siparis, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
 
@@ -14,8 +15,10 @@ admin.site.index_title = "Tanımlar ve kayıtlar"
 
 @admin.register(Asama)
 class AsamaAdmin(admin.ModelAdmin):
-    list_display = ["sira", "ad", "aktif"]
-    list_editable = ["ad", "aktif"]
+    """Aşamalar = istasyonlar. Süre sınırları listede doğrudan değiştirilebilir."""
+
+    list_display = ["sira", "ad", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
+    list_editable = ["ad", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
     list_display_links = ["sira"]
 
 
@@ -52,7 +55,52 @@ class PersonelAdmin(admin.ModelAdmin):
     search_fields = ["ad_soyad"]
 
 
-admin.site.register([Tedarikci, Musteri, DeriTuru], admin.ModelAdmin)
+admin.site.register([Tedarikci, Musteri], admin.ModelAdmin)
+
+
+@admin.register(DeriTuru)
+class DeriTuruAdmin(admin.ModelAdmin):
+    list_display = ["ad", "min_kg"]
+    list_editable = ["min_kg"]
+
+
+class HareketInline(admin.TabularInline):
+    model = MalzemeHareketi
+    fields = ["tarih", "tur", "miktar", "islem", "personel", "kullanici", "aciklama"]
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+    ordering = ["-tarih"]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Malzeme)
+class MalzemeAdmin(admin.ModelAdmin):
+    list_display = ["ad", "kategori", "birim", "stok_miktari", "min_stok", "aktif"]
+    list_filter = ["kategori", "aktif"]
+    list_editable = ["min_stok", "aktif"]
+    search_fields = ["ad"]
+    inlines = [HareketInline]
+
+    @admin.display(description="stok")
+    def stok_miktari(self, obj):
+        return obj.stok
+
+
+@admin.register(MalzemeHareketi)
+class MalzemeHareketiAdmin(admin.ModelAdmin):
+    list_display = ["tarih", "malzeme", "tur", "miktar", "islem", "personel", "kullanici"]
+    list_filter = ["tur", "malzeme"]
+    date_hierarchy = "tarih"
+
+
+@admin.register(DeriDuzeltme)
+class DeriDuzeltmeAdmin(admin.ModelAdmin):
+    list_display = ["tarih", "ham_deri", "neden", "kg", "m2", "kullanici"]
+    list_filter = ["neden"]
+    date_hierarchy = "tarih"
 
 
 class CikisInline(admin.TabularInline):

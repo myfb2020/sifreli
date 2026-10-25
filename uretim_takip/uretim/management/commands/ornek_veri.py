@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from uretim import servisler
-from uretim.models import Asama, DeriTuru, HamDeriGirisi, Musteri, Personel, Siparis, Tedarikci, UretimLotu
+from uretim.models import Asama, DeriTuru, HamDeriGirisi, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu
 
 
 class Command(BaseCommand):
@@ -65,6 +65,24 @@ class Command(BaseCommand):
                                          kaynaklar=[(hd1, D("200"), D("35")), (hd2, D("100"), D("18"))],
                                          asama=asamalar[0])
         servisler.islem_bitir(islem=islem, personel=personel[3], cikis_kg=D("290"), cikis_m2=D("51.5"))
+
+        # İstasyon süre sınırları (yönetim panelinden değiştirilebilir) ve stok uyarı sınırları
+        sinirlar = {"Tasnif / kalite ayırma": (4, 8), "Islatma / yıkama": (8, 24), "Tabaklama": (8, 48),
+                    "Kurutma": (12, 48), "Kesim": (8, 16), "Dikim / birleştirme": (8, 24)}
+        for asama in asamalar:
+            if asama.ad in sinirlar:
+                asama.azami_bekleme_saat, asama.azami_sure_saat = map(D, sinirlar[asama.ad])
+                asama.save()
+        DeriTuru.objects.filter(ad="Kuzu").update(min_kg=D("150"))
+        DeriTuru.objects.filter(ad="Koyun").update(min_kg=D("100"))
+        for ad, kategori, birim, giris, sinir in [
+            ("Krom tuzu", "kimyasal", "kg", "60", "25"), ("Formik asit", "kimyasal", "lt", "8", "10"),
+            ("Naylon iplik (beyaz)", "iplik", "makara", "40", "10"), ("Astar kumaşı", "astar", "m", "120", "30"),
+        ]:
+            m = Malzeme.objects.create(ad=ad, kategori=kategori, birim=birim, min_stok=D(sinir))
+            servisler.malzeme_giris(malzeme=m, miktar=D(giris))
+        servisler.malzeme_duzelt(malzeme=Malzeme.objects.get(ad="Krom tuzu"), neden="fire", miktar=D("4"),
+                                 aciklama="Dökülme")
 
         self.stdout.write(self.style.SUCCESS(
             "Örnek veri yüklendi.\n"

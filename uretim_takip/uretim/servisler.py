@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import HamDeriGirisi, IslemKaydi, LotKaynagi, UretimLotu
+from .models import DeriDuzeltme, HamDeriGirisi, IslemKaydi, LotKaynagi, MalzemeHareketi, UretimLotu
 
 
 @transaction.atomic
@@ -36,7 +36,8 @@ def islem_baslat(*, lot, asama, personel, aciklama=""):
 
 
 @transaction.atomic
-def islem_bitir(*, islem, personel, cikis_kg, cikis_m2, aciklama=""):
+def islem_bitir(*, islem, personel, cikis_kg, cikis_m2, aciklama="", malzemeler=()):
+    """Aşamayı bitirir. malzemeler: [(malzeme, miktar), ...] bu aşamada kullanılan sarf malzemeleri."""
     islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama").get(pk=islem.pk)
     if islem.bitis is not None:
         raise ValidationError("Bu işlem zaten bitirilmiş.")
@@ -50,6 +51,11 @@ def islem_bitir(*, islem, personel, cikis_kg, cikis_m2, aciklama=""):
     if aciklama:
         islem.aciklama = f"{islem.aciklama}\n{aciklama}".strip()
     islem.save()
+
+    for malzeme, miktar in malzemeler:
+        if miktar and miktar > 0:
+            MalzemeHareketi.objects.create(malzeme=malzeme, tur="kullanim", miktar=-miktar, islem=islem,
+                                           personel=personel)
 
     lot = islem.lot
     lot.mevcut_kg = cikis_kg
@@ -100,3 +106,51 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama=""):
         LotKaynagi(uretim_lotu=lot, ham_deri=kilitli[pk], kg=kg, m2=m2) for pk, (_, kg, m2) in toplam.items()
     )
     return islem_baslat(lot=lot, asama=asama, personel=personel, aciklama=aciklama)
+
+
+# --- Stok hareketleri ---------------------------------------------------------
+
+
+def malzeme_giris(*, malzeme, miktar, kullanici=None, tedarikci=None, aciklama=""):
+    if miktar is None or miktar <= 0:
+        raise ValidationError("Giriş miktarı sıfırdan büyük olmalı.")
+    return MalzemeHareketi.objects.create(malzeme=malzeme, tur="giris", miktar=miktar, kullanici=kullanici,
+                                          tedarikci=tedarikci, aciklama=aciklama)
+
+
+@transaction.atomic
+def malzeme_duzelt(*, malzeme, neden, miktar, kullanici=None, aciklama=""):
+    """Sayımda miktar = sayılan gerçek stok (fark kaydedilir); diğer nedenlerde miktar = stoktan düşülecek."""
+    if miktar is None or miktar < 0:
+        raise ValidationError("Miktar negatif olamaz.")
+    if neden == "sayim":
+        fark = miktar - malzeme.stok
+        if fark == 0:
+            raise ValidationError("Sayılan miktar sistemdekiyle aynı, düzeltme gerekmiyor.")
+    else:
+        if miktar == 0:
+            raise ValidationError("Düşülecek miktarı girin.")
+        fark = -miktar
+    return MalzemeHareketi.objects.create(malzeme=malzeme, tur=neden, miktar=fark, kullanici=kullanici,
+                                          aciklama=aciklama)
+
+
+@transaction.atomic
+def deri_duzelt(*, ham_deri, neden, kg, m2, kullanici=None, aciklama=""):
+    """Sayımda kg/m² = sayılan gerçek kalan; diğer nedenlerde kg/m² = stoktan düşülecek miktar."""
+    ham_deri = HamDeriGirisi.objects.select_for_update().get(pk=ham_deri.pk)
+    kg, m2 = kg or Decimal(0), m2 or Decimal(0)
+    if kg < 0 or m2 < 0:
+        raise ValidationError("Miktar negatif olamaz.")
+    if neden == "sayim":
+        fark_kg, fark_m2 = kg - ham_deri.kalan_kg, m2 - ham_deri.kalan_m2
+        if not fark_kg and not fark_m2:
+            raise ValidationError("Sayılan miktar sistemdekiyle aynı, düzeltme gerekmiyor.")
+    else:
+        if not kg and not m2:
+            raise ValidationError("Düşülecek kg veya m² girin.")
+        if kg > ham_deri.kalan_kg or m2 > ham_deri.kalan_m2:
+            raise ValidationError(f"Stokta {ham_deri.kalan_kg} kg / {ham_deri.kalan_m2} m² var, daha fazlası düşülemez.")
+        fark_kg, fark_m2 = -kg, -m2
+    return DeriDuzeltme.objects.create(ham_deri=ham_deri, neden=neden, kg=fark_kg, m2=fark_m2,
+                                       kullanici=kullanici, aciklama=aciklama)

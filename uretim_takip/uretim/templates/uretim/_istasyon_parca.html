@@ -1,0 +1,50 @@
+{% with U=user %}
+<div id="istasyon-parca" data-geciken="{{ geciken }}" data-anahtarlar="{% for k in gelen %}{{ k.anahtar }} {% endfor %}">
+  <div class="kart">
+    <h2>📥 Gelen işler ({{ gelen|length }})</h2>
+    {% for k in gelen %}
+    <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}" data-anahtar="{{ k.anahtar }}">
+      <div class="ist-bilgi">
+        {% if k.tur == "siparis" %}
+          <span class="rozet bekliyor">Yeni sipariş</span> <b>{{ k.siparis.siparis_no }}</b> · <b>{{ k.siparis.musteri }}</b><br>
+          <span class="soluk">{{ k.siparis.urun }}{% if k.siparis.toplam_m2 %} · {{ k.siparis.toplam_m2|floatformat:"-2" }} m²{% endif %} · teslim {{ k.siparis.teslim_tarihi|date:"d.m.Y" }}</span>
+        {% else %}
+          <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %}<br>
+          <span class="soluk">{% if k.lot.son_asama %}{{ k.lot.son_asama.ad }} bitti{% else %}başlamadı{% endif %} · {{ k.lot.mevcut_kg }} kg / {{ k.lot.mevcut_m2 }} m²</span>
+        {% endif %}
+        <div class="ist-sure">⏳ {{ k.sure_metni }} bekliyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
+          {% if k.gecikti %}<b class="uyari"> · {{ k.asim_metni }} gecikti</b>{% endif %}</div>
+      </div>
+      {% if not U.is_staff or U.is_superuser %}
+        {% if k.tur == "siparis" %}
+          <a class="btn" href="{% url 'yeni_is' %}?siparis={{ k.siparis.pk }}&amp;geri={{ ekran_adresi|urlencode }}">🆕 İşi başlat</a>
+        {% else %}
+          <a class="btn" href="{% url 'islem_baslat' %}?lot={{ k.lot.pk }}&amp;geri={{ ekran_adresi|urlencode }}">▶ Başlat</a>
+        {% endif %}
+      {% endif %}
+    </div>
+    {% empty %}
+    <p class="soluk">Bekleyen iş yok.</p>
+    {% endfor %}
+  </div>
+
+  <div class="kart">
+    <h2>🔧 Bu istasyonda çalışılan ({{ calisilan|length }})</h2>
+    {% for k in calisilan %}
+    <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}">
+      <div class="ist-bilgi">
+        <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}<br>
+        <span class="soluk">Stok: {{ k.lot.kaynak_listesi }} · {{ k.islem.giris_kg }} kg / {{ k.islem.giris_m2 }} m²</span>
+        <div class="ist-sure">⏱ {{ k.sure_metni }} çalışılıyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
+          {% if k.gecikti %}<b class="uyari"> · {{ k.asim_metni }} aşıldı</b>{% endif %}</div>
+      </div>
+      {% if not U.is_staff or U.is_superuser %}
+      <a class="btn" href="{% url 'islem_bitir' k.islem.pk %}?geri={{ ekran_adresi|urlencode }}">■ Bitir</a>
+      {% endif %}
+    </div>
+    {% empty %}
+    <p class="soluk">Şu an bu istasyonda çalışılan iş yok.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endwith %}

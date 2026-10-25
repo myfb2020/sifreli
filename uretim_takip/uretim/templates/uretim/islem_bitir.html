@@ -12,6 +12,15 @@
   <p class="soluk">Bu aşamadan çıkan miktarı girin. Aradaki fark fire olarak kaydedilir.</p>
   <form method="post" class="dikey">
     {% include "uretim/_form.html" %}
+    <h2 style="margin-top:20px">Kullanılan malzemeler <span class="soluk" style="font-weight:normal;font-size:14px">(varsa)</span></h2>
+    <p class="soluk">Bu aşamada kimyasal, iplik, astar vb. kullandıysanız seçip miktarını girin; stoktan düşülür.</p>
+    {{ malzemeler.management_form }}
+    {% for m in malzemeler %}
+    <div class="malzeme-satir">
+      <div>{{ m.malzeme }}{% for e in m.malzeme.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}</div>
+      <div>{{ m.miktar }}{% for e in m.miktar.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}</div>
+    </div>
+    {% endfor %}
     <button class="btn buyuk" type="submit" style="width:100%">Bitir</button>
   </form>
 </div>

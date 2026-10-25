@@ -1,7 +1,9 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import Asama, HamDeriGirisi, Musteri, Personel, Siparis, Tedarikci, UretimLotu, pin_dogrulayici
+from .models import (
+    NEDENLER, Asama, HamDeriGirisi, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu, pin_dogrulayici,
+)
 
 
 def ondalik_alan(etiket, **kw):
@@ -196,3 +198,53 @@ class StokGirisForm(forms.ModelForm):
         else:
             self.instance.tedarikci = self.cleaned_data["tedarikci"]
         return super().save(commit)
+
+
+# --- Malzemeler ve stok düzeltme ----------------------------------------------
+
+
+class MalzemeKullanimForm(forms.Form):
+    malzeme = forms.ModelChoiceField(queryset=Malzeme.objects.filter(aktif=True), required=False,
+                                     label="Malzeme", empty_label="— Malzeme —")
+    miktar = ondalik_alan("Miktar", required=False)
+
+    def clean(self):
+        veri = super().clean()
+        if veri.get("malzeme") and not veri.get("miktar"):
+            self.add_error("miktar", "Kullanılan miktarı girin.")
+        if veri.get("miktar") and not veri.get("malzeme"):
+            self.add_error("malzeme", "Malzemeyi seçin.")
+        return veri
+
+
+MalzemeKullanimFormSet = forms.formset_factory(MalzemeKullanimForm, extra=3, max_num=10)
+
+
+class MalzemeForm(forms.ModelForm):
+    min_stok = ondalik_alan("En az stok (uyarı sınırı)", required=False)
+
+    class Meta:
+        model = Malzeme
+        fields = ["ad", "kategori", "birim", "min_stok"]
+
+
+class MalzemeGirisForm(forms.Form):
+    malzeme = forms.ModelChoiceField(queryset=Malzeme.objects.filter(aktif=True), label="Malzeme",
+                                     empty_label="— Malzeme seçin —")
+    miktar = ondalik_alan("Gelen miktar")
+    tedarikci = forms.ModelChoiceField(queryset=Tedarikci.objects.all(), required=False, label="Tedarikçi (isteğe bağlı)")
+    aciklama = forms.CharField(label="Açıklama (isteğe bağlı)", required=False, max_length=200,
+                               help_text="Örn. fatura no")
+
+
+class MalzemeDuzeltmeForm(forms.Form):
+    neden = forms.ChoiceField(choices=NEDENLER, label="Neden")
+    miktar = ondalik_alan("Miktar", help_text="Sayım farkı: sayılan gerçek miktar. Diğerleri: stoktan düşülecek miktar.")
+    aciklama = forms.CharField(label="Açıklama (isteğe bağlı)", required=False, max_length=200)
+
+
+class DeriDuzeltmeForm(forms.Form):
+    neden = forms.ChoiceField(choices=NEDENLER, label="Neden")
+    kg = ondalik_alan("kg", required=False)
+    m2 = ondalik_alan("m²", required=False)
+    aciklama = forms.CharField(label="Açıklama (isteğe bağlı)", required=False, max_length=200)

@@ -7,12 +7,21 @@ from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
-from . import raporlar, servisler
-from .forms import IslemBaslatForm, IslemBitirForm, TarihAraligiForm
+from . import raporlar, servisler, uyarilar
+from .forms import IslemBaslatForm, IslemBitirForm, MalzemeKullanimFormSet, TarihAraligiForm
 from .models import Asama, IslemKaydi, Siparis, UretimLotu
+
+
+def geri_don(request, varsayilan):
+    """İşlem istasyon ekranından açıldıysa (?geri=/istasyon/3/) oraya döner."""
+    geri = request.GET.get("geri", "")
+    if geri and url_has_allowed_host_and_scheme(geri, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return redirect(geri)
+    return redirect(varsayilan)
 
 
 def sadece_ofis(gorunum):
@@ -44,6 +53,8 @@ def pano(request):
         "yaklasan_siparisler": Siparis.objects.filter(
             durum__in=["acik", "uretimde"], teslim_tarihi__gte=bugun, teslim_tarihi__lte=bugun + timedelta(days=7)
         ).select_related("musteri"),
+        "gecikmeler": uyarilar.gecikmeler(),
+        "azalan_stoklar": uyarilar.azalan_stoklar() if request.user.is_staff else [],
     }
     return render(request, "uretim/pano.html", baglam)
 
@@ -67,7 +78,7 @@ def islem_baslat(request):
             form.add_error(None, hata)
         else:
             messages.success(request, f"{islem.personel} – {islem.lot} işinde “{islem.asama.ad}” başladı.")
-            return redirect("pano")
+            return geri_don(request, "pano")
     return render(request, "uretim/islem_baslat.html", {"form": form})
 
 
@@ -82,19 +93,24 @@ def islem_bitir(request, pk):
         request.POST or None,
         initial={"personel": islem.personel, "cikis_kg": islem.giris_kg, "cikis_m2": islem.giris_m2},
     )
-    if request.method == "POST" and form.is_valid():
+    # Malzeme bölümü gönderilmediyse (eski açık sayfa) malzeme kullanılmadı sayılır.
+    malzeme_verisi = request.POST if "malzeme-TOTAL_FORMS" in request.POST else None
+    malzemeler = MalzemeKullanimFormSet(malzeme_verisi, prefix="malzeme")
+    if request.method == "POST" and form.is_valid() and (malzeme_verisi is None or malzemeler.is_valid()):
         v = form.cleaned_data
+        kullanilan = [(m.cleaned_data["malzeme"], m.cleaned_data["miktar"])
+                      for m in malzemeler if malzeme_verisi is not None and m.cleaned_data.get("malzeme")]
         try:
             servisler.islem_bitir(
                 islem=islem, personel=v["personel"], cikis_kg=v["cikis_kg"], cikis_m2=v["cikis_m2"],
-                aciklama=v["aciklama"],
+                aciklama=v["aciklama"], malzemeler=kullanilan,
             )
         except ValidationError as hata:
             form.add_error(None, hata)
         else:
             messages.success(request, f"{islem.lot} – “{islem.asama.ad}” bitti.")
-            return redirect("pano")
-    return render(request, "uretim/islem_bitir.html", {"form": form, "islem": islem})
+            return geri_don(request, "pano")
+    return render(request, "uretim/islem_bitir.html", {"form": form, "islem": islem, "malzemeler": malzemeler})
 
 
 @login_required

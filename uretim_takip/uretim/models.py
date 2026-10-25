@@ -27,9 +27,19 @@ def sonraki_numara(model, alan, onek):
 
 
 class Asama(models.Model):
+    """Üretim aşaması; her aşama bir istasyondur."""
+
     ad = models.CharField("aşama adı", max_length=60, unique=True)
     sira = models.PositiveSmallIntegerField("sıra", unique=True)
     aktif = models.BooleanField(default=True)
+    azami_sure_saat = models.DecimalField(
+        "en fazla çalışma süresi (saat)", max_digits=6, decimal_places=1, null=True, blank=True,
+        help_text="İş bu istasyonda bu süreden uzun kalırsa uyarı verilir. Boş: sınır yok.",
+    )
+    azami_bekleme_saat = models.DecimalField(
+        "en fazla bekleme süresi (saat)", max_digits=6, decimal_places=1, null=True, blank=True,
+        help_text="İş bu istasyona geldikten sonra bu süre içinde başlanmazsa uyarı verilir. Boş: sınır yok.",
+    )
 
     class Meta:
         ordering = ["sira"]
@@ -111,6 +121,10 @@ class Musteri(models.Model):
 
 class DeriTuru(models.Model):
     ad = models.CharField(max_length=60, unique=True)
+    min_kg = models.DecimalField(
+        "en az stok (kg)", max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Bu türün toplam stoğu bunun altına düşünce uyarı verilir.",
+    )
 
     class Meta:
         ordering = ["ad"]
@@ -159,12 +173,20 @@ class HamDeriGirisi(models.Model):
         return self.cikislar.aggregate(t=models.Sum("m2"))["t"] or SIFIR
 
     @property
+    def duzeltme_kg(self):
+        return self.duzeltmeler.aggregate(t=models.Sum("kg"))["t"] or SIFIR
+
+    @property
+    def duzeltme_m2(self):
+        return self.duzeltmeler.aggregate(t=models.Sum("m2"))["t"] or SIFIR
+
+    @property
     def kalan_kg(self):
-        return self.kg - self.kullanilan_kg
+        return self.kg - self.kullanilan_kg + self.duzeltme_kg
 
     @property
     def kalan_m2(self):
-        return self.m2 - self.kullanilan_m2
+        return self.m2 - self.kullanilan_m2 + self.duzeltme_m2
 
     def aktif_isler(self):
         """Bu stok lotundan malzeme almış, bitmemiş işler."""
@@ -189,6 +211,7 @@ class Siparis(models.Model):
     siparis_no = models.CharField("sipariş no", max_length=20, unique=True, blank=True)
     musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, verbose_name="müşteri")
     tarih = models.DateField(default=timezone.localdate)
+    olusturma = models.DateTimeField("kayıt zamanı", default=timezone.now, editable=False)
     urun = models.CharField("ürün açıklaması", max_length=200, help_text="Örn: 200x300 krem kuzu patchwork halı")
     deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="deri türü")
     adet = models.PositiveIntegerField(default=1)
@@ -402,3 +425,94 @@ class IslemKaydi(models.Model):
     @property
     def sure(self):
         return (self.bitis or timezone.now()) - self.baslangic
+
+
+# --- Stok düzeltme ve malzemeler ----------------------------------------------
+
+
+NEDENLER = [
+    ("sayim", "Sayım farkı"),
+    ("fire", "Fire / bozulma"),
+    ("iade", "Tedarikçiye iade"),
+    ("diger", "Diğer"),
+]
+
+
+class DeriDuzeltme(models.Model):
+    """Stok lotunun kalan miktarına elle yapılan düzeltme. Eksi: stoktan düşer, artı: stoğa eklenir."""
+
+    ham_deri = models.ForeignKey(HamDeriGirisi, on_delete=models.CASCADE, related_name="duzeltmeler",
+                                 verbose_name="stok lotu")
+    neden = models.CharField(max_length=10, choices=NEDENLER)
+    kg = models.DecimalField(max_digits=10, decimal_places=2, default=SIFIR)
+    m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, default=SIFIR)
+    aciklama = models.CharField("açıklama", max_length=200, blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="giren")
+    tarih = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-tarih"]
+        verbose_name = "deri stok düzeltmesi"
+        verbose_name_plural = "deri stok düzeltmeleri"
+
+    def __str__(self):
+        return f"{self.ham_deri.lot_no} {self.get_neden_display()} {self.kg} kg / {self.m2} m²"
+
+
+class Malzeme(models.Model):
+    """Deri dışındaki sarf malzemeleri: kimyasal, iplik, astar, yapıştırıcı…"""
+
+    BIRIMLER = [("kg", "kg"), ("lt", "litre"), ("m", "metre"), ("m2", "m²"), ("adet", "adet"), ("makara", "makara")]
+    KATEGORILER = [("kimyasal", "Kimyasal"), ("iplik", "İplik"), ("astar", "Astar / taban"),
+                   ("yapistirici", "Yapıştırıcı"), ("ambalaj", "Ambalaj"), ("diger", "Diğer")]
+
+    ad = models.CharField(max_length=100, unique=True)
+    kategori = models.CharField(max_length=12, choices=KATEGORILER, default="diger")
+    birim = models.CharField(max_length=6, choices=BIRIMLER, default="kg")
+    min_stok = models.DecimalField("en az stok", max_digits=10, decimal_places=2, null=True, blank=True,
+                                   help_text="Stok bunun altına düşünce uyarı verilir.")
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["kategori", "ad"]
+        verbose_name = "malzeme"
+        verbose_name_plural = "malzemeler"
+
+    def __str__(self):
+        return f"{self.ad} ({self.get_birim_display()})"
+
+    @property
+    def stok(self):
+        return self.hareketler.aggregate(t=models.Sum("miktar"))["t"] or SIFIR
+
+    @property
+    def azaldi_mi(self):
+        return self.min_stok is not None and self.stok < self.min_stok
+
+
+class MalzemeHareketi(models.Model):
+    """Malzeme stoğundaki her değişiklik. Miktar işaretlidir: giriş artı, kullanım/fire eksi."""
+
+    TURLER = [("giris", "Giriş"), ("kullanim", "Üretimde kullanım"), *NEDENLER]
+
+    malzeme = models.ForeignKey(Malzeme, on_delete=models.PROTECT, related_name="hareketler")
+    tur = models.CharField("tür", max_length=10, choices=TURLER)
+    miktar = models.DecimalField(max_digits=10, decimal_places=2)
+    islem = models.ForeignKey("IslemKaydi", on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name="malzeme_kullanimlari", verbose_name="işlem")
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="giren")
+    tedarikci = models.ForeignKey(Tedarikci, on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="tedarikçi")
+    aciklama = models.CharField("açıklama", max_length=200, blank=True)
+    tarih = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-tarih"]
+        verbose_name = "malzeme hareketi"
+        verbose_name_plural = "malzeme hareketleri"
+
+    def __str__(self):
+        return f"{self.malzeme.ad} {self.get_tur_display()} {self.miktar}"
