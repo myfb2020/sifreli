@@ -2,7 +2,8 @@
 {% block baslik %}İstasyonlar{% endblock %}
 {% block icerik %}
 <h1>İstasyon Seçin</h1>
-<p class="soluk">Bu tablet hangi istasyonda duruyorsa onu seçin. Tablet seçiminizi hatırlar; menüdeki “İstasyon” her zaman bu ekranı açar.</p>
+<p class="soluk">Bu tablet hangi istasyonda duruyorsa onu seçin.</p>
+<a id="son-istasyon" class="btn buyuk" hidden style="margin-bottom:16px"></a>
 <div class="istasyon-izgara">
   {% for s in satirlar %}
   <a class="kart istasyon-kart{% if s.geciken %} gecikmis{% endif %}" href="{% url 'istasyon_ekrani' s.asama.pk %}" data-istasyon="{{ s.asama.pk }}">
@@ -13,11 +14,16 @@
   {% endfor %}
 </div>
 <script>
-  // Bu tablet daha önce bir istasyon seçtiyse doğrudan onun ekranını aç.
+  // Sayfa açık kalır; tabletin son kullandığı istasyon üstte kısayol olarak gösterilir.
   try {
     const kayitli = localStorage.getItem("istasyon");
     const link = kayitli && document.querySelector('[data-istasyon="' + kayitli + '"]');
-    if (link && !new URLSearchParams(location.search).has("degistir")) location.replace(link.href);
+    if (link) {
+      const dugme = document.getElementById("son-istasyon");
+      dugme.href = link.href;
+      dugme.textContent = "▶ " + link.querySelector(".istasyon-ad").textContent + " ekranını aç";
+      dugme.hidden = false;
+    }
   } catch (e) {}
   document.querySelectorAll("[data-istasyon]").forEach((a) => a.addEventListener("click", () => {
     try { localStorage.setItem("istasyon", a.dataset.istasyon); } catch (e) {}

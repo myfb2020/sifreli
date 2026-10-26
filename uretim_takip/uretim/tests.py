@@ -972,7 +972,7 @@ class HaliTuruRotaTesti(TemelVeri):
 
     def test_istasyonlar_ve_makineler_yuklendi(self):
         self.assertEqual([a.ad for a in Asama.objects.filter(aktif=True)],
-                         ["Nakış", "Kaplama", "Lazer kesim", "Zig-zag", "Biye", "Lanfel", "Kenar dikişi"])
+                         ["Lazer kesim", "Nakış", "Kaplama", "Zig-zag", "Biye", "Lanfel", "Kenar dikişi"])
         self.assertEqual(self.ist("Zig-zag").makineler.count(), 2)
         self.assertEqual(self.ist("Lazer kesim").makineler.count(), 2)
         self.assertEqual(HaliTuru.objects.get(ad="Nakışlı halı").rota_metni(),
@@ -1150,3 +1150,12 @@ class DenemeKayitlariTemizlikTesti(TemelVeri):
         # Tablet hesabı sayfaya giremez
         self.client.force_login(get_user_model().objects.create_user("tab", password="x"))
         self.assertNotEqual(self.client.get(reverse("test_verilerini_sil")).status_code, 200)
+
+
+class MarkaVeIstasyonSayfasiTesti(TestCase):
+    def test_istasyon_listesi_lazerle_baslar_ve_logo_alani(self):
+        self.client.force_login(get_user_model().objects.create_user("t", password="x"))
+        sayfa = self.client.get(reverse("istasyon_secimi"))
+        self.assertEqual(Asama.objects.filter(aktif=True).first().ad, "Lazer kesim")
+        self.assertNotContains(sayfa, "location.replace")
+        self.assertContains(sayfa, "BIENNA FUR")

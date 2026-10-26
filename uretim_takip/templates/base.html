@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block baslik %}Üretim Takip{% endblock %}</title>
   <link rel="manifest" href="{% url 'manifest' %}">
-  <meta name="theme-color" content="#7a4b2a">
+  <meta name="theme-color" content="#f6f2ee">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Üretim">
@@ -18,12 +18,21 @@
     * { box-sizing:border-box; }
     body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--zemin);
            color:var(--yazi); font-size:16px; }
-    header { background:var(--ana); color:#fff; padding:0 16px; display:flex; align-items:center; gap:16px;
-             flex-wrap:wrap; min-height:56px; }
-    header a { color:#fff; text-decoration:none; padding:8px 4px; }
-    header .marka { font-weight:700; font-size:18px; margin-right:auto; }
+    /* Saydam üst şerit: arkasındaki sayfa buzlu cam gibi görünür. */
+    header { position:sticky; top:0; z-index:40; background:rgba(255,255,255,0.72);
+             -webkit-backdrop-filter:blur(12px) saturate(1.4); backdrop-filter:blur(12px) saturate(1.4);
+             border-bottom:1px solid rgba(122,75,42,0.18); color:var(--yazi); padding:0 16px; display:flex;
+             align-items:center; gap:16px; flex-wrap:wrap; min-height:60px; }
+    header a { color:var(--ana-koyu); text-decoration:none; padding:8px 4px; border-radius:6px; }
+    header a:hover { background:rgba(122,75,42,0.08); }
+    header .marka { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; margin-right:auto;
+                    color:var(--yazi); padding:4px 0; }
+    header .marka img { height:44px; width:auto; display:block; }
+    .marka-yazi { font-family:Georgia,"Times New Roman",serif; letter-spacing:0.18em; font-weight:600; color:#a8802f; }
+    .marka-alt { font-size:13px; font-weight:500; color:var(--soluk); letter-spacing:0; }
     header form { margin:0; }
-    header button { background:none; border:1px solid #fff8; color:#fff; border-radius:6px; padding:6px 10px; cursor:pointer; }
+    header button { background:none; border:1px solid rgba(122,75,42,0.35); color:var(--ana-koyu); border-radius:6px;
+                    padding:6px 10px; cursor:pointer; }
     main { max-width:1200px; margin:0 auto; padding:16px; }
     h1 { font-size:22px; margin:8px 0 16px; }
     h2 { font-size:18px; margin:0 0 12px; }
@@ -139,7 +148,9 @@
 <body>
 {% if user.is_authenticated %}
 <header>
-  <a class="marka" href="{% url 'pano' %}">Üretim Takip</a>
+  <a class="marka" href="{% url 'pano' %}" aria-label="{{ marka_adi }} – Üretim Takip">
+    {% if marka_logo %}<img src="{{ marka_logo }}" alt="{{ marka_adi }}">{% else %}<span class="marka-yazi">{{ marka_adi }}</span>{% endif %}
+    <span class="marka-alt">Üretim Takip</span></a>
   <a href="{% url 'pano' %}">Pano</a>
   {# Üretim ekranları: tablet hesabı ve yönetici. Ofis hesabı (personel durumlu) görmez. #}
   {% if not user.is_staff or user.is_superuser %}

@@ -3,7 +3,7 @@
 {% block icerik %}
 <div class="ist-baslik">
   <div>
-    <div class="soluk"><a href="{% url 'istasyon_secimi' %}?degistir=1">İstasyon değiştir</a></div>
+    <div class="soluk"><a href="{% url 'istasyon_secimi' %}">İstasyon değiştir</a></div>
     <h1 style="margin:4px 0">{{ asama.ad }}</h1>
     <div class="soluk">{% if asama.azami_bekleme_saat %}Bekleme sınırı {{ asama.azami_bekleme_saat|floatformat:"-1" }} sa{% endif %}{% if asama.azami_bekleme_saat and asama.azami_sure_saat %} · {% endif %}{% if asama.azami_sure_saat %}çalışma sınırı {{ asama.azami_sure_saat|floatformat:"-1" }} sa{% endif %}</div>
   </div>
