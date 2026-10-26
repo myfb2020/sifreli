@@ -33,7 +33,7 @@
     {% for k in calisilan %}
     <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}">
       <div class="ist-bilgi">
-        <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}<br>
+        <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}{% if k.islem.makine %} · {{ k.islem.makine }}{% endif %}<br>
         <span class="soluk">Stok: {{ k.lot.kaynak_listesi }} · {{ k.islem.giris_kg }} kg / {{ k.islem.giris_m2 }} m²</span>
         <div class="ist-sure">⏱ {{ k.sure_metni }} çalışılıyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
           {% if k.gecikti %}<b class="uyari"> · {{ k.asim_metni }} aşıldı</b>{% endif %}</div>

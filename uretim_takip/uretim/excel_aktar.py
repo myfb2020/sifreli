@@ -18,7 +18,8 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from .models import (
-    Asama, DeriTuru, HamDeriGirisi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu, pin_dogrulayici,
+    Asama, DeriTuru, HaliTuru, HamDeriGirisi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    pin_dogrulayici, rota_adimlari, sonraki_asamalar,
 )
 
 
@@ -252,6 +253,12 @@ class Aktarici:
         sp.teslim_tarihi = tarih(s["Teslim Tarihi"], "Teslim Tarihi")
         sp.tarih = tarih(s.get("Tarih"), "Tarih") or sp.tarih
         sp.deri_turu = self._tanim(DeriTuru, s.get("Deri Türü"), "Deri türü") or sp.deri_turu
+        tur_adi = metin(s.get("Halı Türü"))
+        if tur_adi:
+            aranan = normal(tur_adi)
+            sp.hali_turu = next((t for t in HaliTuru.objects.all() if normal(t.ad).startswith(aranan)), None)
+            if sp.hali_turu is None:
+                raise SatirHatasi(f"“{tur_adi}” adında bir halı türü yok")
         sp.adet = tam_sayi(s.get("Adet"), "Adet") or sp.adet
         sp.toplam_m2 = sayi(s.get("Toplam m²"), "Toplam m²")
         sp.durum = secim(s.get("Durum"), "Durum", Siparis.DURUM) or sp.durum
@@ -276,7 +283,7 @@ class Aktarici:
         asama_degeri = metin(s.get("Son Tamamlanan Aşama"))
         if asama_degeri:
             aranan = normal(asama_degeri)
-            for a in Asama.objects.all():
+            for a in Asama.objects.order_by("-aktif", "sira"):
                 if aranan in (normal(a.ad), str(a.sira)) or normal(a.ad).startswith(aranan):
                     asama = a
                     break
@@ -286,7 +293,8 @@ class Aktarici:
         durumlar = [kod for kod in UretimLotu.DURUM if kod[0] != "islemde"]
         durum = secim(s.get("Durum"), "Durum", durumlar)
         if durum is None:
-            durum = "tamamlandi" if asama and asama.son_asama_mi else "bekliyor"
+            rota = rota_adimlari(siparis.hali_turu_id if siparis else None)
+            durum = "tamamlandi" if asama and not sonraki_asamalar(rota, asama) else "bekliyor"
 
         lot_no = kod(s.get("İş No"), "İş No")
         lot = UretimLotu.objects.filter(lot_no=lot_no).first() if lot_no else None
@@ -357,6 +365,7 @@ SAYFALAR = [
         Sutun("Teslim Tarihi", True, "", "30.10.2026"),
         Sutun("Durum", False, "Açık / Üretimde / Tamamlandı / Sevk edildi / İptal (boşsa Açık)", "Açık"),
         Sutun("Not", False),
+        Sutun("Halı Türü", False, "Lazerli, Nakışlı ya da Peluş", "Lazerli"),
     ], "siparis", ("siparis",)),
     Sayfa("Devam Eden İşler", "Sistemi kurarken üretimde yarım kalan işler. Stok lotu ve sipariş numaraları yukarıdaki sayfalarda ya da sistemde bulunmalı.", [
         Sutun("İş No", False, "Boş bırakılırsa sistem numara verir (IS-2026-0001)", "IS-2026-0001", ("Lot No",)),

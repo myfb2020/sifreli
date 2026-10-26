@@ -6,7 +6,7 @@
   {% if not user.is_staff or user.is_superuser %}{% if lot.acik_islem %}
     <a class="btn" href="{% url 'islem_bitir' lot.acik_islem.pk %}">■ Açık işlemi bitir</a>
   {% elif lot.durum == "bekliyor" %}
-    <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ Sıradaki: {{ lot.siradaki_asama.ad|default:"aşama seç" }}</a>
+    <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ Sıradaki: {{ lot.siradaki_metni|default:"aşama seç" }}</a>
   {% endif %}{% endif %}
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_uretimlotu_change' lot.pk %}">Düzenle</a>{% endif %}
 </div>
@@ -44,7 +44,7 @@
         <th class="sayi">Giriş kg → Çıkış</th><th class="sayi">Giriş m² → Çıkış</th><th class="sayi">Fire m²</th><th>Not</th></tr>
     {% for i in islemler %}
     <tr>
-      <td>{{ i.asama.ad }}</td>
+      <td>{{ i.asama.ad }}{% if i.makine %}<br><span class="soluk">{{ i.makine }}</span>{% endif %}</td>
       <td>{{ i.personel }}{% if i.bitiren and i.bitiren != i.personel %}<br><span class="soluk">bitiren: {{ i.bitiren }}</span>{% endif %}</td>
       <td>{{ i.baslangic|date:"d.m.Y H:i" }}</td>
       <td>{% if i.bitis %}{{ i.bitis|date:"d.m.Y H:i" }}{% else %}<span class="rozet islemde">devam ediyor</span>{% endif %}</td>

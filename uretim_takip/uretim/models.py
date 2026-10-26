@@ -57,6 +57,102 @@ class Asama(models.Model):
         return self.sonraki() is None
 
 
+class Makine(models.Model):
+    """İstasyondaki bir makine (ör. Zig-zag 1). Çalışan işe başlarken hangi makinede çalıştığını seçer."""
+
+    ad = models.CharField("makine adı", max_length=60, unique=True)
+    asama = models.ForeignKey(Asama, on_delete=models.PROTECT, related_name="makineler", verbose_name="istasyon")
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["asama__sira", "ad"]
+        verbose_name = "makine"
+        verbose_name_plural = "makineler"
+
+    def __str__(self):
+        return self.ad
+
+
+class HaliTuru(models.Model):
+    """Halı türü (ör. Lazerli, Nakışlı, Peluş). Her türün istasyon sırası (rotası) vardır."""
+
+    ad = models.CharField("halı türü", max_length=60, unique=True)
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["ad"]
+        verbose_name = "halı türü"
+        verbose_name_plural = "halı türleri"
+
+    def __str__(self):
+        return self.ad
+
+    def rota_metni(self):
+        """Ör. 'Lazer kesim → Zig-zag → Biye / Lanfel'."""
+        gruplar = {}
+        for adim in self.adimlar.select_related("asama"):
+            gruplar.setdefault(adim.sira, []).append(adim.asama.ad)
+        return " → ".join(" / ".join(adlar) for _, adlar in sorted(gruplar.items()))
+
+
+class RotaAdimi(models.Model):
+    """Halı türünün geçtiği istasyonlardan biri. Aynı sıra numaralı adımlar alternatiftir (ya biri ya diğeri)."""
+
+    hali_turu = models.ForeignKey(HaliTuru, on_delete=models.CASCADE, related_name="adimlar", verbose_name="halı türü")
+    sira = models.PositiveSmallIntegerField("sıra", help_text="Aynı sıra numarası verilen istasyonlardan biri yapılır.")
+    asama = models.ForeignKey(Asama, on_delete=models.PROTECT, verbose_name="istasyon")
+
+    class Meta:
+        ordering = ["sira", "asama__sira"]
+        verbose_name = "rota adımı"
+        verbose_name_plural = "rota adımları"
+        constraints = [models.UniqueConstraint(fields=["hali_turu", "asama"], name="rotada_istasyon_tek")]
+
+    def __str__(self):
+        return f"{self.hali_turu}: {self.sira}. {self.asama.ad}"
+
+
+def sonraki_asamalar(adimlar, son_asama):
+    """Rotaya göre sıradaki istasyon(lar). adimlar: [(sira, asama), ...]; boşsa genel aşama sırası kullanılır.
+
+    son_asama None ise ilk adım(lar) döner. Birden fazla dönerse alternatiftir. Boş liste: iş bitti.
+    """
+    if not adimlar:
+        if son_asama is None:
+            ilk = Asama.objects.filter(aktif=True).first()
+            return [ilk] if ilk else []
+        sonraki = son_asama.sonraki()
+        return [sonraki] if sonraki else []
+    if son_asama is None:
+        esik = -1
+    else:
+        siralar = [s for s, a in adimlar if a.pk == son_asama.pk]
+        if not siralar:  # rotada olmayan bir istasyonda çalışıldı
+            return _rota_disi(adimlar, son_asama)
+        esik = siralar[0]
+    sonrakiler = [(s, a) for s, a in adimlar if s > esik]
+    if not sonrakiler:
+        return []
+    ilk_sira = min(s for s, _ in sonrakiler)
+    return [a for s, a in sonrakiler if s == ilk_sira]
+
+
+def _rota_disi(adimlar, son_asama):
+    """Rotada olmayan istasyondan sonra: genel sırada bu istasyondan sonra gelen ilk rota adımı."""
+    sonrakiler = [(s, a) for s, a in adimlar if a.sira > son_asama.sira]
+    if not sonrakiler:
+        return []
+    ilk_sira = min(s for s, _ in sonrakiler)
+    return [a for s, a in sonrakiler if s == ilk_sira]
+
+
+def rota_adimlari(hali_turu_id):
+    if not hali_turu_id:
+        return []
+    return [(r.sira, r.asama) for r in RotaAdimi.objects.filter(hali_turu_id=hali_turu_id, asama__aktif=True)
+            .select_related("asama")]
+
+
 class Personel(models.Model):
     ad_soyad = models.CharField("ad soyad", max_length=100)
     pin = models.CharField(
@@ -212,6 +308,10 @@ class Siparis(models.Model):
     musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, verbose_name="müşteri")
     tarih = models.DateField(default=timezone.localdate)
     olusturma = models.DateTimeField("kayıt zamanı", default=timezone.now, editable=False)
+    hali_turu = models.ForeignKey(
+        HaliTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="halı türü",
+        help_text="İşin hangi istasyonlardan geçeceğini belirler.",
+    )
     urun = models.CharField("ürün açıklaması", max_length=200, help_text="Örn: 200x300 krem kuzu patchwork halı")
     deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="deri türü")
     adet = models.PositiveIntegerField(default=1)
@@ -232,6 +332,9 @@ class Siparis(models.Model):
         if not self.siparis_no:
             self.siparis_no = sonraki_numara(Siparis, "siparis_no", "SP")
         super().save(*args, **kwargs)
+
+    def ilk_asamalar(self):
+        return sonraki_asamalar(rota_adimlari(self.hali_turu_id), None)
 
     @property
     def gecikti_mi(self):
@@ -333,13 +436,25 @@ class UretimLotu(models.Model):
         """Malzemenin alındığı stok lotları, ör. 'HD-2026-0001, HD-2026-0004'."""
         return ", ".join(k.ham_deri.lot_no for k in self.kaynaklar.all())
 
+    def asama_sonrasi(self, asama):
+        """Bu iş için verilen istasyondan sonra gelecek istasyon(lar); boş liste: iş biter."""
+        hali_turu_id = self.siparis.hali_turu_id if self.siparis_id else None
+        return sonraki_asamalar(rota_adimlari(hali_turu_id), asama)
+
+    @property
+    def siradaki_asamalar(self):
+        if self.durum in ("tamamlandi", "iptal"):
+            return []
+        return self.asama_sonrasi(self.son_asama)
+
     @property
     def siradaki_asama(self):
-        if self.durum in ("tamamlandi", "iptal"):
-            return None
-        if self.son_asama is None:
-            return Asama.objects.filter(aktif=True).first()
-        return self.son_asama.sonraki()
+        sonrakiler = self.siradaki_asamalar
+        return sonrakiler[0] if sonrakiler else None
+
+    @property
+    def siradaki_metni(self):
+        return " / ".join(a.ad for a in self.siradaki_asamalar)
 
     @property
     def acik_islem(self):
@@ -378,6 +493,7 @@ class LotKaynagi(models.Model):
 class IslemKaydi(models.Model):
     lot = models.ForeignKey(UretimLotu, on_delete=models.CASCADE, related_name="islemler")
     asama = models.ForeignKey(Asama, on_delete=models.PROTECT, verbose_name="aşama")
+    makine = models.ForeignKey(Makine, on_delete=models.PROTECT, null=True, blank=True, related_name="islemler")
     personel = models.ForeignKey(Personel, on_delete=models.PROTECT, related_name="islemler")
     bitiren = models.ForeignKey(
         Personel, on_delete=models.PROTECT, null=True, blank=True, related_name="bitirdigi_islemler",

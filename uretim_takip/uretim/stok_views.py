@@ -40,7 +40,7 @@ def yeni_is(request):
         try:
             islem = servisler.yeni_is_baslat(
                 personel=v["personel"], siparis=v["siparis"], kaynaklar=kaynaklar, asama=v["asama"],
-                aciklama=v["aciklama"],
+                aciklama=v["aciklama"], makine=v.get("makine"),
             )
         except ValidationError as hata:
             form.add_error(None, hata)

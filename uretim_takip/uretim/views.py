@@ -65,14 +65,17 @@ def islem_baslat(request):
     if "lot" in request.GET:
         lot = UretimLotu.objects.filter(pk=request.GET["lot"]).first()
         if lot:
-            baslangic = {"lot": lot, "asama": lot.siradaki_asama}
+            sonrakiler = lot.siradaki_asamalar
+            # Alternatif istasyonlar varsa (Biye / Lanfel) çalışan kendisi seçer.
+            baslangic = {"lot": lot, "asama": sonrakiler[0] if len(sonrakiler) == 1 else None}
 
     form = IslemBaslatForm(request.POST or None, initial=baslangic)
     if request.method == "POST" and form.is_valid():
         v = form.cleaned_data
         try:
             islem = servisler.islem_baslat(
-                lot=v["lot"], asama=v["asama"], personel=v["personel"], aciklama=v["aciklama"]
+                lot=v["lot"], asama=v["asama"], personel=v["personel"], aciklama=v["aciklama"],
+                makine=v.get("makine"),
             )
         except ValidationError as hata:
             form.add_error(None, hata)
@@ -156,11 +159,12 @@ def rapor(request):
     form, bas, son = _tarih_araligi(request)
     personel = raporlar.personel_ozeti(bas, son)
     asama = raporlar.asama_ozeti(bas, son)
-    for satir in personel + asama:
+    makine = raporlar.makine_ozeti(bas, son)
+    for satir in personel + asama + makine:
         satir["sure_metni"] = raporlar.sure_metni(satir["toplam_sure"])
     return render(
         request, "uretim/rapor.html",
-        {"form": form, "personel": personel, "asama": asama, "bas": bas, "son": son},
+        {"form": form, "personel": personel, "asama": asama, "makine": makine, "bas": bas, "son": son},
     )
 
 
@@ -195,13 +199,16 @@ def rapor_excel(request):
     sayfa_yaz(kitap.create_sheet("Aşamalar"), ["Aşama"] + ozet_baslik,
               [[s["asama__ad"]] + ozet_satiri(s) for s in raporlar.asama_ozeti(bas, son)])
 
-    detay = raporlar.tamamlanan_islemler(bas, son).select_related("lot", "asama", "personel", "bitiren")
+    sayfa_yaz(kitap.create_sheet("Makineler"), ["Makine"] + ozet_baslik,
+              [[s["makine__ad"]] + ozet_satiri(s) for s in raporlar.makine_ozeti(bas, son)])
+
+    detay = raporlar.tamamlanan_islemler(bas, son).select_related("lot", "asama", "makine", "personel", "bitiren")
     yerel = timezone.localtime
     sayfa_yaz(
         kitap.create_sheet("İşlem detayı"),
-        ["İş", "Aşama", "Personel", "Bitiren", "Başlangıç", "Bitiş", "Giriş kg", "Çıkış kg", "Giriş m²", "Çıkış m²", "Not"],
+        ["İş", "Aşama", "Makine", "Personel", "Bitiren", "Başlangıç", "Bitiş", "Giriş kg", "Çıkış kg", "Giriş m²", "Çıkış m²", "Not"],
         [
-            [i.lot.lot_no, i.asama.ad, i.personel.ad_soyad, i.bitiren.ad_soyad if i.bitiren else "",
+            [i.lot.lot_no, i.asama.ad, i.makine.ad if i.makine else "", i.personel.ad_soyad, i.bitiren.ad_soyad if i.bitiren else "",
              yerel(i.baslangic).replace(tzinfo=None), yerel(i.bitis).replace(tzinfo=None),
              i.giris_kg, i.cikis_kg, i.giris_m2, i.cikis_m2, i.aciklama]
             for i in detay.order_by("bitis")

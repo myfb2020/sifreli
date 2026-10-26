@@ -40,4 +40,18 @@
     {% empty %}<tr><td colspan="9" class="soluk">Bu aralıkta kayıt yok.</td></tr>{% endfor %}
   </table>
 </div>
+
+<div class="kart tablo-kap">
+  <h2>Makinelere göre çalışma</h2>
+  <table>
+    <tr><th>Makine</th><th class="sayi">İşlem</th><th class="sayi">Giriş m²</th><th class="sayi">Çıkış m²</th>
+        <th class="sayi">Fire m²</th><th class="sayi">Fire %</th><th class="sayi">Toplam çalışma süresi</th></tr>
+    {% for s in makine %}
+    <tr><td><b>{{ s.makine__ad }}</b></td><td class="sayi">{{ s.islem_sayisi }}</td>
+        <td class="sayi">{{ s.giris_m2 }}</td><td class="sayi">{{ s.cikis_m2 }}</td>
+        <td class="sayi">{{ s.fire_m2 }}</td><td class="sayi">{{ s.fire_yuzde_m2|default:"–" }}</td>
+        <td class="sayi">{{ s.sure_metni }}</td></tr>
+    {% empty %}<tr><td colspan="7" class="soluk">Bu aralıkta makine seçilerek yapılmış işlem yok.</td></tr>{% endfor %}
+  </table>
+</div>
 {% endblock %}

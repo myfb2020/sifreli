@@ -34,7 +34,7 @@
         <div class="soluk">Teslim {{ siparis.teslim_tarihi|date:"d.m.Y" }}</div>
       </div>
     </div>
-    <div class="soluk" style="margin:6px 0 10px">{{ siparis.urun }}{% if siparis.adet > 1 %} · {{ siparis.adet }} adet{% endif %}</div>
+    <div class="soluk" style="margin:6px 0 10px">{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b> · {% endif %}{{ siparis.urun }}{% if siparis.adet > 1 %} · {{ siparis.adet }} adet{% endif %}</div>
     {% include "uretim/_ilerleme.html" %}
   </a>
   {% empty %}

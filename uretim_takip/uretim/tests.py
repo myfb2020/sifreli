@@ -7,9 +7,9 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from . import raporlar, servisler
+from . import raporlar, servisler, uyarilar
 from .models import (
-    Asama, DeriTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    Asama, DeriTuru, HaliTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Makine, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
 )
 
 
@@ -30,6 +30,11 @@ class TemelVeri(TestCase):
             musteri=Musteri.objects.create(ad="M"), urun="Halı", teslim_tarihi=timezone.localdate() + timedelta(days=3)
         )
         cls.asamalar = list(Asama.objects.filter(aktif=True))
+
+    @staticmethod
+    def makine(asama):
+        m = asama.makineler.first()
+        return m.pk if m else ""
 
     def yeni_lot(self, ham_deri=None, **kw):
         """Doğrudan iş kaydı (testlerin çoğu için yeterli); malzeme tek stok lotundan alınmış sayılır."""
@@ -171,6 +176,7 @@ class EkranTesti(TemelVeri):
         lot = self.yeni_lot()
         yanit = self.client.post(reverse("islem_baslat"), {
             "personel": self.ahmet.pk, "pin": "0000", "lot": lot.pk, "asama": self.asamalar[0].pk,
+            "makine": self.makine(self.asamalar[0]),
         })
         self.assertContains(yanit, "PIN hatalı")
         self.assertFalse(IslemKaydi.objects.exists())
@@ -179,6 +185,7 @@ class EkranTesti(TemelVeri):
         lot = self.yeni_lot()
         yanit = self.client.post(reverse("islem_baslat"), {
             "personel": self.ahmet.pk, "pin": "1234", "lot": lot.pk, "asama": self.asamalar[0].pk,
+            "makine": self.makine(self.asamalar[0]),
         })
         self.assertRedirects(yanit, reverse("pano"))
         islem = IslemKaydi.objects.get()
@@ -491,7 +498,8 @@ class SiparisEkraniTesti(TemelVeri):
 
     def test_yeni_siparis_yeni_musteriyle(self):
         self.client.force_login(self.yonetici)
-        veri = {"musteri": "", "yeni_musteri": "Yıldız Otel", "urun": "Lobi halısı", "adet": 1,
+        veri = {"musteri": "", "yeni_musteri": "Yıldız Otel", "hali_turu": HaliTuru.objects.get(ad="Lazerli halı").pk,
+                "urun": "Lobi halısı", "adet": 1,
                 "toplam_m2": "12,5", "teslim_tarihi": "2026-12-01"}
         yanit = self.client.post(reverse("siparis_yeni"), veri)
         yeni = Siparis.objects.get(urun="Lobi halısı")
@@ -639,6 +647,7 @@ class YeniIsAkisiTesti(TemelVeri):
 
     def veri(self, **kw):
         v = {"personel": self.ahmet.pk, "pin": "1234", "siparis": self.siparis.pk, "asama": self.asamalar[0].pk,
+             "makine": self.makine(self.asamalar[0]),
              "kaynak-TOTAL_FORMS": "4", "kaynak-INITIAL_FORMS": "0", "kaynak-MIN_NUM_FORMS": "0",
              "kaynak-MAX_NUM_FORMS": "10"}
         v.update(kw)
@@ -939,3 +948,87 @@ class MalzemeEtiketiTesti(TemelVeri):
         sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
         self.assertContains(sayfa, f'"MZ-0001": {self.krom.pk}')
         self.assertContains(sayfa, "malzeme-tara")
+
+
+class HaliTuruRotaTesti(TemelVeri):
+    """Halı türüne göre istasyon sırası, alternatif istasyonlar (Biye / Lanfel) ve makine seçimi."""
+
+    def ist(self, ad):
+        return Asama.objects.get(ad=ad)
+
+    def siparis_ac(self, tur_adi):
+        return Siparis.objects.create(
+            musteri=self.siparis.musteri, urun="Halı", hali_turu=HaliTuru.objects.get(ad=tur_adi),
+            teslim_tarihi=timezone.localdate() + timedelta(days=5),
+        )
+
+    def asamayi_yap(self, lot, asama):
+        islem = servisler.islem_baslat(lot=lot, asama=asama, personel=self.ahmet,
+                                       makine=asama.makineler.first())
+        servisler.islem_bitir(islem=islem, personel=self.ahmet, cikis_kg=lot.mevcut_kg, cikis_m2=lot.mevcut_m2)
+        lot.refresh_from_db()
+        return islem
+
+    def test_istasyonlar_ve_makineler_yuklendi(self):
+        self.assertEqual([a.ad for a in Asama.objects.filter(aktif=True)],
+                         ["Nakış", "Lazer kesim", "Zig-zag", "Biye", "Lanfel"])
+        self.assertEqual(self.ist("Zig-zag").makineler.count(), 2)
+        self.assertEqual(self.ist("Lazer kesim").makineler.count(), 2)
+        self.assertEqual(HaliTuru.objects.get(ad="Nakışlı halı").rota_metni(),
+                         "Nakış → Lazer kesim → Zig-zag → Biye / Lanfel")
+
+    def test_lazerli_hali_biye_ya_da_lanfel_ile_biter(self):
+        sp = self.siparis_ac("Lazerli halı")
+        self.assertEqual(sp.ilk_asamalar(), [self.ist("Lazer kesim")])
+        lot = self.yeni_lot(siparis=sp)
+        self.asamayi_yap(lot, self.ist("Lazer kesim"))
+        self.assertEqual(lot.siradaki_asamalar, [self.ist("Zig-zag")])
+        self.asamayi_yap(lot, self.ist("Zig-zag"))
+        self.assertEqual(lot.durum, "bekliyor")
+        self.assertEqual(lot.siradaki_metni, "Biye / Lanfel")
+        # İş iki istasyonun ekranına da düşer
+        self.assertEqual([k.lot for k in uyarilar.gelenler(self.ist("Biye"))], [lot])
+        self.assertEqual([k.lot for k in uyarilar.gelenler(self.ist("Lanfel"))], [lot])
+        self.asamayi_yap(lot, self.ist("Lanfel"))
+        self.assertEqual(lot.durum, "tamamlandi")
+        self.assertEqual(uyarilar.gelenler(self.ist("Biye")), [])
+
+    def test_nakisli_hali_nakistan_baslar(self):
+        sp = self.siparis_ac("Nakışlı halı")
+        self.assertIn(sp, [k.siparis for k in uyarilar.gelenler(self.ist("Nakış")) if k.tur == "siparis"])
+        self.assertNotIn(sp, [k.siparis for k in uyarilar.gelenler(self.ist("Lazer kesim"))])
+        lot = self.yeni_lot(siparis=sp)
+        self.asamayi_yap(lot, self.ist("Nakış"))
+        self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim")])
+
+    def test_pelus_hali_zigzagdan_sonra_biter(self):
+        lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
+        self.asamayi_yap(lot, self.ist("Lazer kesim"))
+        self.asamayi_yap(lot, self.ist("Zig-zag"))
+        self.assertEqual(lot.durum, "tamamlandi")
+
+    def test_makine_baska_istasyonun_olamaz(self):
+        lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
+        lazer = self.ist("Lazer kesim")
+        with self.assertRaises(ValidationError):
+            servisler.islem_baslat(lot=lot, asama=lazer, personel=self.ahmet,
+                                   makine=self.ist("Zig-zag").makineler.first())
+
+    def test_ekranda_makine_zorunlu_ve_ilk_istasyon_otomatik(self):
+        sp = self.siparis_ac("Lazerli halı")
+        self.client.force_login(get_user_model().objects.create_user("tablet2", password="x"))
+        v = {"personel": self.ahmet.pk, "pin": "1234", "siparis": sp.pk, "asama": "",
+             "kaynak-TOTAL_FORMS": 1, "kaynak-INITIAL_FORMS": 0,
+             "kaynak-0-stok_no": self.ham.lot_no, "kaynak-0-kg": "10", "kaynak-0-m2": "2"}
+        self.assertContains(self.client.post(reverse("yeni_is"), v), "Hangi makinede çalıştığınızı seçin")
+        lazer2 = Makine.objects.get(ad="Lazer 2")
+        self.assertRedirects(self.client.post(reverse("yeni_is"), {**v, "makine": lazer2.pk}), reverse("pano"))
+        islem = IslemKaydi.objects.get(lot__siparis=sp)
+        self.assertEqual((islem.asama.ad, islem.makine), ("Lazer kesim", lazer2))
+
+    def test_makine_raporu(self):
+        lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
+        self.asamayi_yap(lot, self.ist("Lazer kesim"))
+        bugun = timezone.localdate()
+        satirlar = raporlar.makine_ozeti(bugun, bugun)
+        self.assertEqual([(s["makine__ad"], s["islem_sayisi"]) for s in satirlar], [("Lazer 1", 1)])

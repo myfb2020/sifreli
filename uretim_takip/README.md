@@ -33,8 +33,29 @@ Ofis:     Stok girişi (HD-2026-0001) ──► QR etiketi malın üzerine     S
 | **Ofis** (personel durumu + izinler) | Pano, Siparişler, Stok (+ Stok girişi), İşler, Raporlar, Yönetim |
 | **Yönetici** (süper kullanıcı) | Hepsi + Excel'den aktar + Yedek |
 
-Varsayılan aşamalar: Tasnif → Islatma → Tabaklama → Kurutma → Tıraş/germe → Kesim → Dikim → Astar/taban → Son işlem → Kalite kontrol → Paketleme.
-Aşamalar yönetim panelinden eklenip çıkarılabilir. Sıra numaraları 10'ar arayla verildiği için araya yeni aşama eklenebilir (ör. 25).
+### İstasyonlar, makineler ve halı türleri
+
+| İstasyon | Makineler |
+|---|---|
+| Nakış | Nakış makinesi |
+| Lazer kesim | Lazer 1, Lazer 2 |
+| Zig-zag | Zig-zag 1, Zig-zag 2 |
+| Biye | Biye makinesi |
+| Lanfel | Lanfel makinesi |
+
+Sipariş girilirken **halı türü** seçilir; iş o türün istasyonlarından sırayla geçer:
+
+| Halı türü | İstasyon sırası |
+|---|---|
+| Lazerli halı | Lazer kesim → Zig-zag → Biye / Lanfel |
+| Nakışlı halı | Nakış → Lazer kesim → Zig-zag → Biye / Lanfel |
+| Peluş halı | Lazer kesim → Zig-zag |
+
+"Biye / Lanfel" ya biri ya diğeri demektir: iş iki istasyonun ekranına da düşer, hangisi başlarsa o yapar.
+Çalışan işe başlarken **hangi makinede** çalıştığını seçer; raporlarda makine bazında iş sayısı ve çalışma süresi görünür.
+
+Yönetim panelinden: **Aşamalar** (istasyonlar ve içindeki makineler), **Halı türleri** (istasyon sırası; aynı sıra numarası = alternatif).
+Pres (kaplama) gibi yeni bir istasyon eklemek için: Aşamalar → ekle, sonra ilgili halı türünün sırasına ekleyin.
 
 ## Kurulum
 

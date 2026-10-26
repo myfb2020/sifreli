@@ -22,7 +22,7 @@
     {% if lot.acik %}
       <a class="btn" href="{% url 'islem_bitir' lot.acik.pk %}">■ {{ lot.acik.asama.ad }} – Bitir</a>
     {% else %}
-      <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ {{ lot.siradaki_asama.ad|default:"Aşama seç" }}</a>
+      <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ {{ lot.siradaki_metni|default:"Aşama seç" }}</a>
     {% endif %}
   </div>
   {% empty %}

@@ -57,3 +57,9 @@ def sure_metni(sure):
         return "-"
     dakika = int(sure.total_seconds() // 60)
     return f"{dakika // 60} sa {dakika % 60} dk"
+
+
+def makine_ozeti(baslangic, bitis):
+    """Makine seçilerek yapılan işlemler: makine başına iş sayısı ve çalışma süresi."""
+    qs = tamamlanan_islemler(baslangic, bitis).filter(makine__isnull=False)
+    return _ozet(qs, "makine__asama__sira", "makine__ad")

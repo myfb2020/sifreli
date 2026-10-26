@@ -2,7 +2,8 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from .models import (
-    NEDENLER, Asama, HamDeriGirisi, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu, pin_dogrulayici,
+    NEDENLER, Asama, HaliTuru, HamDeriGirisi, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    pin_dogrulayici,
 )
 
 
@@ -34,6 +35,41 @@ class PinliForm(forms.Form):
         return veri
 
 
+class MakineSecimi(forms.Select):
+    """Seçeneklere istasyon bilgisini ekler; sayfa yalnızca seçilen istasyonun makinelerini gösterir."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        secenek = super().create_option(name, value, label, selected, index, subindex, attrs)
+        makine = getattr(value, "instance", None)
+        if makine is not None:
+            secenek["attrs"]["data-asama"] = makine.asama_id
+        return secenek
+
+
+def makine_alani():
+    return forms.ModelChoiceField(
+        queryset=Makine.objects.filter(aktif=True).select_related("asama"), label="Makine", required=False,
+        empty_label="— Makine seçin —", widget=MakineSecimi,
+    )
+
+
+def makine_kontrol(form, veri):
+    """Seçilen istasyonun makinesi varsa makine seçimi zorunlu, makine o istasyona ait olmalı."""
+    asama, makine = veri.get("asama"), veri.get("makine")
+    if asama is None:
+        return
+    if makine is not None and makine.asama_id != asama.pk:
+        form.add_error("makine", f"{makine} makinesi “{asama.ad}” istasyonunda değil.")
+    elif makine is None and asama.makineler.filter(aktif=True).exists():
+        form.add_error("makine", "Hangi makinede çalıştığınızı seçin.")
+
+
+class HaliTuruAlani(forms.ModelChoiceField):
+    def label_from_instance(self, tur):
+        rota = tur.rota_metni()
+        return f"{tur.ad} ({rota})" if rota else tur.ad
+
+
 class IsSecimAlani(forms.ModelChoiceField):
     def label_from_instance(self, lot):
         parcalar = [lot.lot_no]
@@ -43,9 +79,23 @@ class IsSecimAlani(forms.ModelChoiceField):
         return " – ".join(parcalar)
 
 
+class SiparisSecimi(forms.Select):
+    """Seçeneklere siparişin ilk istasyon(lar)ını ekler; makine listesi buna göre süzülür."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        secenek = super().create_option(name, value, label, selected, index, subindex, attrs)
+        siparis = getattr(value, "instance", None)
+        if siparis is not None:
+            secenek["attrs"]["data-ilk"] = ",".join(str(a.pk) for a in siparis.ilk_asamalar())
+        return secenek
+
+
 class SiparisSecimAlani(forms.ModelChoiceField):
+    widget = SiparisSecimi
+
     def label_from_instance(self, s):
-        return f"{s.siparis_no} – {s.musteri} – {s.urun} (teslim {s.teslim_tarihi:%d.%m})"
+        tur = f" [{s.hali_turu}]" if s.hali_turu_id else ""
+        return f"{s.siparis_no} – {s.musteri} – {s.urun}{tur} (teslim {s.teslim_tarihi:%d.%m})"
 
 
 class IslemBaslatForm(PinliForm):
@@ -56,9 +106,15 @@ class IslemBaslatForm(PinliForm):
     asama = forms.ModelChoiceField(
         queryset=Asama.objects.filter(aktif=True), label="Aşama", empty_label="— Aşama seçin —"
     )
+    makine = makine_alani()
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
-    field_order = ["personel", "pin", "lot", "asama", "aciklama"]
+    field_order = ["personel", "pin", "lot", "asama", "makine", "aciklama"]
+
+    def clean(self):
+        veri = super().clean()
+        makine_kontrol(self, veri)
+        return veri
 
 
 class IslemBitirForm(PinliForm):
@@ -84,6 +140,10 @@ class SiparisForm(forms.ModelForm):
         queryset=Musteri.objects.all(), label="Müşteri", required=False, empty_label="— Müşteri seçin —"
     )
     toplam_m2 = ondalik_alan("Toplam m²", required=False)
+    hali_turu = HaliTuruAlani(
+        queryset=HaliTuru.objects.filter(aktif=True), label="Halı türü", empty_label="— Halı türü seçin —",
+        help_text="İş bu türün istasyonlarından sırayla geçer.",
+    )
     yeni_musteri = forms.CharField(
         label="veya yeni müşteri adı", required=False, max_length=120,
         help_text="Müşteri listede yoksa buraya yazın, otomatik eklenir.",
@@ -91,18 +151,20 @@ class SiparisForm(forms.ModelForm):
 
     class Meta:
         model = Siparis
-        fields = ["urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar"]
+        fields = ["hali_turu", "urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar"]
         widgets = {
             "teslim_tarihi": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
         }
         labels = {"notlar": "Not (isteğe bağlı)"}
 
-    field_order = ["musteri", "yeni_musteri", "urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar"]
+    field_order = ["musteri", "yeni_musteri", "hali_turu", "urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["deri_turu"].empty_label = "— (isteğe bağlı) —"
+        # Halı türü tanımlanmamışsa (eski kurulum) zorunlu tutulmaz.
+        self.fields["hali_turu"].required = HaliTuru.objects.filter(aktif=True).exists()
 
     def clean(self):
         veri = super().clean()
@@ -122,17 +184,32 @@ class SiparisForm(forms.ModelForm):
 
 class YeniIsForm(PinliForm):
     siparis = SiparisSecimAlani(
-        queryset=Siparis.objects.filter(durum__in=["acik", "uretimde"]).select_related("musteri").order_by("teslim_tarihi"),
+        queryset=Siparis.objects.filter(durum__in=["acik", "uretimde"]).select_related("musteri", "hali_turu").order_by("teslim_tarihi"),
         label="Sipariş", empty_label="— Hangi sipariş için? —",
     )
-    asama = forms.ModelChoiceField(queryset=Asama.objects.filter(aktif=True), label="Başlanacak aşama")
+    asama = forms.ModelChoiceField(
+        queryset=Asama.objects.filter(aktif=True), label="Başlanacak istasyon", required=False,
+        empty_label="— Halı türüne göre ilk istasyon —",
+    )
+    makine = makine_alani()
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
-    field_order = ["personel", "pin", "siparis", "asama", "aciklama"]
+    field_order = ["personel", "pin", "siparis", "asama", "makine", "aciklama"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["asama"].initial = Asama.objects.filter(aktif=True).first()
+    def clean(self):
+        veri = super().clean()
+        siparis = veri.get("siparis")
+        if siparis and not veri.get("asama"):
+            ilkler = siparis.ilk_asamalar()
+            if len(ilkler) == 1:
+                veri["asama"] = ilkler[0]
+            elif ilkler:
+                self.add_error("asama", "Bu halı türü " + " ya da ".join(a.ad for a in ilkler)
+                               + " ile başlıyor; hangisi olduğunu seçin.")
+            else:
+                self.add_error("asama", "Başlanacak istasyonu seçin.")
+        makine_kontrol(self, veri)
+        return veri
 
 
 class KaynakSatirForm(forms.Form):

@@ -17,7 +17,7 @@
     {% for lot in bekleyen %}
     <a class="bekleyen-is" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">
       <span><b>{{ lot.lot_no }}</b>{% if lot.siparis %} · {{ lot.siparis.musteri }}{% endif %}<br>
-        <span class="soluk">{{ lot.son_asama.ad }} bitti → sıradaki: <b>{{ lot.siradaki_asama.ad|default:"–" }}</b></span></span>
+        <span class="soluk">{{ lot.son_asama.ad }} bitti → sıradaki: <b>{{ lot.siradaki_metni|default:"–" }}</b></span></span>
       <span class="btn kucuk">▶</span>
     </a>
     {% empty %}

@@ -17,7 +17,7 @@ SEKMELER = [
 
 
 def _lotlu(qs):
-    return qs.select_related("musteri", "deri_turu").prefetch_related(
+    return qs.select_related("musteri", "deri_turu", "hali_turu").prefetch_related(
         Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama"))
     )
 

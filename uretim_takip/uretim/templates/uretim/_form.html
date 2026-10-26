@@ -7,3 +7,37 @@
   {% if alan.errors %}<ul class="errorlist">{% for e in alan.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
 </p>
 {% endfor %}
+{% if form.makine and form.asama %}
+<script>
+(function () {
+  // Yalnızca seçilen istasyonun makinelerini göster; istasyonun makinesi yoksa alanı gizle.
+  const asama = document.getElementById("{{ form.asama.id_for_label }}");
+  const makine = document.getElementById("{{ form.makine.id_for_label }}");
+  const kap = makine.closest("p");
+  const siparis = document.getElementById("id_siparis");
+  function secilenIstasyon() {
+    // "Halı türüne göre" seçiliyse siparişin ilk istasyonu kullanılır.
+    if (asama.value || !siparis) return asama.value;
+    const s = siparis.options[siparis.selectedIndex];
+    return s && s.dataset.ilk ? s.dataset.ilk.split(",")[0] : "";
+  }
+  function suz() {
+    let var_mi = false;
+    const hedef = secilenIstasyon();
+    for (const o of makine.options) {
+      if (!o.value) continue;
+      const uygun = o.dataset.asama === hedef;
+      o.hidden = !uygun; o.disabled = !uygun;
+      if (uygun) var_mi = true;
+      if (!uygun && o.selected) makine.value = "";
+    }
+    kap.hidden = !var_mi;
+    const uygunlar = [...makine.options].filter((o) => o.value && !o.disabled);
+    if (uygunlar.length === 1) makine.value = uygunlar[0].value;
+  }
+  asama.addEventListener("change", suz);
+  if (siparis) siparis.addEventListener("change", suz);
+  suz();
+})();
+</script>
+{% endif %}

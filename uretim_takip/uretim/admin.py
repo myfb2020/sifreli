@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Asama, DeriDuzeltme, DeriTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
+    Asama, DeriDuzeltme, DeriTuru, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
     Siparis, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
@@ -13,13 +13,51 @@ admin.site.site_title = "Üretim Takip"
 admin.site.index_title = "Tanımlar ve kayıtlar"
 
 
+class MakineInline(admin.TabularInline):
+    model = Makine
+    fields = ["ad", "aktif"]
+    extra = 0
+
+
 @admin.register(Asama)
 class AsamaAdmin(admin.ModelAdmin):
-    """Aşamalar = istasyonlar. Süre sınırları listede doğrudan değiştirilebilir."""
+    """Aşamalar = istasyonlar. Süre sınırları listede doğrudan değiştirilebilir; makineler istasyonun içinde."""
 
-    list_display = ["sira", "ad", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
+    list_display = ["sira", "ad", "makine_listesi", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
     list_editable = ["ad", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
     list_display_links = ["sira"]
+    inlines = [MakineInline]
+
+    @admin.display(description="makineler")
+    def makine_listesi(self, obj):
+        return ", ".join(m.ad for m in obj.makineler.all() if m.aktif)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("makineler")
+
+
+@admin.register(Makine)
+class MakineAdmin(admin.ModelAdmin):
+    list_display = ["ad", "asama", "aktif"]
+    list_editable = ["aktif"]
+    list_filter = ["asama"]
+
+
+class RotaAdimiInline(admin.TabularInline):
+    model = RotaAdimi
+    fields = ["sira", "asama"]
+    extra = 1
+    verbose_name_plural = "istasyon sırası (aynı sıra numarası = ya biri ya diğeri)"
+
+
+@admin.register(HaliTuru)
+class HaliTuruAdmin(admin.ModelAdmin):
+    list_display = ["ad", "rota_metni", "aktif"]
+    inlines = [RotaAdimiInline]
+
+    @admin.display(description="istasyon sırası")
+    def rota_metni(self, obj):
+        return obj.rota_metni()
 
 
 class PersonelForm(forms.ModelForm):
@@ -154,8 +192,9 @@ class LotInline(admin.TabularInline):
 
 @admin.register(Siparis)
 class SiparisAdmin(admin.ModelAdmin):
-    list_display = ["siparis_no", "musteri", "urun", "adet", "toplam_m2", "teslim_tarihi", "durum", "gecikme"]
-    list_filter = ["durum", "musteri"]
+    list_display = ["siparis_no", "musteri", "hali_turu", "urun", "adet", "toplam_m2", "teslim_tarihi", "durum",
+                    "gecikme"]
+    list_filter = ["durum", "hali_turu", "musteri"]
     search_fields = ["siparis_no", "urun", "musteri__ad"]
     readonly_fields = ["siparis_no"]
     inlines = [LotInline]
@@ -168,7 +207,7 @@ class SiparisAdmin(admin.ModelAdmin):
 class IslemInline(admin.TabularInline):
     model = IslemKaydi
     fk_name = "lot"
-    fields = ["asama", "personel", "baslangic", "bitis", "giris_kg", "cikis_kg", "giris_m2", "cikis_m2", "bitiren"]
+    fields = ["asama", "makine", "personel", "baslangic", "bitis", "giris_kg", "cikis_kg", "giris_m2", "cikis_m2", "bitiren"]
     extra = 0
     can_delete = False
 
@@ -203,7 +242,7 @@ class UretimLotuAdmin(admin.ModelAdmin):
 
 @admin.register(IslemKaydi)
 class IslemKaydiAdmin(admin.ModelAdmin):
-    list_display = ["lot", "asama", "personel", "baslangic", "bitis", "giris_m2", "cikis_m2", "bitiren"]
-    list_filter = ["asama", "personel"]
+    list_display = ["lot", "asama", "makine", "personel", "baslangic", "bitis", "giris_m2", "cikis_m2", "bitiren"]
+    list_filter = ["asama", "makine", "personel"]
     search_fields = ["lot__lot_no", "personel__ad_soyad"]
     date_hierarchy = "baslangic"

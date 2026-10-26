@@ -7,7 +7,7 @@ from decimal import Decimal
 from django.db.models import Max, Sum
 from django.utils import timezone
 
-from .models import Asama, DeriTuru, IslemKaydi, Malzeme, Siparis, UretimLotu
+from .models import Asama, DeriTuru, IslemKaydi, Malzeme, RotaAdimi, Siparis, UretimLotu, sonraki_asamalar
 
 
 def _saat(sure):
@@ -53,13 +53,9 @@ class Kalem:
         return sure_metni(self.sure - timedelta(hours=float(self.sinir_saat)))
 
 
-def _ilk_asama():
-    return Asama.objects.filter(aktif=True).first()
-
-
 def calisilanlar(asama=None):
     simdi = timezone.now()
-    qs = IslemKaydi.objects.filter(bitis__isnull=True).select_related("asama", "personel", "lot__siparis__musteri")
+    qs = IslemKaydi.objects.filter(bitis__isnull=True).select_related("asama", "makine", "personel", "lot__siparis__musteri")
     if asama:
         qs = qs.filter(asama=asama)
     return [
@@ -72,27 +68,33 @@ def calisilanlar(asama=None):
 def gelenler(asama=None):
     """Sıradaki aşamayı bekleyen işler ve (ilk istasyon için) henüz işi açılmamış yeni siparişler."""
     simdi = timezone.now()
-    asamalar = list(Asama.objects.filter(aktif=True))
-    sonraki = {a.pk: b for a, b in zip(asamalar, asamalar[1:])}
-    ilk = asamalar[0] if asamalar else None
-    sonuc = []
+    rotalar = {}
+    for adim in RotaAdimi.objects.filter(asama__aktif=True).select_related("asama"):
+        rotalar.setdefault(adim.hali_turu_id, []).append((adim.sira, adim.asama))
+    for adimlar in rotalar.values():
+        adimlar.sort(key=lambda x: (x[0], x[1].sira))
 
+    def hedefler(hali_turu_id, son_asama):
+        # Alternatif istasyonlar (ör. Biye / Lanfel) varsa iş hepsinin ekranına düşer; hangisi başlarsa o alır.
+        sonuc = sonraki_asamalar(rotalar.get(hali_turu_id, []), son_asama)
+        return [h for h in sonuc if asama is None or h.pk == asama.pk]
+
+    sonuc = []
     lotlar = (
         UretimLotu.objects.filter(durum="bekliyor")
         .select_related("son_asama", "siparis__musteri")
         .annotate(son_bitis=Max("islemler__bitis"))
     )
     for lot in lotlar:
-        hedef = sonraki.get(lot.son_asama_id) if lot.son_asama_id else ilk
-        if hedef is None or (asama and hedef.pk != asama.pk):
-            continue
         bekleme = simdi - (lot.son_bitis or lot.olusturma)
-        sonuc.append(Kalem("gelen", f"l{lot.pk}-{lot.son_asama_id}", hedef, bekleme, hedef.azami_bekleme_saat,
-                           lot=lot, siparis=lot.siparis))
+        for hedef in hedefler(lot.siparis.hali_turu_id if lot.siparis else None, lot.son_asama):
+            sonuc.append(Kalem("gelen", f"l{lot.pk}-{lot.son_asama_id}", hedef, bekleme, hedef.azami_bekleme_saat,
+                               lot=lot, siparis=lot.siparis))
 
-    if ilk and (asama is None or asama.pk == ilk.pk):
-        for sp in Siparis.objects.filter(durum="acik", lotlar__isnull=True).select_related("musteri"):
-            sonuc.append(Kalem("siparis", f"s{sp.pk}", ilk, simdi - sp.olusturma, ilk.azami_bekleme_saat, siparis=sp))
+    for sp in Siparis.objects.filter(durum="acik", lotlar__isnull=True).select_related("musteri"):
+        for hedef in hedefler(sp.hali_turu_id, None):
+            sonuc.append(Kalem("siparis", f"s{sp.pk}", hedef, simdi - sp.olusturma, hedef.azami_bekleme_saat,
+                               siparis=sp))
     return sorted(sonuc, key=lambda k: (not k.gecikti, -k.sure))
 
 

@@ -10,16 +10,19 @@ from .models import DeriDuzeltme, HamDeriGirisi, IslemKaydi, LotKaynagi, Malzeme
 
 
 @transaction.atomic
-def islem_baslat(*, lot, asama, personel, aciklama=""):
+def islem_baslat(*, lot, asama, personel, aciklama="", makine=None):
     lot = UretimLotu.objects.select_for_update().get(pk=lot.pk)
     if lot.durum in ("tamamlandi", "iptal"):
         raise ValidationError(f"{lot} işi {lot.get_durum_display().lower()}, işlem başlatılamaz.")
     if lot.islemler.filter(bitis__isnull=True).exists():
         raise ValidationError(f"{lot} işinde zaten açık bir işlem var. Önce onu bitirin.")
+    if makine is not None and makine.asama_id != asama.pk:
+        raise ValidationError(f"{makine} makinesi “{asama.ad}” istasyonunda değil.")
 
     islem = IslemKaydi.objects.create(
         lot=lot,
         asama=asama,
+        makine=makine,
         personel=personel,
         giris_kg=lot.mevcut_kg,
         giris_m2=lot.mevcut_m2,
@@ -60,7 +63,7 @@ def islem_bitir(*, islem, personel, cikis_kg, cikis_m2, aciklama="", malzemeler=
     lot = islem.lot
     lot.mevcut_kg = cikis_kg
     lot.mevcut_m2 = cikis_m2
-    lot.durum = "tamamlandi" if islem.asama.son_asama_mi else "bekliyor"
+    lot.durum = "bekliyor" if lot.asama_sonrasi(islem.asama) else "tamamlandi"
     lot.save(update_fields=["mevcut_kg", "mevcut_m2", "durum"])
 
     siparis = lot.siparis
@@ -72,7 +75,7 @@ def islem_bitir(*, islem, personel, cikis_kg, cikis_m2, aciklama="", malzemeler=
 
 
 @transaction.atomic
-def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama=""):
+def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=None):
     """Stoktan malzeme alarak yeni bir iş açar ve ilk aşamasını başlatır.
 
     kaynaklar: [(stok_lotu, kg, m2), ...]. Aynı stok lotu birden çok kez okutulduysa miktarlar toplanır.
@@ -105,7 +108,7 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama=""):
     LotKaynagi.objects.bulk_create(
         LotKaynagi(uretim_lotu=lot, ham_deri=kilitli[pk], kg=kg, m2=m2) for pk, (_, kg, m2) in toplam.items()
     )
-    return islem_baslat(lot=lot, asama=asama, personel=personel, aciklama=aciklama)
+    return islem_baslat(lot=lot, asama=asama, personel=personel, aciklama=aciklama, makine=makine)
 
 
 # --- Stok hareketleri ---------------------------------------------------------
