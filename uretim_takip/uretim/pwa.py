@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 
 # Önbellek sürümü: statik dosyalar değişince artırın, telefonlar yenisini indirir.
-SURUM = "v3"
+SURUM = "v4"
 
 
 def manifest(request):
@@ -23,8 +23,8 @@ def manifest(request):
             "scope": "/",
             "display": "standalone",
             "orientation": "portrait",
-            "background_color": "#f6f2ee",
-            "theme_color": "#7a4b2a",
+            "background_color": "#fcfbf9",
+            "theme_color": "#fcfbf9",
             "icons": [
                 {"src": static("uretim/ikon/ikon-192.png"), "sizes": "192x192", "type": "image/png"},
                 {"src": static("uretim/ikon/ikon-512.png"), "sizes": "512x512", "type": "image/png"},
