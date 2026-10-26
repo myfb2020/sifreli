@@ -1,4 +1,5 @@
 from datetime import timedelta
+from pathlib import Path
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -1116,3 +1117,32 @@ class TabletGirisTesti(TestCase):
         # Tablet hesabı bu sayfayı göremez
         self.client.force_login(User.objects.get(username="lazer-tablet"))
         self.assertEqual(self.client.get(reverse("tablet_girisleri")).status_code, 403)
+
+
+class DenemeKayitlariTemizlikTesti(TemelVeri):
+    def test_kayitlar_silinir_tanimlar_kalir(self):
+        import shutil
+        import tempfile
+        from unittest import mock
+
+        lot = self.yeni_lot(siparis=self.siparis)
+        servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
+        klasor = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, klasor)
+        yonetici = get_user_model().objects.create_superuser("yon", password="x")
+        self.client.force_login(yonetici)
+        self.assertContains(self.client.get(reverse("test_verilerini_sil")), "Kalıcı olarak sil")
+        with mock.patch("uretim.temizlik.yedek_al") as yedek, mock.patch("uretim.temizlik._yedek_yolu",
+                                                                       return_value=klasor / "y.sqlite3"):
+            yedek.return_value = klasor / "y.sqlite3"
+            # Onay yazılmazsa hiçbir şey silinmez
+            self.client.post(reverse("test_verilerini_sil"), {"onay": "evet"})
+            self.assertTrue(UretimLotu.objects.exists())
+            self.client.post(reverse("test_verilerini_sil"), {"onay": "sil", "musteri": "on"})
+            yedek.assert_called_once()
+        self.assertFalse(UretimLotu.objects.exists() or IslemKaydi.objects.exists() or Siparis.objects.exists()
+                         or HamDeriGirisi.objects.exists() or Musteri.objects.exists())
+        self.assertTrue(Personel.objects.exists() and Tedarikci.objects.exists() and Asama.objects.exists())
+        # Tablet hesabı sayfaya giremez
+        self.client.force_login(get_user_model().objects.create_user("tab", password="x"))
+        self.assertNotEqual(self.client.get(reverse("test_verilerini_sil")).status_code, 200)

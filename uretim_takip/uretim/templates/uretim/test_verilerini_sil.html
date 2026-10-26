@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block baslik %}Deneme Kayıtlarını Sil{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:620px;margin:0 auto">
+  <h1>🧹 Deneme kayıtlarını sil</h1>
+  <p>Canlı kullanıma geçmeden önce denemede girdiğiniz kayıtları temizler. Numaralar baştan başlar (SP-…-0001, HD-…-0001).</p>
+  <div class="mesaj info">Silmeden önce veritabanının yedeği otomatik alınır (<b>yedekler</b> klasörü). Yanlışlıkla silerseniz yedekten geri dönülebilir.</div>
+
+  <h2>Silinecekler</h2>
+  <table>
+    {% for etiket, sayi in kayitlar %}<tr><td>{{ etiket }}</td><td class="sayi"><b>{{ sayi }}</b></td></tr>{% endfor %}
+  </table>
+
+  <form method="post" class="dikey" style="margin-top:16px">
+    {% csrf_token %}
+    <h2>İsterseniz bunları da silin</h2>
+    {% for alan, etiket, sayi in secmeli %}
+    <p><label style="font-weight:normal;display:flex;gap:8px;align-items:center">
+      <input type="checkbox" name="{{ alan }}" style="width:auto"> {{ etiket }} ({{ sayi }})</label></p>
+    {% endfor %}
+    <p class="soluk">İstasyonlar, makineler, halı türleri, deri türleri ve kullanıcı hesapları silinmez.</p>
+    <p><label for="onay">Onaylamak için <b>{{ onay_kelimesi }}</b> yazın</label>
+      <input id="onay" name="onay" autocomplete="off" autocapitalize="characters"></p>
+    <button class="btn buyuk" type="submit" style="width:100%;background:var(--kirmizi)">Kalıcı olarak sil</button>
+  </form>
+</div>
+{% endblock %}

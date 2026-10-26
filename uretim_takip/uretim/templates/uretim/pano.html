@@ -111,4 +111,10 @@
   </div>
   {% endif %}
 </div>
+{% if user.is_superuser %}
+<p class="soluk" style="margin-top:8px">Yönetici araçları:
+  <a href="{% url 'yedek_indir' %}">💾 Yedek indir</a> ·
+  <a href="{% url 'tablet_girisleri' %}">📱 Tablet girişleri</a> ·
+  <a href="{% url 'test_verilerini_sil' %}">🧹 Deneme kayıtlarını sil</a></p>
+{% endif %}
 {% endblock %}
