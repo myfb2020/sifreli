@@ -40,11 +40,12 @@
 <div class="kart tablo-kap">
   <h2>İşlem geçmişi (izlenebilirlik)</h2>
   <table>
-    <tr><th>Aşama</th><th>Personel</th><th>Başlangıç</th><th>Bitiş</th><th>Süre</th>
+    <tr><th>Aşama</th><th>Önceki istasyondan bekleme</th><th>Personel</th><th>Başlangıç</th><th>Bitiş</th><th>Süre</th>
         <th class="sayi">Giriş kg → Çıkış</th><th class="sayi">Giriş m² → Çıkış</th><th class="sayi">Fire m²</th><th>Not</th></tr>
     {% for i in islemler %}
     <tr>
       <td>{{ i.asama.ad }}{% if i.makine %}<br><span class="soluk">{{ i.makine }}</span>{% endif %}</td>
+      <td>{{ i.bekleme_metni|default:"–" }}</td>
       <td>{{ i.personel }}{% if i.bitiren and i.bitiren != i.personel %}<br><span class="soluk">bitiren: {{ i.bitiren }}</span>{% endif %}</td>
       <td>{{ i.baslangic|date:"d.m.Y H:i" }}</td>
       <td>{% if i.bitis %}{{ i.bitis|date:"d.m.Y H:i" }}{% else %}<span class="rozet islemde">devam ediyor</span>{% endif %}</td>

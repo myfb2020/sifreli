@@ -19,7 +19,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 from .models import (
     Asama, DeriTuru, HaliTuru, HamDeriGirisi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
-    pin_dogrulayici, rota_adimlari, sonraki_asamalar,
+    m2_hesapla, pin_dogrulayici, rota_adimlari, sonraki_asamalar,
 )
 
 
@@ -226,15 +226,24 @@ class Aktarici:
         return self._basit(Musteri, s)
 
     def ham_deri(self, s):
-        self._zorunlu(s, "Tedarikçi", "Deri Türü", "Kg", "m²")
+        self._zorunlu(s, "Tedarikçi", "Deri Türü")
         lot_no = kod(s.get("Lot No"), "Lot No")
         h = HamDeriGirisi.objects.filter(lot_no=lot_no).first() if lot_no else None
         yeni = h is None
         h = h or HamDeriGirisi(lot_no=lot_no)
         h.tedarikci = self._tanim(Tedarikci, s["Tedarikçi"], "Tedarikçi")
         h.deri_turu = self._tanim(DeriTuru, s["Deri Türü"], "Deri türü")
-        h.kg = sayi(s["Kg"], "Kg")
-        h.m2 = sayi(s["m²"], "m²")
+        h.kg = sayi(s.get("Kg"), "Kg") or Decimal(0)
+        birim_metni = normal(metin(s.get("Giriş Birimi")))
+        h.giris_birimi = ("mtul" if birim_metni.startswith(("metre", "mt")) else
+                          "ayak" if birim_metni.startswith(("ayak", "ft")) else "m2")
+        h.giris_miktari = sayi(s.get("Giriş Miktarı"), "Giriş Miktarı")
+        h.en_cm = sayi(s.get("En (cm)"), "En (cm)") if h.giris_birimi == "mtul" else None
+        h.m2 = sayi(s.get("m²"), "m²")
+        if h.m2 is None:
+            h.m2 = m2_hesapla(h.giris_birimi, h.giris_miktari, h.en_cm)
+        if h.m2 is None:
+            raise SatirHatasi("m² ya da Giriş Birimi + Giriş Miktarı (metretülde En) girin")
         h.tarih = tarih(s.get("Tarih"), "Tarih") or h.tarih
         h.adet = tam_sayi(s.get("Adet"), "Adet")
         h.kalite = secim(s.get("Kalite"), "Kalite", HamDeriGirisi.KALITE) or h.kalite
@@ -350,9 +359,12 @@ SAYFALAR = [
         Sutun("Deri Türü", True, "Koyun, Kuzu, Keçi…", "Kuzu"),
         Sutun("Kalite", False, "A / B / C / Karışık", "A"),
         Sutun("Adet", False, "Deri adedi", "200"),
-        Sutun("Kg", True, "Toplam ağırlık", "640"),
-        Sutun("m²", True, "Toplam alan", "110,5"),
+        Sutun("Kg", False, "Toplam ağırlık (isteğe bağlı)", "640"),
+        Sutun("m²", False, "Toplam alan. Boşsa Giriş Birimi ve Miktarından hesaplanır.", "110,5"),
         Sutun("Not", False),
+        Sutun("Giriş Birimi", False, "m² / metretül / ayak (boşsa m²)", "ayak"),
+        Sutun("Giriş Miktarı", False, "Geldiği birimdeki miktar", "1200"),
+        Sutun("En (cm)", False, "Metretül girişinde rulo eni", "140"),
     ], "ham_deri", ("hamderigirisleri", "hamderi", "hammadde", "stok")),
     Sayfa("Siparişler", "Müşteri siparişleri. Müşteri sistemde yoksa otomatik eklenir.", [
         Sutun("Sipariş No", False, "Boş bırakılırsa sistem numara verir (SP-2026-0001)", "SP-2026-0001"),

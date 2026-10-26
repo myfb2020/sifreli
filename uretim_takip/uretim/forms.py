@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 
 from .models import (
     NEDENLER, Asama, HaliTuru, HamDeriGirisi, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
-    pin_dogrulayici,
+    m2_hesapla, pin_dogrulayici,
 )
 
 
@@ -248,24 +248,36 @@ class StokGirisForm(forms.ModelForm):
         queryset=Tedarikci.objects.all(), label="Tedarikçi", required=False, empty_label="— Tedarikçi seçin —"
     )
     yeni_tedarikci = forms.CharField(label="veya yeni tedarikçi adı", required=False, max_length=120)
-    kg = ondalik_alan("Kg")
-    m2 = ondalik_alan("m²")
+    giris_birimi = forms.ChoiceField(label="Geliş birimi", choices=HamDeriGirisi.GIRIS_BIRIMLERI, initial="m2")
+    giris_miktari = ondalik_alan("Gelen miktar")
+    en_cm = ondalik_alan("Rulo eni (cm)", required=False)
+    kg = ondalik_alan("Kg (isteğe bağlı)", required=False)
 
     class Meta:
         model = HamDeriGirisi
-        fields = ["tarih", "deri_turu", "kalite", "adet", "kg", "m2", "notlar"]
+        fields = ["tarih", "deri_turu", "kalite", "adet", "giris_birimi", "giris_miktari", "en_cm", "kg", "notlar"]
         widgets = {
             "tarih": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
         }
         labels = {"notlar": "Not (isteğe bağlı)", "adet": "Adet (isteğe bağlı)"}
 
-    field_order = ["tedarikci", "yeni_tedarikci", "tarih", "deri_turu", "kalite", "adet", "kg", "m2", "notlar"]
+    field_order = ["tedarikci", "yeni_tedarikci", "tarih", "deri_turu", "kalite", "adet",
+                   "giris_birimi", "giris_miktari", "en_cm", "kg", "notlar"]
 
     def clean(self):
         veri = super().clean()
         if not (veri.get("yeni_tedarikci") or "").strip() and not veri.get("tedarikci"):
             self.add_error("tedarikci", "Bir tedarikçi seçin ya da yeni tedarikçi adı yazın.")
+        birim, miktar = veri.get("giris_birimi"), veri.get("giris_miktari")
+        if birim == "mtul" and not veri.get("en_cm"):
+            self.add_error("en_cm", "Metretül girişinde rulonun enini (cm) yazın; m² buna göre hesaplanır.")
+        if birim != "mtul":
+            veri["en_cm"] = None
+        if veri.get("kg") is None:
+            veri["kg"] = 0
+        # Stok her zaman m² tutulur; işe malzeme alırken de m² girilir.
+        self.instance.m2 = m2_hesapla(birim, miktar, veri.get("en_cm")) or 0
         return veri
 
     def save(self, commit=True):

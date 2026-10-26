@@ -42,6 +42,7 @@ Ofis:     Stok girişi (HD-2026-0001) ──► QR etiketi malın üzerine     S
 | Zig-zag | Zig-zag 1, Zig-zag 2 |
 | Biye | Biye makinesi |
 | Lanfel | Lanfel makinesi |
+| Kenar dikişi | (yönetim panelinden eklenebilir) |
 
 Sipariş girilirken **halı türü** seçilir; iş o türün istasyonlarından sırayla geçer:
 
@@ -49,7 +50,7 @@ Sipariş girilirken **halı türü** seçilir; iş o türün istasyonlarından s
 |---|---|
 | Lazerli halı | Lazer kesim → Zig-zag → Biye / Lanfel |
 | Nakışlı halı | Nakış → Lazer kesim → Zig-zag → Biye / Lanfel |
-| Peluş halı | Lazer kesim → Zig-zag |
+| Peluş halı | Lazer kesim → Zig-zag → Biye / Kenar dikişi |
 
 "Biye / Lanfel" ya biri ya diğeri demektir: iş iki istasyonun ekranına da düşer, hangisi başlarsa o yapar.
 Çalışan işe başlarken **hangi makinede** çalıştığını seçer; raporlarda makine bazında iş sayısı ve çalışma süresi görünür.
@@ -199,3 +200,12 @@ python manage.py test uretim
 ## Sonraki adımlar (Faz 2+)
 
 - Kalite kontrol hata türleri, yeniden işleme
+
+### Stok birimleri
+Stok girişinde malın **geldiği birim** seçilir; stok her zaman **m²** tutulur ve işe malzeme alırken m² girilir:
+- **m²:** olduğu gibi
+- **metretül:** metre × rulo eni (cm) ÷ 100 (ör. 50 mt × 140 cm = 70 m²)
+- **ayak (ft²):** ayak × 0,0929 (ör. 1000 ayak = 92,9 m²)
+
+### Raporlar
+Personel, istasyon (aşama) ve makine bazında iş/fire/süre; **istasyonlar arası bekleme** (bir istasyonda biten işin sıradakinde başlanmasına kadar geçen ortalama ve en uzun süre) ve **kim hangi istasyonda çalıştı**. İş detayında her adımın önceki istasyondan sonra ne kadar beklediği görünür.

@@ -142,7 +142,11 @@ def lot_detay(request, pk):
     lot = get_object_or_404(
         UretimLotu.objects.select_related("siparis__musteri"), pk=pk
     )
-    islemler = lot.islemler.select_related("asama", "personel", "bitiren").order_by("baslangic")
+    islemler = raporlar.bekleme_suresi_ekle(
+        list(lot.islemler.select_related("asama", "makine", "personel", "bitiren").order_by("baslangic"))
+    )
+    for islem in islemler:
+        islem.bekleme_metni = uyarilar.sure_metni(islem.bekleme) if islem.bekleme is not None else ""
     return render(request, "uretim/lot_detay.html", {"lot": lot, "islemler": islemler})
 
 
@@ -160,11 +164,17 @@ def rapor(request):
     personel = raporlar.personel_ozeti(bas, son)
     asama = raporlar.asama_ozeti(bas, son)
     makine = raporlar.makine_ozeti(bas, son)
-    for satir in personel + asama + makine:
+    personel_istasyon = raporlar.personel_istasyon_ozeti(bas, son)
+    for satir in personel + asama + makine + personel_istasyon:
         satir["sure_metni"] = raporlar.sure_metni(satir["toplam_sure"])
+    bekleme = raporlar.bekleme_ozeti(bas, son)
+    for satir in bekleme:
+        satir["ortalama_metni"] = uyarilar.sure_metni(satir["ortalama"])
+        satir["en_uzun_metni"] = uyarilar.sure_metni(satir["en_uzun"])
     return render(
         request, "uretim/rapor.html",
-        {"form": form, "personel": personel, "asama": asama, "makine": makine, "bas": bas, "son": son},
+        {"form": form, "personel": personel, "asama": asama, "makine": makine, "bas": bas, "son": son,
+         "personel_istasyon": personel_istasyon, "bekleme": bekleme},
     )
 
 
@@ -201,6 +211,12 @@ def rapor_excel(request):
 
     sayfa_yaz(kitap.create_sheet("Makineler"), ["Makine"] + ozet_baslik,
               [[s["makine__ad"]] + ozet_satiri(s) for s in raporlar.makine_ozeti(bas, son)])
+    sayfa_yaz(kitap.create_sheet("Personel-İstasyon"), ["Personel", "İstasyon"] + ozet_baslik,
+              [[s["personel__ad_soyad"], s["asama__ad"]] + ozet_satiri(s)
+               for s in raporlar.personel_istasyon_ozeti(bas, son)])
+    sayfa_yaz(kitap.create_sheet("İstasyonlar arası bekleme"), ["Geçiş", "İş sayısı", "Ortalama bekleme", "En uzun"],
+              [[s["gecis"], s["sayi"], uyarilar.sure_metni(s["ortalama"]), uyarilar.sure_metni(s["en_uzun"])]
+               for s in raporlar.bekleme_ozeti(bas, son)])
 
     detay = raporlar.tamamlanan_islemler(bas, son).select_related("lot", "asama", "makine", "personel", "bitiren")
     yerel = timezone.localtime

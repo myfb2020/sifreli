@@ -12,8 +12,8 @@
   {% for o in ozet %}
   <div class="kart ozet-kart{% if o.azaldi %} azaldi{% endif %}">
     <div class="soluk">{{ o.tur.ad }}</div>
-    <div class="ozet-sayi">{{ o.kalan_kg|floatformat:"-2" }} kg</div>
-    <div class="soluk">{{ o.kalan_m2|floatformat:"-2" }} m²{% if o.tur.min_kg is not None %} · en az {{ o.tur.min_kg|floatformat:"-2" }} kg{% endif %}</div>
+    <div class="ozet-sayi">{{ o.kalan_m2|floatformat:"-2" }} m²</div>
+    <div class="soluk">{% if o.kalan_kg %}{{ o.kalan_kg|floatformat:"-2" }} kg{% endif %}{% if o.tur.min_kg is not None %} · en az {{ o.tur.min_kg|floatformat:"-2" }} kg{% endif %}</div>
     {% if o.azaldi %}<div class="uyari">⚠️ Azaldı</div>{% endif %}
   </div>
   {% endfor %}
@@ -40,8 +40,8 @@
       <td>{{ r.stok.tarih|date:"d.m.Y" }}</td>
       <td>{{ r.stok.deri_turu }} · {{ r.stok.get_kalite_display }}</td>
       <td>{{ r.stok.tedarikci }}</td>
-      <td class="sayi">{{ r.stok.kg }} kg<br>{{ r.stok.m2 }} m²</td>
-      <td class="sayi"><b>{{ r.kalan_kg }} kg<br>{{ r.kalan_m2 }} m²</b></td>
+      <td class="sayi">{{ r.stok.m2 }} m²{% if r.stok.giris_metni %}<br><span class="soluk">{{ r.stok.giris_metni }}</span>{% endif %}{% if r.stok.kg %}<br>{{ r.stok.kg }} kg{% endif %}</td>
+      <td class="sayi"><b>{{ r.kalan_m2 }} m²</b>{% if r.stok.kg %}<br>{{ r.kalan_kg }} kg{% endif %}</td>
       <td><div class="ilerleme"><div class="ilerleme-dolu" style="width:{{ r.yuzde }}%"></div></div><span class="soluk">%{{ r.yuzde }} kullanıldı</span></td>
     </tr>
     {% empty %}

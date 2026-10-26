@@ -698,11 +698,11 @@ class YeniIsAkisiTesti(TemelVeri):
         self.client.force_login(get_user_model().objects.create_superuser("y", password="x"))
         yanit = self.client.post(reverse("stok_yeni"), {
             "yeni_tedarikci": "Ege Deri", "tarih": "2026-10-20", "deri_turu": self.ham.deri_turu.pk, "kalite": "A",
-            "kg": "480,5", "m2": "82",
+            "kg": "480,5", "giris_birimi": "m2", "giris_miktari": "82",
         })
         stok = HamDeriGirisi.objects.get(tedarikci__ad="Ege Deri")
         self.assertRedirects(yanit, reverse("stok_detay", args=[stok.pk]))
-        self.assertEqual(stok.kg, Decimal("480.50"))
+        self.assertEqual((stok.kg, stok.m2), (Decimal("480.50"), Decimal("82.00")))
         self.assertTrue(stok.lot_no.startswith("HD-"))
 
 
@@ -971,7 +971,7 @@ class HaliTuruRotaTesti(TemelVeri):
 
     def test_istasyonlar_ve_makineler_yuklendi(self):
         self.assertEqual([a.ad for a in Asama.objects.filter(aktif=True)],
-                         ["Nakış", "Lazer kesim", "Zig-zag", "Biye", "Lanfel"])
+                         ["Nakış", "Lazer kesim", "Zig-zag", "Biye", "Lanfel", "Kenar dikişi"])
         self.assertEqual(self.ist("Zig-zag").makineler.count(), 2)
         self.assertEqual(self.ist("Lazer kesim").makineler.count(), 2)
         self.assertEqual(HaliTuru.objects.get(ad="Nakışlı halı").rota_metni(),
@@ -1001,10 +1001,12 @@ class HaliTuruRotaTesti(TemelVeri):
         self.asamayi_yap(lot, self.ist("Nakış"))
         self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim")])
 
-    def test_pelus_hali_zigzagdan_sonra_biter(self):
+    def test_pelus_hali_biye_ya_da_kenar_dikisiyle_biter(self):
         lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
         self.asamayi_yap(lot, self.ist("Lazer kesim"))
         self.asamayi_yap(lot, self.ist("Zig-zag"))
+        self.assertEqual(lot.siradaki_metni, "Biye / Kenar dikişi")
+        self.asamayi_yap(lot, self.ist("Kenar dikişi"))
         self.assertEqual(lot.durum, "tamamlandi")
 
     def test_makine_baska_istasyonun_olamaz(self):
@@ -1032,3 +1034,59 @@ class HaliTuruRotaTesti(TemelVeri):
         bugun = timezone.localdate()
         satirlar = raporlar.makine_ozeti(bugun, bugun)
         self.assertEqual([(s["makine__ad"], s["islem_sayisi"]) for s in satirlar], [("Lazer 1", 1)])
+
+
+class StokBirimiVeBeklemeTesti(TemelVeri):
+    def stok_gir(self, **alanlar):
+        kullanici, _ = get_user_model().objects.get_or_create(username="ofis9", is_staff=True, is_superuser=True)
+        self.client.force_login(kullanici)
+        veri = {"tedarikci": Tedarikci.objects.first().pk, "tarih": "2026-10-26",
+                "deri_turu": DeriTuru.objects.get(ad="Kuzu").pk, "kalite": "A", **alanlar}
+        return self.client.post(reverse("stok_yeni"), veri)
+
+    def test_ayak_girisi_m2ye_cevrilir(self):
+        self.stok_gir(giris_birimi="ayak", giris_miktari="1000")
+        h = HamDeriGirisi.objects.latest("pk")
+        self.assertEqual((h.m2, h.kg, h.giris_metni), (Decimal("92.90"), Decimal("0"), "1000 ayak (ft²)"))
+
+    def test_metretul_girisi_en_ile_m2ye_cevrilir(self):
+        self.assertContains(self.stok_gir(giris_birimi="mtul", giris_miktari="50"), "rulonun enini")
+        self.stok_gir(giris_birimi="mtul", giris_miktari="50", en_cm="140")
+        h = HamDeriGirisi.objects.latest("pk")
+        self.assertEqual((h.m2, h.giris_metni), (Decimal("70.00"), "50 metretül × 140 cm"))
+
+    def test_istasyonlar_arasi_bekleme_ve_personel_istasyon(self):
+        lazer, zigzag = Asama.objects.get(ad="Lazer kesim"), Asama.objects.get(ad="Zig-zag")
+        lot = self.yeni_lot()
+        i1 = servisler.islem_baslat(lot=lot, asama=lazer, personel=self.ahmet, makine=lazer.makineler.first())
+        servisler.islem_bitir(islem=i1, personel=self.ahmet, cikis_kg=lot.baslangic_kg, cikis_m2=lot.baslangic_m2)
+        i2 = servisler.islem_baslat(lot=lot, asama=zigzag, personel=self.ayse, makine=zigzag.makineler.first())
+        # Lazer 1 saat önce bitmiş, Zig-zag şimdi başlamış gibi
+        IslemKaydi.objects.filter(pk=i1.pk).update(bitis=i2.baslangic - timedelta(hours=1, minutes=30))
+        bugun = timezone.localdate()
+        satir = raporlar.bekleme_ozeti(bugun, bugun)[0]
+        self.assertEqual((satir["gecis"], satir["sayi"]), ("Lazer kesim → Zig-zag", 1))
+        self.assertEqual(round(satir["ortalama"].total_seconds() / 60), 90)
+        self.assertEqual([(s["personel__ad_soyad"], s["asama__ad"]) for s in raporlar.personel_istasyon_ozeti(bugun, bugun)],
+                         [("Ahmet", "Lazer kesim")])
+        self.client.force_login(get_user_model().objects.create_superuser("ofis8", password="x"))
+        self.assertContains(self.client.get(reverse("lot_detay", args=[lot.pk])), "1 sa 30 dk")
+        self.assertContains(self.client.get(reverse("rapor")), "Lazer kesim → Zig-zag")
+
+    def test_excelden_ayak_girisi(self):
+        from io import BytesIO
+
+        from .excel_aktar import ice_aktar, sablon_olustur
+
+        kitap = sablon_olustur()
+        ws = kitap["Stok Lotları"]
+        basliklar = [h.value for h in ws[1]]
+        satir = {"Tedarikçi": "T", "Deri Türü": "Kuzu", "Giriş Birimi": "Ayak", "Giriş Miktarı": 500}
+        ws.append([satir.get(b) for b in basliklar])
+        dosya = BytesIO()
+        kitap.save(dosya)
+        dosya.seek(0)
+        rapor = ice_aktar(dosya, kaydet=True)
+        self.assertEqual(rapor.hatalar, [])
+        h = HamDeriGirisi.objects.latest("pk")
+        self.assertEqual((h.giris_birimi, h.m2), ("ayak", Decimal("46.45")))

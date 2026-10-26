@@ -49,7 +49,7 @@
     <h2>Miktar</h2>
     <table>
       <tr><th></th><th class="sayi">kg</th><th class="sayi">m²</th></tr>
-      <tr><td>Giriş</td><td class="sayi">{{ stok.kg }}</td><td class="sayi">{{ stok.m2 }}</td></tr>
+      <tr><td>Giriş{% if stok.giris_metni %}<br><span class="soluk">{{ stok.giris_metni }} geldi</span>{% endif %}</td><td class="sayi">{{ stok.kg }}</td><td class="sayi">{{ stok.m2 }}</td></tr>
       <tr><td>Üretime verilen</td><td class="sayi">{{ stok.kullanilan_kg }}</td><td class="sayi">{{ stok.kullanilan_m2 }}</td></tr>
       {% if duzeltmeler %}<tr><td>Düzeltmeler</td><td class="sayi">{{ stok.duzeltme_kg }}</td><td class="sayi">{{ stok.duzeltme_m2 }}</td></tr>{% endif %}
       <tr><td><b>Kalan</b></td><td class="sayi"><b>{{ stok.kalan_kg }}</b></td><td class="sayi"><b>{{ stok.kalan_m2 }}</b></td></tr>

@@ -234,8 +234,32 @@ class DeriTuru(models.Model):
 # --- Hammadde ve sipariş ------------------------------------------------------
 
 
+AYAK_M2 = Decimal("0.09290304")  # 1 ayak kare (ft²) = 0,0929 m²
+
+
+def sayi_metni(sayi):
+    """12.50 → '12,5', 120.00 → '120'."""
+    return format(sayi.normalize(), "f").replace(".", ",")
+
+
+def m2_hesapla(birim, miktar, en_cm=None):
+    """Gelen miktarı m²'ye çevirir: m² olduğu gibi, metretül × en, ayak × 0,0929."""
+    if miktar is None:
+        return None
+    if birim == "mtul":
+        if not en_cm:
+            return None
+        sonuc = miktar * en_cm / 100
+    elif birim == "ayak":
+        sonuc = miktar * AYAK_M2
+    else:
+        sonuc = miktar
+    return sonuc.quantize(Decimal("0.01"))
+
+
 class HamDeriGirisi(models.Model):
     KALITE = [("A", "A"), ("B", "B"), ("C", "C"), ("K", "Karışık")]
+    GIRIS_BIRIMLERI = [("m2", "m²"), ("mtul", "metretül"), ("ayak", "ayak (ft²)")]
 
     lot_no = models.CharField("stok lot no", max_length=20, unique=True, blank=True)
     tarih = models.DateField(default=timezone.localdate)
@@ -245,6 +269,11 @@ class HamDeriGirisi(models.Model):
     adet = models.PositiveIntegerField(null=True, blank=True)
     kg = models.DecimalField(max_digits=10, decimal_places=2, validators=pozitif)
     m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, validators=pozitif)
+    giris_birimi = models.CharField("giriş birimi", max_length=4, choices=GIRIS_BIRIMLERI, default="m2")
+    giris_miktari = models.DecimalField("gelen miktar", max_digits=10, decimal_places=2, null=True, blank=True,
+                                        validators=pozitif, help_text="Giriş biriminde gelen miktar.")
+    en_cm = models.DecimalField("rulo eni (cm)", max_digits=7, decimal_places=1, null=True, blank=True,
+                                validators=pozitif, help_text="Metretül girişinde m² hesabı için.")
     notlar = models.TextField(blank=True)
 
     class Meta:
@@ -259,6 +288,16 @@ class HamDeriGirisi(models.Model):
         if not self.lot_no:
             self.lot_no = sonraki_numara(HamDeriGirisi, "lot_no", "HD")
         super().save(*args, **kwargs)
+
+    @property
+    def giris_metni(self):
+        """Ör. '120 ayak' ya da '50 metretül × 140 cm'. m² girişinde boş."""
+        if self.giris_birimi == "m2" or self.giris_miktari is None:
+            return ""
+        metin = f"{sayi_metni(self.giris_miktari)} {self.get_giris_birimi_display()}"
+        if self.giris_birimi == "mtul" and self.en_cm:
+            metin += f" × {sayi_metni(self.en_cm)} cm"
+        return metin
 
     @property
     def kullanilan_kg(self):
