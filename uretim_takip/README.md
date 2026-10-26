@@ -38,6 +38,7 @@ Ofis:     Stok girişi (HD-2026-0001) ──► QR etiketi malın üzerine     S
 | İstasyon | Makineler |
 |---|---|
 | Nakış | Nakış makinesi |
+| Kaplama | Pres |
 | Lazer kesim | Lazer 1, Lazer 2 |
 | Zig-zag | Zig-zag 1, Zig-zag 2 |
 | Biye | Biye makinesi |
@@ -50,13 +51,13 @@ Sipariş girilirken **halı türü** seçilir; iş o türün istasyonlarından s
 |---|---|
 | Lazerli halı | Lazer kesim → Zig-zag → Biye / Lanfel |
 | Nakışlı halı | Nakış → Lazer kesim → Zig-zag → Biye / Lanfel |
-| Peluş halı | Lazer kesim → Zig-zag → Biye / Kenar dikişi |
+| Peluş halı | Kaplama → Lazer kesim → Zig-zag → Biye / Kenar dikişi |
 
 "Biye / Lanfel" ya biri ya diğeri demektir: iş iki istasyonun ekranına da düşer, hangisi başlarsa o yapar.
 Çalışan işe başlarken **hangi makinede** çalıştığını seçer; raporlarda makine bazında iş sayısı ve çalışma süresi görünür.
 
 Yönetim panelinden: **Aşamalar** (istasyonlar ve içindeki makineler), **Halı türleri** (istasyon sırası; aynı sıra numarası = alternatif).
-Pres (kaplama) gibi yeni bir istasyon eklemek için: Aşamalar → ekle, sonra ilgili halı türünün sırasına ekleyin.
+Yeni bir istasyon eklemek için: Aşamalar → ekle, sonra ilgili halı türünün sırasına ekleyin.
 
 ## Kurulum
 

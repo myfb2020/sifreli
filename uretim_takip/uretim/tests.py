@@ -972,7 +972,7 @@ class HaliTuruRotaTesti(TemelVeri):
 
     def test_istasyonlar_ve_makineler_yuklendi(self):
         self.assertEqual([a.ad for a in Asama.objects.filter(aktif=True)],
-                         ["Nakış", "Lazer kesim", "Zig-zag", "Biye", "Lanfel", "Kenar dikişi"])
+                         ["Nakış", "Kaplama", "Lazer kesim", "Zig-zag", "Biye", "Lanfel", "Kenar dikişi"])
         self.assertEqual(self.ist("Zig-zag").makineler.count(), 2)
         self.assertEqual(self.ist("Lazer kesim").makineler.count(), 2)
         self.assertEqual(HaliTuru.objects.get(ad="Nakışlı halı").rota_metni(),
@@ -1003,7 +1003,11 @@ class HaliTuruRotaTesti(TemelVeri):
         self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim")])
 
     def test_pelus_hali_biye_ya_da_kenar_dikisiyle_biter(self):
-        lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
+        sp = self.siparis_ac("Peluş halı")
+        self.assertEqual(sp.ilk_asamalar(), [self.ist("Kaplama")])
+        lot = self.yeni_lot(siparis=sp)
+        self.asamayi_yap(lot, self.ist("Kaplama"))
+        self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim")])
         self.asamayi_yap(lot, self.ist("Lazer kesim"))
         self.asamayi_yap(lot, self.ist("Zig-zag"))
         self.assertEqual(lot.siradaki_metni, "Biye / Kenar dikişi")
