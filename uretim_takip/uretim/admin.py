@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Asama, DeriDuzeltme, DeriTuru, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
+    Asama, DeriDuzeltme, DeriTuru, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
     Siparis, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
@@ -246,3 +246,16 @@ class IslemKaydiAdmin(admin.ModelAdmin):
     list_filter = ["asama", "makine", "personel"]
     search_fields = ["lot__lot_no", "personel__ad_soyad"]
     date_hierarchy = "baslangic"
+
+
+@admin.register(OturumKaydi)
+class OturumKaydiAdmin(admin.ModelAdmin):
+    list_display = ["zaman", "kullanici_adi", "tur", "asama", "cihaz", "ip"]
+    list_filter = ["tur", "kullanici_adi", "asama"]
+    date_hierarchy = "zaman"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

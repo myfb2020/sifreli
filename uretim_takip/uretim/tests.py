@@ -1090,3 +1090,29 @@ class StokBirimiVeBeklemeTesti(TemelVeri):
         self.assertEqual(rapor.hatalar, [])
         h = HamDeriGirisi.objects.latest("pk")
         self.assertEqual((h.giris_birimi, h.m2), ("ayak", Decimal("46.45")))
+
+
+class TabletGirisTesti(TestCase):
+    def test_giris_istasyon_ve_cikis_kaydedilir(self):
+        from .models import OturumKaydi
+
+        User = get_user_model()
+        User.objects.create_user("lazer-tablet", password="gizli12345")
+        ofis = User.objects.create_superuser("patron", password="x")
+        android = {"HTTP_USER_AGENT": "Mozilla/5.0 (Linux; Android 13) Chrome/120 Mobile"}
+        self.client.post(reverse("login"), {"username": "lazer-tablet", "password": "gizli12345"}, **android)
+        lazer = Asama.objects.get(ad="Lazer kesim")
+        self.client.get(reverse("istasyon_ekrani", args=[lazer.pk]), **android)
+        self.client.get(reverse("istasyon_ekrani", args=[lazer.pk]), **android)  # yenileme: tekrar yazılmaz
+        self.client.get(reverse("istasyon_parca", args=[lazer.pk]), **android)
+        self.client.post(reverse("logout"), **android)
+        self.assertEqual(list(OturumKaydi.objects.order_by("zaman", "pk").values_list("tur", "asama__ad", "cihaz")),
+                         [("giris", None, "Android · Chrome"), ("istasyon", "Lazer kesim", "Android · Chrome"),
+                          ("cikis", None, "Android · Chrome")])
+        self.client.force_login(ofis)
+        sayfa = self.client.get(reverse("tablet_girisleri"))
+        self.assertContains(sayfa, "lazer-tablet")
+        self.assertContains(sayfa, "İstasyon ekranını açtı")
+        # Tablet hesabı bu sayfayı göremez
+        self.client.force_login(User.objects.get(username="lazer-tablet"))
+        self.assertEqual(self.client.get(reverse("tablet_girisleri")).status_code, 403)

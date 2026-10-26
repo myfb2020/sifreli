@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
-from . import uyarilar
+from . import oturum, uyarilar
 from .models import Asama
 
 
@@ -32,6 +32,7 @@ def _baglam(asama):
 @login_required
 def istasyon_ekrani(request, pk):
     asama = get_object_or_404(Asama, pk=pk, aktif=True)
+    oturum.kaydet(request, "istasyon", asama=asama)
     return render(request, "uretim/istasyon_ekrani.html", _baglam(asama))
 
 

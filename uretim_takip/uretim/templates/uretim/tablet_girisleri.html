@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block baslik %}Tablet Girişleri{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px"><a href="{% url 'rapor' %}">← Raporlar</a></p>
+<h1>📱 Tablet girişleri</h1>
+<form class="filtre" method="get">
+  <label>{{ form.baslangic.label }}<br>{{ form.baslangic }}</label>
+  <label>{{ form.bitis.label }}<br>{{ form.bitis }}</label>
+  <label>Hesap<br><select name="hesap">
+    <option value="">Tümü</option>
+    {% for h in hesaplar %}<option value="{{ h }}" {% if h == hesap %}selected{% endif %}>{{ h }}</option>{% endfor %}
+  </select></label>
+  <button class="btn kucuk" type="submit">Göster</button>
+</form>
+<p class="soluk">Hangi hesabın ne zaman giriş yaptığı ve hangi istasyon ekranını açtığı. Her istasyon tabletine ayrı bir hesap
+  açarsanız (ör. <b>lazer-tablet</b>, <b>zigzag-tablet</b>) hangi tabletin ne zaman açıldığı da ayrı ayrı görünür.</p>
+
+<div class="kart tablo-kap">
+  <h2>Özet</h2>
+  <table>
+    <tr><th>Hesap</th><th>İlk açılış</th><th>Son hareket</th><th>Açılan istasyonlar</th><th>Cihaz</th></tr>
+    {% for o in ozet %}
+    <tr><td><b>{{ o.hesap }}</b></td><td>{{ o.ilk|date:"d.m H:i" }}</td><td>{{ o.son|date:"d.m H:i" }}</td>
+        <td>{{ o.istasyonlar|join:", "|default:"–" }}</td><td class="soluk">{{ o.cihaz }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="soluk">Bu aralıkta kayıt yok.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="kart tablo-kap">
+  <h2>Tüm kayıtlar</h2>
+  <table>
+    <tr><th>Zaman</th><th>Hesap</th><th>Olay</th><th>İstasyon</th><th>Cihaz</th></tr>
+    {% for k in kayitlar %}
+    <tr><td>{{ k.zaman|date:"d.m.Y H:i" }}</td><td>{{ k.kullanici_adi }}</td><td>{{ k.get_tur_display }}</td>
+        <td>{{ k.asama.ad|default:"–" }}</td><td class="soluk">{{ k.cihaz }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="soluk">Bu aralıkta kayıt yok.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

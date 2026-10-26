@@ -7,6 +7,7 @@
   <label>{{ form.bitis.label }}<br>{{ form.bitis }}</label>
   <button class="btn kucuk" type="submit">Göster</button>
   <a class="btn kucuk ikincil" href="{% url 'rapor_excel' %}?baslangic={{ bas|date:'Y-m-d' }}&bitis={{ son|date:'Y-m-d' }}">⬇ Excel'e aktar</a>
+  <a class="btn kucuk ikincil" href="{% url 'tablet_girisleri' %}">📱 Tablet girişleri</a>
 </form>
 {% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors.0 }}</div>{% endif %}
 <p class="soluk">{{ bas|date:"d.m.Y" }} – {{ son|date:"d.m.Y" }} arasında <b>tamamlanan</b> işlemler. İş, başlatan personelin hanesine yazılır.</p>

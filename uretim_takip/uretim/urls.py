@@ -29,6 +29,7 @@ urlpatterns = [
     path("siparisler/<int:pk>/durum/", siparis_views.siparis_durum, name="siparis_durum"),
     path("rapor/", views.rapor, name="rapor"),
     path("rapor/excel/", views.rapor_excel, name="rapor_excel"),
+    path("rapor/tablet/", views.tablet_girisleri, name="tablet_girisleri"),
     path("qr/", qr.qr_tara, name="qr_tara"),
     path("q/<str:lot_no>/", qr.qr_yonlendir, name="qr_yonlendir"),
     path("etiketler/", qr.etiketler, name="etiketler"),

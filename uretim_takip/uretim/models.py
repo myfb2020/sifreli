@@ -689,3 +689,28 @@ class MalzemeHareketi(models.Model):
 
     def __str__(self):
         return f"{self.malzeme.ad} {self.get_tur_display()} {self.miktar}"
+
+
+# --- Tablet / oturum kayıtları ------------------------------------------------
+
+
+class OturumKaydi(models.Model):
+    """Hangi hesap ne zaman giriş yaptı, çıktı ya da hangi istasyon ekranını açtı."""
+
+    TURLER = [("giris", "Giriş yaptı"), ("cikis", "Çıkış yaptı"), ("istasyon", "İstasyon ekranını açtı")]
+
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, verbose_name="hesap")
+    kullanici_adi = models.CharField("hesap adı", max_length=150, blank=True)
+    tur = models.CharField("olay", max_length=10, choices=TURLER)
+    asama = models.ForeignKey(Asama, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="istasyon")
+    cihaz = models.CharField(max_length=60, blank=True)
+    ip = models.GenericIPAddressField("IP", null=True, blank=True)
+    zaman = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-zaman"]
+        verbose_name = "tablet / oturum kaydı"
+        verbose_name_plural = "tablet / oturum kayıtları"
+
+    def __str__(self):
+        return f"{self.kullanici_adi} {self.get_tur_display()} {self.zaman:%d.%m.%Y %H:%M}"

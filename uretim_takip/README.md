@@ -209,3 +209,6 @@ Stok girişinde malın **geldiği birim** seçilir; stok her zaman **m²** tutul
 
 ### Raporlar
 Personel, istasyon (aşama) ve makine bazında iş/fire/süre; **istasyonlar arası bekleme** (bir istasyonda biten işin sıradakinde başlanmasına kadar geçen ortalama ve en uzun süre) ve **kim hangi istasyonda çalıştı**. İş detayında her adımın önceki istasyondan sonra ne kadar beklediği görünür.
+
+### Tablet girişleri
+Raporlar → **📱 Tablet girişleri**: hangi hesabın ne zaman giriş/çıkış yaptığı ve hangi istasyon ekranını açtığı (cihaz bilgisiyle). Her istasyon tabletine ayrı hesap açılırsa (ör. `lazer-tablet`) tabletler ayrı ayrı izlenir. Ekran yenilemeleri 30 dakikada bir kez kaydedilir.

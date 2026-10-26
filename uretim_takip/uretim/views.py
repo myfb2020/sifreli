@@ -13,7 +13,7 @@ from openpyxl.styles import Font
 
 from . import raporlar, servisler, uyarilar
 from .forms import IslemBaslatForm, IslemBitirForm, MalzemeKullanimFormSet, TarihAraligiForm
-from .models import Asama, IslemKaydi, Malzeme, Siparis, UretimLotu
+from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Siparis, UretimLotu
 
 
 def geri_don(request, varsayilan):
@@ -235,3 +235,28 @@ def rapor_excel(request):
     yanit["Content-Disposition"] = f'attachment; filename="uretim_raporu_{bas}_{son}.xlsx"'
     kitap.save(yanit)
     return yanit
+
+
+@sadece_ofis
+def tablet_girisleri(request):
+    """Hangi hesap ne zaman giriş yaptı / hangi istasyon ekranını açtı."""
+    bugun = timezone.localdate()
+    form = TarihAraligiForm(request.GET or {"baslangic": bugun, "bitis": bugun})
+    bas, son = (form.cleaned_data["baslangic"], form.cleaned_data["bitis"]) if form.is_valid() else (bugun, bugun)
+    alt, ust = raporlar._aralik(bas, son)
+    kayitlar = OturumKaydi.objects.filter(zaman__gte=alt, zaman__lt=ust).select_related("asama")
+    hesap = request.GET.get("hesap", "")
+    if hesap:
+        kayitlar = kayitlar.filter(kullanici_adi=hesap)
+    hesaplar = OturumKaydi.objects.order_by("kullanici_adi").values_list("kullanici_adi", flat=True).distinct()
+
+    ozet = {}
+    for k in kayitlar.order_by("zaman"):
+        o = ozet.setdefault(k.kullanici_adi, {"hesap": k.kullanici_adi, "ilk": k.zaman, "son": k.zaman,
+                                               "istasyonlar": [], "cihaz": k.cihaz})
+        o["son"] = k.zaman
+        if k.asama and k.asama.ad not in o["istasyonlar"]:
+            o["istasyonlar"].append(k.asama.ad)
+    return render(request, "uretim/tablet_girisleri.html", {
+        "form": form, "kayitlar": kayitlar[:500], "ozet": list(ozet.values()), "hesap": hesap, "hesaplar": hesaplar,
+    })
