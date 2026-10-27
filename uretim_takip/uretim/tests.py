@@ -1245,3 +1245,16 @@ class MalzemeEtiketiYanlisYerdeTesti(TemelVeri):
              "makine": self.makine(self.asamalar[0]), "kaynak-TOTAL_FORMS": 1, "kaynak-INITIAL_FORMS": 0,
              "kaynak-0-stok_no": m.kod, "kaynak-0-m2": "5"}
         self.assertContains(self.client.post(reverse("yeni_is"), v), "bir malzeme etiketi (Halı taban)")
+
+
+class PanoIstasyonSayilariTesti(TemelVeri):
+    def test_panoda_istasyona_gelen_isler_gorunur(self):
+        lazerli = HaliTuru.objects.get(ad="Lazerli halı")
+        Siparis.objects.create(musteri=self.siparis.musteri, urun="X", hali_turu=lazerli,
+                               teslim_tarihi=timezone.localdate() + timedelta(days=3))
+        self.client.force_login(get_user_model().objects.create_user("pt", password="x"))
+        sayfa = self.client.get(reverse("pano"))
+        satir = next(a for a in sayfa.context["asamalar"] if a["asama"].ad == "Lazer kesim 1")
+        # Temel verideki türsüz sipariş de genel sırada ilk istasyona (Lazer kesim 1) düşer
+        self.assertEqual(satir["bekleyen"], 2)
+        self.assertContains(sayfa, "2 bekliyor")

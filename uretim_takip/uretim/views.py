@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -37,14 +37,16 @@ def sadece_ofis(gorunum):
 @login_required
 def pano(request):
     bugun = timezone.localdate()
-    aktif_lotlar = UretimLotu.objects.exclude(durum__in=["tamamlandi", "iptal"])
-    asamalar = Asama.objects.filter(aktif=True).annotate(
-        islemde=Count("uretimlotu", filter=Q(uretimlotu__durum="islemde")),
-        bekleyen=Count("uretimlotu", filter=Q(uretimlotu__durum="bekliyor")),
-    ).order_by("sira")
+    # İstasyon ekranlarıyla aynı hesap: bekleyen = o istasyona gelen işler + yeni siparişler.
+    gelen, calisilan = uyarilar.gelenler(), uyarilar.calisilanlar()
+    asamalar = []
+    for asama in Asama.objects.filter(aktif=True).order_by("sira"):
+        g = [k for k in gelen if k.asama.pk == asama.pk]
+        c = [k for k in calisilan if k.asama.pk == asama.pk]
+        asamalar.append({"asama": asama, "bekleyen": len(g), "islemde": len(c),
+                         "geciken": sum(1 for k in g + c if k.gecikti)})
     baglam = {
         "asamalar": asamalar,
-        "yeni_lot_sayisi": aktif_lotlar.filter(son_asama__isnull=True).count(),
         "acik_islemler": IslemKaydi.objects.filter(bitis__isnull=True).select_related("lot", "asama", "personel"),
         "bugun_personel": raporlar.personel_ozeti(bugun, bugun),
         "geciken_siparisler": Siparis.objects.filter(
