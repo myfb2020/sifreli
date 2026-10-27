@@ -17,3 +17,10 @@ def marka(request):
     """Firma logosu `uretim/static/uretim/marka/logo.*` olarak konursa sol üst köşede gösterilir."""
     yol = _logo_yolu()
     return {"marka_logo": static(yol) if yol else None, "marka_adi": "BIENNA FUR"}
+
+
+def hesap(request):
+    """İstasyon tabletinin bağlı olduğu istasyon (menü ve pano kısayolu için)."""
+    from .models import hesap_istasyonu
+
+    return {"hesap_istasyonu": hesap_istasyonu(getattr(request, "user", None))}

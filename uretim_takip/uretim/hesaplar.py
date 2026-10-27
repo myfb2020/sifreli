@@ -8,9 +8,12 @@
 from django import forms
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.views import LoginView
 from django.contrib.auth.models import Group, Permission
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
+from .models import Asama, HesapAyari, hesap_istasyonu
 from .yedek import sadece_yonetici
 
 OFIS_GRUBU = "Ofis"
@@ -62,6 +65,11 @@ class HesapFormu(forms.Form):
                             widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
     sifre_tekrar = forms.CharField(label="Şifre (tekrar)", required=False,
                                    widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    istasyon = forms.ModelChoiceField(
+        queryset=Asama.objects.filter(aktif=True), label="Bu tablet hangi istasyonda?", required=False,
+        empty_label="— Seçilmedi (tablet istediği istasyonu açar) —",
+        help_text="Seçilirse tablet açılınca doğrudan bu istasyonun ekranı gelir.",
+    )
     aktif = forms.BooleanField(label="Hesap açık (kapatılırsa giriş yapamaz)", required=False, initial=True)
 
     def __init__(self, *args, kullanici=None, **kwargs):
@@ -103,13 +111,16 @@ class HesapFormu(forms.Form):
         kullanici.save()
         kullanici.user_permissions.clear()
         kullanici.groups.set([ofis_grubu()] if tur == "ofis" else [])
+        HesapAyari.objects.update_or_create(
+            kullanici=kullanici, defaults={"istasyon": v.get("istasyon") if tur == "tablet" else None}
+        )
         return kullanici
 
 
 @sadece_yonetici
 def hesap_listesi(request):
     hesaplar = get_user_model().objects.order_by("-is_superuser", "-is_staff", "username")
-    satirlar = [{"k": k, "tur": dict(TURLER)[hesap_turu(k)]} for k in hesaplar]
+    satirlar = [{"k": k, "tur": dict(TURLER)[hesap_turu(k)], "istasyon": hesap_istasyonu(k)} for k in hesaplar]
     return render(request, "uretim/hesap_listesi.html", {"satirlar": satirlar})
 
 
@@ -118,7 +129,8 @@ def hesap_formu(request, pk=None):
     kullanici = get_object_or_404(get_user_model(), pk=pk) if pk else None
     baslangic = {"tur": "tablet", "aktif": True}
     if kullanici:
-        baslangic = {"kullanici_adi": kullanici.username, "tur": hesap_turu(kullanici), "aktif": kullanici.is_active}
+        baslangic = {"kullanici_adi": kullanici.username, "tur": hesap_turu(kullanici), "aktif": kullanici.is_active,
+                     "istasyon": hesap_istasyonu(kullanici)}
     form = HesapFormu(request.POST or None, kullanici=kullanici, initial=baslangic)
     if request.method == "POST" and form.is_valid():
         k = form.kaydet(request.user)
@@ -127,3 +139,13 @@ def hesap_formu(request, pk=None):
     return render(request, "uretim/hesap_formu.html", {
         "form": form, "kullanici": kullanici, "aciklamalar": TUR_ACIKLAMA,
     })
+
+
+class GirisView(LoginView):
+    """İstasyonu belirlenmiş tablet giriş yapınca doğrudan o istasyonun ekranına gider."""
+
+    def get_default_redirect_url(self):
+        istasyon = hesap_istasyonu(self.request.user)
+        if istasyon is not None:
+            return reverse("istasyon_ekrani", args=[istasyon.pk])
+        return super().get_default_redirect_url()

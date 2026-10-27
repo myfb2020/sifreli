@@ -1213,3 +1213,21 @@ class HesapYonetimiTesti(TestCase):
         # Ofis hesabı bu sayfaya giremez
         self.client.force_login(User.objects.create_user("o2", password="x", is_staff=True))
         self.assertNotEqual(self.client.get(reverse("hesap_listesi")).status_code, 200)
+
+
+class HesapIstasyonuTesti(TestCase):
+    def test_tablet_hesabi_istasyonuna_gider(self):
+        User = get_user_model()
+        self.client.force_login(User.objects.create_superuser("patron3", password="x"))
+        lazer2 = Asama.objects.get(ad="Lazer kesim 2")
+        self.client.post(reverse("hesap_yeni"), {"kullanici_adi": "lazer2-tablet", "tur": "tablet",
+                                                 "istasyon": lazer2.pk, "sifre": "gizli123",
+                                                 "sifre_tekrar": "gizli123", "aktif": "on"})
+        self.assertContains(self.client.get(reverse("hesap_listesi")), "Lazer kesim 2")
+        self.client.logout()
+        yanit = self.client.post(reverse("login"), {"username": "lazer2-tablet", "password": "gizli123"})
+        self.assertRedirects(yanit, reverse("istasyon_ekrani", args=[lazer2.pk]))
+        pano = self.client.get(reverse("pano"))
+        self.assertContains(pano, "Lazer kesim 2 ekranı")
+        # İstasyon listesi açık kalır, üstte kendi istasyonunun kısayolu
+        self.assertContains(self.client.get(reverse("istasyon_secimi")), "Lazer kesim 2 ekranını aç")

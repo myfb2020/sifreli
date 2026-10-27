@@ -3,7 +3,7 @@
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
   <h1 style="margin:0;margin-right:auto">Üretim Panosu</h1>
   {% if not user.is_staff or user.is_superuser %}
-  <a class="btn buyuk" href="{% url 'istasyon_secimi' %}">🏭 İstasyon ekranım</a>
+  <a class="btn buyuk" href="{% if hesap_istasyonu %}{% url 'istasyon_ekrani' hesap_istasyonu.pk %}{% else %}{% url 'istasyon_secimi' %}{% endif %}">🏭 {% if hesap_istasyonu %}{{ hesap_istasyonu.ad }} ekranı{% else %}İstasyon ekranım{% endif %}</a>
   <a class="btn buyuk ikincil" href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a class="btn buyuk ikincil" href="{% url 'islem_merkezi' %}">▶ İşlem Başlat</a>
   {% endif %}

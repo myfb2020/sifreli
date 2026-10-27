@@ -716,3 +716,25 @@ class OturumKaydi(models.Model):
 
     def __str__(self):
         return f"{self.kullanici_adi} {self.get_tur_display()} {self.zaman:%d.%m.%Y %H:%M}"
+
+
+class HesapAyari(models.Model):
+    """Giriş hesabına bağlı ayar: istasyon tableti hangi istasyonun ekranını açar."""
+
+    kullanici = models.OneToOneField("auth.User", on_delete=models.CASCADE, related_name="hesap_ayari")
+    istasyon = models.ForeignKey(Asama, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="istasyon")
+
+    class Meta:
+        verbose_name = "hesap ayarı"
+        verbose_name_plural = "hesap ayarları"
+
+    def __str__(self):
+        return f"{self.kullanici} → {self.istasyon or '-'}"
+
+
+def hesap_istasyonu(kullanici):
+    """Hesaba bağlı (aktif) istasyon; yoksa None."""
+    if not getattr(kullanici, "is_authenticated", False):
+        return None
+    ayar = HesapAyari.objects.filter(kullanici=kullanici, istasyon__aktif=True).select_related("istasyon").first()
+    return ayar.istasyon if ayar else None

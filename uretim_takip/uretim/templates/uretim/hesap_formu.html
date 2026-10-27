@@ -21,6 +21,9 @@
       {% endfor %}
     </div>
 
+    <p id="istasyon-kap"><label for="{{ form.istasyon.id_for_label }}">{{ form.istasyon.label }}</label>{{ form.istasyon }}
+      <span class="soluk">{{ form.istasyon.help_text }}</span></p>
+
     {% for alan in form %}{% if alan.name in "sifre sifre_tekrar" %}
     <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}
       {% if alan.help_text %}<span class="soluk">{{ alan.help_text }}</span>{% endif %}
@@ -30,6 +33,16 @@
     <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>
   </form>
 </div>
+<script>
+  // İstasyon seçimi yalnızca istasyon tableti hesabında gösterilir.
+  (function () {
+    const kap = document.getElementById("istasyon-kap");
+    const turler = document.querySelectorAll('input[name="tur"]');
+    function goster() { kap.hidden = document.querySelector('input[name="tur"]:checked').value !== "tablet"; }
+    turler.forEach((t) => t.addEventListener("change", goster));
+    goster();
+  })();
+</script>
 <style>
   .tur-secim { display:grid; gap:8px; margin-bottom:14px; }
   .tur-kart { display:flex; gap:12px; align-items:flex-start; margin:0; padding:12px; cursor:pointer; font-weight:normal !important; }

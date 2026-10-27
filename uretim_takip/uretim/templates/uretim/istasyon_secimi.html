@@ -3,7 +3,11 @@
 {% block icerik %}
 <h1>İstasyon Seçin</h1>
 <p class="soluk">Bu tablet hangi istasyonda duruyorsa onu seçin.</p>
+{% if hesap_istasyonu %}
+<a class="btn buyuk" style="margin-bottom:16px" href="{% url 'istasyon_ekrani' hesap_istasyonu.pk %}">▶ {{ hesap_istasyonu.ad }} ekranını aç</a>
+{% else %}
 <a id="son-istasyon" class="btn buyuk" hidden style="margin-bottom:16px"></a>
+{% endif %}
 <div class="istasyon-izgara">
   {% for s in satirlar %}
   <a class="kart istasyon-kart{% if s.geciken %} gecikmis{% endif %}" href="{% url 'istasyon_ekrani' s.asama.pk %}" data-istasyon="{{ s.asama.pk }}">
@@ -18,7 +22,7 @@
   try {
     const kayitli = localStorage.getItem("istasyon");
     const link = kayitli && document.querySelector('[data-istasyon="' + kayitli + '"]');
-    if (link) {
+    if (link && document.getElementById("son-istasyon")) {
       const dugme = document.getElementById("son-istasyon");
       dugme.href = link.href;
       dugme.textContent = "▶ " + link.querySelector(".istasyon-ad").textContent + " ekranını aç";

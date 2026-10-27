@@ -164,7 +164,7 @@
   <a href="{% url 'pano' %}">Pano</a>
   {# Üretim ekranları: tablet hesabı ve yönetici. Ofis hesabı (personel durumlu) görmez. #}
   {% if not user.is_staff or user.is_superuser %}
-  <a href="{% url 'istasyon_secimi' %}">🏭 İstasyon</a>
+  <a href="{% if hesap_istasyonu %}{% url 'istasyon_ekrani' hesap_istasyonu.pk %}{% else %}{% url 'istasyon_secimi' %}{% endif %}">🏭 {{ hesap_istasyonu.ad|default:"İstasyon" }}</a>
   <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
   {% endif %}

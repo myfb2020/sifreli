@@ -9,11 +9,12 @@
   <a href="{% url 'admin:uretim_personel_changelist' %}">Personel</a> listesindedir.</p>
 <div class="kart tablo-kap">
   <table>
-    <tr><th>Kullanıcı adı</th><th>Hesap türü</th><th>Durum</th><th>Son giriş</th><th></th></tr>
+    <tr><th>Kullanıcı adı</th><th>Hesap türü</th><th>İstasyon</th><th>Durum</th><th>Son giriş</th><th></th></tr>
     {% for s in satirlar %}
     <tr>
       <td><b>{{ s.k.username }}</b></td>
       <td>{{ s.tur }}</td>
+      <td>{{ s.istasyon.ad|default:"–" }}</td>
       <td>{% if s.k.is_active %}<span class="rozet tamamlandi">Açık</span>{% else %}<span class="rozet iptal">Kapalı</span>{% endif %}</td>
       <td class="soluk">{{ s.k.last_login|date:"d.m.Y H:i"|default:"–" }}</td>
       <td><a class="btn kucuk ikincil" href="{% url 'hesap_duzenle' s.k.pk %}">Düzenle</a></td>
