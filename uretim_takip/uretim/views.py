@@ -41,7 +41,7 @@ def pano(request):
     asamalar = Asama.objects.filter(aktif=True).annotate(
         islemde=Count("uretimlotu", filter=Q(uretimlotu__durum="islemde")),
         bekleyen=Count("uretimlotu", filter=Q(uretimlotu__durum="bekliyor")),
-    )
+    ).order_by("sira")
     baglam = {
         "asamalar": asamalar,
         "yeni_lot_sayisi": aktif_lotlar.filter(son_asama__isnull=True).count(),

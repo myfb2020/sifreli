@@ -69,12 +69,12 @@
   <div class="asama-seridi">
     <div class="asama-kutu"><b>Yeni (başlamadı)</b><a href="{% url 'lot_listesi' %}?durum=bekliyor">{{ yeni_lot_sayisi }} iş</a></div>
     {% for a in asamalar %}
-    <div class="asama-kutu">
-      <b>{{ a.sira }}. {{ a.ad }}</b>
+    <a class="asama-kutu" href="{% url 'istasyon_ekrani' a.pk %}">
+      <b>{{ a.ad }} ›</b>
       {% if a.islemde %}<span class="rozet islemde">{{ a.islemde }} işlemde</span>{% endif %}
       {% if a.bekleyen %}<span class="rozet bekliyor">{{ a.bekleyen }} bitti, sırada</span>{% endif %}
       {% if not a.islemde and not a.bekleyen %}<span class="soluk">–</span>{% endif %}
-    </div>
+    </a>
     {% endfor %}
   </div>
 </div>
