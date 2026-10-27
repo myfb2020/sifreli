@@ -201,11 +201,15 @@ class YeniIsForm(PinliForm):
         siparis = veri.get("siparis")
         if siparis and not veri.get("asama"):
             ilkler = siparis.ilk_asamalar()
+            makine = veri.get("makine")
             if len(ilkler) == 1:
                 veri["asama"] = ilkler[0]
+            elif makine is not None and makine.asama in ilkler:
+                # İlk adım alternatifliyse (Lazer kesim 1 / 2) seçilen makine istasyonu belirler.
+                veri["asama"] = makine.asama
             elif ilkler:
-                self.add_error("asama", "Bu halı türü " + " ya da ".join(a.ad for a in ilkler)
-                               + " ile başlıyor; hangisi olduğunu seçin.")
+                self.add_error("makine", "Bu halı türü " + " ya da ".join(a.ad for a in ilkler)
+                               + " ile başlıyor; hangi makinede çalıştığınızı seçin.")
             else:
                 self.add_error("asama", "Başlanacak istasyonu seçin.")
         makine_kontrol(self, veri)

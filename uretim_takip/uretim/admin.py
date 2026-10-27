@@ -23,9 +23,9 @@ class MakineInline(admin.TabularInline):
 class AsamaAdmin(admin.ModelAdmin):
     """Aşamalar = istasyonlar. Süre sınırları listede doğrudan değiştirilebilir; makineler istasyonun içinde."""
 
-    list_display = ["sira", "ad", "makine_listesi", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
-    list_editable = ["ad", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
-    list_display_links = ["sira"]
+    list_display = ["ad", "makine_listesi", "azami_bekleme_saat", "azami_sure_saat", "aktif"]
+    list_editable = ["azami_bekleme_saat", "azami_sure_saat", "aktif"]
+    list_display_links = ["ad"]
     inlines = [MakineInline]
 
     @admin.display(description="makineler")

@@ -30,7 +30,9 @@ class Asama(models.Model):
     """Üretim aşaması; her aşama bir istasyondur."""
 
     ad = models.CharField("aşama adı", max_length=60, unique=True)
-    sira = models.PositiveSmallIntegerField("sıra", unique=True)
+    sira = models.PositiveSmallIntegerField(
+        "liste sırası", unique=True, help_text="İstasyonların listelerde hangi sırayla görüneceği (küçük olan önce).",
+    )
     aktif = models.BooleanField(default=True)
     azami_sure_saat = models.DecimalField(
         "en fazla çalışma süresi (saat)", max_digits=6, decimal_places=1, null=True, blank=True,
@@ -47,7 +49,7 @@ class Asama(models.Model):
         verbose_name_plural = "aşamalar"
 
     def __str__(self):
-        return f"{self.sira}. {self.ad}"
+        return self.ad
 
     def sonraki(self):
         return Asama.objects.filter(aktif=True, sira__gt=self.sira).first()

@@ -39,7 +39,8 @@ Ofis:     Stok girişi (HD-2026-0001) ──► QR etiketi malın üzerine     S
 |---|---|
 | Nakış | Nakış makinesi |
 | Kaplama | Pres |
-| Lazer kesim | Lazer 1, Lazer 2 |
+| Lazer kesim 1 | Lazer 1 |
+| Lazer kesim 2 | Lazer 2 |
 | Zig-zag | Zig-zag 1, Zig-zag 2 |
 | Biye | Biye makinesi |
 | Lanfel | Lanfel makinesi |
@@ -49,9 +50,9 @@ Sipariş girilirken **halı türü** seçilir; iş o türün istasyonlarından s
 
 | Halı türü | İstasyon sırası |
 |---|---|
-| Lazerli halı | Lazer kesim → Zig-zag → Biye / Lanfel |
-| Nakışlı halı | Nakış → Lazer kesim → Zig-zag → Biye / Lanfel |
-| Peluş halı | Kaplama → Lazer kesim → Zig-zag → Biye / Kenar dikişi |
+| Lazerli halı | Lazer kesim 1 / 2 → Zig-zag → Biye / Lanfel |
+| Nakışlı halı | Nakış → Lazer kesim 1 / 2 → Zig-zag → Biye / Lanfel |
+| Peluş halı | Kaplama → Lazer kesim 1 / 2 → Zig-zag → Biye / Kenar dikişi |
 
 "Biye / Lanfel" ya biri ya diğeri demektir: iş iki istasyonun ekranına da düşer, hangisi başlarsa o yapar.
 Çalışan işe başlarken **hangi makinede** çalıştığını seçer; raporlarda makine bazında iş sayısı ve çalışma süresi görünür.
@@ -213,3 +214,6 @@ Personel, istasyon (aşama) ve makine bazında iş/fire/süre; **istasyonlar ara
 
 ### Tablet girişleri
 Raporlar → **📱 Tablet girişleri**: hangi hesabın ne zaman giriş/çıkış yaptığı ve hangi istasyon ekranını açtığı (cihaz bilgisiyle). Her istasyon tabletine ayrı hesap açılırsa (ör. `lazer-tablet`) tabletler ayrı ayrı izlenir. Ekran yenilemeleri 30 dakikada bir kez kaydedilir.
+
+### Hesaplar
+Yönetici menüsünde **👥 Hesaplar**: yeni hesap açarken yalnızca **hesap türü** seçilir (İstasyon tableti / Ofis / Yönetici); yetkiler otomatik verilir. Ofis yetkileri "Ofis" grubunda tutulur.

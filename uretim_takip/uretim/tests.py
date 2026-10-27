@@ -972,17 +972,18 @@ class HaliTuruRotaTesti(TemelVeri):
 
     def test_istasyonlar_ve_makineler_yuklendi(self):
         self.assertEqual([a.ad for a in Asama.objects.filter(aktif=True)],
-                         ["Lazer kesim", "Nakış", "Kaplama", "Zig-zag", "Biye", "Lanfel", "Kenar dikişi"])
+                         ["Lazer kesim 1", "Lazer kesim 2", "Nakış", "Kaplama", "Zig-zag", "Biye", "Lanfel", "Kenar dikişi"])
         self.assertEqual(self.ist("Zig-zag").makineler.count(), 2)
-        self.assertEqual(self.ist("Lazer kesim").makineler.count(), 2)
+        self.assertEqual([m.ad for m in self.ist("Lazer kesim 1").makineler.all()], ["Lazer 1"])
+        self.assertEqual([m.ad for m in self.ist("Lazer kesim 2").makineler.all()], ["Lazer 2"])
         self.assertEqual(HaliTuru.objects.get(ad="Nakışlı halı").rota_metni(),
-                         "Nakış → Lazer kesim → Zig-zag → Biye / Lanfel")
+                         "Nakış → Lazer kesim 1 / Lazer kesim 2 → Zig-zag → Biye / Lanfel")
 
     def test_lazerli_hali_biye_ya_da_lanfel_ile_biter(self):
         sp = self.siparis_ac("Lazerli halı")
-        self.assertEqual(sp.ilk_asamalar(), [self.ist("Lazer kesim")])
+        self.assertEqual(sp.ilk_asamalar(), [self.ist("Lazer kesim 1"), self.ist("Lazer kesim 2")])
         lot = self.yeni_lot(siparis=sp)
-        self.asamayi_yap(lot, self.ist("Lazer kesim"))
+        self.asamayi_yap(lot, self.ist("Lazer kesim 1"))
         self.assertEqual(lot.siradaki_asamalar, [self.ist("Zig-zag")])
         self.asamayi_yap(lot, self.ist("Zig-zag"))
         self.assertEqual(lot.durum, "bekliyor")
@@ -997,18 +998,18 @@ class HaliTuruRotaTesti(TemelVeri):
     def test_nakisli_hali_nakistan_baslar(self):
         sp = self.siparis_ac("Nakışlı halı")
         self.assertIn(sp, [k.siparis for k in uyarilar.gelenler(self.ist("Nakış")) if k.tur == "siparis"])
-        self.assertNotIn(sp, [k.siparis for k in uyarilar.gelenler(self.ist("Lazer kesim"))])
+        self.assertNotIn(sp, [k.siparis for k in uyarilar.gelenler(self.ist("Lazer kesim 1"))])
         lot = self.yeni_lot(siparis=sp)
         self.asamayi_yap(lot, self.ist("Nakış"))
-        self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim")])
+        self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim 1"), self.ist("Lazer kesim 2")])
 
     def test_pelus_hali_biye_ya_da_kenar_dikisiyle_biter(self):
         sp = self.siparis_ac("Peluş halı")
         self.assertEqual(sp.ilk_asamalar(), [self.ist("Kaplama")])
         lot = self.yeni_lot(siparis=sp)
         self.asamayi_yap(lot, self.ist("Kaplama"))
-        self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim")])
-        self.asamayi_yap(lot, self.ist("Lazer kesim"))
+        self.assertEqual(lot.siradaki_asamalar, [self.ist("Lazer kesim 1"), self.ist("Lazer kesim 2")])
+        self.asamayi_yap(lot, self.ist("Lazer kesim 1"))
         self.asamayi_yap(lot, self.ist("Zig-zag"))
         self.assertEqual(lot.siradaki_metni, "Biye / Kenar dikişi")
         self.asamayi_yap(lot, self.ist("Kenar dikişi"))
@@ -1016,7 +1017,7 @@ class HaliTuruRotaTesti(TemelVeri):
 
     def test_makine_baska_istasyonun_olamaz(self):
         lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
-        lazer = self.ist("Lazer kesim")
+        lazer = self.ist("Lazer kesim 1")
         with self.assertRaises(ValidationError):
             servisler.islem_baslat(lot=lot, asama=lazer, personel=self.ahmet,
                                    makine=self.ist("Zig-zag").makineler.first())
@@ -1027,15 +1028,15 @@ class HaliTuruRotaTesti(TemelVeri):
         v = {"personel": self.ahmet.pk, "pin": "1234", "siparis": sp.pk, "asama": "",
              "kaynak-TOTAL_FORMS": 1, "kaynak-INITIAL_FORMS": 0,
              "kaynak-0-stok_no": self.ham.lot_no, "kaynak-0-kg": "10", "kaynak-0-m2": "2"}
-        self.assertContains(self.client.post(reverse("yeni_is"), v), "Hangi makinede çalıştığınızı seçin")
+        self.assertContains(self.client.post(reverse("yeni_is"), v), "hangi makinede çalıştığınızı seçin")
         lazer2 = Makine.objects.get(ad="Lazer 2")
         self.assertRedirects(self.client.post(reverse("yeni_is"), {**v, "makine": lazer2.pk}), reverse("pano"))
         islem = IslemKaydi.objects.get(lot__siparis=sp)
-        self.assertEqual((islem.asama.ad, islem.makine), ("Lazer kesim", lazer2))
+        self.assertEqual((islem.asama.ad, islem.makine), ("Lazer kesim 2", lazer2))
 
     def test_makine_raporu(self):
         lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
-        self.asamayi_yap(lot, self.ist("Lazer kesim"))
+        self.asamayi_yap(lot, self.ist("Lazer kesim 1"))
         bugun = timezone.localdate()
         satirlar = raporlar.makine_ozeti(bugun, bugun)
         self.assertEqual([(s["makine__ad"], s["islem_sayisi"]) for s in satirlar], [("Lazer 1", 1)])
@@ -1061,7 +1062,7 @@ class StokBirimiVeBeklemeTesti(TemelVeri):
         self.assertEqual((h.m2, h.giris_metni), (Decimal("70.00"), "50 metretül × 140 cm"))
 
     def test_istasyonlar_arasi_bekleme_ve_personel_istasyon(self):
-        lazer, zigzag = Asama.objects.get(ad="Lazer kesim"), Asama.objects.get(ad="Zig-zag")
+        lazer, zigzag = Asama.objects.get(ad="Lazer kesim 1"), Asama.objects.get(ad="Zig-zag")
         lot = self.yeni_lot()
         i1 = servisler.islem_baslat(lot=lot, asama=lazer, personel=self.ahmet, makine=lazer.makineler.first())
         servisler.islem_bitir(islem=i1, personel=self.ahmet, cikis_kg=lot.baslangic_kg, cikis_m2=lot.baslangic_m2)
@@ -1070,13 +1071,13 @@ class StokBirimiVeBeklemeTesti(TemelVeri):
         IslemKaydi.objects.filter(pk=i1.pk).update(bitis=i2.baslangic - timedelta(hours=1, minutes=30))
         bugun = timezone.localdate()
         satir = raporlar.bekleme_ozeti(bugun, bugun)[0]
-        self.assertEqual((satir["gecis"], satir["sayi"]), ("Lazer kesim → Zig-zag", 1))
+        self.assertEqual((satir["gecis"], satir["sayi"]), ("Lazer kesim 1 → Zig-zag", 1))
         self.assertEqual(round(satir["ortalama"].total_seconds() / 60), 90)
         self.assertEqual([(s["personel__ad_soyad"], s["asama__ad"]) for s in raporlar.personel_istasyon_ozeti(bugun, bugun)],
-                         [("Ahmet", "Lazer kesim")])
+                         [("Ahmet", "Lazer kesim 1")])
         self.client.force_login(get_user_model().objects.create_superuser("ofis8", password="x"))
         self.assertContains(self.client.get(reverse("lot_detay", args=[lot.pk])), "1 sa 30 dk")
-        self.assertContains(self.client.get(reverse("rapor")), "Lazer kesim → Zig-zag")
+        self.assertContains(self.client.get(reverse("rapor")), "Lazer kesim 1 → Zig-zag")
 
     def test_excelden_ayak_girisi(self):
         from io import BytesIO
@@ -1106,13 +1107,13 @@ class TabletGirisTesti(TestCase):
         ofis = User.objects.create_superuser("patron", password="x")
         android = {"HTTP_USER_AGENT": "Mozilla/5.0 (Linux; Android 13) Chrome/120 Mobile"}
         self.client.post(reverse("login"), {"username": "lazer-tablet", "password": "gizli12345"}, **android)
-        lazer = Asama.objects.get(ad="Lazer kesim")
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
         self.client.get(reverse("istasyon_ekrani", args=[lazer.pk]), **android)
         self.client.get(reverse("istasyon_ekrani", args=[lazer.pk]), **android)  # yenileme: tekrar yazılmaz
         self.client.get(reverse("istasyon_parca", args=[lazer.pk]), **android)
         self.client.post(reverse("logout"), **android)
         self.assertEqual(list(OturumKaydi.objects.order_by("zaman", "pk").values_list("tur", "asama__ad", "cihaz")),
-                         [("giris", None, "Android · Chrome"), ("istasyon", "Lazer kesim", "Android · Chrome"),
+                         [("giris", None, "Android · Chrome"), ("istasyon", "Lazer kesim 1", "Android · Chrome"),
                           ("cikis", None, "Android · Chrome")])
         self.client.force_login(ofis)
         sayfa = self.client.get(reverse("tablet_girisleri"))
@@ -1156,7 +1157,7 @@ class MarkaVeIstasyonSayfasiTesti(TestCase):
     def test_istasyon_listesi_lazerle_baslar_ve_logo_alani(self):
         self.client.force_login(get_user_model().objects.create_user("t", password="x"))
         sayfa = self.client.get(reverse("istasyon_secimi"))
-        self.assertEqual(Asama.objects.filter(aktif=True).first().ad, "Lazer kesim")
+        self.assertEqual(Asama.objects.filter(aktif=True).first().ad, "Lazer kesim 1")
         self.assertNotContains(sayfa, "location.replace")
         self.assertContains(sayfa, "BIENNA FUR")
 
@@ -1182,3 +1183,33 @@ class CsrfHatasiTesti(TestCase):
         yanit = istemci.post(reverse("islem_baslat"), {})
         self.assertEqual(yanit.status_code, 403)
         self.assertContains(yanit, "Sayfa eskimiş", status_code=403)
+
+
+class HesapYonetimiTesti(TestCase):
+    def test_hesap_turu_secilerek_acilir(self):
+        User = get_user_model()
+        yonetici = User.objects.create_superuser("patron2", password="x")
+        self.client.force_login(yonetici)
+        self.client.post(reverse("hesap_yeni"), {"kullanici_adi": "lazer1-tablet", "tur": "tablet",
+                                                 "sifre": "gizli123", "sifre_tekrar": "gizli123", "aktif": "on"})
+        self.client.post(reverse("hesap_yeni"), {"kullanici_adi": "ofis-ayse", "tur": "ofis",
+                                                 "sifre": "gizli123", "sifre_tekrar": "gizli123", "aktif": "on"})
+        tablet, ofis = User.objects.get(username="lazer1-tablet"), User.objects.get(username="ofis-ayse")
+        self.assertFalse(tablet.is_staff or tablet.is_superuser)
+        self.assertTrue(ofis.is_staff and not ofis.is_superuser)
+        self.assertTrue(ofis.has_perm("uretim.add_siparis") and ofis.has_perm("uretim.add_hamderigirisi"))
+        self.assertFalse(tablet.has_perm("uretim.add_siparis"))
+        self.assertContains(self.client.get(reverse("hesap_listesi")), "ofis-ayse")
+        # Şifre boş bırakılarak tür değiştirilebilir; şifre değişmez
+        self.client.post(reverse("hesap_duzenle", args=[ofis.pk]), {"kullanici_adi": "ofis-ayse", "tur": "tablet",
+                                                                    "aktif": "on"})
+        ofis = User.objects.get(pk=ofis.pk)  # yetki önbelleği tazelensin
+        self.assertFalse(ofis.is_staff or ofis.has_perm("uretim.add_siparis"))
+        self.assertTrue(ofis.check_password("gizli123"))
+        # Yönetici kendini kilitleyemez
+        self.client.post(reverse("hesap_duzenle", args=[yonetici.pk]), {"kullanici_adi": "patron2", "tur": "tablet"})
+        yonetici.refresh_from_db()
+        self.assertTrue(yonetici.is_superuser and yonetici.is_active)
+        # Ofis hesabı bu sayfaya giremez
+        self.client.force_login(User.objects.create_user("o2", password="x", is_staff=True))
+        self.assertNotEqual(self.client.get(reverse("hesap_listesi")).status_code, 200)

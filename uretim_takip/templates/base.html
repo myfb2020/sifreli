@@ -137,10 +137,11 @@
     .sekme.secili { color:var(--ana); border-bottom-color:var(--ana); font-weight:600; }
     @media (max-width: 760px) {
       /* Telefonda: üstte logo, altında yana kaydırılabilen tek satır menü. */
-      header { flex-direction:column; align-items:stretch; gap:0; padding:0 12px; }
+      header { flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:0; padding:0 12px; }
       header .marka img { height:38px; width:38px; }
       .marka-yazi { font-size:16px; }
       header .menu { flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; gap:6px; padding-bottom:6px;
+                     min-width:0; max-width:100%;
                      -webkit-overflow-scrolling:touch; scrollbar-width:none; }
       header .menu::-webkit-scrollbar { display:none; }
       header .menu a { background:rgba(122,75,42,0.07); padding:8px 12px; }
@@ -172,7 +173,8 @@
   <a href="{% url 'lot_listesi' %}">İşler</a>
   {% if user.is_staff %}<a href="{% url 'rapor' %}">Raporlar</a>
   <a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
-  {% if user.is_superuser %}<a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
+  {% if user.is_superuser %}<a href="{% url 'hesap_listesi' %}">👥 Hesaplar</a>
+  <a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
   <a href="{% url 'yedek_indir' %}" title="Veritabanının yedeğini indir">💾 Yedek</a>{% endif %}
   <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Çıkış</button></form>
   </nav>

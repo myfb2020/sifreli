@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import aktarim_views, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
+from . import aktarim_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -37,6 +37,9 @@ urlpatterns = [
     path("sw.js", pwa.service_worker, name="service_worker"),
     path("cevrimdisi/", pwa.cevrimdisi, name="cevrimdisi"),
     path("yedek/", yedek.yedek_indir, name="yedek_indir"),
+    path("hesaplar/", hesaplar.hesap_listesi, name="hesap_listesi"),
+    path("hesaplar/yeni/", hesaplar.hesap_formu, name="hesap_yeni"),
+    path("hesaplar/<int:pk>/", hesaplar.hesap_formu, name="hesap_duzenle"),
     path("deneme-kayitlarini-sil/", temizlik.test_verilerini_sil, name="test_verilerini_sil"),
     path("aktar/", aktarim_views.excel_aktar, name="excel_aktar"),
     path("aktar/sablon/", aktarim_views.sablon_indir, name="sablon_indir"),

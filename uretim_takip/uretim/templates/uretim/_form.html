@@ -15,18 +15,18 @@
   const makine = document.getElementById("{{ form.makine.id_for_label }}");
   const kap = makine.closest("p");
   const siparis = document.getElementById("id_siparis");
-  function secilenIstasyon() {
-    // "Halı türüne göre" seçiliyse siparişin ilk istasyonu kullanılır.
-    if (asama.value || !siparis) return asama.value;
+  function secilenIstasyonlar() {
+    // "Halı türüne göre" seçiliyse siparişin ilk istasyon(lar)ı kullanılır (ör. Lazer kesim 1 / 2).
+    if (asama.value || !siparis) return [asama.value];
     const s = siparis.options[siparis.selectedIndex];
-    return s && s.dataset.ilk ? s.dataset.ilk.split(",")[0] : "";
+    return s && s.dataset.ilk ? s.dataset.ilk.split(",") : [""];
   }
   function suz() {
     let var_mi = false;
-    const hedef = secilenIstasyon();
+    const hedef = secilenIstasyonlar();
     for (const o of makine.options) {
       if (!o.value) continue;
-      const uygun = o.dataset.asama === hedef;
+      const uygun = hedef.includes(o.dataset.asama);
       o.hidden = !uygun; o.disabled = !uygun;
       if (uygun) var_mi = true;
       if (!uygun && o.selected) makine.value = "";

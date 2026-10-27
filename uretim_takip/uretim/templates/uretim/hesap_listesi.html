@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block baslik %}Hesaplar{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">👥 Hesaplar</h1>
+  <a class="btn" href="{% url 'hesap_yeni' %}">+ Yeni hesap</a>
+</div>
+<p class="soluk">Programa giriş yapan cihaz ve kişilerin hesapları. Çalışanlar (PIN ile iş açanlar) burada değil,
+  <a href="{% url 'admin:uretim_personel_changelist' %}">Personel</a> listesindedir.</p>
+<div class="kart tablo-kap">
+  <table>
+    <tr><th>Kullanıcı adı</th><th>Hesap türü</th><th>Durum</th><th>Son giriş</th><th></th></tr>
+    {% for s in satirlar %}
+    <tr>
+      <td><b>{{ s.k.username }}</b></td>
+      <td>{{ s.tur }}</td>
+      <td>{% if s.k.is_active %}<span class="rozet tamamlandi">Açık</span>{% else %}<span class="rozet iptal">Kapalı</span>{% endif %}</td>
+      <td class="soluk">{{ s.k.last_login|date:"d.m.Y H:i"|default:"–" }}</td>
+      <td><a class="btn kucuk ikincil" href="{% url 'hesap_duzenle' s.k.pk %}">Düzenle</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

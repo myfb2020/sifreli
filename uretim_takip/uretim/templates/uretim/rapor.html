@@ -33,7 +33,7 @@
     <tr><th>Aşama</th><th class="sayi">İşlem</th><th class="sayi">Giriş kg</th><th class="sayi">Çıkış kg</th>
         <th class="sayi">Giriş m²</th><th class="sayi">Çıkış m²</th><th class="sayi">Fire m²</th><th class="sayi">Fire %</th><th class="sayi">Toplam süre</th></tr>
     {% for s in asama %}
-    <tr><td><b>{{ s.asama__sira }}. {{ s.asama__ad }}</b></td><td class="sayi">{{ s.islem_sayisi }}</td>
+    <tr><td><b>{{ s.asama__ad }}</b></td><td class="sayi">{{ s.islem_sayisi }}</td>
         <td class="sayi">{{ s.giris_kg }}</td><td class="sayi">{{ s.cikis_kg }}</td>
         <td class="sayi">{{ s.giris_m2 }}</td><td class="sayi">{{ s.cikis_m2 }}</td>
         <td class="sayi">{{ s.fire_m2 }}</td><td class="sayi">{{ s.fire_yuzde_m2|default:"–" }}</td>

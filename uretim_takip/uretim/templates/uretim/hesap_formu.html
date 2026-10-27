@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block baslik %}{% if kullanici %}Hesabı düzenle{% else %}Yeni hesap{% endif %}{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:560px;margin:0 auto">
+  <p style="margin:0 0 8px"><a href="{% url 'hesap_listesi' %}">← Hesaplar</a></p>
+  <h1>{% if kullanici %}{{ kullanici.username }}{% else %}+ Yeni hesap{% endif %}</h1>
+  <form method="post" class="dikey">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    <p><label for="{{ form.kullanici_adi.id_for_label }}">{{ form.kullanici_adi.label }}</label>{{ form.kullanici_adi }}
+      <span class="soluk">{{ form.kullanici_adi.help_text }}</span>
+      {% for e in form.kullanici_adi.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
+
+    <p style="margin-bottom:6px"><label>Hesap türü</label></p>
+    <div class="tur-secim">
+      {% for secenek in form.tur %}
+      <label class="kart tur-kart">{{ secenek.tag }}
+        <span><b>{{ secenek.choice_label }}</b><br>
+        <span class="soluk">{% for anahtar, metin in aciklamalar.items %}{% if anahtar == secenek.data.value %}{{ metin }}{% endif %}{% endfor %}</span></span>
+      </label>
+      {% endfor %}
+    </div>
+
+    {% for alan in form %}{% if alan.name in "sifre sifre_tekrar" %}
+    <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}
+      {% if alan.help_text %}<span class="soluk">{{ alan.help_text }}</span>{% endif %}
+      {% for e in alan.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
+    {% endif %}{% endfor %}
+    <p><label style="font-weight:normal;display:flex;gap:8px;align-items:center">{{ form.aktif }} {{ form.aktif.label }}</label></p>
+    <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>
+  </form>
+</div>
+<style>
+  .tur-secim { display:grid; gap:8px; margin-bottom:14px; }
+  .tur-kart { display:flex; gap:12px; align-items:flex-start; margin:0; padding:12px; cursor:pointer; font-weight:normal !important; }
+  .tur-kart input { width:auto !important; margin-top:4px; }
+  .tur-kart:has(input:checked) { border-color:var(--ana); background:#fbf6f1; }
+  #id_aktif { width:auto; }
+</style>
+{% endblock %}
