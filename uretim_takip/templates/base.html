@@ -206,6 +206,24 @@
     kurulumOlayi = null;
     document.getElementById("kur-bandi").hidden = true;
   });
+  // iPhone/iPad otomatik "yükle" düğmesi göstermez: elle ekleme yolunu tarif et.
+  (function () {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const kurulu = window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches;
+    let kapatildi = false;
+    try { kapatildi = localStorage.getItem("ios-kur-kapat") === "1"; } catch (e) {}
+    if (!ios || kurulu || kapatildi) return;
+    const bant = document.getElementById("kur-bandi");
+    bant.querySelector("span").innerHTML = "📱 Uygulama olarak eklemek için: <b>Safari</b>'de alttaki (iPad'de üstteki) " +
+      "<b>Paylaş ⬆</b> simgesi → <b>Ana Ekrana Ekle</b>. Özel (gizli) sekmede yapmayın.";
+    const dugme = document.getElementById("kur-dugme");
+    dugme.textContent = "Tamam";
+    dugme.addEventListener("click", () => {
+      bant.hidden = true;
+      try { localStorage.setItem("ios-kur-kapat", "1"); } catch (e) {}
+    });
+    bant.hidden = false;
+  })();
 </script>
 </body>
 </html>
