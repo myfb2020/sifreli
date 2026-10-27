@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from . import servisler, uyarilar
 from .views import geri_don
 from .forms import KaynakFormSet, StokGirisForm, YeniIsForm
-from .models import HamDeriGirisi, UretimLotu
+from .models import HamDeriGirisi, Malzeme, UretimLotu
 
 
 @login_required
@@ -58,7 +58,8 @@ def stok_bilgi(request, lot_no):
     """Yeni iş ekranında okutulan stok lotunun özeti."""
     stok = HamDeriGirisi.objects.filter(lot_no=lot_no.upper()).select_related("deri_turu", "tedarikci").first()
     if stok is None:
-        return JsonResponse({"bulundu": False}, status=404)
+        malzeme = Malzeme.objects.filter(kod=lot_no.upper()).first()
+        return JsonResponse({"bulundu": False, "malzeme": malzeme.ad if malzeme else None}, status=404)
     return JsonResponse({
         "bulundu": True, "lot_no": stok.lot_no, "deri_turu": str(stok.deri_turu), "kalite": stok.get_kalite_display(),
         "tedarikci": str(stok.tedarikci), "kalan_kg": str(stok.kalan_kg), "kalan_m2": str(stok.kalan_m2),

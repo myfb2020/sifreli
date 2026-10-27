@@ -236,7 +236,12 @@ class KaynakSatirForm(forms.Form):
             return veri
         stok = HamDeriGirisi.objects.filter(lot_no=no).first()
         if stok is None:
-            self.add_error("stok_no", f"“{no}” numaralı stok lotu bulunamadı.")
+            malzeme = Malzeme.objects.filter(kod=no).first()
+            if malzeme is not None:
+                self.add_error("stok_no", f"{no} bir malzeme etiketi ({malzeme.ad}), işin ana malzemesi değil. "
+                                          "Malzemeler işi bitirirken “Kullanılan malzemeler” bölümüne girilir.")
+            else:
+                self.add_error("stok_no", f"“{no}” numaralı stok lotu bulunamadı.")
         elif not veri.get("kg") and not veri.get("m2"):
             self.add_error("m2", "Alınan miktarı girin.")
         veri["stok"] = stok

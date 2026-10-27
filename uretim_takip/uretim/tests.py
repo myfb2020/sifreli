@@ -1231,3 +1231,17 @@ class HesapIstasyonuTesti(TestCase):
         self.assertContains(pano, "Lazer kesim 2 ekranı")
         # İstasyon listesi açık kalır, üstte kendi istasyonunun kısayolu
         self.assertContains(self.client.get(reverse("istasyon_secimi")), "Lazer kesim 2 ekranını aç")
+
+
+class MalzemeEtiketiYanlisYerdeTesti(TemelVeri):
+    def test_malzeme_etiketi_stok_lotu_yerine_okutulursa_aciklama(self):
+        from .models import Malzeme
+
+        m = Malzeme.objects.create(ad="Halı taban", birim="m2")
+        self.client.force_login(get_user_model().objects.create_user("tb", password="x"))
+        yanit = self.client.get(reverse("stok_bilgi", args=[m.kod]))
+        self.assertEqual(yanit.json()["malzeme"], "Halı taban")
+        v = {"personel": self.ahmet.pk, "pin": "1234", "siparis": self.siparis.pk, "asama": self.asamalar[0].pk,
+             "makine": self.makine(self.asamalar[0]), "kaynak-TOTAL_FORMS": 1, "kaynak-INITIAL_FORMS": 0,
+             "kaynak-0-stok_no": m.kod, "kaynak-0-m2": "5"}
+        self.assertContains(self.client.post(reverse("yeni_is"), v), "bir malzeme etiketi (Halı taban)")
