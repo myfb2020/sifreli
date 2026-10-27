@@ -150,6 +150,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 SITE_ADRESI = os.environ.get("SITE_ADRESI", "")
 
 LOGIN_URL = "login"
+CSRF_FAILURE_VIEW = "uretim.hata.csrf_hatasi"
+# Tabletler her gün yeniden şifre girmesin: oturum 1 yıl açık kalır (Çıkış ile kapanır).
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 365
 LOGIN_REDIRECT_URL = "pano"
 LOGOUT_REDIRECT_URL = "login"
 

@@ -1159,3 +1159,26 @@ class MarkaVeIstasyonSayfasiTesti(TestCase):
         self.assertEqual(Asama.objects.filter(aktif=True).first().ad, "Lazer kesim")
         self.assertNotContains(sayfa, "location.replace")
         self.assertContains(sayfa, "BIENNA FUR")
+
+
+class CsrfHatasiTesti(TestCase):
+    def test_eski_giris_formu_yeniden_sorulur(self):
+        from django.test import Client
+
+        istemci = Client(enforce_csrf_checks=True)
+        get_user_model().objects.create_user("lazer-tablet", password="gizli12345")
+        yanit = istemci.post(reverse("login"), {"username": "lazer-tablet", "password": "gizli12345"}, follow=True)
+        self.assertContains(yanit, "tekrar girin")
+        # Yenilenen formla giriş çalışır
+        yanit = istemci.post(reverse("login"), {"username": "lazer-tablet", "password": "gizli12345",
+                                                "csrfmiddlewaretoken": yanit.context["csrf_token"]})
+        self.assertEqual(yanit.status_code, 302)
+
+    def test_diger_sayfalarda_anlasilir_mesaj(self):
+        from django.test import Client
+
+        istemci = Client(enforce_csrf_checks=True)
+        istemci.force_login(get_user_model().objects.create_user("t", password="x"))
+        yanit = istemci.post(reverse("islem_baslat"), {})
+        self.assertEqual(yanit.status_code, 403)
+        self.assertContains(yanit, "Sayfa eskimiş", status_code=403)

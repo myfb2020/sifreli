@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block baslik %}Sayfa yenilenmeli{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:520px;margin:40px auto;text-align:center">
+  <h1>Sayfa eskimiş</h1>
+  <p>Bu sayfa uzun süre açık kaldığı ya da başka bir sekmede giriş/çıkış yapıldığı için işlem kaydedilmedi.</p>
+  <p class="soluk">Sayfayı yenileyip işlemi bir kez daha yapın.</p>
+  <a class="btn buyuk" href="{{ geri }}" style="width:100%">↻ Sayfayı yenile</a>
+</div>
+{% endblock %}
