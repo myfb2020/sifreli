@@ -2,142 +2,193 @@
 {% block baslik %}Tasarım Stüdyosu{% endblock %}
 {% block icerik %}
 <h1 style="margin-top:0">🎨 Halınızı tasarlayın</h1>
-<p class="soluk">Şekli, ölçüyü, renkleri ve deseni seçin; önizleme anında değişir. Bitince <b>Gönder</b>'e basın, tasarımınız onaya gider.</p>
+<p class="soluk">Katalogdaki bir halıdan başlayın; bantları, desenleri, kürkü ve ölçüyü değiştirin. Önizleme halının size geleceği hâlidir. Bitince <b>Siparişi gönder</b>'e basın.</p>
 
 <form method="post" class="studyo dikey" id="studyo">
   {% csrf_token %}
+  <input type="hidden" name="katalog" value="{{ v.katalog }}">
   <div class="studyo-onizleme kart">
-    <div id="cizim">{{ svg|safe }}</div>
+    <img id="onizleme" alt="Halı önizlemesi" src="{% url 'tasarim_onizleme_resmi' %}?b=900&amp;katalog={{ v.katalog|urlencode }}">
+    <div id="yukleniyor" class="soluk" hidden>Çiziliyor…</div>
     <div id="ozet" class="soluk">{{ ozet }}</div>
-    <div class="soluk">Alan: <b id="alan">{{ alan }}</b> m²</div>
+    <div class="soluk">Alan: <b id="alan">{{ alan }}</b> m² / adet</div>
   </div>
 
   <div class="studyo-ayar">
     <div class="kart">
-      <h2>1. Şekil ve ölçü</h2>
+      <h2>1. Katalogdan başlayın</h2>
+      <div class="hazir-izgara">
+        {% for h in hazirlar %}
+        <button type="button" class="hazir{% if v.katalog == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}">
+          {% if h.model and h.model.resim %}<img src="{{ h.model.resim.url }}" alt="" loading="lazy">{% endif %}
+          <b>{{ h.kod }}</b><span>{{ h.ad }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="kart">
+      <h2>2. Şekil ve ölçü</h2>
       <div class="secim-izgara">
         {% for k, ad in sekiller %}<label class="secim"><input type="radio" name="sekil" value="{{ k }}"{% if v.sekil == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}
       </div>
       <div class="iki-sutun">
-        <p><label for="en">En (cm)</label><input id="en" name="en" inputmode="decimal" value="{{ v.en|floatformat:'-1' }}"></p>
-        <p id="boy-kap"><label for="boy">Boy (cm)</label><input id="boy" name="boy" inputmode="decimal" value="{{ v.boy|floatformat:'-1' }}"></p>
+        <p><label for="en">En (cm)</label><input id="en" name="en" type="number" inputmode="decimal" min="60" max="600" step="5" value="{{ v.en|floatformat:'-1' }}"></p>
+        <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" inputmode="decimal" min="60" max="800" step="5" value="{{ v.boy|floatformat:'-1' }}"></p>
+      </div>
+      <p class="soluk oval-not" hidden>Oval halıda bantlar düz (desensiz) yapılır.</p>
+    </div>
+
+    <div class="kart">
+      <h2>3. Dış kenar bandı</h2>
+      <p><label for="dis_bant">Genişlik (cm) — 0 yazarsanız dış bant olmaz</label><input id="dis_bant" name="dis_bant" type="number" inputmode="decimal" min="0" max="40" step="1" value="{{ v.dis_bant|floatformat:'-1' }}"></p>
+      {% include "uretim/_bant_secimi.html" with on="dis" malzeme=v.dis_malzeme desen=v.dis_desen %}
+    </div>
+
+    <div class="kart">
+      <h2>4. Kürk halka (iki bant arası)</h2>
+      <p><label for="halka">Genişlik (cm) — 0 yazarsanız halka olmaz</label><input id="halka" name="halka" type="number" inputmode="decimal" min="0" max="60" step="1" value="{{ v.halka|floatformat:'-1' }}"></p>
+      {% include "uretim/_zemin_secimi.html" with alan="halka_zemin" secili=v.halka_zemin %}
+    </div>
+
+    <div class="kart">
+      <h2>5. İç bant</h2>
+      <p><label for="ic_bant">Genişlik (cm) — 0 yazarsanız iç bant olmaz</label><input id="ic_bant" name="ic_bant" type="number" inputmode="decimal" min="0" max="30" step="1" value="{{ v.ic_bant|floatformat:'-1' }}"></p>
+      {% include "uretim/_bant_secimi.html" with on="ic" malzeme=v.ic_malzeme desen=v.ic_desen %}
+    </div>
+
+    <div class="kart">
+      <h2>6. Orta zemin</h2>
+      {% include "uretim/_zemin_secimi.html" with alan="zemin" secili=v.zemin %}
+      <label class="alt-baslik">Desen kesiklerinin içinden görünen renk</label>
+      <div class="renkler">
+        {% for k, ad, hex in altlar %}<label class="renk" title="{{ ad }}"><input type="radio" name="desen_alti" value="{{ k }}" aria-label="{{ ad }}"{% if v.desen_alti == k %} checked{% endif %}><span style="background:{{ hex }}"></span></label>{% endfor %}
       </div>
     </div>
 
     <div class="kart">
-      <h2>2. Zemin rengi</h2>
-      {% include "uretim/_renk_secimi.html" with alan="zemin_renk" secili=v.zemin_renk %}
-    </div>
-
-    <div class="kart">
-      <h2>3. Kenar bandı</h2>
-      <p><label for="bant">Bant genişliği (cm) — 0 yazarsanız bant olmaz</label><input id="bant" name="bant" inputmode="decimal" value="{{ v.bant|floatformat:'-1' }}"></p>
-      <label class="alt-baslik">Bant rengi</label>
-      {% include "uretim/_renk_secimi.html" with alan="bant_renk" secili=v.bant_renk %}
-      <label class="alt-baslik">Bandın üzerindeki lazer motifi</label>
-      <div class="secim-izgara">
-        {% for k, ad in motifler %}<label class="secim"><input type="radio" name="motif" value="{{ k }}"{% if v.motif == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}
-      </div>
-      <label class="alt-baslik">Motiflerin içinden görünen renk (alttaki deri)</label>
-      {% include "uretim/_renk_secimi.html" with alan="motif_renk" secili=v.motif_renk %}
-    </div>
-
-    <div class="kart">
-      <h2>4. Orta madalyon</h2>
-      <div class="secim-izgara">
-        {% for k, ad in madalyonlar %}<label class="secim"><input type="radio" name="madalyon" value="{{ k }}"{% if v.madalyon == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}
-      </div>
-      <p><label for="madalyon_cap">Madalyon çapı (cm)</label><input id="madalyon_cap" name="madalyon_cap" inputmode="decimal" value="{{ v.madalyon_cap|floatformat:'-1' }}"></p>
-      <label class="alt-baslik">Madalyon rengi</label>
-      {% include "uretim/_renk_secimi.html" with alan="madalyon_renk" secili=v.madalyon_renk %}
-    </div>
-
-    {% if desenler %}
-    <div class="kart">
-      <h2>5. Hazır lazer deseni (isteğe bağlı)</h2>
-      <p class="soluk">Katalogdaki köşe desenlerinden birini isterseniz seçin; üretimde bu desen uygulanır.</p>
-      <div class="desen-izgara">
-        <label class="desen"><input type="radio" name="desen_kodu" value=""{% if not v.desen_kodu %} checked{% endif %}><span class="desen-yok">Desen yok</span></label>
-        {% for d in desenler %}<label class="desen"><input type="radio" name="desen_kodu" value="{{ d.kod }}"{% if v.desen_kodu == d.kod %} checked{% endif %}>{% if d.resim %}<img src="{{ d.resim.url }}" alt="" loading="lazy">{% endif %}<span>{{ d.kod }}</span></label>{% endfor %}
+      <h2>7. Orta madalyon</h2>
+      <p><label for="madalyon">Çap (cm) — 0 yazarsanız madalyon olmaz</label><input id="madalyon" name="madalyon" type="number" inputmode="decimal" min="0" max="120" step="1" value="{{ v.madalyon|floatformat:'-1' }}"></p>
+      <div class="malzemeler">
+        {% for k, ad, hex in bantlar %}<label class="malzeme m-{{ k }}" title="{{ ad }}"><input type="radio" name="madalyon_malzeme" value="{{ k }}"{% if v.madalyon_malzeme == k %} checked{% endif %}><span></span><small>{{ ad }}</small></label>{% endfor %}
       </div>
     </div>
-    {% endif %}
 
     <div class="kart">
-      <h2>6. Sipariş</h2>
+      <h2>8. Sipariş</h2>
       {% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
-      <div class="dikey">
-        {% for alan in form %}
-        <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}
-          {% for e in alan.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
-        {% endfor %}
-      </div>
-      <button class="btn buyuk" type="submit" style="width:100%">📤 Tasarımı gönder</button>
+      {% for alan in form %}
+      <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}
+        {% for e in alan.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
+      {% endfor %}
+      <button class="btn buyuk" type="submit" style="width:100%">📤 Siparişi gönder</button>
     </div>
   </div>
 </form>
+{{ hazir_json|json_script:"hazir-veri" }}
 
 <style>
-  .studyo { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:start; }
-  .studyo-onizleme { position:sticky; top:8px; text-align:center; }
-  .studyo-onizleme svg { width:100%; max-height:62vh; }
+  .studyo { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
+  .studyo-onizleme { position:sticky; top:calc(var(--ust, 60px) + 8px); text-align:center; background:#26231f; color:#d8d0c6; }
+  .studyo-onizleme .soluk { color:#cfc6bb; }
+  #onizleme { width:100%; max-height:74vh; object-fit:contain; display:block; margin:0 auto 8px; transition:opacity .15s; }
+  #onizleme.bekle { opacity:.6; }
   .studyo-ayar .kart { margin-bottom:12px; }
   .studyo h2 { margin-top:0; }
   .alt-baslik { display:block; font-weight:600; margin:12px 0 6px; }
   .secim-izgara { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-  .secim input, .desen input, .renk input { position:absolute; opacity:0; pointer-events:none; }
-  .secim span { display:inline-block; padding:8px 12px; border:1px solid #d9cfc4; border-radius:20px; cursor:pointer; background:#fff; }
+  .secim, .renk, .malzeme, .doku, .desen { position:relative; }
+  .secim input, .desen input, .renk input, .malzeme input, .doku input { position:absolute; opacity:0; pointer-events:none; width:auto !important; }
+  .secim span { display:inline-block; padding:8px 14px; border:1px solid #d9cfc4; border-radius:20px; cursor:pointer; background:#fff; font-weight:normal; }
   .secim input:checked + span { background:var(--ana); color:#fff; border-color:var(--ana); }
-  .secim input:focus-visible + span, .renk input:focus-visible + span, .desen input:focus-visible ~ span { outline:2px solid var(--ana); outline-offset:2px; }
+  input:focus-visible + span { outline:2px solid var(--ana); outline-offset:2px; }
   .iki-sutun { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .iki-sutun input, .studyo-ayar p input { width:100%; }
+  .hazir-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:8px; }
+  .hazir { border:2px solid #e6ddd3; border-radius:10px; background:#fff; padding:4px; cursor:pointer; text-align:center; font:inherit; font-size:12px; display:flex; flex-direction:column; gap:2px; }
+  .hazir img { width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:6px; background:#222; }
+  .hazir span { color:#7a6f66; line-height:1.2; }
+  .hazir.secili { border-color:var(--ana); background:#fbf6f1; }
+  .malzemeler, .dokular { display:grid; grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:8px; }
+  .malzeme, .doku { display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-weight:normal !important; font-size:12px; text-align:center; }
+  .malzeme span, .doku span { width:56px; height:56px; border-radius:10px; border:3px solid #e6ddd3; display:block; background-size:cover; background-position:center; }
+  .malzeme input:checked + span, .doku input:checked + span { border-color:var(--ana); box-shadow:0 0 0 2px #fff inset; }
+  .m-altin span { background:linear-gradient(135deg,#f6e6b8,#d6b26a 45%,#9c7a3c); }
+  .m-gumus span { background:linear-gradient(135deg,#f4f5f7,#c2c5c9 45%,#808389); }
+  .m-bronz span { background:linear-gradient(135deg,#e7c7a0,#a57846 45%,#6b4a26); }
+  .m-beyaz_deri span { background:#f1ede4; } .m-krem_deri span { background:#e4d6b8; } .m-siyah_deri span { background:#1f1d1c; }
   .renkler { display:flex; flex-wrap:wrap; gap:6px; }
   .renk span { display:block; width:38px; height:38px; border-radius:50%; border:2px solid #d9cfc4; cursor:pointer; }
   .renk input:checked + span { border:3px solid var(--ana); box-shadow:0 0 0 2px #fff inset; }
-  .desen-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:8px; }
-  .desen { position:relative; border:2px solid #e6ddd3; border-radius:10px; padding:4px; text-align:center; cursor:pointer; background:#fff; font-size:13px; }
+  .desen-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); gap:6px; }
+  .desen { border:2px solid #e6ddd3; border-radius:8px; padding:3px; text-align:center; cursor:pointer; background:#fff; font-size:11px; font-weight:normal !important; }
   .desen img { width:100%; aspect-ratio:1; object-fit:contain; display:block; }
-  .desen-yok { display:flex; align-items:center; justify-content:center; aspect-ratio:1; }
+  .desen .desen-yok { display:flex; align-items:center; justify-content:center; aspect-ratio:1; }
   .desen:has(input:checked) { border-color:var(--ana); background:#fbf6f1; }
   @media (max-width: 760px) {
     .studyo { grid-template-columns:1fr; }
-    .studyo-onizleme { top:0; z-index:5; box-shadow:0 6px 12px rgba(0,0,0,.08); }
-    .studyo-onizleme svg { max-height:34vh; }
+    .studyo-onizleme { top:var(--ust, 60px); z-index:5; box-shadow:0 6px 14px rgba(0,0,0,.25); padding:8px; }
+    #onizleme { max-height:30vh; margin-bottom:4px; }
+    #ozet { display:none; }
   }
 </style>
 <script>
 (function () {
   const form = document.getElementById("studyo");
-  const cizim = document.getElementById("cizim");
+  const resim = document.getElementById("onizleme");
   const ozet = document.getElementById("ozet");
   const alan = document.getElementById("alan");
-  const boyKap = document.getElementById("boy-kap");
-  const adres = "{% url 'tasarim_onizleme' %}";
+  const hazirlar = JSON.parse(document.getElementById("hazir-veri").textContent);
+  const resimAdresi = "{% url 'tasarim_onizleme_resmi' %}";
+  const veriAdresi = "{% url 'tasarim_onizleme' %}";
+  const siparisAlanlari = ["adet", "istenen_tarih", "notlar", "csrfmiddlewaretoken"];
   let zamanlayici = null, sira = 0;
+  // Önizleme, yapışkan üst menünün hemen altında dursun
+  const ustAyarla = () => document.documentElement.style.setProperty("--ust", (document.querySelector("header")?.offsetHeight || 0) + "px");
+  ustAyarla();
+  window.addEventListener("resize", ustAyarla);
 
-  function boyGoster() {
-    boyKap.hidden = form.querySelector('input[name="sekil"]:checked').value === "yuvarlak";
+  function sorgu() {
+    const v = new URLSearchParams(new FormData(form));
+    siparisAlanlari.forEach((a) => v.delete(a));
+    return v.toString();
+  }
+  function ovalNot() {
+    const oval = form.querySelector('input[name="sekil"]:checked').value === "oval";
+    form.querySelector(".oval-not").hidden = !oval;
+    form.querySelectorAll(".desen-secimi").forEach((d) => { d.hidden = oval; });
   }
   async function guncelle() {
-    const benim = ++sira;
-    const veri = new URLSearchParams(new FormData(form));
-    veri.delete("csrfmiddlewaretoken");
+    const benim = ++sira, q = sorgu();
+    resim.classList.add("bekle");
+    resim.src = resimAdresi + "?b=900&" + q;
     try {
-      const y = await fetch(adres + "?" + veri.toString());
-      const j = await y.json();
-      if (benim !== sira) return;  // daha yeni bir istek var
-      cizim.innerHTML = j.svg;
+      const j = await (await fetch(veriAdresi + "?" + q)).json();
+      if (benim !== sira) return;
       ozet.textContent = j.ozet;
       alan.textContent = j.alan;
-    } catch (e) { /* bağlantı yoksa önizleme eski kalır */ }
+    } catch (e) { /* bağlantı yoksa özet eski kalır */ }
   }
-  form.addEventListener("input", (e) => {
-    if (["adet", "istenen_tarih", "notlar"].includes(e.target.name)) return;
-    boyGoster();
-    clearTimeout(zamanlayici);
-    zamanlayici = setTimeout(guncelle, 200);
-  });
-  boyGoster();
+  resim.addEventListener("load", () => resim.classList.remove("bekle"));
+  function yakinda() { ovalNot(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); }
+
+  form.addEventListener("input", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
+  form.addEventListener("change", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
+
+  document.querySelectorAll(".hazir").forEach((d) => d.addEventListener("click", () => {
+    const deger = hazirlar[d.dataset.kod];
+    Object.entries(deger).forEach(([ad, deg]) => {
+      const alanlar = form.querySelectorAll(`[name="${ad}"]`);
+      alanlar.forEach((a) => {
+        if (a.type === "radio") a.checked = a.value === deg;
+        else a.value = String(deg).replace(/\.0$/, "");
+      });
+    });
+    document.querySelectorAll(".hazir").forEach((h) => h.classList.toggle("secili", h === d));
+    ovalNot();
+    guncelle();
+  }));
+  ovalNot();
+  guncelle();
 })();
 </script>
 {% endblock %}

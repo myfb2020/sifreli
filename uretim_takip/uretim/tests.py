@@ -8,9 +8,10 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from . import raporlar, servisler, uyarilar
+from . import raporlar, servisler, tasarim_cizim, uyarilar
 from .models import (
     Asama, DeriTuru, HaliTuru, HamDeriGirisi, IslemKaydi, LotKaynagi, Makine, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    hesap_bayisi,
 )
 
 
@@ -1408,48 +1409,59 @@ class TasarimStudyosuTesti(TemelVeri):
         self.ofis = get_user_model().objects.create_user("ofis", password="x", is_staff=True)
         self.ofis.groups.add(ofis_grubu())
 
-    def test_bayi_tasarlar_ofis_onaylar_bayi_takip_eder(self):
+    def test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder(self):
         from .models import Tasarim
 
         self.client.force_login(self.bayi_hesap)
         # Bayi üretim ekranlarına giremez
         self.assertRedirects(self.client.get(reverse("pano")), reverse("bayi_ana"))
         self.assertRedirects(self.client.get(reverse("stok_listesi")), reverse("bayi_ana"))
-        self.assertContains(self.client.get(reverse("tasarim_studyo")), "Halınızı tasarlayın")
-        onizleme = self.client.get(reverse("tasarim_onizleme"), {"sekil": "oval", "en": "200", "boy": "300",
-                                                                  "motif": "yildiz", "bant": "9999"}).json()
-        self.assertIn("<svg", onizleme["svg"])
-        self.assertEqual(onizleme["v"]["bant"], 50.0)  # kısa kenarın dörtte birine sınırlandı
+        sayfa = self.client.get(reverse("tasarim_studyo"), {"katalog": "TOS-036"})
+        self.assertContains(sayfa, "Halınızı tasarlayın")
+        self.assertContains(sayfa, "LTS-006")  # katalog kombinasyonları
+        veri = self.client.get(reverse("tasarim_onizleme"), {"en": "200", "boy": "300", "dis_bant": "999",
+                                                              "dis_desen": "DB002", "sekil": "dikdortgen"}).json()
+        self.assertEqual((veri["v"]["dis_bant"], veri["v"]["dis_desen"]), (40.0, "DB002"))  # 40 cm ile sınırlı
+        resim = self.client.get(reverse("tasarim_onizleme_resmi"), {"dis_desen": "DB007", "b": "300"})
+        self.assertEqual((resim.status_code, resim["Content-Type"]), (200, "image/jpeg"))
+        self.assertEqual(self.client.get(reverse("tasarim_doku", args=["vizon_kurk"])).status_code, 200)
+
         yanit = self.client.post(reverse("tasarim_studyo"), {
-            "sekil": "kesik", "en": "200", "boy": "300", "zemin_renk": "krem", "bant": "15", "bant_renk": "altin",
-            "motif": "baklava", "motif_renk": "siyah", "madalyon": "daire", "madalyon_cap": "60",
-            "madalyon_renk": "bordo", "desen_kodu": "DB005", "adet": "2", "notlar": "Acil",
+            "katalog": "TOS-034", "sekil": "dikdortgen", "en": "200", "boy": "300", "dis_bant": "16",
+            "dis_malzeme": "altin", "dis_desen": "DB005", "halka": "20", "halka_zemin": "siyah_kurk", "ic_bant": "7",
+            "ic_malzeme": "gumus", "ic_desen": "", "zemin": "vizon_kurk", "desen_alti": "siyah", "madalyon": "40",
+            "madalyon_malzeme": "beyaz_deri", "adet": "2", "notlar": "Acil",
         })
         self.assertRedirects(yanit, reverse("bayi_ana"))
         t = Tasarim.objects.get()
-        self.assertEqual((t.musteri.ad, t.adet, t.veri["desen_kodu"], t.durum), ("Ankara Bayi", 2, "DB005", "gonderildi"))
+        sp = t.siparis
+        self.assertEqual((sp.durum, sp.musteri.ad, sp.adet, sp.lazer_deseni.kod, sp.katalog_modeli.kod),
+                         ("onay", "Ankara Bayi", 2, "DB005", "TOS-034"))
+        self.assertEqual(sp.toplam_m2, Decimal("12.00"))
         self.assertContains(self.client.get(reverse("bayi_ana")), "Onay bekliyor")
         self.assertEqual(self.client.get(reverse("tasarim_lazer", args=[t.pk, "dxf"])).status_code, 403)
+        # Onaylanmadan istasyonlara düşmez
+        self.assertNotIn(sp, [k.siparis for k in uyarilar.gelenler()])
 
-        # Ofis onaylar: sipariş açılır, lazer dosyaları iner
+        # Ofis: siparişlerde onay bekleyen sekmesi, sipariş sayfasında tasarım + lazer dosyası + onay
         self.client.force_login(self.ofis)
-        self.assertContains(self.client.get(reverse("tasarim_talepleri")), t.no)
+        self.assertContains(self.client.get(reverse("siparis_listesi"), {"durum": "onay"}), sp.siparis_no)
+        detay = self.client.get(reverse("siparis_detay", args=[sp.pk]))
+        self.assertContains(detay, "Onayla, üretime al")
+        self.assertContains(detay, reverse("tasarim_resim", args=[t.pk]))
         dxf = self.client.get(reverse("tasarim_lazer", args=[t.pk, "dxf"]))
-        self.assertEqual(dxf.status_code, 200)
         self.assertIn(b"POLYLINE", dxf.content)
-        self.assertIn(b"DESEN", dxf.content)
+        self.assertIn(b"DB005", dxf.content)
         self.assertIn(b'width="2000mm"', self.client.get(reverse("tasarim_lazer", args=[t.pk, "svg"])).content)
         lazerli = HaliTuru.objects.get(ad="Lazerli halı")
-        yanit = self.client.post(reverse("tasarim_detay", args=[t.pk]), {
-            "islem": "onayla", "hali_turu": lazerli.pk,
-            "teslim_tarihi": (timezone.localdate() + timedelta(days=10)).isoformat(), "ofis_notu": "Teşekkürler",
+        yanit = self.client.post(reverse("siparis_onay", args=[sp.pk]), {
+            "islem": "onayla", "onay-hali_turu": lazerli.pk,
+            "onay-teslim_tarihi": (timezone.localdate() + timedelta(days=10)).isoformat(), "onay-ofis_notu": "Teşekkürler",
         })
-        t.refresh_from_db()
-        sp = t.siparis
         self.assertRedirects(yanit, reverse("siparis_detay", args=[sp.pk]))
-        self.assertEqual((t.durum, sp.musteri.ad, sp.adet, sp.lazer_deseni.kod, sp.hali_turu), ("onaylandi", "Ankara Bayi", 2,
-                                                                                                "DB005", lazerli))
-        self.assertGreater(sp.toplam_m2, Decimal("10"))
+        sp.refresh_from_db()
+        t.refresh_from_db()
+        self.assertEqual((sp.durum, sp.hali_turu, t.durum), ("acik", lazerli, "onaylandi"))
         # İstasyon ekranında tasarım resmi
         lazer = Asama.objects.get(ad="Lazer kesim 1")
         self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
@@ -1464,3 +1476,28 @@ class TasarimStudyosuTesti(TemelVeri):
         baska = Tasarim.objects.create(musteri=Musteri.objects.create(ad="Başka"), veri={})
         self.assertEqual(self.client.get(reverse("tasarim_resim", args=[baska.pk])).status_code, 403)
         self.assertEqual(self.client.get(reverse("tasarim_resim", args=[t.pk])).status_code, 200)
+
+    def test_ret(self):
+        from .tasarim_views import tasarim_gonder
+
+        t = tasarim_gonder(bayi=hesap_bayisi(self.bayi_hesap), kullanici=self.bayi_hesap, adet=1,
+                           veri=tasarim_cizim.temizle(tasarim_cizim.hazir_degerler("LTS-005"), {"DB001"}))
+        self.client.force_login(self.ofis)
+        self.client.post(reverse("siparis_onay", args=[t.siparis.pk]), {"islem": "reddet", "onay-ofis_notu": "Ölçü yok"})
+        t.refresh_from_db()
+        self.assertEqual((t.siparis.durum, t.durum, t.ofis_notu), ("iptal", "reddedildi", "Ölçü yok"))
+
+
+class HaliGorselTesti(TestCase):
+    def test_tum_katalog_kombinasyonlari_ve_desenler_cizilir(self):
+        from . import hali_gorsel
+
+        desenler = set(hali_gorsel.desen_bilgisi())
+        self.assertEqual(len(desenler), 14)
+        for kod, _, _ in tasarim_cizim.HAZIRLAR:
+            resim = hali_gorsel.ciz(tasarim_cizim.temizle(tasarim_cizim.hazir_degerler(kod), desenler), 300)
+            self.assertGreater(resim.width, 100)
+        for desen in sorted(desenler):
+            v = tasarim_cizim.temizle({"dis_desen": desen, "ic_desen": desen, "sekil": "dikdortgen"}, desenler)
+            hali_gorsel.ciz(v, 250)
+        hali_gorsel.ciz(tasarim_cizim.temizle({"sekil": "oval", "dis_desen": "DB001"}, desenler), 250)

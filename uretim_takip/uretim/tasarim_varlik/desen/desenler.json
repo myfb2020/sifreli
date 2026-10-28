@@ -1,0 +1,72 @@
+{
+ "DB001": {
+  "bant": 149,
+  "periyot": 45,
+  "tur": "periyodik"
+ },
+ "DB002": {
+  "bant": 162,
+  "periyot": 37,
+  "tur": "periyodik"
+ },
+ "DB003": {
+  "bant": 141,
+  "periyot": null,
+  "tur": "ayna"
+ },
+ "DB004": {
+  "bant": 146,
+  "periyot": 103,
+  "tur": "periyodik"
+ },
+ "DB005": {
+  "bant": 148,
+  "periyot": null,
+  "tur": "ayna"
+ },
+ "DB006": {
+  "bant": 133,
+  "periyot": null,
+  "tur": "ayna"
+ },
+ "DB007": {
+  "bant": 154,
+  "periyot": 52,
+  "tur": "periyodik"
+ },
+ "DB008": {
+  "bant": 179,
+  "periyot": null,
+  "tur": "ayna"
+ },
+ "DB009": {
+  "bant": 180,
+  "periyot": null,
+  "tur": "ayna"
+ },
+ "DB010": {
+  "bant": 141,
+  "periyot": 23,
+  "tur": "periyodik"
+ },
+ "DB011": {
+  "bant": 169,
+  "periyot": null,
+  "tur": "kose"
+ },
+ "DB012": {
+  "bant": 170,
+  "periyot": null,
+  "tur": "kose"
+ },
+ "DB013": {
+  "bant": 147,
+  "periyot": 92,
+  "tur": "periyodik"
+ },
+ "DB014": {
+  "bant": 170,
+  "periyot": null,
+  "tur": "kose"
+ }
+}

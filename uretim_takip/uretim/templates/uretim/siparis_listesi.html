@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block baslik %}Siparişler{% endblock %}
+{% block baslik %}Siparişler<style>.sp-kucuk { height:110px; border-radius:6px; display:block; margin-bottom:8px; }</style>
+{% endblock %}
 {% block icerik %}
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
   <h1 style="margin:0;margin-right:auto">Siparişler</h1>
@@ -7,7 +8,7 @@
 </div>
 
 <div class="sekmeler">
-  {% for kod, ad in sekmeler %}<a class="sekme{% if sekme == kod %} secili{% endif %}" href="?durum={{ kod }}">{{ ad }}</a>{% endfor %}
+  {% for kod, ad in sekmeler %}<a class="sekme{% if sekme == kod %} secili{% endif %}" href="?durum={{ kod }}">{{ ad }}{% if kod == "onay" and onay_sayisi %} <span class="rozet bekliyor">{{ onay_sayisi }}</span>{% endif %}</a>{% endfor %}
 </div>
 <form class="filtre" method="get">
   <input type="hidden" name="durum" value="{{ sekme }}">
@@ -15,6 +16,7 @@
   <button class="btn kucuk" type="submit">Ara</button>
 </form>
 
+{% if onay_sayisi and sekme != "onay" %}<div class="mesaj info">🎨 {{ onay_sayisi }} bayi tasarımı onay bekliyor. <a href="?durum=onay">Göster →</a></div>{% endif %}
 {% if geciken %}<div class="mesaj error">⚠️ {{ geciken }} sipariş teslim tarihini geçti.</div>{% endif %}
 
 <div class="siparis-izgara">
@@ -30,15 +32,17 @@
           {% if siparis.gecikti_mi %}<span class="uyari">{{ siparis.gecikme_gun }} gün gecikti</span>
           {% elif siparis.kalan_gun == 0 %}<span class="uyari">Bugün teslim</span>
           {% else %}<span{% if siparis.kalan_gun <= 3 %} class="uyari-sari"{% endif %}>{{ siparis.kalan_gun }} gün kaldı</span>{% endif %}
-        {% else %}<span class="rozet {{ siparis.durum }}">{{ siparis.get_durum_display }}</span>{% endif %}
+        {% else %}<span class="rozet {% if siparis.durum == 'onay' %}bekliyor{% else %}{{ siparis.durum }}{% endif %}">{{ siparis.get_durum_display }}</span>{% endif %}
         <div class="soluk">Teslim {{ siparis.teslim_tarihi|date:"d.m.Y" }}</div>
       </div>
     </div>
     <div class="soluk" style="margin:6px 0 10px">{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b> · {% endif %}{{ siparis.urun }}{% if siparis.adet > 1 %} · {{ siparis.adet }} adet{% endif %}</div>
-    {% include "uretim/_ilerleme.html" %}
+    {% if siparis.tasarim %}<img class="sp-kucuk" src="{% url 'tasarim_resim' siparis.tasarim.pk %}?b=260" alt="Bayi tasarımı" loading="lazy">{% endif %}
+    {% if siparis.durum != "onay" %}{% include "uretim/_ilerleme.html" %}{% endif %}
   </a>
   {% empty %}
   <div class="kart soluk">Bu listede sipariş yok.</div>
   {% endfor %}
 </div>
+<style>.sp-kucuk { height:110px; border-radius:6px; display:block; margin-bottom:8px; }</style>
 {% endblock %}

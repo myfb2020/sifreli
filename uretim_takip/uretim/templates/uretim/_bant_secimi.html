@@ -1,0 +1,12 @@
+{# Bant malzemesi ve lazer deseni seçimi. on: "dis" / "ic", malzeme / desen: seçili değerler. #}
+<label class="alt-baslik">Malzeme</label>
+<div class="malzemeler">
+  {% for k, ad, hex in bantlar %}<label class="malzeme m-{{ k }}" title="{{ ad }}"><input type="radio" name="{{ on }}_malzeme" value="{{ k }}"{% if malzeme == k %} checked{% endif %}><span></span><small>{{ ad }}</small></label>{% endfor %}
+</div>
+<div class="desen-secimi">
+  <label class="alt-baslik">Lazer deseni</label>
+  <div class="desen-izgara">
+    <label class="desen"><input type="radio" name="{{ on }}_desen" value=""{% if not desen %} checked{% endif %}><span class="desen-yok">Desensiz</span></label>
+    {% for d in desenler %}<label class="desen"><input type="radio" name="{{ on }}_desen" value="{{ d.kod }}"{% if desen == d.kod %} checked{% endif %}>{% if d.resim %}<img src="{{ d.resim.url }}" alt="" loading="lazy">{% endif %}<span>{{ d.kod }}</span></label>{% endfor %}
+  </div>
+</div>

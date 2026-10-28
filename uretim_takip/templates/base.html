@@ -174,8 +174,7 @@
   <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
   {% endif %}
-  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}">Siparişler</a>
-  <a href="{% url 'tasarim_talepleri' %}">🎨 Tasarımlar{% if bekleyen_tasarim %} <span class="rozet bekliyor">{{ bekleyen_tasarim }}</span>{% endif %}</a>{% endif %}
+  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}{% if onay_bekleyen %}?durum=onay{% endif %}">Siparişler{% if onay_bekleyen %} <span class="rozet bekliyor" title="Onay bekleyen bayi tasarımı">{{ onay_bekleyen }}</span>{% endif %}</a>{% endif %}
   <a href="{% url 'stok_listesi' %}">Stok</a>
   <a href="{% url 'katalog' %}">Katalog</a>
   <a href="{% url 'lot_listesi' %}">İşler</a>

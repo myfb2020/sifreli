@@ -106,12 +106,13 @@ Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda d
 
 ## Tasarım stüdyosu (bayiler)
 
-**Hesaplar → + Yeni hesap → Bayi** ile her bayiye kullanıcı adı ve şifre verilir; hesap bir müşteriye (bayiye) bağlanır. Bayi giriş yapınca yalnızca **🎨 Yeni tasarım** ve **📦 Siparişlerim** sayfalarını görür, üretim ekranlarına giremez.
+**Hesaplar → + Yeni hesap → Bayi** ile her bayiye kullanıcı adı ve şifre verilir; hesap bir müşteriye (bayiye) bağlanır. Bayi giriş yapınca yalnızca **🎨 Yeni tasarım** ve **📦 Siparişlerim** sayfalarını görür.
 
-- **Stüdyo:** şekil (dikdörtgen, köşesi kesik, oval, yuvarlak), ölçü, zemin rengi, kenar bandı (genişlik, renk, lazer motifi: daire / baklava / yıldız / altıgen ve motiflerden görünen alt renk), orta madalyon ve isteğe bağlı hazır lazer deseni (DB001–DB014) seçilir; önizleme anında değişir. Adet, istenen tarih ve not yazılıp **gönderilir**.
-- **Ofis:** menüde **🎨 Tasarımlar** (onay bekleyen sayısıyla). Tasarım sayfasında **⬇ Lazer DXF / SVG** gerçek ölçüde (mm) iner: KESIM dış hat, BANT, DESEN (motifler), MADALYON katmanları. **Onayla ve sipariş aç** ile halı türü ve teslim tarihi seçilip sipariş açılır (m² ve adet tasarımdan gelir); **Reddet** ile bayiye not bırakılır.
-- **Bayi takibi:** Siparişlerim sayfasında onay durumu, sipariş numarası, teslim tarihi ve üretim ilerlemesi (hangi istasyonda) görünür.
-- Tasarım resmi sipariş, iş ve istasyon ekranlarında da görünür.
+- **Stüdyo:** katalogdaki halılardan biriyle (TOS-034, LTS-006…) başlanır; halı Toskana yapısındadır: dış kenar bandı → kürk halka → iç bant → kürk zemin → madalyon. Bantların malzemesi (altın, gümüş, bronz, beyaz / krem / siyah deri) ve **lazer deseni (DB001–DB014)**, kürk dokuları (katalog fotoğraflarından: siyah, antrasit, gri, kahve, vizon, tilki, lacivert, beyaz kürk, krem / lacivert patchwork), desen kesiklerinden görünen alt renk ve ölçü seçilir. Önizleme gerçekçi çizilir: desen bantta kesik olarak görünür.
+- **Gönderince** sipariş **"Onay bekliyor"** durumunda açılır (istasyonlara düşmez). Ofis menüsünde **Siparişler** yanında bekleyen sayısı görünür.
+- **Ofis** siparişin sayfasında tasarımı görür, **⬇ Lazer DXF / SVG** indirir (dış hat, bant kenarları, madalyon; desen kodu not olarak), halı türünü ve teslim tarihini seçip **Onayla, üretime al** der ya da **Reddet** ile bayiye not bırakır.
+- **Bayi** Siparişlerim'de onay durumunu, teslim tarihini ve üretim ilerlemesini görür. Tasarım resmi istasyon ekranlarında da görünür.
+- Desen maskeleri ve dokular `uretim/tasarim_varlik/` klasöründedir.
 
 ## Stok: deri ve malzemeler
 

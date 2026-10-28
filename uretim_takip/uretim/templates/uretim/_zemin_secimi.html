@@ -1,0 +1,4 @@
+{# Kürk / patchwork dokusu seçimi (katalog fotoğraflarından). #}
+<div class="dokular">
+  {% for k, ad in zeminler %}<label class="doku" title="{{ ad }}"><input type="radio" name="{{ alan }}" value="{{ k }}"{% if secili == k %} checked{% endif %}><span style="background-image:url('{% url 'tasarim_doku' k %}')"></span><small>{{ ad }}</small></label>{% endfor %}
+</div>

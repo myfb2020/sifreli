@@ -3,9 +3,41 @@
 {% block icerik %}
 <p style="margin:0 0 8px"><a href="{% url 'siparis_listesi' %}">← Siparişler</a></p>
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-  <h1 style="margin:0;margin-right:auto">{{ siparis.siparis_no }} <span class="rozet {% if siparis.durum == 'uretimde' %}islemde{% elif siparis.durum == 'acik' %}bekliyor{% elif siparis.durum == 'sevk' %}tamamlandi{% else %}{{ siparis.durum }}{% endif %}">{{ siparis.get_durum_display }}</span></h1>
+  <h1 style="margin:0;margin-right:auto">{{ siparis.siparis_no }} <span class="rozet {% if siparis.durum == 'uretimde' %}islemde{% elif siparis.durum == 'acik' or siparis.durum == 'onay' %}bekliyor{% elif siparis.durum == 'sevk' %}tamamlandi{% else %}{{ siparis.durum }}{% endif %}">{{ siparis.get_durum_display }}</span></h1>
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_siparis_change' siparis.pk %}">Düzenle</a>{% endif %}
 </div>
+
+{% if siparis.tasarim %}
+<div class="kart tasarim-kart">
+  <a href="{% url 'tasarim_resim' siparis.tasarim.pk %}?b=1400" target="_blank"><img src="{% url 'tasarim_resim' siparis.tasarim.pk %}?b=700" alt="Bayi tasarımı"></a>
+  <div>
+    <h2 style="margin-top:0">🎨 Bayi tasarımı</h2>
+    <p>{{ siparis.tasarim.ozet }}</p>
+    {% if siparis.tasarim.notlar %}<p><b>Bayinin notu:</b> {{ siparis.tasarim.notlar|linebreaksbr }}</p>{% endif %}
+    {% if siparis.tasarim.istenen_tarih %}<p class="soluk">İstenen teslim: {{ siparis.tasarim.istenen_tarih|date:"d.m.Y" }}</p>{% endif %}
+    {% if siparis.tasarim.ofis_notu %}<p class="soluk">Bayiye not: {{ siparis.tasarim.ofis_notu|linebreaksbr }}</p>{% endif %}
+    {% if user.is_staff %}<p style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn kucuk ikincil" href="{% url 'tasarim_lazer' siparis.tasarim.pk 'dxf' %}">⬇ Lazer DXF</a>
+      <a class="btn kucuk ikincil" href="{% url 'tasarim_lazer' siparis.tasarim.pk 'svg' %}">⬇ Lazer SVG</a></p>{% endif %}
+    {% if onay_formu %}
+    <form method="post" action="{% url 'siparis_onay' siparis.pk %}" class="dikey onay-kutusu">
+      {% with form=onay_formu %}{% include "uretim/_form.html" %}{% endwith %}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn buyuk" type="submit" name="islem" value="onayla" style="flex:1">✓ Onayla, üretime al</button>
+        <button class="btn buyuk ikincil" type="submit" name="islem" value="reddet" formnovalidate
+                onclick="return confirm('Tasarım reddedilsin mi? Yazdığınız not bayiye gösterilir.')">Reddet</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<style>
+  .tasarim-kart { display:grid; grid-template-columns:minmax(0,340px) minmax(0,1fr); gap:20px; align-items:start; }
+  .tasarim-kart img { width:100%; border-radius:10px; display:block; }
+  .onay-kutusu { border-top:1px solid #eee3d8; padding-top:12px; margin-top:8px; }
+  @media (max-width: 700px) { .tasarim-kart { grid-template-columns:1fr; } }
+</style>
+{% endif %}
 
 <div class="izgara">
   <div class="kart">
@@ -14,8 +46,7 @@
       <tr><th>Müşteri</th><td><b>{{ siparis.musteri }}</b>{% if siparis.musteri.telefon %}<br><span class="soluk">{{ siparis.musteri.telefon }}</span>{% endif %}</td></tr>
       <tr><th>Halı türü</th><td>{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b><br><span class="soluk">{{ siparis.hali_turu.rota_metni }}</span>{% else %}–{% endif %}</td></tr>
       <tr><th>Ürün</th><td>{{ siparis.urun }}</td></tr>
-      {% if siparis.tasarim or siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 %}
-        {% if siparis.tasarim and user.is_staff %}<div style="margin-top:6px"><a class="btn kucuk ikincil" href="{% url 'tasarim_detay' siparis.tasarim.pk %}">Tasarım ve lazer dosyası</a></div>{% endif %}</td></tr>{% endif %}
+      {% if not siparis.tasarim %}{% if siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 %}</td></tr>{% endif %}{% endif %}
       <tr><th>Deri türü</th><td>{{ siparis.deri_turu|default:"–" }}</td></tr>
       <tr><th>Adet / m²</th><td>{{ siparis.adet }} adet{% if siparis.toplam_m2 %} · {{ siparis.toplam_m2|floatformat:"-2" }} m²{% endif %}</td></tr>
       <tr><th>Sipariş tarihi</th><td>{{ siparis.tarih|date:"d.m.Y" }}</td></tr>

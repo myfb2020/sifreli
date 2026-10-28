@@ -1,4 +1,7 @@
-"""Tasarım stüdyosu: bayi halısını tasarlar ve gönderir; ofis onaylayınca sipariş açılır."""
+"""Tasarım stüdyosu: bayi halısını katalogdaki yapıya göre tasarlar ve gönderir.
+
+Gönderilen tasarım "Onay bekliyor" durumunda bir sipariş olur; ofis siparişin sayfasından onaylar ya da reddeder.
+"""
 
 from datetime import timedelta
 from decimal import Decimal
@@ -9,21 +12,23 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Prefetch
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
+from . import hali_gorsel
 from . import tasarim_cizim as cizim
 from .forms import HaliTuruAlani
-from .models import HaliTuru, LazerDeseni, Siparis, Tasarim, UretimLotu
+from .models import HaliTuru, KatalogModeli, LazerDeseni, Siparis, Tasarim, UretimLotu
 
 
-def _desenler():
-    return LazerDeseni.objects.filter(aktif=True)
+def _desen_kodlari():
+    return set(LazerDeseni.objects.filter(aktif=True).values_list("kod", flat=True)) & set(hali_gorsel.desen_bilgisi())
 
 
 def _temizle(veri):
-    return cizim.temizle(veri, set(_desenler().values_list("kod", flat=True)))
+    return cizim.temizle(veri, _desen_kodlari())
 
 
 def _bayi_gerekli(request):
@@ -40,12 +45,40 @@ def _tasarim_erisim(request, pk):
     return tasarim
 
 
+def _jpeg(veri, boyut):
+    yanit = HttpResponse(hali_gorsel.jpeg(veri, boyut), content_type="image/jpeg")
+    yanit["Cache-Control"] = "private, max-age=86400"
+    return yanit
+
+
+def _boyut(request, varsayilan=900):
+    try:
+        return min(max(int(request.GET.get("b", varsayilan)), 120), 1400)
+    except ValueError:
+        return varsayilan
+
+
 class GonderForm(forms.Form):
     adet = forms.IntegerField(label="Adet", min_value=1, max_value=999, initial=1)
     istenen_tarih = forms.DateField(label="İstenen teslim tarihi (isteğe bağlı)", required=False,
                                     widget=forms.DateInput(attrs={"type": "date"}))
     notlar = forms.CharField(label="Not (isteğe bağlı)", required=False, max_length=1000,
                              widget=forms.Textarea(attrs={"rows": 2}))
+
+
+@transaction.atomic
+def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""):
+    """Bayinin tasarımı: 'Onay bekliyor' durumunda sipariş + tasarım kaydı."""
+    teslim = istenen_tarih or timezone.localdate() + timedelta(days=21)
+    desen = LazerDeseni.objects.filter(kod=veri["dis_desen"] or veri["ic_desen"]).first() \
+        if (veri["dis_desen"] or veri["ic_desen"]) else None
+    siparis = Siparis.objects.create(
+        musteri=bayi, durum="onay", urun=f"Bayi tasarımı {veri['en']:g}×{veri['boy']:g} cm" + (f" ({veri['katalog']} esinli)" if veri["katalog"] else ""), adet=adet,
+        toplam_m2=Decimal(str(cizim.alan_m2(veri))) * adet, teslim_tarihi=teslim, lazer_deseni=desen, notlar=notlar,
+        katalog_modeli=KatalogModeli.objects.filter(kod=veri["katalog"]).first() if veri["katalog"] else None,
+    )
+    return Tasarim.objects.create(musteri=bayi, kullanici=kullanici, veri=veri, adet=adet, istenen_tarih=istenen_tarih,
+                                  notlar=notlar, siparis=siparis)
 
 
 @login_required
@@ -55,36 +88,53 @@ def studyo(request):
     if request.method == "POST":
         veri = _temizle(request.POST)
         if form.is_valid():
-            tasarim = Tasarim.objects.create(
-                musteri=bayi, kullanici=request.user, veri=veri, adet=form.cleaned_data["adet"],
-                istenen_tarih=form.cleaned_data["istenen_tarih"], notlar=form.cleaned_data["notlar"],
-            )
-            messages.success(request, f"{tasarim.no} tasarımınız gönderildi. Onaylanınca üretime alınacak.")
+            tasarim = tasarim_gonder(bayi=bayi, kullanici=request.user, veri=veri, **form.cleaned_data)
+            messages.success(request, f"Tasarımınız gönderildi ({tasarim.siparis.siparis_no}). "
+                                      "Onaylanınca üretime alınacak; durumunu bu sayfadan izleyebilirsiniz.")
             return redirect("bayi_ana")
     else:
         kaynak = Tasarim.objects.filter(pk=request.GET.get("kaynak") or 0, musteri=bayi).first()
-        veri = _temizle(kaynak.veri if kaynak else cizim.VARSAYILAN)
+        if kaynak:
+            veri = _temizle(kaynak.veri)
+        else:
+            veri = _temizle(cizim.hazir_degerler(request.GET.get("katalog") or cizim.HAZIRLAR[0][0]))
+    modeller = {m.kod: m for m in KatalogModeli.objects.filter(kod__in=cizim.HAZIR)}
+    hazirlar = [{"kod": kod, "ad": ad, "model": modeller.get(kod), "deger": cizim.temizle(cizim.hazir_degerler(kod),
+                                                                                          _desen_kodlari())}
+                for kod, ad, _ in cizim.HAZIRLAR]
+    desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari())
     return render(request, "uretim/tasarim_studyo.html", {
-        "form": form, "v": veri, "svg": cizim.svg_onizleme(veri), "ozet": cizim.ozet(veri),
-        "alan": cizim.alan_m2(veri), "sekiller": cizim.SEKILLER, "motifler": cizim.MOTIFLER,
-        "madalyonlar": cizim.MADALYONLAR, "renkler": cizim.RENKLER, "desenler": _desenler(),
+        "form": form, "v": veri, "ozet": cizim.ozet(veri), "alan": cizim.alan_m2(veri), "hazirlar": hazirlar,
+        "sekiller": cizim.SEKILLER, "bantlar": cizim.BANTLAR, "zeminler": cizim.ZEMINLER, "altlar": cizim.ALTLAR,
+        "desenler": desenler, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar},
     })
 
 
 @login_required
 def onizleme(request):
-    """Stüdyoda her değişiklikte çağrılır: sunucuda çizilen SVG ve özet."""
+    """Stüdyoda her değişiklikte: temizlenmiş değerler, özet ve alan (görsel ayrıca onizleme.jpg'den)."""
     veri = _temizle(request.GET)
-    return JsonResponse({"svg": cizim.svg_onizleme(veri), "ozet": cizim.ozet(veri), "alan": cizim.alan_m2(veri),
-                         "v": veri})
+    return JsonResponse({"ozet": cizim.ozet(veri), "alan": cizim.alan_m2(veri), "v": veri})
+
+
+@login_required
+def onizleme_resmi(request):
+    return _jpeg(_temizle(request.GET), _boyut(request))
+
+
+@login_required
+def doku(request, ad):
+    if ad not in dict(cizim.ZEMINLER):
+        raise Http404
+    yanit = FileResponse(open(hali_gorsel.VARLIK / "doku" / f"{ad}.jpg", "rb"), content_type="image/jpeg")
+    yanit["Cache-Control"] = "private, max-age=604800"
+    return yanit
 
 
 @login_required
 def resim(request, pk):
     tasarim = _tasarim_erisim(request, pk)
-    yanit = HttpResponse(cizim.svg_onizleme(_temizle(tasarim.veri)), content_type="image/svg+xml")
-    yanit["Cache-Control"] = "private, max-age=86400"
-    return yanit
+    return _jpeg(_temizle(tasarim.veri), _boyut(request))
 
 
 @login_required
@@ -100,7 +150,7 @@ def lazer_dosyasi(request, pk, tur):
     else:
         icerik, mime = cizim.svg_lazer(veri), "image/svg+xml"
     yanit = HttpResponse(icerik, content_type=mime)
-    yanit["Content-Disposition"] = f'attachment; filename="{tasarim.no}.{tur}"'
+    yanit["Content-Disposition"] = f'attachment; filename="{tasarim.siparis.siparis_no if tasarim.siparis else tasarim.no}.{tur}"'
     return yanit
 
 
@@ -116,19 +166,7 @@ def bayi_ana(request):
     return render(request, "uretim/bayi_ana.html", {"satirlar": satirlar})
 
 
-# --- Ofis tarafı ---------------------------------------------------------------
-
-
-@login_required
-@permission_required("uretim.view_siparis", raise_exception=True)
-def talepler(request):
-    durum = request.GET.get("durum", "gonderildi")
-    qs = Tasarim.objects.select_related("musteri", "siparis")
-    if durum in dict(Tasarim.DURUMLAR):
-        qs = qs.filter(durum=durum)
-    return render(request, "uretim/tasarim_talepleri.html", {
-        "tasarimlar": qs[:200], "durum": durum, "durumlar": Tasarim.DURUMLAR,
-    })
+# --- Ofis: sipariş sayfasından onay / ret ---------------------------------------
 
 
 class OnayForm(forms.Form):
@@ -144,43 +182,37 @@ class OnayForm(forms.Form):
         self.fields["hali_turu"].required = HaliTuru.objects.filter(aktif=True).exists()
 
 
+def onay_formu(siparis, data=None):
+    return OnayForm(data, initial={"teslim_tarihi": siparis.teslim_tarihi, "hali_turu": siparis.hali_turu_id},
+                    prefix="onay")
+
+
+@require_POST
 @login_required
-@permission_required("uretim.view_siparis", raise_exception=True)
-def talep_detay(request, pk):
-    tasarim = _tasarim_erisim(request, pk)
-    veri = _temizle(tasarim.veri)
-    form = None
-    if tasarim.durum == "gonderildi" and request.user.has_perm("uretim.add_siparis"):
-        teslim = tasarim.istenen_tarih or timezone.localdate() + timedelta(days=14)
-        form = OnayForm(request.POST or None, initial={"teslim_tarihi": teslim})
-        if request.method == "POST":
-            if request.POST.get("islem") == "reddet":
-                tasarim.durum = "reddedildi"
-                tasarim.ofis_notu = request.POST.get("ofis_notu", "")[:1000]
-                tasarim.save(update_fields=["durum", "ofis_notu"])
-                messages.info(request, f"{tasarim.no} reddedildi.")
-                return redirect("tasarim_talepleri")
-            if form.is_valid():
-                siparis = tasarim_onayla(tasarim, veri, **form.cleaned_data)
-                messages.success(request, f"{tasarim.no} onaylandı, {siparis.siparis_no} siparişi açıldı.")
-                return redirect("siparis_detay", pk=siparis.pk)
-    return render(request, "uretim/tasarim_detay.html", {
-        "tasarim": tasarim, "svg": cizim.svg_onizleme(veri), "ozet": cizim.ozet(veri), "alan": cizim.alan_m2(veri),
-        "form": form,
-    })
-
-
-@transaction.atomic
-def tasarim_onayla(tasarim, veri, *, hali_turu, teslim_tarihi, ofis_notu=""):
-    desen = LazerDeseni.objects.filter(kod=veri["desen_kodu"]).first() if veri["desen_kodu"] else None
-    siparis = Siparis.objects.create(
-        musteri=tasarim.musteri, hali_turu=hali_turu, urun=f"Tasarım {tasarim.no}: {cizim.ozet(veri)}"[:200],
-        adet=tasarim.adet, toplam_m2=Decimal(str(cizim.alan_m2(veri))) * tasarim.adet, teslim_tarihi=teslim_tarihi,
-        lazer_deseni=desen, notlar=tasarim.notlar,
-    )
-    tasarim.durum = "onaylandi"
-    tasarim.siparis = siparis
-    tasarim.ofis_notu = ofis_notu
-    tasarim.save(update_fields=["durum", "siparis", "ofis_notu"])
-    return siparis
-
+@permission_required("uretim.change_siparis", raise_exception=True)
+def siparis_onay(request, pk):
+    siparis = get_object_or_404(Siparis.objects.select_related("tasarim"), pk=pk, durum="onay")
+    tasarim = getattr(siparis, "tasarim", None)
+    if request.POST.get("islem") == "reddet":
+        siparis.durum = "iptal"
+        siparis.save(update_fields=["durum"])
+        if tasarim:
+            tasarim.durum = "reddedildi"
+            tasarim.ofis_notu = request.POST.get("onay-ofis_notu", "")[:1000]
+            tasarim.save(update_fields=["durum", "ofis_notu"])
+        messages.info(request, f"{siparis.siparis_no} reddedildi; bayi notunuzu görür.")
+        return redirect("siparis_detay", pk=siparis.pk)
+    form = onay_formu(siparis, request.POST)
+    if not form.is_valid():
+        messages.error(request, "Onay için halı türünü ve teslim tarihini girin.")
+        return redirect("siparis_detay", pk=siparis.pk)
+    siparis.durum = "acik"
+    siparis.hali_turu = form.cleaned_data["hali_turu"]
+    siparis.teslim_tarihi = form.cleaned_data["teslim_tarihi"]
+    siparis.save(update_fields=["durum", "hali_turu", "teslim_tarihi"])
+    if tasarim:
+        tasarim.durum = "onaylandi"
+        tasarim.ofis_notu = form.cleaned_data["ofis_notu"]
+        tasarim.save(update_fields=["durum", "ofis_notu"])
+    messages.success(request, f"{siparis.siparis_no} onaylandı; iş istasyon ekranlarına düştü.")
+    return redirect("siparis_detay", pk=siparis.pk)

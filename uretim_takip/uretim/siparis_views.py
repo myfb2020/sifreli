@@ -9,6 +9,7 @@ from .katalog_views import secim_verisi
 from .models import Siparis, UretimLotu
 
 SEKMELER = [
+    ("onay", "Onay bekleyen"),
     ("aktif", "Devam eden"),
     ("tamamlandi", "Tamamlanan"),
     ("sevk", "Sevk edilen"),
@@ -18,7 +19,7 @@ SEKMELER = [
 
 
 def _lotlu(qs):
-    return qs.select_related("musteri", "deri_turu", "hali_turu", "katalog_modeli__seri", "lazer_deseni").prefetch_related(
+    return qs.select_related("musteri", "deri_turu", "hali_turu", "katalog_modeli__seri", "lazer_deseni", "tasarim").prefetch_related(
         Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama"))
     )
 
@@ -43,6 +44,7 @@ def siparis_listesi(request):
     return render(request, "uretim/siparis_listesi.html", {
         "satirlar": satirlar, "sekme": sekme, "sekmeler": SEKMELER, "ara": ara,
         "geciken": sum(1 for s, _ in satirlar if s.gecikti_mi),
+        "onay_sayisi": Siparis.objects.filter(durum="onay").count(),
     })
 
 
@@ -51,8 +53,12 @@ def siparis_listesi(request):
 def siparis_detay(request, pk):
     siparis = get_object_or_404(_lotlu(Siparis.objects.all()), pk=pk)
     lotlar = siparis.lotlar.select_related("son_asama").prefetch_related("kaynaklar__ham_deri__deri_turu").order_by("lot_no")
+    from .tasarim_views import onay_formu
+
     return render(request, "uretim/siparis_detay.html", {
         "siparis": siparis, "ilerleme": siparis.ilerleme(), "lotlar": lotlar,
+        "onay_formu": onay_formu(siparis) if siparis.durum == "onay" and request.user.has_perm("uretim.change_siparis")
+        else None,
     })
 
 

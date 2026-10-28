@@ -27,10 +27,10 @@ def hesap(request):
 
 
 def tasarim(request):
-    """Ofis menüsünde onay bekleyen bayi tasarımı sayısı."""
+    """Ofis menüsünde onay bekleyen (bayi tasarımı) sipariş sayısı."""
     kullanici = getattr(request, "user", None)
     if not getattr(kullanici, "is_staff", False):
         return {}
-    from .models import Tasarim
+    from .models import Siparis
 
-    return {"bekleyen_tasarim": Tasarim.objects.filter(durum="gonderildi").count()}
+    return {"onay_bekleyen": Siparis.objects.filter(durum="onay").count()}

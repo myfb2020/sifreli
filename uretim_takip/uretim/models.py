@@ -407,6 +407,7 @@ class HamDeriGirisi(models.Model):
 
 class Siparis(models.Model):
     DURUM = [
+        ("onay", "Onay bekliyor"),
         ("acik", "Açık"),
         ("uretimde", "Üretimde"),
         ("tamamlandi", "Tamamlandı"),
@@ -902,6 +903,7 @@ class Tasarim(models.Model):
     """Bayinin tasarım stüdyosunda hazırladığı halı. Ofis onaylayınca siparişe dönüşür."""
 
     DURUMLAR = [("gonderildi", "Onay bekliyor"), ("onaylandi", "Onaylandı"), ("reddedildi", "Reddedildi")]
+    # Tasarım gönderilince "Onay bekliyor" durumunda bir sipariş açılır; onay / ret siparişin sayfasından yapılır.
 
     no = models.CharField("tasarım no", max_length=20, unique=True, blank=True)
     musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, related_name="tasarimlar", verbose_name="bayi")
@@ -930,8 +932,9 @@ class Tasarim(models.Model):
 
     @property
     def ozet(self):
-        from .tasarim_cizim import ozet
-        return ozet(self.veri)
+        from .hali_gorsel import desen_bilgisi
+        from .tasarim_cizim import ozet, temizle
+        return ozet(temizle(self.veri, set(desen_bilgisi())))
 
 
 class SistemAyari(models.Model):
