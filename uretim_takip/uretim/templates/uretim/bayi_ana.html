@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block baslik %}Siparişlerim{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">📦 Siparişlerim</h1>
+  <a class="btn" href="{% url 'tasarim_studyo' %}">🎨 Yeni tasarım</a>
+</div>
+{% for t, ilerleme in satirlar %}
+<div class="kart bayi-kart">
+  <a href="{% url 'tasarim_resim' t.pk %}" target="_blank"><img src="{% url 'tasarim_resim' t.pk %}" alt="Tasarım {{ t.no }}" loading="lazy"></a>
+  <div style="min-width:0">
+    <div><b>{{ t.no }}</b> · {{ t.olusturma|date:"d.m.Y" }} · {{ t.adet }} adet
+      {% if t.durum == 'gonderildi' %}<span class="rozet bekliyor">Onay bekliyor</span>
+      {% elif t.durum == 'reddedildi' %}<span class="rozet iptal">Reddedildi</span>
+      {% elif t.siparis %}<span class="rozet {% if t.siparis.durum == 'sevk' or t.siparis.durum == 'tamamlandi' %}tamamlandi{% else %}islemde{% endif %}">{{ t.siparis.get_durum_display }}</span>{% endif %}</div>
+    <div class="soluk">{{ t.ozet }}</div>
+    {% if t.siparis %}
+      <div class="soluk">Sipariş {{ t.siparis.siparis_no }} · teslim {{ t.siparis.teslim_tarihi|date:"d.m.Y" }}</div>
+      {% with i=ilerleme siparis=t.siparis %}{% include "uretim/_ilerleme.html" %}{% endwith %}
+    {% endif %}
+    {% if t.ofis_notu %}<div class="mesaj info" style="margin-top:6px">Bienna Fur: {{ t.ofis_notu|linebreaksbr }}</div>{% endif %}
+    <a class="btn kucuk ikincil" style="margin-top:8px" href="{% url 'tasarim_studyo' %}?kaynak={{ t.pk }}">Bu tasarımdan yenisini yap</a>
+  </div>
+</div>
+{% empty %}
+<div class="kart"><p>Henüz tasarımınız yok. <a href="{% url 'tasarim_studyo' %}">İlk halınızı tasarlayın →</a></p></div>
+{% endfor %}
+<style>
+  .bayi-kart { display:grid; grid-template-columns:120px minmax(0,1fr); gap:14px; align-items:start; }
+  .bayi-kart img { width:100%; background:#fff; border-radius:8px; }
+</style>
+{% endblock %}

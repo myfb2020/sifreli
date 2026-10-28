@@ -23,6 +23,12 @@
 
     <p id="istasyon-kap"><label for="{{ form.istasyon.id_for_label }}">{{ form.istasyon.label }}</label>{{ form.istasyon }}
       <span class="soluk">{{ form.istasyon.help_text }}</span></p>
+    <div id="bayi-kap">
+      <p><label for="{{ form.bayi.id_for_label }}">{{ form.bayi.label }}</label>{{ form.bayi }}
+        <span class="soluk">{{ form.bayi.help_text }}</span>
+        {% for e in form.bayi.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
+      <p><label for="{{ form.yeni_bayi.id_for_label }}">{{ form.yeni_bayi.label }}</label>{{ form.yeni_bayi }}</p>
+    </div>
 
     {% for alan in form %}{% if alan.name in "sifre sifre_tekrar" %}
     <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}
@@ -38,7 +44,12 @@
   (function () {
     const kap = document.getElementById("istasyon-kap");
     const turler = document.querySelectorAll('input[name="tur"]');
-    function goster() { kap.hidden = document.querySelector('input[name="tur"]:checked').value !== "tablet"; }
+    const bayiKap = document.getElementById("bayi-kap");
+    function goster() {
+      const tur = document.querySelector('input[name="tur"]:checked').value;
+      kap.hidden = tur !== "tablet";
+      bayiKap.hidden = tur !== "bayi";
+    }
     turler.forEach((t) => t.addEventListener("change", goster));
     goster();
   })();

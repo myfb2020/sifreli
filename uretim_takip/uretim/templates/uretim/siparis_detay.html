@@ -14,7 +14,8 @@
       <tr><th>Müşteri</th><td><b>{{ siparis.musteri }}</b>{% if siparis.musteri.telefon %}<br><span class="soluk">{{ siparis.musteri.telefon }}</span>{% endif %}</td></tr>
       <tr><th>Halı türü</th><td>{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b><br><span class="soluk">{{ siparis.hali_turu.rota_metni }}</span>{% else %}–{% endif %}</td></tr>
       <tr><th>Ürün</th><td>{{ siparis.urun }}</td></tr>
-      {% if siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 %}</td></tr>{% endif %}
+      {% if siparis.tasarim or siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 %}
+        {% if siparis.tasarim and user.is_staff %}<div style="margin-top:6px"><a class="btn kucuk ikincil" href="{% url 'tasarim_detay' siparis.tasarim.pk %}">Tasarım ve lazer dosyası</a></div>{% endif %}</td></tr>{% endif %}
       <tr><th>Deri türü</th><td>{{ siparis.deri_turu|default:"–" }}</td></tr>
       <tr><th>Adet / m²</th><td>{{ siparis.adet }} adet{% if siparis.toplam_m2 %} · {{ siparis.toplam_m2|floatformat:"-2" }} m²{% endif %}</td></tr>
       <tr><th>Sipariş tarihi</th><td>{{ siparis.tarih|date:"d.m.Y" }}</td></tr>

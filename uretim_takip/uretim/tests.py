@@ -1394,3 +1394,73 @@ class KatalogTesti(TemelVeri):
         yanit = self.client.post(reverse("siparis_yeni"), {"yeni_musteri": "Bayi", "model_kodu": "XX-1", "adet": 1,
                                                           "teslim_tarihi": timezone.localdate().isoformat()})
         self.assertContains(yanit, "katalog modeli yok")
+
+
+class TasarimStudyosuTesti(TemelVeri):
+    def setUp(self):
+        from .hesaplar import HesapFormu, ofis_grubu
+
+        self.yonetici = get_user_model().objects.create_superuser("yon", password="x")
+        form = HesapFormu({"kullanici_adi": "bayi-ankara", "tur": "bayi", "sifre": "gizli123", "sifre_tekrar": "gizli123",
+                           "yeni_bayi": "Ankara Bayi", "aktif": "on"})
+        self.assertTrue(form.is_valid(), form.errors)
+        self.bayi_hesap = form.kaydet(self.yonetici)
+        self.ofis = get_user_model().objects.create_user("ofis", password="x", is_staff=True)
+        self.ofis.groups.add(ofis_grubu())
+
+    def test_bayi_tasarlar_ofis_onaylar_bayi_takip_eder(self):
+        from .models import Tasarim
+
+        self.client.force_login(self.bayi_hesap)
+        # Bayi üretim ekranlarına giremez
+        self.assertRedirects(self.client.get(reverse("pano")), reverse("bayi_ana"))
+        self.assertRedirects(self.client.get(reverse("stok_listesi")), reverse("bayi_ana"))
+        self.assertContains(self.client.get(reverse("tasarim_studyo")), "Halınızı tasarlayın")
+        onizleme = self.client.get(reverse("tasarim_onizleme"), {"sekil": "oval", "en": "200", "boy": "300",
+                                                                  "motif": "yildiz", "bant": "9999"}).json()
+        self.assertIn("<svg", onizleme["svg"])
+        self.assertEqual(onizleme["v"]["bant"], 50.0)  # kısa kenarın dörtte birine sınırlandı
+        yanit = self.client.post(reverse("tasarim_studyo"), {
+            "sekil": "kesik", "en": "200", "boy": "300", "zemin_renk": "krem", "bant": "15", "bant_renk": "altin",
+            "motif": "baklava", "motif_renk": "siyah", "madalyon": "daire", "madalyon_cap": "60",
+            "madalyon_renk": "bordo", "desen_kodu": "DB005", "adet": "2", "notlar": "Acil",
+        })
+        self.assertRedirects(yanit, reverse("bayi_ana"))
+        t = Tasarim.objects.get()
+        self.assertEqual((t.musteri.ad, t.adet, t.veri["desen_kodu"], t.durum), ("Ankara Bayi", 2, "DB005", "gonderildi"))
+        self.assertContains(self.client.get(reverse("bayi_ana")), "Onay bekliyor")
+        self.assertEqual(self.client.get(reverse("tasarim_lazer", args=[t.pk, "dxf"])).status_code, 403)
+
+        # Ofis onaylar: sipariş açılır, lazer dosyaları iner
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("tasarim_talepleri")), t.no)
+        dxf = self.client.get(reverse("tasarim_lazer", args=[t.pk, "dxf"]))
+        self.assertEqual(dxf.status_code, 200)
+        self.assertIn(b"POLYLINE", dxf.content)
+        self.assertIn(b"DESEN", dxf.content)
+        self.assertIn(b'width="2000mm"', self.client.get(reverse("tasarim_lazer", args=[t.pk, "svg"])).content)
+        lazerli = HaliTuru.objects.get(ad="Lazerli halı")
+        yanit = self.client.post(reverse("tasarim_detay", args=[t.pk]), {
+            "islem": "onayla", "hali_turu": lazerli.pk,
+            "teslim_tarihi": (timezone.localdate() + timedelta(days=10)).isoformat(), "ofis_notu": "Teşekkürler",
+        })
+        t.refresh_from_db()
+        sp = t.siparis
+        self.assertRedirects(yanit, reverse("siparis_detay", args=[sp.pk]))
+        self.assertEqual((t.durum, sp.musteri.ad, sp.adet, sp.lazer_deseni.kod, sp.hali_turu), ("onaylandi", "Ankara Bayi", 2,
+                                                                                                "DB005", lazerli))
+        self.assertGreater(sp.toplam_m2, Decimal("10"))
+        # İstasyon ekranında tasarım resmi
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+        self.assertContains(self.client.get(reverse("istasyon_ekrani", args=[lazer.pk])),
+                            reverse("tasarim_resim", args=[t.pk]))
+
+        # Bayi siparişin durumunu görür; başka bayinin tasarımını göremez
+        self.client.force_login(self.bayi_hesap)
+        sayfa = self.client.get(reverse("bayi_ana"))
+        self.assertContains(sayfa, sp.siparis_no)
+        self.assertContains(sayfa, "Teşekkürler")
+        baska = Tasarim.objects.create(musteri=Musteri.objects.create(ad="Başka"), veri={})
+        self.assertEqual(self.client.get(reverse("tasarim_resim", args=[baska.pk])).status_code, 403)
+        self.assertEqual(self.client.get(reverse("tasarim_resim", args=[t.pk])).status_code, 200)

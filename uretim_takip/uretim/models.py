@@ -870,6 +870,9 @@ class HesapAyari(models.Model):
 
     kullanici = models.OneToOneField("auth.User", on_delete=models.CASCADE, related_name="hesap_ayari")
     istasyon = models.ForeignKey(Asama, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="istasyon")
+    musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, null=True, blank=True, related_name="bayi_hesaplari",
+                                verbose_name="bayi (müşteri)",
+                                help_text="Bayi hesabı: yalnızca tasarım stüdyosu ve kendi siparişleri.")
 
     class Meta:
         verbose_name = "hesap ayarı"
@@ -885,6 +888,50 @@ def hesap_istasyonu(kullanici):
         return None
     ayar = HesapAyari.objects.filter(kullanici=kullanici, istasyon__aktif=True).select_related("istasyon").first()
     return ayar.istasyon if ayar else None
+
+
+def hesap_bayisi(kullanici):
+    """Bayi hesabının bağlı olduğu müşteri; bayi değilse None."""
+    if not getattr(kullanici, "is_authenticated", False) or kullanici.is_staff:
+        return None
+    ayar = HesapAyari.objects.filter(kullanici=kullanici, musteri__isnull=False).select_related("musteri").first()
+    return ayar.musteri if ayar else None
+
+
+class Tasarim(models.Model):
+    """Bayinin tasarım stüdyosunda hazırladığı halı. Ofis onaylayınca siparişe dönüşür."""
+
+    DURUMLAR = [("gonderildi", "Onay bekliyor"), ("onaylandi", "Onaylandı"), ("reddedildi", "Reddedildi")]
+
+    no = models.CharField("tasarım no", max_length=20, unique=True, blank=True)
+    musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, related_name="tasarimlar", verbose_name="bayi")
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True)
+    olusturma = models.DateTimeField(default=timezone.now)
+    durum = models.CharField(max_length=10, choices=DURUMLAR, default="gonderildi")
+    veri = models.JSONField("tasarım", default=dict)
+    adet = models.PositiveIntegerField(default=1)
+    istenen_tarih = models.DateField("istenen teslim", null=True, blank=True)
+    notlar = models.TextField("bayinin notu", blank=True)
+    ofis_notu = models.TextField("ofisin notu", blank=True)
+    siparis = models.OneToOneField(Siparis, on_delete=models.SET_NULL, null=True, blank=True, related_name="tasarim")
+
+    class Meta:
+        ordering = ["-olusturma"]
+        verbose_name = "tasarım"
+        verbose_name_plural = "tasarımlar"
+
+    def __str__(self):
+        return f"{self.no} – {self.musteri}"
+
+    def save(self, *args, **kwargs):
+        if not self.no:
+            self.no = sonraki_numara(Tasarim, "no", "TS")
+        super().save(*args, **kwargs)
+
+    @property
+    def ozet(self):
+        from .tasarim_cizim import ozet
+        return ozet(self.veri)
 
 
 class SistemAyari(models.Model):

@@ -56,7 +56,8 @@ class Kalem:
 def calisilanlar(asama=None):
     simdi = timezone.now()
     qs = IslemKaydi.objects.filter(bitis__isnull=True).select_related("asama", "makine", "personel", "lot__siparis__musteri",
-                                                                  "lot__siparis__katalog_modeli", "lot__siparis__lazer_deseni")
+                                                                  "lot__siparis__katalog_modeli", "lot__siparis__lazer_deseni",
+                                                                  "lot__siparis__tasarim")
     if asama:
         qs = qs.filter(asama=asama)
     return [
@@ -83,7 +84,7 @@ def gelenler(asama=None):
     sonuc = []
     lotlar = (
         UretimLotu.objects.filter(durum="bekliyor")
-        .select_related("son_asama", "siparis__musteri", "siparis__katalog_modeli", "siparis__lazer_deseni")
+        .select_related("son_asama", "siparis__musteri", "siparis__katalog_modeli", "siparis__lazer_deseni", "siparis__tasarim")
         .annotate(son_bitis=Max("islemler__bitis"))
     )
     for lot in lotlar:
@@ -92,7 +93,7 @@ def gelenler(asama=None):
             sonuc.append(Kalem("gelen", f"l{lot.pk}-{lot.son_asama_id}", hedef, bekleme, hedef.azami_bekleme_saat,
                                lot=lot, siparis=lot.siparis))
 
-    for sp in Siparis.objects.filter(durum="acik", lotlar__isnull=True).select_related("musteri", "katalog_modeli", "lazer_deseni"):
+    for sp in Siparis.objects.filter(durum="acik", lotlar__isnull=True).select_related("musteri", "katalog_modeli", "lazer_deseni", "tasarim"):
         for hedef in hedefler(sp.hali_turu_id, None):
             sonuc.append(Kalem("siparis", f"s{sp.pk}", hedef, simdi - sp.olusturma, hedef.azami_bekleme_saat,
                                siparis=sp))

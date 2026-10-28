@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Asama, DeriDuzeltme, DeriTuru, FasonIsi, KatalogModeli, KatalogSerisi, LazerDeseni, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
+    Asama, DeriDuzeltme, DeriTuru, FasonIsi, KatalogModeli, KatalogSerisi, LazerDeseni, Tasarim, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
     Siparis, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
@@ -164,6 +164,14 @@ class LazerDeseniAdmin(admin.ModelAdmin):
     @admin.display(description="resim")
     def resim_onizleme(self, obj):
         return resim_kucuk(obj)
+
+
+@admin.register(Tasarim)
+class TasarimAdmin(admin.ModelAdmin):
+    list_display = ["no", "olusturma", "musteri", "adet", "durum", "siparis"]
+    list_filter = ["durum"]
+    search_fields = ["no", "musteri__ad"]
+    readonly_fields = ["no", "siparis"]
 
 
 @admin.register(FasonIsi)

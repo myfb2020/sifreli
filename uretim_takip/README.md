@@ -104,6 +104,15 @@ Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda d
 
 **Katalog** menüsünde 2026 kataloğundaki 13 seri ve 192 halı modeli (TOS-034, IPS-450, LTS-003…) resimleriyle, **Lazer desenleri** sekmesinde DB001–DB014 desenleri bulunur. Siparişte **Katalog modeli** kodu yazılınca (ör. `TOS-034`) resim önizlenir; ürün açıklaması boş bırakılırsa koddan, halı türü seçilmezse serinin halı türünden gelir (**Yönetim → Katalog serileri**'nde her seriye halı türü atanabilir). Seçilen model ve desenin resmi sipariş, iş ve **istasyon ekranlarında** görünür. Yeni model/desen **Yönetim → Katalog modelleri / Lazer desenleri**'nden resmiyle eklenir; resimler sunucuda `medya/` klasöründe durur.
 
+## Tasarım stüdyosu (bayiler)
+
+**Hesaplar → + Yeni hesap → Bayi** ile her bayiye kullanıcı adı ve şifre verilir; hesap bir müşteriye (bayiye) bağlanır. Bayi giriş yapınca yalnızca **🎨 Yeni tasarım** ve **📦 Siparişlerim** sayfalarını görür, üretim ekranlarına giremez.
+
+- **Stüdyo:** şekil (dikdörtgen, köşesi kesik, oval, yuvarlak), ölçü, zemin rengi, kenar bandı (genişlik, renk, lazer motifi: daire / baklava / yıldız / altıgen ve motiflerden görünen alt renk), orta madalyon ve isteğe bağlı hazır lazer deseni (DB001–DB014) seçilir; önizleme anında değişir. Adet, istenen tarih ve not yazılıp **gönderilir**.
+- **Ofis:** menüde **🎨 Tasarımlar** (onay bekleyen sayısıyla). Tasarım sayfasında **⬇ Lazer DXF / SVG** gerçek ölçüde (mm) iner: KESIM dış hat, BANT, DESEN (motifler), MADALYON katmanları. **Onayla ve sipariş aç** ile halı türü ve teslim tarihi seçilip sipariş açılır (m² ve adet tasarımdan gelir); **Reddet** ile bayiye not bırakılır.
+- **Bayi takibi:** Siparişlerim sayfasında onay durumu, sipariş numarası, teslim tarihi ve üretim ilerlemesi (hangi istasyonda) görünür.
+- Tasarım resmi sipariş, iş ve istasyon ekranlarında da görünür.
+
 ## Stok: deri ve malzemeler
 
 - **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.

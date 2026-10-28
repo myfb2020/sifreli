@@ -3,6 +3,7 @@
 - İstasyon tableti: üretim ekranları (personel durumu yok, yetki yok)
 - Ofis: siparişler, stok girişi, raporlar ("Ofis" grubu üzerinden yetkiler)
 - Yönetici: her şey (süper kullanıcı)
+- Bayi: yalnızca tasarım stüdyosu ve kendi siparişleri (bağlı müşteri üzerinden)
 """
 
 from django import forms
@@ -13,7 +14,7 @@ from django.contrib.auth.models import Group, Permission
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from .models import Asama, HesapAyari, hesap_istasyonu
+from .models import Asama, HesapAyari, Musteri, hesap_bayisi, hesap_istasyonu
 from .yedek import sadece_yonetici
 
 OFIS_GRUBU = "Ofis"
@@ -32,11 +33,12 @@ OFIS_YETKILERI = {
     "derituru": "view",
     "halituru": "view",
 }
-TURLER = [("tablet", "İstasyon tableti"), ("ofis", "Ofis"), ("yonetici", "Yönetici")]
+TURLER = [("tablet", "İstasyon tableti"), ("ofis", "Ofis"), ("yonetici", "Yönetici"), ("bayi", "Bayi")]
 TUR_ACIKLAMA = {
     "tablet": "İstasyon ekranı, QR okutma, işlem başlatma/bitirme. Sipariş ve rapor göremez.",
     "ofis": "Sipariş girme, stok/malzeme girişi, raporlar. Hesap ve yedek işlerine giremez.",
     "yonetici": "Her şey: hesaplar, yedek, deneme kayıtlarını silme, ayarlar.",
+    "bayi": "Yalnızca tasarım stüdyosu: halısını tasarlayıp gönderir, kendi siparişlerinin aşamalarını görür.",
 }
 
 
@@ -51,7 +53,9 @@ def ofis_grubu():
 def hesap_turu(kullanici):
     if kullanici.is_superuser:
         return "yonetici"
-    return "ofis" if kullanici.is_staff else "tablet"
+    if kullanici.is_staff:
+        return "ofis"
+    return "bayi" if hesap_bayisi(kullanici) else "tablet"
 
 
 class HesapFormu(forms.Form):
@@ -71,6 +75,11 @@ class HesapFormu(forms.Form):
         empty_label="— Seçilmedi (tablet istediği istasyonu açar) —",
         help_text="Seçilirse tablet açılınca doğrudan bu istasyonun ekranı gelir.",
     )
+    bayi = forms.ModelChoiceField(
+        queryset=Musteri.objects.all(), label="Hangi bayi?", required=False, empty_label="— Müşteri seçin —",
+        help_text="Bayinin siparişleri bu müşteri adına açılır.",
+    )
+    yeni_bayi = forms.CharField(label="veya yeni bayi adı", required=False, max_length=120)
     aktif = forms.BooleanField(label="Hesap açık (kapatılırsa giriş yapamaz)", required=False, initial=True)
 
     def __init__(self, *args, kullanici=None, **kwargs):
@@ -95,6 +104,8 @@ class HesapFormu(forms.Form):
         veri = super().clean()
         if veri.get("sifre") != veri.get("sifre_tekrar"):
             self.add_error("sifre_tekrar", "İki şifre aynı değil.")
+        if veri.get("tur") == "bayi" and not veri.get("bayi") and not (veri.get("yeni_bayi") or "").strip():
+            self.add_error("bayi", "Bayi hesabı için müşteriyi seçin ya da yeni bayi adı yazın.")
         return veri
 
     def kaydet(self, istekte_bulunan):
@@ -112,8 +123,12 @@ class HesapFormu(forms.Form):
         kullanici.save()
         kullanici.user_permissions.clear()
         kullanici.groups.set([ofis_grubu()] if tur == "ofis" else [])
+        bayi = None
+        if tur == "bayi":
+            yeni = (v.get("yeni_bayi") or "").strip()
+            bayi = (Musteri.objects.filter(ad__iexact=yeni).first() or Musteri.objects.create(ad=yeni)) if yeni else v["bayi"]
         HesapAyari.objects.update_or_create(
-            kullanici=kullanici, defaults={"istasyon": v.get("istasyon") if tur == "tablet" else None}
+            kullanici=kullanici, defaults={"istasyon": v.get("istasyon") if tur == "tablet" else None, "musteri": bayi}
         )
         return kullanici
 
@@ -121,7 +136,8 @@ class HesapFormu(forms.Form):
 @sadece_yonetici
 def hesap_listesi(request):
     hesaplar = get_user_model().objects.order_by("-is_superuser", "-is_staff", "username")
-    satirlar = [{"k": k, "tur": dict(TURLER)[hesap_turu(k)], "istasyon": hesap_istasyonu(k)} for k in hesaplar]
+    satirlar = [{"k": k, "tur": dict(TURLER)[hesap_turu(k)], "istasyon": hesap_istasyonu(k), "bayi": hesap_bayisi(k)}
+                 for k in hesaplar]
     return render(request, "uretim/hesap_listesi.html", {"satirlar": satirlar})
 
 
@@ -131,7 +147,7 @@ def hesap_formu(request, pk=None):
     baslangic = {"tur": "tablet", "aktif": True}
     if kullanici:
         baslangic = {"kullanici_adi": kullanici.username, "tur": hesap_turu(kullanici), "aktif": kullanici.is_active,
-                     "istasyon": hesap_istasyonu(kullanici)}
+                     "istasyon": hesap_istasyonu(kullanici), "bayi": hesap_bayisi(kullanici)}
     form = HesapFormu(request.POST or None, kullanici=kullanici, initial=baslangic)
     if request.method == "POST" and form.is_valid():
         k = form.kaydet(request.user)
@@ -146,6 +162,8 @@ class GirisView(LoginView):
     """İstasyonu belirlenmiş tablet giriş yapınca doğrudan o istasyonun ekranına gider."""
 
     def get_default_redirect_url(self):
+        if hesap_bayisi(self.request.user) is not None:
+            return reverse("bayi_ana")
         istasyon = hesap_istasyonu(self.request.user)
         if istasyon is not None:
             return reverse("istasyon_ekrani", args=[istasyon.pk])

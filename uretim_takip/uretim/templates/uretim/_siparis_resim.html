@@ -1,4 +1,5 @@
 {# Siparişin katalog modeli ve lazer deseni resmi. s: sipariş, boy: küçük resim yüksekliği (px). #}
+{% if s.tasarim %}<span class="sp-resim"><a href="{% url 'tasarim_resim' s.tasarim.pk %}" target="_blank" title="Tasarım {{ s.tasarim.no }}"><img src="{% url 'tasarim_resim' s.tasarim.pk %}" alt="Tasarım {{ s.tasarim.no }}" style="height:{{ boy|default:56 }}px" loading="lazy"></a><span class="soluk">Tasarım {{ s.tasarim.no }}</span></span>{% endif %}
 {% if s.katalog_modeli or s.lazer_deseni %}<span class="sp-resim">
 {% if s.katalog_modeli and s.katalog_modeli.resim %}<a href="{{ s.katalog_modeli.resim.url }}" target="_blank" title="{{ s.katalog_modeli.kod }}"><img src="{{ s.katalog_modeli.resim.url }}" alt="{{ s.katalog_modeli.kod }}" style="height:{{ boy|default:56 }}px" loading="lazy"></a>{% endif %}
 {% if s.lazer_deseni and s.lazer_deseni.resim %}<a href="{{ s.lazer_deseni.resim.url }}" target="_blank" title="Desen {{ s.lazer_deseni.kod }}"><img src="{{ s.lazer_deseni.resim.url }}" alt="{{ s.lazer_deseni.kod }}" style="height:{{ boy|default:56 }}px;background:#fff" loading="lazy"></a>{% endif %}

@@ -1,0 +1,4 @@
+{# Renk seçimi (yuvarlak renk düğmeleri). alan: form alanı adı, secili: seçili renk anahtarı. #}
+<div class="renkler" role="radiogroup">
+  {% for k, ad, hex in renkler %}<label class="renk" title="{{ ad }}"><input type="radio" name="{{ alan }}" value="{{ k }}" aria-label="{{ ad }}"{% if secili == k %} checked{% endif %}><span style="background:{{ hex }}"></span></label>{% endfor %}
+</div>

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block baslik %}{{ tasarim.no }}{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px"><a href="{% url 'tasarim_talepleri' %}">← Tasarımlar</a></p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+  <h1 style="margin:0;margin-right:auto">{{ tasarim.no }} <span class="rozet {% if tasarim.durum == 'onaylandi' %}tamamlandi{% elif tasarim.durum == 'reddedildi' %}iptal{% else %}bekliyor{% endif %}">{{ tasarim.get_durum_display }}</span></h1>
+  <a class="btn ikincil" href="{% url 'tasarim_lazer' tasarim.pk 'dxf' %}">⬇ Lazer DXF</a>
+  <a class="btn ikincil" href="{% url 'tasarim_lazer' tasarim.pk 'svg' %}">⬇ Lazer SVG</a>
+</div>
+<div class="izgara">
+  <div class="kart" style="text-align:center">{{ svg|safe }}</div>
+  <div>
+    <div class="kart">
+      <table>
+        <tr><th>Bayi</th><td><b>{{ tasarim.musteri }}</b>{% if tasarim.kullanici %} <span class="soluk">({{ tasarim.kullanici }})</span>{% endif %}</td></tr>
+        <tr><th>Gönderim</th><td>{{ tasarim.olusturma|date:"d.m.Y H:i" }}</td></tr>
+        <tr><th>Tasarım</th><td>{{ ozet }}</td></tr>
+        <tr><th>Adet / alan</th><td>{{ tasarim.adet }} adet × {{ alan }} m²</td></tr>
+        {% if tasarim.istenen_tarih %}<tr><th>İstenen teslim</th><td>{{ tasarim.istenen_tarih|date:"d.m.Y" }}</td></tr>{% endif %}
+        {% if tasarim.notlar %}<tr><th>Bayinin notu</th><td>{{ tasarim.notlar|linebreaksbr }}</td></tr>{% endif %}
+        {% if tasarim.ofis_notu %}<tr><th>Ofisin notu</th><td>{{ tasarim.ofis_notu|linebreaksbr }}</td></tr>{% endif %}
+        {% if tasarim.siparis %}<tr><th>Sipariş</th><td><a href="{% url 'siparis_detay' tasarim.siparis.pk %}">{{ tasarim.siparis.siparis_no }}</a></td></tr>{% endif %}
+      </table>
+      <p class="soluk" style="margin-bottom:0">Lazer dosyası gerçek ölçüde (mm). Katmanlar: KESIM dış hat, BANT kenar bandı, DESEN motifler, MADALYON.{% if tasarim.veri.desen_kodu %} Hazır desen {{ tasarim.veri.desen_kodu }} dosyaya eklenmez; kendi dosyanızdan uygulayın.{% endif %}</p>
+    </div>
+    {% if form %}
+    <div class="kart">
+      <h2>Onay</h2>
+      <form method="post" class="dikey">
+        {% include "uretim/_form.html" %}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn buyuk" type="submit" name="islem" value="onayla" style="flex:1">✓ Onayla ve sipariş aç</button>
+          <button class="btn buyuk ikincil" type="submit" name="islem" value="reddet" formnovalidate
+                  onclick="return confirm('Tasarım reddedilsin mi? Yazdığınız not bayiye gösterilir.')">Reddet</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

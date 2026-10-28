@@ -159,10 +159,14 @@
 <body>
 {% if user.is_authenticated %}
 <header>
-  <a class="marka" href="{% url 'pano' %}" aria-label="{{ marka_adi }} – Üretim Takip">
+  <a class="marka" href="{% if bayi %}{% url 'bayi_ana' %}{% else %}{% url 'pano' %}{% endif %}" aria-label="{{ marka_adi }}">
     {% if marka_logo %}<img src="{{ marka_logo }}" alt="">{% endif %}<span class="marka-yazi">{{ marka_adi }}</span>
-    <span class="marka-alt">Üretim Takip</span></a>
+    <span class="marka-alt">{% if bayi %}{{ bayi }}{% else %}Üretim Takip{% endif %}</span></a>
   <nav class="menu">
+  {% if bayi %}
+  <a href="{% url 'tasarim_studyo' %}">🎨 Yeni tasarım</a>
+  <a href="{% url 'bayi_ana' %}">📦 Siparişlerim</a>
+  {% else %}
   <a href="{% url 'pano' %}">Pano</a>
   {# Üretim ekranları: tablet hesabı ve yönetici. Ofis hesabı (personel durumlu) görmez. #}
   {% if not user.is_staff or user.is_superuser %}
@@ -170,7 +174,8 @@
   <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
   {% endif %}
-  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}">Siparişler</a>{% endif %}
+  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}">Siparişler</a>
+  <a href="{% url 'tasarim_talepleri' %}">🎨 Tasarımlar{% if bekleyen_tasarim %} <span class="rozet bekliyor">{{ bekleyen_tasarim }}</span>{% endif %}</a>{% endif %}
   <a href="{% url 'stok_listesi' %}">Stok</a>
   <a href="{% url 'katalog' %}">Katalog</a>
   <a href="{% url 'lot_listesi' %}">İşler</a>
@@ -179,6 +184,7 @@
   {% if user.is_superuser %}<a href="{% url 'hesap_listesi' %}">👥 Hesaplar</a>
   <a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
   <a href="{% url 'yedek_indir' %}" title="Veritabanının yedeğini indir">💾 Yedek</a>{% endif %}
+  {% endif %}
   <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Çıkış</button></form>
   </nav>
 </header>

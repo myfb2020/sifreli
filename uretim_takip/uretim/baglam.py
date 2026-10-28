@@ -23,4 +23,14 @@ def hesap(request):
     """İstasyon tabletinin bağlı olduğu istasyon (menü ve pano kısayolu için)."""
     from .models import hesap_istasyonu
 
-    return {"hesap_istasyonu": hesap_istasyonu(getattr(request, "user", None))}
+    return {"hesap_istasyonu": hesap_istasyonu(getattr(request, "user", None)), "bayi": getattr(request, "bayi", None)}
+
+
+def tasarim(request):
+    """Ofis menüsünde onay bekleyen bayi tasarımı sayısı."""
+    kullanici = getattr(request, "user", None)
+    if not getattr(kullanici, "is_staff", False):
+        return {}
+    from .models import Tasarim
+
+    return {"bekleyen_tasarim": Tasarim.objects.filter(durum="gonderildi").count()}

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import aktarim_views, fason_views, katalog_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
+from . import aktarim_views, fason_views, katalog_views, tasarim_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -18,6 +18,13 @@ urlpatterns = [
     path("stok/<int:pk>/", stok_views.stok_detay, name="stok_detay"),
     path("stok/bilgi/<str:lot_no>/", stok_views.stok_bilgi, name="stok_bilgi"),
     path("stok/<int:pk>/duzelt/", malzeme_views.deri_duzelt, name="deri_duzelt"),
+    path("bayi/", tasarim_views.bayi_ana, name="bayi_ana"),
+    path("tasarim/", tasarim_views.studyo, name="tasarim_studyo"),
+    path("tasarim/onizleme/", tasarim_views.onizleme, name="tasarim_onizleme"),
+    path("tasarim/talepler/", tasarim_views.talepler, name="tasarim_talepleri"),
+    path("tasarim/<int:pk>/", tasarim_views.talep_detay, name="tasarim_detay"),
+    path("tasarim/<int:pk>/resim.svg", tasarim_views.resim, name="tasarim_resim"),
+    path("tasarim/<int:pk>/lazer.<str:tur>", tasarim_views.lazer_dosyasi, name="tasarim_lazer"),
     path("katalog/", katalog_views.katalog, name="katalog"),
     path("katalog/desenler/", katalog_views.desenler, name="desenler"),
     path("medya/<path:yol>", katalog_views.medya, name="medya"),
