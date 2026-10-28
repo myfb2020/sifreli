@@ -22,7 +22,8 @@
       <tr><th>Stok lotu</th><td class="soluk">Kayıtlı değil</td></tr>
       {% endfor %}
       <tr><th>Sipariş</th><td>{% if lot.siparis %}{% if perms.uretim.view_siparis %}<a href="{% url 'siparis_detay' lot.siparis.pk %}">{{ lot.siparis.siparis_no }}</a>{% else %}{{ lot.siparis.siparis_no }}{% endif %} – {{ lot.siparis.musteri }}<br>
-        <span class="soluk">{{ lot.siparis.urun }} · teslim {{ lot.siparis.teslim_tarihi|date:"d.m.Y" }}</span>{% else %}–{% endif %}</td></tr>
+        <span class="soluk">{{ lot.siparis.urun }} · teslim {{ lot.siparis.teslim_tarihi|date:"d.m.Y" }}</span>
+        {% include "uretim/_siparis_resim.html" with s=lot.siparis boy=120 %}{% else %}–{% endif %}</td></tr>
     </table>
   </div>
   <div class="kart">

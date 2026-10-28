@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.hashers import check_password, make_password
-from django.core.validators import MinValueValidator, RegexValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
 
@@ -243,6 +243,58 @@ class DeriTuru(models.Model):
         return self.ad
 
 
+# --- Katalog -------------------------------------------------------------------
+
+resim_dogrulayici = FileExtensionValidator(["jpg", "jpeg", "png", "webp"], "Yalnızca resim (jpg, png, webp) yükleyin.")
+
+
+class KatalogSerisi(models.Model):
+    ad = models.CharField("seri", max_length=60, unique=True)
+    sira = models.PositiveIntegerField("liste sırası", default=0)
+    hali_turu = models.ForeignKey(
+        HaliTuru, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="halı türü",
+        help_text="Bu seriden sipariş açılınca halı türü (istasyon sırası) kendiliğinden seçilir.",
+    )
+
+    class Meta:
+        ordering = ["sira", "ad"]
+        verbose_name = "katalog serisi"
+        verbose_name_plural = "katalog serileri"
+
+    def __str__(self):
+        return self.ad
+
+
+class KatalogModeli(models.Model):
+    kod = models.CharField("model kodu", max_length=20, unique=True, help_text="Ör. TOS-034")
+    seri = models.ForeignKey(KatalogSerisi, on_delete=models.PROTECT, related_name="modeller")
+    resim = models.FileField(upload_to="katalog/model/", validators=[resim_dogrulayici], blank=True)
+    aktif = models.BooleanField(default=True)
+    notlar = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["seri__sira", "kod"]
+        verbose_name = "katalog modeli"
+        verbose_name_plural = "katalog modelleri"
+
+    def __str__(self):
+        return f"{self.kod} ({self.seri})"
+
+
+class LazerDeseni(models.Model):
+    kod = models.CharField("desen kodu", max_length=20, unique=True, help_text="Ör. DB001")
+    resim = models.FileField(upload_to="katalog/desen/", validators=[resim_dogrulayici], blank=True)
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["kod"]
+        verbose_name = "lazer deseni"
+        verbose_name_plural = "lazer desenleri"
+
+    def __str__(self):
+        return self.kod
+
+
 # --- Hammadde ve sipariş ------------------------------------------------------
 
 
@@ -370,6 +422,10 @@ class Siparis(models.Model):
         HaliTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="halı türü",
         help_text="İşin hangi istasyonlardan geçeceğini belirler.",
     )
+    katalog_modeli = models.ForeignKey(KatalogModeli, on_delete=models.PROTECT, null=True, blank=True,
+                                       verbose_name="katalog modeli")
+    lazer_deseni = models.ForeignKey(LazerDeseni, on_delete=models.PROTECT, null=True, blank=True,
+                                     verbose_name="lazer deseni")
     urun = models.CharField("ürün açıklaması", max_length=200, help_text="Örn: 200x300 krem kuzu patchwork halı")
     deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="deri türü")
     adet = models.PositiveIntegerField(default=1)

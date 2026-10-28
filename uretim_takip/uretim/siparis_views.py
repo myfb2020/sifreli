@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .forms import SiparisForm
+from .katalog_views import secim_verisi
 from .models import Siparis, UretimLotu
 
 SEKMELER = [
@@ -17,7 +18,7 @@ SEKMELER = [
 
 
 def _lotlu(qs):
-    return qs.select_related("musteri", "deri_turu", "hali_turu").prefetch_related(
+    return qs.select_related("musteri", "deri_turu", "hali_turu", "katalog_modeli__seri", "lazer_deseni").prefetch_related(
         Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama"))
     )
 
@@ -58,12 +59,12 @@ def siparis_detay(request, pk):
 @login_required
 @permission_required("uretim.add_siparis", raise_exception=True)
 def siparis_yeni(request):
-    form = SiparisForm(request.POST or None)
+    form = SiparisForm(request.POST or None, initial={"model_kodu": request.GET.get("model", "")})
     if request.method == "POST" and form.is_valid():
         siparis = form.save()
         messages.success(request, f"{siparis.siparis_no} numaralı sipariş kaydedildi.")
         return redirect("siparis_detay", pk=siparis.pk)
-    return render(request, "uretim/siparis_yeni.html", {"form": form})
+    return render(request, "uretim/siparis_yeni.html", {"form": form, **secim_verisi()})
 
 
 @require_POST

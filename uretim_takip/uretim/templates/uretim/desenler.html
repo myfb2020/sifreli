@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block baslik %}Lazer Desenleri{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">Katalog</h1>
+  {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_lazerdeseni_add' %}">+ Desen ekle</a>{% endif %}
+</div>
+{% include "uretim/_katalog_sekmeleri.html" %}
+<p class="soluk">Sabit lazer kesim desenleri. Müşteriye özel desenler de yapılır; siparişin notuna yazın.</p>
+<div class="katalog-izgara">
+  {% for d in desenler %}
+  <div class="kart katalog-kart">
+    {% if d.resim %}<a href="{{ d.resim.url }}" target="_blank"><img src="{{ d.resim.url }}" alt="{{ d.kod }}" loading="lazy"></a>{% endif %}
+    <div><b>{{ d.kod }}</b></div>
+  </div>
+  {% empty %}
+  <p class="soluk">Desen yok.</p>
+  {% endfor %}
+</div>
+<style>
+  .katalog-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+  .katalog-kart { padding:10px; display:flex; flex-direction:column; gap:6px; margin:0; }
+  .katalog-kart img { width:100%; aspect-ratio:1; object-fit:contain; background:#fff; border-radius:8px; display:block; }
+</style>
+{% endblock %}

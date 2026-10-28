@@ -8,9 +8,11 @@
         {% if k.tur == "siparis" %}
           <span class="rozet bekliyor">Yeni sipariş</span> <b>{{ k.siparis.siparis_no }}</b> · <b>{{ k.siparis.musteri }}</b><br>
           <span class="soluk">{{ k.siparis.urun }}{% if k.siparis.toplam_m2 %} · {{ k.siparis.toplam_m2|floatformat:"-2" }} m²{% endif %} · teslim {{ k.siparis.teslim_tarihi|date:"d.m.Y" }}</span>
+          {% include "uretim/_siparis_resim.html" with s=k.siparis %}
         {% else %}
           <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %}<br>
           <span class="soluk">{% if k.lot.son_asama %}{{ k.lot.son_asama.ad }} bitti{% else %}başlamadı{% endif %} · {{ k.lot.mevcut_kg }} kg / {{ k.lot.mevcut_m2 }} m²</span>
+          {% if k.siparis %}{% include "uretim/_siparis_resim.html" with s=k.siparis %}{% endif %}
         {% endif %}
         <div class="ist-sure">⏳ {{ k.sure_metni }} bekliyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
           {% if k.gecikti %}<b class="uyari"> · {{ k.asim_metni }} gecikti</b>{% endif %}</div>
@@ -35,6 +37,7 @@
       <div class="ist-bilgi">
         <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}{% if k.islem.makine %} · {{ k.islem.makine }}{% endif %}<br>
         <span class="soluk">Stok: {{ k.lot.kaynak_listesi }} · {{ k.islem.giris_kg }} kg / {{ k.islem.giris_m2 }} m²</span>
+        {% if k.siparis %}{% include "uretim/_siparis_resim.html" with s=k.siparis %}{% endif %}
         <div class="ist-sure">⏱ {{ k.sure_metni }} çalışılıyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
           {% if k.gecikti %}<b class="uyari"> · {{ k.asim_metni }} aşıldı</b>{% endif %}</div>
       </div>

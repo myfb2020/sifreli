@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block baslik %}Katalog{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">Katalog</h1>
+  {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_katalogmodeli_add' %}">+ Model ekle</a>{% endif %}
+</div>
+{% include "uretim/_katalog_sekmeleri.html" %}
+<div class="sekmeler alt-sekme" style="flex-wrap:wrap">
+  <a class="sekme{% if not seri %} secili{% endif %}" href="?">Hepsi</a>
+  {% for sr in seriler %}<a class="sekme{% if seri == sr.pk|stringformat:'d' %} secili{% endif %}" href="?seri={{ sr.pk }}">{{ sr.ad }} <span class="soluk">{{ sr.sayi }}</span></a>{% endfor %}
+</div>
+<form class="filtre" method="get">
+  {% if seri %}<input type="hidden" name="seri" value="{{ seri }}">{% endif %}
+  <input name="ara" value="{{ ara }}" placeholder="Model kodu (ör. TOS-034) ya da seri">
+  <button class="btn kucuk" type="submit">Ara</button>
+</form>
+<div class="katalog-izgara">
+  {% for m in modeller %}
+  <div class="kart katalog-kart">
+    {% if m.resim %}<a href="{{ m.resim.url }}" target="_blank"><img src="{{ m.resim.url }}" alt="{{ m.kod }}" loading="lazy"></a>{% endif %}
+    <div><b>{{ m.kod }}</b> <span class="soluk">{{ m.seri }}</span></div>
+    {% if perms.uretim.add_siparis %}<a class="btn kucuk" href="{% url 'siparis_yeni' %}?model={{ m.kod|urlencode }}">+ Sipariş aç</a>{% endif %}
+  </div>
+  {% empty %}
+  <p class="soluk">Model bulunamadı.</p>
+  {% endfor %}
+</div>
+<style>
+  .katalog-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+  .katalog-kart { padding:10px; display:flex; flex-direction:column; gap:6px; margin:0; }
+  .katalog-kart img { width:100%; aspect-ratio:3/4; object-fit:contain; background:#1f1a17; border-radius:8px; display:block; }
+  .katalog-kart .btn { text-align:center; }
+</style>
+{% endblock %}

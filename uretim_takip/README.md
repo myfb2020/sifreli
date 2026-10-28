@@ -100,6 +100,10 @@ Her istasyondaki tablette **🏭 İstasyon** menüsünden o istasyon seçilir. T
 
 Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda da **"⏰ Süre sınırını aşan işler"** kartında listelenir.
 
+## Katalog
+
+**Katalog** menüsünde 2026 kataloğundaki 13 seri ve 192 halı modeli (TOS-034, IPS-450, LTS-003…) resimleriyle, **Lazer desenleri** sekmesinde DB001–DB014 desenleri bulunur. Siparişte **Katalog modeli** kodu yazılınca (ör. `TOS-034`) resim önizlenir; ürün açıklaması boş bırakılırsa koddan, halı türü seçilmezse serinin halı türünden gelir (**Yönetim → Katalog serileri**'nde her seriye halı türü atanabilir). Seçilen model ve desenin resmi sipariş, iş ve **istasyon ekranlarında** görünür. Yeni model/desen **Yönetim → Katalog modelleri / Lazer desenleri**'nden resmiyle eklenir; resimler sunucuda `medya/` klasöründe durur.
+
 ## Stok: deri ve malzemeler
 
 - **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.

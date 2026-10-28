@@ -1,0 +1,1229 @@
+{
+"seriler": [
+"Toskana",
+"Hamteks",
+"Tilki Kafa",
+"Tilki Karınaltı",
+"İpek Peluş",
+"Dana Patchwork",
+"Deniz Aslanı",
+"SPC",
+"Rex Tavşan",
+"Bienca",
+"Rono",
+"Peluche",
+"Lazerli Toskana"
+],
+"modeller": [
+{
+"kod": "TOS-034",
+"seri": "Toskana",
+"dosya": "TOS-034.jpg",
+"sayfa": 5
+},
+{
+"kod": "TOS-035",
+"seri": "Toskana",
+"dosya": "TOS-035.jpg",
+"sayfa": 5
+},
+{
+"kod": "TOS-036",
+"seri": "Toskana",
+"dosya": "TOS-036.jpg",
+"sayfa": 6
+},
+{
+"kod": "TOS-037",
+"seri": "Toskana",
+"dosya": "TOS-037.jpg",
+"sayfa": 6
+},
+{
+"kod": "TOS-038",
+"seri": "Toskana",
+"dosya": "TOS-038.jpg",
+"sayfa": 7
+},
+{
+"kod": "TOS-039",
+"seri": "Toskana",
+"dosya": "TOS-039.jpg",
+"sayfa": 7
+},
+{
+"kod": "TOS-040",
+"seri": "Toskana",
+"dosya": "TOS-040.jpg",
+"sayfa": 8
+},
+{
+"kod": "TOS-041",
+"seri": "Toskana",
+"dosya": "TOS-041.jpg",
+"sayfa": 8
+},
+{
+"kod": "TOS-042",
+"seri": "Toskana",
+"dosya": "TOS-042.jpg",
+"sayfa": 9
+},
+{
+"kod": "TOS-043",
+"seri": "Toskana",
+"dosya": "TOS-043.jpg",
+"sayfa": 9
+},
+{
+"kod": "TOS-044",
+"seri": "Toskana",
+"dosya": "TOS-044.jpg",
+"sayfa": 10
+},
+{
+"kod": "TOS-045",
+"seri": "Toskana",
+"dosya": "TOS-045.jpg",
+"sayfa": 10
+},
+{
+"kod": "TOS-046",
+"seri": "Toskana",
+"dosya": "TOS-046.jpg",
+"sayfa": 11
+},
+{
+"kod": "TOS-047",
+"seri": "Toskana",
+"dosya": "TOS-047.jpg",
+"sayfa": 11
+},
+{
+"kod": "TOS-048",
+"seri": "Toskana",
+"dosya": "TOS-048.jpg",
+"sayfa": 12
+},
+{
+"kod": "TOS-049",
+"seri": "Toskana",
+"dosya": "TOS-049.jpg",
+"sayfa": 12
+},
+{
+"kod": "TOS-050",
+"seri": "Toskana",
+"dosya": "TOS-050.jpg",
+"sayfa": 13
+},
+{
+"kod": "TOS-051",
+"seri": "Toskana",
+"dosya": "TOS-051.jpg",
+"sayfa": 13
+},
+{
+"kod": "TOS-052",
+"seri": "Toskana",
+"dosya": "TOS-052.jpg",
+"sayfa": 14
+},
+{
+"kod": "TOS-053",
+"seri": "Toskana",
+"dosya": "TOS-053.jpg",
+"sayfa": 14
+},
+{
+"kod": "TOS-054",
+"seri": "Toskana",
+"dosya": "TOS-054.jpg",
+"sayfa": 15
+},
+{
+"kod": "TOS-055",
+"seri": "Toskana",
+"dosya": "TOS-055.jpg",
+"sayfa": 15
+},
+{
+"kod": "TOS-056",
+"seri": "Toskana",
+"dosya": "TOS-056.jpg",
+"sayfa": 16
+},
+{
+"kod": "TOS-057",
+"seri": "Toskana",
+"dosya": "TOS-057.jpg",
+"sayfa": 16
+},
+{
+"kod": "TOS-058",
+"seri": "Toskana",
+"dosya": "TOS-058.jpg",
+"sayfa": 17
+},
+{
+"kod": "TOS-059",
+"seri": "Toskana",
+"dosya": "TOS-059.jpg",
+"sayfa": 17
+},
+{
+"kod": "TOS-060",
+"seri": "Toskana",
+"dosya": "TOS-060.jpg",
+"sayfa": 18
+},
+{
+"kod": "TOS-061",
+"seri": "Toskana",
+"dosya": "TOS-061.jpg",
+"sayfa": 18
+},
+{
+"kod": "TOS-062",
+"seri": "Toskana",
+"dosya": "TOS-062.jpg",
+"sayfa": 19
+},
+{
+"kod": "TOS-063",
+"seri": "Toskana",
+"dosya": "TOS-063.jpg",
+"sayfa": 19
+},
+{
+"kod": "TOS-064",
+"seri": "Toskana",
+"dosya": "TOS-064.jpg",
+"sayfa": 20
+},
+{
+"kod": "TOS-065",
+"seri": "Toskana",
+"dosya": "TOS-065.jpg",
+"sayfa": 20
+},
+{
+"kod": "TOS-066",
+"seri": "Toskana",
+"dosya": "TOS-066.jpg",
+"sayfa": 21
+},
+{
+"kod": "TOS-067",
+"seri": "Toskana",
+"dosya": "TOS-067.jpg",
+"sayfa": 21
+},
+{
+"kod": "TOS-068",
+"seri": "Toskana",
+"dosya": "TOS-068.jpg",
+"sayfa": 22
+},
+{
+"kod": "TOS-069",
+"seri": "Toskana",
+"dosya": "TOS-069.jpg",
+"sayfa": 22
+},
+{
+"kod": "HMK-162",
+"seri": "Hamteks",
+"dosya": "HMK-162.jpg",
+"sayfa": 24
+},
+{
+"kod": "HMK-163",
+"seri": "Hamteks",
+"dosya": "HMK-163.jpg",
+"sayfa": 24
+},
+{
+"kod": "HMK-164",
+"seri": "Hamteks",
+"dosya": "HMK-164.jpg",
+"sayfa": 25
+},
+{
+"kod": "HMK-165",
+"seri": "Hamteks",
+"dosya": "HMK-165.jpg",
+"sayfa": 25
+},
+{
+"kod": "HMK-166",
+"seri": "Hamteks",
+"dosya": "HMK-166.jpg",
+"sayfa": 26
+},
+{
+"kod": "HMK-167",
+"seri": "Hamteks",
+"dosya": "HMK-167.jpg",
+"sayfa": 26
+},
+{
+"kod": "HMK-168",
+"seri": "Hamteks",
+"dosya": "HMK-168.jpg",
+"sayfa": 27
+},
+{
+"kod": "HMK-169",
+"seri": "Hamteks",
+"dosya": "HMK-169.jpg",
+"sayfa": 27
+},
+{
+"kod": "HMK-170",
+"seri": "Hamteks",
+"dosya": "HMK-170.jpg",
+"sayfa": 28
+},
+{
+"kod": "HMK-171",
+"seri": "Hamteks",
+"dosya": "HMK-171.jpg",
+"sayfa": 28
+},
+{
+"kod": "HMK-172",
+"seri": "Hamteks",
+"dosya": "HMK-172.jpg",
+"sayfa": 29
+},
+{
+"kod": "HMK-173",
+"seri": "Hamteks",
+"dosya": "HMK-173.jpg",
+"sayfa": 29
+},
+{
+"kod": "TKK-234",
+"seri": "Tilki Kafa",
+"dosya": "TKK-234.jpg",
+"sayfa": 31
+},
+{
+"kod": "TKK-235",
+"seri": "Tilki Kafa",
+"dosya": "TKK-235.jpg",
+"sayfa": 31
+},
+{
+"kod": "TKK-236",
+"seri": "Tilki Kafa",
+"dosya": "TKK-236.jpg",
+"sayfa": 32
+},
+{
+"kod": "TKK-237",
+"seri": "Tilki Kafa",
+"dosya": "TKK-237.jpg",
+"sayfa": 32
+},
+{
+"kod": "TKK-238",
+"seri": "Tilki Kafa",
+"dosya": "TKK-238.jpg",
+"sayfa": 33
+},
+{
+"kod": "TKA-334",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-334.jpg",
+"sayfa": 35
+},
+{
+"kod": "TKA-335",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-335.jpg",
+"sayfa": 35
+},
+{
+"kod": "TKA-336",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-336.jpg",
+"sayfa": 36
+},
+{
+"kod": "TKA-337",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-337.jpg",
+"sayfa": 36
+},
+{
+"kod": "TKA-338",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-338.jpg",
+"sayfa": 37
+},
+{
+"kod": "TKA-339",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-339.jpg",
+"sayfa": 37
+},
+{
+"kod": "TKA-340",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-340.jpg",
+"sayfa": 38
+},
+{
+"kod": "TKA-341",
+"seri": "Tilki Karınaltı",
+"dosya": "TKA-341.jpg",
+"sayfa": 38
+},
+{
+"kod": "IPS-434",
+"seri": "İpek Peluş",
+"dosya": "IPS-434.jpg",
+"sayfa": 40
+},
+{
+"kod": "IPS-435",
+"seri": "İpek Peluş",
+"dosya": "IPS-435.jpg",
+"sayfa": 40
+},
+{
+"kod": "IPS-436",
+"seri": "İpek Peluş",
+"dosya": "IPS-436.jpg",
+"sayfa": 41
+},
+{
+"kod": "IPS-437",
+"seri": "İpek Peluş",
+"dosya": "IPS-437.jpg",
+"sayfa": 41
+},
+{
+"kod": "IPS-438",
+"seri": "İpek Peluş",
+"dosya": "IPS-438.jpg",
+"sayfa": 42
+},
+{
+"kod": "IPS-439",
+"seri": "İpek Peluş",
+"dosya": "IPS-439.jpg",
+"sayfa": 42
+},
+{
+"kod": "IPS-440",
+"seri": "İpek Peluş",
+"dosya": "IPS-440.jpg",
+"sayfa": 43
+},
+{
+"kod": "IPS-441",
+"seri": "İpek Peluş",
+"dosya": "IPS-441.jpg",
+"sayfa": 43
+},
+{
+"kod": "IPS-442",
+"seri": "İpek Peluş",
+"dosya": "IPS-442.jpg",
+"sayfa": 44
+},
+{
+"kod": "IPS-443",
+"seri": "İpek Peluş",
+"dosya": "IPS-443.jpg",
+"sayfa": 44
+},
+{
+"kod": "IPS-444",
+"seri": "İpek Peluş",
+"dosya": "IPS-444.jpg",
+"sayfa": 45
+},
+{
+"kod": "IPS-445",
+"seri": "İpek Peluş",
+"dosya": "IPS-445.jpg",
+"sayfa": 45
+},
+{
+"kod": "IPS-446",
+"seri": "İpek Peluş",
+"dosya": "IPS-446.jpg",
+"sayfa": 46
+},
+{
+"kod": "IPS-447",
+"seri": "İpek Peluş",
+"dosya": "IPS-447.jpg",
+"sayfa": 46
+},
+{
+"kod": "IPS-448",
+"seri": "İpek Peluş",
+"dosya": "IPS-448.jpg",
+"sayfa": 47
+},
+{
+"kod": "IPS-449",
+"seri": "İpek Peluş",
+"dosya": "IPS-449.jpg",
+"sayfa": 47
+},
+{
+"kod": "IPS-450",
+"seri": "İpek Peluş",
+"dosya": "IPS-450.jpg",
+"sayfa": 48
+},
+{
+"kod": "IPS-451",
+"seri": "İpek Peluş",
+"dosya": "IPS-451.jpg",
+"sayfa": 48
+},
+{
+"kod": "IPS-452",
+"seri": "İpek Peluş",
+"dosya": "IPS-452.jpg",
+"sayfa": 49
+},
+{
+"kod": "IPS-453",
+"seri": "İpek Peluş",
+"dosya": "IPS-453.jpg",
+"sayfa": 49
+},
+{
+"kod": "IPS-454",
+"seri": "İpek Peluş",
+"dosya": "IPS-454.jpg",
+"sayfa": 50
+},
+{
+"kod": "IPS-455",
+"seri": "İpek Peluş",
+"dosya": "IPS-455.jpg",
+"sayfa": 50
+},
+{
+"kod": "IPS-456",
+"seri": "İpek Peluş",
+"dosya": "IPS-456.jpg",
+"sayfa": 51
+},
+{
+"kod": "IPS-457",
+"seri": "İpek Peluş",
+"dosya": "IPS-457.jpg",
+"sayfa": 51
+},
+{
+"kod": "IPS-458",
+"seri": "İpek Peluş",
+"dosya": "IPS-458.jpg",
+"sayfa": 52
+},
+{
+"kod": "IPS-459",
+"seri": "İpek Peluş",
+"dosya": "IPS-459.jpg",
+"sayfa": 52
+},
+{
+"kod": "IPS-460",
+"seri": "İpek Peluş",
+"dosya": "IPS-460.jpg",
+"sayfa": 53
+},
+{
+"kod": "IPS-461",
+"seri": "İpek Peluş",
+"dosya": "IPS-461.jpg",
+"sayfa": 53
+},
+{
+"kod": "IPS-462",
+"seri": "İpek Peluş",
+"dosya": "IPS-462.jpg",
+"sayfa": 54
+},
+{
+"kod": "IPS-463",
+"seri": "İpek Peluş",
+"dosya": "IPS-463.jpg",
+"sayfa": 54
+},
+{
+"kod": "IPS-464",
+"seri": "İpek Peluş",
+"dosya": "IPS-464.jpg",
+"sayfa": 55
+},
+{
+"kod": "IPS-465",
+"seri": "İpek Peluş",
+"dosya": "IPS-465.jpg",
+"sayfa": 55
+},
+{
+"kod": "IPS-466",
+"seri": "İpek Peluş",
+"dosya": "IPS-466.jpg",
+"sayfa": 56
+},
+{
+"kod": "IPS-467",
+"seri": "İpek Peluş",
+"dosya": "IPS-467.jpg",
+"sayfa": 56
+},
+{
+"kod": "IPS-468",
+"seri": "İpek Peluş",
+"dosya": "IPS-468.jpg",
+"sayfa": 57
+},
+{
+"kod": "IPS-469",
+"seri": "İpek Peluş",
+"dosya": "IPS-469.jpg",
+"sayfa": 57
+},
+{
+"kod": "IPS-470",
+"seri": "İpek Peluş",
+"dosya": "IPS-470.jpg",
+"sayfa": 58
+},
+{
+"kod": "IPS-471",
+"seri": "İpek Peluş",
+"dosya": "IPS-471.jpg",
+"sayfa": 58
+},
+{
+"kod": "IPS-472",
+"seri": "İpek Peluş",
+"dosya": "IPS-472.jpg",
+"sayfa": 59
+},
+{
+"kod": "IPS-473",
+"seri": "İpek Peluş",
+"dosya": "IPS-473.jpg",
+"sayfa": 59
+},
+{
+"kod": "IPS-474",
+"seri": "İpek Peluş",
+"dosya": "IPS-474.jpg",
+"sayfa": 60
+},
+{
+"kod": "IPS-475",
+"seri": "İpek Peluş",
+"dosya": "IPS-475.jpg",
+"sayfa": 60
+},
+{
+"kod": "IPS-476",
+"seri": "İpek Peluş",
+"dosya": "IPS-476.jpg",
+"sayfa": 61
+},
+{
+"kod": "IPS-477",
+"seri": "İpek Peluş",
+"dosya": "IPS-477.jpg",
+"sayfa": 61
+},
+{
+"kod": "IPS-478",
+"seri": "İpek Peluş",
+"dosya": "IPS-478.jpg",
+"sayfa": 62
+},
+{
+"kod": "IPS-479",
+"seri": "İpek Peluş",
+"dosya": "IPS-479.jpg",
+"sayfa": 62
+},
+{
+"kod": "IPS-480",
+"seri": "İpek Peluş",
+"dosya": "IPS-480.jpg",
+"sayfa": 63
+},
+{
+"kod": "IPS-481",
+"seri": "İpek Peluş",
+"dosya": "IPS-481.jpg",
+"sayfa": 63
+},
+{
+"kod": "IPS-482",
+"seri": "İpek Peluş",
+"dosya": "IPS-482.jpg",
+"sayfa": 64
+},
+{
+"kod": "IPS-483",
+"seri": "İpek Peluş",
+"dosya": "IPS-483.jpg",
+"sayfa": 64
+},
+{
+"kod": "IPS-484",
+"seri": "İpek Peluş",
+"dosya": "IPS-484.jpg",
+"sayfa": 65
+},
+{
+"kod": "IPS-485",
+"seri": "İpek Peluş",
+"dosya": "IPS-485.jpg",
+"sayfa": 65
+},
+{
+"kod": "DPT-534",
+"seri": "Dana Patchwork",
+"dosya": "DPT-534.jpg",
+"sayfa": 67
+},
+{
+"kod": "DPT-535",
+"seri": "Dana Patchwork",
+"dosya": "DPT-535.jpg",
+"sayfa": 67
+},
+{
+"kod": "DPT-536",
+"seri": "Dana Patchwork",
+"dosya": "DPT-536.jpg",
+"sayfa": 68
+},
+{
+"kod": "DPT-537",
+"seri": "Dana Patchwork",
+"dosya": "DPT-537.jpg",
+"sayfa": 68
+},
+{
+"kod": "DPT-538",
+"seri": "Dana Patchwork",
+"dosya": "DPT-538.jpg",
+"sayfa": 69
+},
+{
+"kod": "DPT-539",
+"seri": "Dana Patchwork",
+"dosya": "DPT-539.jpg",
+"sayfa": 69
+},
+{
+"kod": "DPT-540",
+"seri": "Dana Patchwork",
+"dosya": "DPT-540.jpg",
+"sayfa": 70
+},
+{
+"kod": "DPT-541",
+"seri": "Dana Patchwork",
+"dosya": "DPT-541.jpg",
+"sayfa": 70
+},
+{
+"kod": "DPT-542",
+"seri": "Dana Patchwork",
+"dosya": "DPT-542.jpg",
+"sayfa": 71
+},
+{
+"kod": "DPT-543",
+"seri": "Dana Patchwork",
+"dosya": "DPT-543.jpg",
+"sayfa": 71
+},
+{
+"kod": "DPT-544",
+"seri": "Dana Patchwork",
+"dosya": "DPT-544.jpg",
+"sayfa": 72
+},
+{
+"kod": "DPT-545",
+"seri": "Dana Patchwork",
+"dosya": "DPT-545.jpg",
+"sayfa": 72
+},
+{
+"kod": "DPT-546",
+"seri": "Dana Patchwork",
+"dosya": "DPT-546.jpg",
+"sayfa": 73
+},
+{
+"kod": "DPT-547",
+"seri": "Dana Patchwork",
+"dosya": "DPT-547.jpg",
+"sayfa": 73
+},
+{
+"kod": "DPT-548",
+"seri": "Dana Patchwork",
+"dosya": "DPT-548.jpg",
+"sayfa": 74
+},
+{
+"kod": "DPT-549",
+"seri": "Dana Patchwork",
+"dosya": "DPT-549.jpg",
+"sayfa": 74
+},
+{
+"kod": "DPT-550",
+"seri": "Dana Patchwork",
+"dosya": "DPT-550.jpg",
+"sayfa": 75
+},
+{
+"kod": "DPT-551",
+"seri": "Dana Patchwork",
+"dosya": "DPT-551.jpg",
+"sayfa": 75
+},
+{
+"kod": "DPT-552",
+"seri": "Dana Patchwork",
+"dosya": "DPT-552.jpg",
+"sayfa": 76
+},
+{
+"kod": "DPT-553",
+"seri": "Dana Patchwork",
+"dosya": "DPT-553.jpg",
+"sayfa": 76
+},
+{
+"kod": "FDA-634",
+"seri": "Deniz Aslanı",
+"dosya": "FDA-634.jpg",
+"sayfa": 78
+},
+{
+"kod": "FDA-635",
+"seri": "Deniz Aslanı",
+"dosya": "FDA-635.jpg",
+"sayfa": 78
+},
+{
+"kod": "SPC-734",
+"seri": "SPC",
+"dosya": "SPC-734.jpg",
+"sayfa": 80
+},
+{
+"kod": "SPC-735",
+"seri": "SPC",
+"dosya": "SPC-735.jpg",
+"sayfa": 80
+},
+{
+"kod": "SPC-736",
+"seri": "SPC",
+"dosya": "SPC-736.jpg",
+"sayfa": 81
+},
+{
+"kod": "SPC-737",
+"seri": "SPC",
+"dosya": "SPC-737.jpg",
+"sayfa": 81
+},
+{
+"kod": "RXT-834",
+"seri": "Rex Tavşan",
+"dosya": "RXT-834.jpg",
+"sayfa": 83
+},
+{
+"kod": "RXT-835",
+"seri": "Rex Tavşan",
+"dosya": "RXT-835.jpg",
+"sayfa": 83
+},
+{
+"kod": "BNA-001",
+"seri": "Bienca",
+"dosya": "BNA-001.jpg",
+"sayfa": 85
+},
+{
+"kod": "BNA-002",
+"seri": "Bienca",
+"dosya": "BNA-002.jpg",
+"sayfa": 85
+},
+{
+"kod": "BNA-003",
+"seri": "Bienca",
+"dosya": "BNA-003.jpg",
+"sayfa": 86
+},
+{
+"kod": "BNA-004",
+"seri": "Bienca",
+"dosya": "BNA-004.jpg",
+"sayfa": 86
+},
+{
+"kod": "BNA-005",
+"seri": "Bienca",
+"dosya": "BNA-005.jpg",
+"sayfa": 87
+},
+{
+"kod": "BNA-006",
+"seri": "Bienca",
+"dosya": "BNA-006.jpg",
+"sayfa": 87
+},
+{
+"kod": "BNA-007",
+"seri": "Bienca",
+"dosya": "BNA-007.jpg",
+"sayfa": 88
+},
+{
+"kod": "BNA-008",
+"seri": "Bienca",
+"dosya": "BNA-008.jpg",
+"sayfa": 88
+},
+{
+"kod": "BNA-009",
+"seri": "Bienca",
+"dosya": "BNA-009.jpg",
+"sayfa": 89
+},
+{
+"kod": "BNA-010",
+"seri": "Bienca",
+"dosya": "BNA-010.jpg",
+"sayfa": 89
+},
+{
+"kod": "BNA-011",
+"seri": "Bienca",
+"dosya": "BNA-011.jpg",
+"sayfa": 90
+},
+{
+"kod": "BNA-012",
+"seri": "Bienca",
+"dosya": "BNA-012.jpg",
+"sayfa": 90
+},
+{
+"kod": "BNA-013",
+"seri": "Bienca",
+"dosya": "BNA-013.jpg",
+"sayfa": 91
+},
+{
+"kod": "BNA-014",
+"seri": "Bienca",
+"dosya": "BNA-014.jpg",
+"sayfa": 91
+},
+{
+"kod": "BNA-015",
+"seri": "Bienca",
+"dosya": "BNA-015.jpg",
+"sayfa": 92
+},
+{
+"kod": "BNA-016",
+"seri": "Bienca",
+"dosya": "BNA-016.jpg",
+"sayfa": 92
+},
+{
+"kod": "BNA-017",
+"seri": "Bienca",
+"dosya": "BNA-017.jpg",
+"sayfa": 93
+},
+{
+"kod": "BNA-018",
+"seri": "Bienca",
+"dosya": "BNA-018.jpg",
+"sayfa": 93
+},
+{
+"kod": "BNA-019",
+"seri": "Bienca",
+"dosya": "BNA-019.jpg",
+"sayfa": 94
+},
+{
+"kod": "BNA-020",
+"seri": "Bienca",
+"dosya": "BNA-020.jpg",
+"sayfa": 94
+},
+{
+"kod": "BNA-021",
+"seri": "Bienca",
+"dosya": "BNA-021.jpg",
+"sayfa": 95
+},
+{
+"kod": "BNA-022",
+"seri": "Bienca",
+"dosya": "BNA-022.jpg",
+"sayfa": 95
+},
+{
+"kod": "BNA-023",
+"seri": "Bienca",
+"dosya": "BNA-023.jpg",
+"sayfa": 96
+},
+{
+"kod": "BNA-024",
+"seri": "Bienca",
+"dosya": "BNA-024.jpg",
+"sayfa": 96
+},
+{
+"kod": "BNA-025",
+"seri": "Bienca",
+"dosya": "BNA-025.jpg",
+"sayfa": 97
+},
+{
+"kod": "BNA-026",
+"seri": "Bienca",
+"dosya": "BNA-026.jpg",
+"sayfa": 97
+},
+{
+"kod": "RNO-001",
+"seri": "Rono",
+"dosya": "RNO-001.jpg",
+"sayfa": 99
+},
+{
+"kod": "RNO-002",
+"seri": "Rono",
+"dosya": "RNO-002.jpg",
+"sayfa": 99
+},
+{
+"kod": "RNO-003",
+"seri": "Rono",
+"dosya": "RNO-003.jpg",
+"sayfa": 100
+},
+{
+"kod": "RNO-004",
+"seri": "Rono",
+"dosya": "RNO-004.jpg",
+"sayfa": 100
+},
+{
+"kod": "RNO-005",
+"seri": "Rono",
+"dosya": "RNO-005.jpg",
+"sayfa": 101
+},
+{
+"kod": "PCH-001",
+"seri": "Peluche",
+"dosya": "PCH-001.jpg",
+"sayfa": 103
+},
+{
+"kod": "PCH-002",
+"seri": "Peluche",
+"dosya": "PCH-002.jpg",
+"sayfa": 103
+},
+{
+"kod": "PCH-003",
+"seri": "Peluche",
+"dosya": "PCH-003.jpg",
+"sayfa": 104
+},
+{
+"kod": "PCH-004",
+"seri": "Peluche",
+"dosya": "PCH-004.jpg",
+"sayfa": 104
+},
+{
+"kod": "PCH-005",
+"seri": "Peluche",
+"dosya": "PCH-005.jpg",
+"sayfa": 105
+},
+{
+"kod": "PCH-006",
+"seri": "Peluche",
+"dosya": "PCH-006.jpg",
+"sayfa": 105
+},
+{
+"kod": "PCH-007",
+"seri": "Peluche",
+"dosya": "PCH-007.jpg",
+"sayfa": 106
+},
+{
+"kod": "PCH-008",
+"seri": "Peluche",
+"dosya": "PCH-008.jpg",
+"sayfa": 106
+},
+{
+"kod": "PCH-009",
+"seri": "Peluche",
+"dosya": "PCH-009.jpg",
+"sayfa": 107
+},
+{
+"kod": "PCH-010",
+"seri": "Peluche",
+"dosya": "PCH-010.jpg",
+"sayfa": 107
+},
+{
+"kod": "PCH-011",
+"seri": "Peluche",
+"dosya": "PCH-011.jpg",
+"sayfa": 108
+},
+{
+"kod": "PCH-012",
+"seri": "Peluche",
+"dosya": "PCH-012.jpg",
+"sayfa": 108
+},
+{
+"kod": "PCH-013",
+"seri": "Peluche",
+"dosya": "PCH-013.jpg",
+"sayfa": 109
+},
+{
+"kod": "PCH-014",
+"seri": "Peluche",
+"dosya": "PCH-014.jpg",
+"sayfa": 109
+},
+{
+"kod": "PCH-015",
+"seri": "Peluche",
+"dosya": "PCH-015.jpg",
+"sayfa": 110
+},
+{
+"kod": "PCH-016",
+"seri": "Peluche",
+"dosya": "PCH-016.jpg",
+"sayfa": 110
+},
+{
+"kod": "LTS-003",
+"seri": "Lazerli Toskana",
+"dosya": "LTS-003.jpg",
+"sayfa": 112
+},
+{
+"kod": "LTS-004",
+"seri": "Lazerli Toskana",
+"dosya": "LTS-004.jpg",
+"sayfa": 112
+},
+{
+"kod": "LTS-005",
+"seri": "Lazerli Toskana",
+"dosya": "LTS-005.jpg",
+"sayfa": 113
+},
+{
+"kod": "LTS-006",
+"seri": "Lazerli Toskana",
+"dosya": "LTS-006.jpg",
+"sayfa": 113
+}
+],
+"desenler": [
+{
+"kod": "DB001",
+"dosya": "DB001.jpg"
+},
+{
+"kod": "DB002",
+"dosya": "DB002.jpg"
+},
+{
+"kod": "DB003",
+"dosya": "DB003.jpg"
+},
+{
+"kod": "DB004",
+"dosya": "DB004.jpg"
+},
+{
+"kod": "DB005",
+"dosya": "DB005.jpg"
+},
+{
+"kod": "DB006",
+"dosya": "DB006.jpg"
+},
+{
+"kod": "DB007",
+"dosya": "DB007.jpg"
+},
+{
+"kod": "DB008",
+"dosya": "DB008.jpg"
+},
+{
+"kod": "DB009",
+"dosya": "DB009.jpg"
+},
+{
+"kod": "DB010",
+"dosya": "DB010.jpg"
+},
+{
+"kod": "DB011",
+"dosya": "DB011.jpg"
+},
+{
+"kod": "DB012",
+"dosya": "DB012.jpg"
+},
+{
+"kod": "DB013",
+"dosya": "DB013.jpg"
+},
+{
+"kod": "DB014",
+"dosya": "DB014.jpg"
+}
+]
+}

@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Asama, DeriDuzeltme, DeriTuru, FasonIsi, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
+    Asama, DeriDuzeltme, DeriTuru, FasonIsi, KatalogModeli, KatalogSerisi, LazerDeseni, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
     Siparis, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
@@ -134,6 +134,38 @@ class MalzemeHareketiAdmin(admin.ModelAdmin):
     date_hierarchy = "tarih"
 
 
+def resim_kucuk(obj):
+    return format_html('<img src="{}" style="height:60px">', obj.resim.url) if obj.resim else ""
+
+
+@admin.register(KatalogSerisi)
+class KatalogSerisiAdmin(admin.ModelAdmin):
+    list_display = ["ad", "sira", "hali_turu"]
+    list_editable = ["sira", "hali_turu"]
+
+
+@admin.register(KatalogModeli)
+class KatalogModeliAdmin(admin.ModelAdmin):
+    list_display = ["kod", "resim_onizleme", "seri", "aktif"]
+    list_filter = ["seri", "aktif"]
+    search_fields = ["kod"]
+    list_editable = ["aktif"]
+
+    @admin.display(description="resim")
+    def resim_onizleme(self, obj):
+        return resim_kucuk(obj)
+
+
+@admin.register(LazerDeseni)
+class LazerDeseniAdmin(admin.ModelAdmin):
+    list_display = ["kod", "resim_onizleme", "aktif"]
+    list_editable = ["aktif"]
+
+    @admin.display(description="resim")
+    def resim_onizleme(self, obj):
+        return resim_kucuk(obj)
+
+
 @admin.register(FasonIsi)
 class FasonIsiAdmin(admin.ModelAdmin):
     list_display = ["no", "gonderim", "fasoncu", "hedef_tur", "durum", "gelen_lot"]
@@ -204,6 +236,7 @@ class SiparisAdmin(admin.ModelAdmin):
                     "gecikme"]
     list_filter = ["durum", "hali_turu", "musteri"]
     search_fields = ["siparis_no", "urun", "musteri__ad"]
+    autocomplete_fields = ["katalog_modeli"]
     readonly_fields = ["siparis_no"]
     inlines = [LotInline]
 

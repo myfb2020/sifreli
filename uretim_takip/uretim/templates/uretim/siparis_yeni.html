@@ -4,10 +4,36 @@
 <div class="kart" style="max-width:560px;margin:0 auto">
   <p style="margin:0 0 8px"><a href="{% url 'siparis_listesi' %}">← Siparişler</a></p>
   <h1>+ Yeni Sipariş</h1>
-  <p class="soluk">Sipariş numarası otomatik verilir. Toplam m² girerseniz ilerleme m²'ye göre hesaplanır.</p>
+  <p class="soluk">Sipariş numarası otomatik verilir. Toplam m² girerseniz ilerleme m²'ye göre hesaplanır. Katalogdan model seçerseniz resmi istasyon ekranlarında da görünür.</p>
   <form method="post" class="dikey">
     {% include "uretim/_form.html" %}
     <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>
   </form>
 </div>
+<datalist id="model-kodlari">{% for m in katalog_modelleri %}<option value="{{ m.kod }}">{{ m.seri }}</option>{% endfor %}</datalist>
+<script>
+(function () {
+  // Seçilen model ve desenin resmi alanın altında gösterilir.
+  const modeller = { {% for m in katalog_modelleri %}{% if m.resim %}"{{ m.kod|escapejs }}": "{{ m.resim.url|escapejs }}",{% endif %}{% endfor %} };
+  const desenler = { {% for d in lazer_desenleri %}{% if d.resim %}"{{ d.pk }}": "{{ d.resim.url|escapejs }}",{% endif %}{% endfor %} };
+  function onizle(alan, adres) {
+    let img = alan.closest("p").querySelector(".onizleme");
+    if (!img) {
+      img = document.createElement("img");
+      img.className = "onizleme";
+      img.style.cssText = "display:block;max-height:220px;max-width:100%;margin-top:8px;border-radius:8px;background:#fff";
+      alan.closest("p").appendChild(img);
+    }
+    img.hidden = !adres;
+    if (adres) img.src = adres;
+  }
+  const kod = document.getElementById("id_model_kodu");
+  const desen = document.getElementById("id_lazer_deseni");
+  const kodOnizle = () => onizle(kod, modeller[kod.value.trim().toUpperCase().replace(".", "")]);
+  kod.addEventListener("input", kodOnizle);
+  desen.addEventListener("change", () => onizle(desen, desenler[desen.value]));
+  kodOnizle();
+  if (desen.value) onizle(desen, desenler[desen.value]);
+})();
+</script>
 {% endblock %}

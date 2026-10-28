@@ -147,6 +147,10 @@ if not DEBUG:
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Yüklenen resimler (katalog modelleri, lazer desenleri). Giriş yapanlara /medya/ altından sunulur.
+MEDIA_URL = "/medya/"
+MEDIA_ROOT = BASE_DIR / "medya"
+
 # QR etiketlerine yazılacak adres (ör. https://uretim.firmam.com). Boşsa o anki adres kullanılır.
 SITE_ADRESI = os.environ.get("SITE_ADRESI", "")
 

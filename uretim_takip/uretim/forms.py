@@ -2,7 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from .models import (
-    NEDENLER, Asama, DeriTuru, HaliTuru, HamDeriGirisi, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    NEDENLER, Asama, DeriTuru, HaliTuru, HamDeriGirisi, KatalogModeli, LazerDeseni, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
     m2_hesapla, pin_dogrulayici,
 )
 
@@ -148,28 +148,60 @@ class SiparisForm(forms.ModelForm):
         label="veya yeni müşteri adı", required=False, max_length=120,
         help_text="Müşteri listede yoksa buraya yazın, otomatik eklenir.",
     )
+    model_kodu = forms.CharField(
+        label="Katalog modeli (isteğe bağlı)", required=False, max_length=20,
+        widget=forms.TextInput(attrs={"list": "model-kodlari", "autocomplete": "off", "autocapitalize": "characters",
+                                      "placeholder": "Ör. TOS-034"}),
+        help_text="Katalogdaki model kodu. Seçince resmi siparişte ve istasyon ekranlarında görünür.",
+    )
+    lazer_deseni = forms.ModelChoiceField(
+        queryset=LazerDeseni.objects.filter(aktif=True), label="Lazer deseni (isteğe bağlı)", required=False,
+        empty_label="— Desen yok —",
+    )
 
     class Meta:
         model = Siparis
-        fields = ["hali_turu", "urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar"]
+        fields = ["hali_turu", "urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar", "lazer_deseni"]
         widgets = {
             "teslim_tarihi": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
         }
         labels = {"notlar": "Not (isteğe bağlı)"}
 
-    field_order = ["musteri", "yeni_musteri", "hali_turu", "urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar"]
+    field_order = ["musteri", "yeni_musteri", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu", "adet",
+                   "toplam_m2", "teslim_tarihi", "notlar"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["deri_turu"].empty_label = "— (isteğe bağlı) —"
-        # Halı türü tanımlanmamışsa (eski kurulum) zorunlu tutulmaz.
-        self.fields["hali_turu"].required = HaliTuru.objects.filter(aktif=True).exists()
+        # Halı türü kaydederken denetlenir: katalog serisinden de gelebilir.
+        self.fields["hali_turu"].required = False
+        self.fields["urun"].required = False
+        self.fields["urun"].help_text = "Ölçü, renk vb. Örn: 200x300 krem. Model seçildiyse boş bırakılabilir."
+
+    def clean_model_kodu(self):
+        kod = (self.cleaned_data.get("model_kodu") or "").strip().upper().replace(".", "")
+        if not kod:
+            return None
+        model = KatalogModeli.objects.filter(kod__iexact=kod).select_related("seri__hali_turu").first()
+        if model is None:
+            raise forms.ValidationError(f"“{kod}” kodlu katalog modeli yok. Katalog sayfasından bakabilirsiniz.")
+        return model
 
     def clean(self):
         veri = super().clean()
         if not (veri.get("yeni_musteri") or "").strip() and not veri.get("musteri"):
             self.add_error("musteri", "Bir müşteri seçin ya da yeni müşteri adı yazın.")
+        model = veri.get("model_kodu")
+        if not veri.get("hali_turu") and model and model.seri.hali_turu and model.seri.hali_turu.aktif:
+            veri["hali_turu"] = self.instance.hali_turu = model.seri.hali_turu
+        if not veri.get("hali_turu") and HaliTuru.objects.filter(aktif=True).exists() and "hali_turu" not in self.errors:
+            self.add_error("hali_turu", "Halı türünü seçin.")
+        if not (veri.get("urun") or "").strip():
+            if model:
+                veri["urun"] = self.instance.urun = f"{model.kod} {model.seri}"
+            elif "urun" not in self.errors:
+                self.add_error("urun", "Ürünü yazın ya da katalog modeli seçin.")
         return veri
 
     def save(self, commit=True):
@@ -179,6 +211,7 @@ class SiparisForm(forms.ModelForm):
         else:
             musteri = self.cleaned_data["musteri"]
         self.instance.musteri = musteri
+        self.instance.katalog_modeli = self.cleaned_data.get("model_kodu")
         return super().save(commit)
 
 

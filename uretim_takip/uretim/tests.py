@@ -1358,3 +1358,39 @@ class FasonTesti(TemelVeri):
         with self.assertRaises(ValidationError):
             servisler.fasona_gonder(fasoncu=self.ham.tedarikci, hedef_tur=self.ham.deri_turu,
                                     kaynaklar=[(self.ham, None, Decimal("5"))])
+
+
+class KatalogTesti(TemelVeri):
+    def test_katalog_ve_modelli_siparis(self):
+        from .hesaplar import ofis_grubu
+        from .models import KatalogModeli, LazerDeseni
+
+        self.assertEqual(KatalogModeli.objects.count(), 192)
+        self.assertEqual(LazerDeseni.objects.count(), 14)
+        model = KatalogModeli.objects.get(kod="LTS-003")
+        # Resimler yalnızca giriş yapanlara
+        self.assertEqual(self.client.get(model.resim.url).status_code, 302)
+        ofis = get_user_model().objects.create_user("ofis", password="x", is_staff=True)
+        ofis.groups.add(ofis_grubu())
+        self.client.force_login(ofis)
+        self.assertEqual(self.client.get(model.resim.url).status_code, 200)
+        self.assertContains(self.client.get(reverse("katalog"), {"ara": "lts-003"}), "LTS-003")
+        self.assertContains(self.client.get(reverse("desenler")), "DB014")
+
+        # Model kodu küçük harf / noktalı yazılabilir; halı türü seriden, ürün koddan gelir
+        desen = LazerDeseni.objects.get(kod="DB003")
+        yanit = self.client.post(reverse("siparis_yeni"), {
+            "yeni_musteri": "Bayi", "model_kodu": "lts.-003", "lazer_deseni": desen.pk, "adet": 1,
+            "teslim_tarihi": (timezone.localdate() + timedelta(days=5)).isoformat(),
+        })
+        sp = Siparis.objects.latest("pk")
+        self.assertRedirects(yanit, reverse("siparis_detay", args=[sp.pk]))
+        self.assertEqual((sp.katalog_modeli, sp.lazer_deseni, sp.hali_turu.ad, sp.urun),
+                         (model, desen, "Lazerli halı", "LTS-003 Lazerli Toskana"))
+        self.assertContains(self.client.get(reverse("siparis_detay", args=[sp.pk])), model.resim.url)
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        self.assertContains(self.client.get(reverse("istasyon_ekrani", args=[lazer.pk])), model.resim.url)
+        # Olmayan kod
+        yanit = self.client.post(reverse("siparis_yeni"), {"yeni_musteri": "Bayi", "model_kodu": "XX-1", "adet": 1,
+                                                          "teslim_tarihi": timezone.localdate().isoformat()})
+        self.assertContains(yanit, "katalog modeli yok")

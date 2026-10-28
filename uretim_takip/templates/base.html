@@ -30,6 +30,8 @@
     header .marka img { height:46px; width:46px; display:block; border-radius:50%; }
     .marka-yazi { font-family:Georgia,"Times New Roman",serif; letter-spacing:0.18em; font-weight:600; color:#a8802f; }
     .marka-alt { font-size:13px; font-weight:500; color:var(--soluk); letter-spacing:0; }
+    .sp-resim { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px; }
+    .sp-resim img { border-radius:6px; display:block; max-width:100%; object-fit:contain; }
     header .menu { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
     header form { margin:0; }
     header button { background:none; border:1px solid rgba(122,75,42,0.35); color:var(--ana-koyu); border-radius:6px;
@@ -170,6 +172,7 @@
   {% endif %}
   {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}">Siparişler</a>{% endif %}
   <a href="{% url 'stok_listesi' %}">Stok</a>
+  <a href="{% url 'katalog' %}">Katalog</a>
   <a href="{% url 'lot_listesi' %}">İşler</a>
   {% if user.is_staff %}<a href="{% url 'rapor' %}">Raporlar</a>
   <a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
