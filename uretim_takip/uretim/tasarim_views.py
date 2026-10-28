@@ -14,6 +14,7 @@ from django.db import transaction
 from django.db.models import Prefetch
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -99,13 +100,20 @@ def studyo(request):
         else:
             veri = _temizle(cizim.hazir_degerler(request.GET.get("katalog") or cizim.HAZIRLAR[0][0]))
     modeller = {m.kod: m for m in KatalogModeli.objects.filter(kod__in=cizim.HAZIR)}
-    hazirlar = [{"kod": kod, "ad": ad, "model": modeller.get(kod), "deger": cizim.temizle(cizim.hazir_degerler(kod),
-                                                                                          _desen_kodlari())}
-                for kod, ad, _ in cizim.HAZIRLAR]
+    hazirlar = []
+    for kod, ad, _ in cizim.HAZIRLAR:
+        deger = cizim.temizle(cizim.hazir_degerler(kod), _desen_kodlari())
+        model = modeller.get(kod)
+        if model and model.resim and not (hali_gorsel.VARLIK / "hazir" / f"{kod}.jpg").exists():
+            resim = model.resim.url
+        else:  # atölye fotoğrafı ya da (fotoğraf yoksa) programın çizdiği önizleme
+            resim = reverse("tasarim_hazir_resmi", args=[kod])
+        hazirlar.append({"kod": kod, "ad": ad, "resim": resim, "deger": deger})
     desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari())
     return render(request, "uretim/tasarim_studyo.html", {
         "form": form, "v": veri, "ozet": cizim.ozet(veri), "alan": cizim.alan_m2(veri), "hazirlar": hazirlar,
         "sekiller": cizim.SEKILLER, "bantlar": cizim.BANTLAR, "zeminler": cizim.ZEMINLER, "altlar": cizim.ALTLAR,
+        "modeller": cizim.MODELLER, "suni_zeminler": cizim.SUNI_ZEMINLER, "biyeler": cizim.BIYELER,
         "desenler": desenler, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar},
     })
 
@@ -124,9 +132,21 @@ def onizleme_resmi(request):
 
 @login_required
 def doku(request, ad):
-    if ad not in dict(cizim.ZEMINLER):
+    if ad not in dict(cizim.ZEMINLER + cizim.SUNI_ZEMINLER):
         raise Http404
     yanit = FileResponse(open(hali_gorsel.VARLIK / "doku" / f"{ad}.jpg", "rb"), content_type="image/jpeg")
+    yanit["Cache-Control"] = "private, max-age=604800"
+    return yanit
+
+
+@login_required
+def hazir_resmi(request, kod):
+    yol = hali_gorsel.VARLIK / "hazir" / f"{kod}.jpg"
+    if kod not in cizim.HAZIR:
+        raise Http404
+    if not yol.exists():
+        return _jpeg(_temizle(cizim.hazir_degerler(kod)), 300)
+    yanit = FileResponse(open(yol, "rb"), content_type="image/jpeg")
     yanit["Cache-Control"] = "private, max-age=604800"
     return yanit
 
@@ -183,7 +203,11 @@ class OnayForm(forms.Form):
 
 
 def onay_formu(siparis, data=None):
-    return OnayForm(data, initial={"teslim_tarihi": siparis.teslim_tarihi, "hali_turu": siparis.hali_turu_id},
+    hali_turu = siparis.hali_turu
+    tasarim = getattr(siparis, "tasarim", None)
+    if hali_turu is None and tasarim and tasarim.veri.get("model") == "suni":
+        hali_turu = HaliTuru.objects.filter(ad="Suni deri halı", aktif=True).first()
+    return OnayForm(data, initial={"teslim_tarihi": siparis.teslim_tarihi, "hali_turu": hali_turu.pk if hali_turu else None},
                     prefix="onay")
 
 

@@ -23,6 +23,7 @@ urlpatterns = [
     path("tasarim/onizleme/", tasarim_views.onizleme, name="tasarim_onizleme"),
     path("tasarim/onizleme.jpg", tasarim_views.onizleme_resmi, name="tasarim_onizleme_resmi"),
     path("tasarim/doku/<str:ad>.jpg", tasarim_views.doku, name="tasarim_doku"),
+    path("tasarim/hazir/<str:kod>.jpg", tasarim_views.hazir_resmi, name="tasarim_hazir_resmi"),
     path("tasarim/<int:pk>/resim.jpg", tasarim_views.resim, name="tasarim_resim"),
     path("siparisler/<int:pk>/onay/", tasarim_views.siparis_onay, name="siparis_onay"),
     path("tasarim/<int:pk>/lazer.<str:tur>", tasarim_views.lazer_dosyasi, name="tasarim_lazer"),

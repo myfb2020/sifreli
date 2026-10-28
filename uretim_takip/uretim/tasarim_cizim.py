@@ -9,10 +9,13 @@ import math
 import re
 
 SEKILLER = [("dikdortgen", "Dikdörtgen"), ("oval", "Oval")]
+MODELLER = [("kurk", "Kürk halı"), ("suni", "Suni deri halı")]
 # Bantlar: lazerle kesilen metalik / düz deri
 BANTLAR = [
     ("altin", "Altın", "#d6b26a"), ("gumus", "Gümüş", "#c2c5c9"), ("bronz", "Bronz", "#a57846"),
     ("beyaz_deri", "Beyaz deri", "#f1ede4"), ("krem_deri", "Krem deri", "#e4d6b8"), ("siyah_deri", "Siyah deri", "#1f1d1c"),
+    ("varak_altin", "Altın varaklı deri", "#e9dcbc"), ("varak_gumus", "Gümüş varaklı deri", "#cfd0d1"),
+    ("varak_sampanya", "Şampanya varaklı deri", "#ddd0b8"),
 ]
 # Zeminler: katalog fotoğraflarından alınan kürk / patchwork dokuları
 ZEMINLER = [
@@ -21,17 +24,27 @@ ZEMINLER = [
     ("lacivert_kurk", "Lacivert kürk"), ("beyaz_kurk", "Beyaz kürk"), ("krem_patchwork", "Krem patchwork"),
     ("lacivert_patchwork", "Lacivert patchwork"),
 ]
+# Suni deri halı zeminleri (atölye fotoğraflarından)
+SUNI_ZEMINLER = [
+    ("varak_altin", "Altın varaklı"), ("varak_gumus", "Gümüş varaklı"), ("varak_sampanya", "Şampanya varaklı"),
+    ("dalgali_pelus", "Dalgalı peluş"), ("gri_kadife", "Gri kadife"),
+]
+BIYELER = [("yok", "Biye yok", ""), ("altin", "Altın", "#d6b26a"), ("gumus", "Gümüş", "#c2c5c9"),
+           ("siyah", "Siyah", "#1f1d1c"), ("beyaz", "Beyaz", "#f1ede4")]
 # Desen kesiklerinin içinden görünen alt deri
 ALTLAR = [
     ("siyah", "Siyah", "#1b1918"), ("beyaz", "Beyaz", "#f4f1ea"), ("krem", "Krem", "#e8dcc2"),
     ("altin", "Altın", "#c9a24a"), ("gri", "Gri", "#77797c"), ("kahve", "Kahve", "#4a3020"),
+    ("altin_sim", "Altın sim", "#c8a650"), ("gumus_sim", "Gümüş sim", "#bfc2c6"), ("siyah_rugan", "Siyah rugan", "#111113"),
 ]
 BANT_HEX = {k: h for k, _, h in BANTLAR}
 ALT_HEX = {k: h for k, _, h in ALTLAR}
 AD = {k: a for k, a, *_ in BANTLAR + ALTLAR}
-ZEMIN_AD = dict(ZEMINLER)
+ZEMIN_AD = dict(ZEMINLER + SUNI_ZEMINLER)
+BIYE_AD = {k: a for k, a, _ in BIYELER}
 
 VARSAYILAN = {
+    "model": "kurk", "biye": "yok",
     "sekil": "dikdortgen", "en": 160, "boy": 230,
     "dis_bant": 16, "dis_malzeme": "altin", "dis_desen": "DB007",
     "halka": 20, "halka_zemin": "siyah_kurk",
@@ -80,6 +93,25 @@ HAZIRLAR = [
                                                     "halka": 0, "ic_bant": 0, "zemin": "lacivert_patchwork",
                                                     "desen_alti": "siyah", "madalyon": 0}),
 ]
+# Suni deri halılar (atölye fotoğraflarından); resimleri tasarim_varlik/hazir/<kod>.jpg
+HAZIRLAR += [
+    ("SD-1", "Dalgalı peluş, gümüş lazer bant", {"model": "suni", "biye": "yok", "dis_bant": 0, "halka": 24,
+                                                "halka_zemin": "dalgali_pelus", "ic_bant": 22, "ic_malzeme": "varak_gumus",
+                                                "ic_desen": "DB010", "zemin": "dalgali_pelus",
+                                                "desen_alti": "siyah_rugan", "madalyon": 0}),
+    ("SD-2", "Altın varak, işlemeli bant, altın sim", {"model": "suni", "biye": "altin", "dis_bant": 0, "halka": 5,
+                                                       "halka_zemin": "varak_altin", "ic_bant": 22,
+                                                       "ic_malzeme": "varak_altin", "ic_desen": "DB003",
+                                                       "zemin": "varak_altin", "desen_alti": "altin_sim",
+                                                       "madalyon": 0}),
+    ("SD-3", "Gümüş varak zemin, krem lazer bant", {"model": "suni", "biye": "yok", "dis_bant": 18,
+                                                    "dis_malzeme": "krem_deri", "dis_desen": "DB007", "halka": 0,
+                                                    "ic_bant": 0, "zemin": "varak_gumus", "desen_alti": "siyah_rugan",
+                                                    "madalyon": 0}),
+    ("SD-4", "Şampanya varak, gümüş bant", {"model": "suni", "biye": "gumus", "dis_bant": 14, "dis_malzeme": "varak_gumus",
+                                            "dis_desen": "DB002", "halka": 0, "ic_bant": 0, "zemin": "varak_sampanya",
+                                            "desen_alti": "gumus_sim", "madalyon": 36, "madalyon_malzeme": "varak_gumus"}),
+]
 HAZIR = {kod: deger for kod, _, deger in HAZIRLAR}
 
 
@@ -106,8 +138,11 @@ def temizle(veri, desen_kodlari=()):
     """Bayiden gelen değerleri üretilebilir sınırlara çeker. desen_kodlari: kullanılabilir lazer desenleri."""
     veri = veri or {}
     g = lambda alan: veri.get(alan, VARSAYILAN[alan])  # noqa: E731
-    bantlar, zeminler, altlar = [k for k, *_ in BANTLAR], [k for k, _ in ZEMINLER], [k for k, *_ in ALTLAR]
-    v = {"sekil": _secim(g("sekil"), [k for k, _ in SEKILLER], "dikdortgen")}
+    bantlar, altlar = [k for k, *_ in BANTLAR], [k for k, *_ in ALTLAR]
+    v = {"model": _secim(g("model"), [k for k, _ in MODELLER], "kurk")}
+    zeminler = [k for k, _ in (SUNI_ZEMINLER if v["model"] == "suni" else ZEMINLER)]
+    v["biye"] = _secim(g("biye"), [k for k, *_ in BIYELER], "yok")
+    v["sekil"] = _secim(g("sekil"), [k for k, _ in SEKILLER], "dikdortgen")
     v["en"] = _sayi(g("en"), VARSAYILAN["en"], 60, 600)
     v["boy"] = _sayi(g("boy"), VARSAYILAN["boy"], 60, 800)
     kisa = min(v["en"], v["boy"])
@@ -121,8 +156,8 @@ def temizle(veri, desen_kodlari=()):
         v[f"{alan}_malzeme"] = _secim(g(f"{alan}_malzeme"), bantlar, "altin")
         kod = str(g(f"{alan}_desen") or "").strip().upper()
         v[f"{alan}_desen"] = kod if kod in desen_kodlari and v["sekil"] == "dikdortgen" else ""
-    v["halka_zemin"] = _secim(g("halka_zemin"), zeminler, "siyah_kurk")
-    v["zemin"] = _secim(g("zemin"), zeminler, "siyah_kurk")
+    v["halka_zemin"] = _secim(g("halka_zemin"), zeminler, zeminler[0])
+    v["zemin"] = _secim(g("zemin"), zeminler, zeminler[0])
     v["desen_alti"] = _secim(g("desen_alti"), altlar, "siyah")
     ic_kisa = kisa - 2 * (v["dis_bant"] + v["halka"] + v["ic_bant"])
     v["madalyon"] = _sayi(g("madalyon"), 0, 0, max(0, round(ic_kisa * 0.6)))
@@ -142,7 +177,9 @@ def alan_m2(v):
 
 
 def ozet(v):
-    p = [f"{dict(SEKILLER)[v['sekil']]} {v['en']:g}×{v['boy']:g} cm"]
+    p = [f"{dict(MODELLER)[v['model']]}, {dict(SEKILLER)[v['sekil']].lower()} {v['en']:g}×{v['boy']:g} cm"]
+    if v["biye"] != "yok":
+        p.append(f"{BIYE_AD[v['biye']].lower()} biye")
     if v["dis_bant"]:
         p.append(f"dış bant {v['dis_bant']:g} cm {AD[v['dis_malzeme']]}" + (f" {v['dis_desen']}" if v["dis_desen"] else ""))
     if v["halka"]:

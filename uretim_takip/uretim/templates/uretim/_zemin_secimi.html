@@ -1,4 +1,5 @@
-{# Kürk / patchwork dokusu seçimi (katalog fotoğraflarından). #}
+{# Zemin dokusu seçimi: kürk dokuları (katalog) ve suni deri dokuları (atölye fotoğrafları); halı türüne göre gösterilir. #}
 <div class="dokular">
-  {% for k, ad in zeminler %}<label class="doku" title="{{ ad }}"><input type="radio" name="{{ alan }}" value="{{ k }}"{% if secili == k %} checked{% endif %}><span style="background-image:url('{% url 'tasarim_doku' k %}')"></span><small>{{ ad }}</small></label>{% endfor %}
+  {% for k, ad in zeminler %}<label class="doku" title="{{ ad }}"><input type="radio" name="{{ alan }}" value="{{ k }}" data-model="kurk"{% if secili == k %} checked{% endif %}><span style="background-image:url('{% url 'tasarim_doku' k %}')"></span><small>{{ ad }}</small></label>{% endfor %}
+  {% for k, ad in suni_zeminler %}<label class="doku" title="{{ ad }}"><input type="radio" name="{{ alan }}" value="{{ k }}" data-model="suni"{% if secili == k %} checked{% endif %}><span style="background-image:url('{% url 'tasarim_doku' k %}')"></span><small>{{ ad }}</small></label>{% endfor %}
 </div>

@@ -1488,6 +1488,30 @@ class TasarimStudyosuTesti(TemelVeri):
         self.assertEqual((t.siparis.durum, t.durum, t.ofis_notu), ("iptal", "reddedildi", "Ölçü yok"))
 
 
+class SuniDeriTasarimTesti(TasarimStudyosuTesti):
+    def test_suni_deri_tasarim_ve_onayda_hali_turu(self):
+        from .tasarim_views import onay_formu, tasarim_gonder
+
+        self.client.force_login(self.bayi_hesap)
+        sayfa = self.client.get(reverse("tasarim_studyo"), {"katalog": "SD-2"})
+        self.assertContains(sayfa, "Suni deri halı")
+        self.assertContains(sayfa, reverse("tasarim_hazir_resmi", args=["SD-1"]))
+        self.assertEqual(self.client.get(reverse("tasarim_hazir_resmi", args=["SD-1"])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("tasarim_doku", args=["varak_altin"])).status_code, 200)
+        v = self.client.get(reverse("tasarim_onizleme"), {"model": "suni", "zemin": "siyah_kurk", "biye": "altin",
+                                                           "desen_alti": "altin_sim"}).json()["v"]
+        self.assertEqual((v["zemin"], v["biye"], v["desen_alti"]), ("varak_altin", "altin", "altin_sim"))  # kürk seçilemez
+        self.assertEqual(self.client.get(reverse("tasarim_onizleme_resmi"), {"model": "suni", "biye": "gumus",
+                                                                           "b": "300"}).status_code, 200)
+        t = tasarim_gonder(bayi=hesap_bayisi(self.bayi_hesap), kullanici=self.bayi_hesap, adet=1,
+                           veri=tasarim_cizim.temizle(tasarim_cizim.hazir_degerler("SD-1"), {"DB010"}))
+        self.assertIn("Suni deri halı", t.ozet)
+        self.assertEqual(onay_formu(t.siparis).initial["hali_turu"], HaliTuru.objects.get(ad="Suni deri halı").pk)
+
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+
 class HaliGorselTesti(TestCase):
     def test_tum_katalog_kombinasyonlari_ve_desenler_cizilir(self):
         from . import hali_gorsel

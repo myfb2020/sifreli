@@ -16,11 +16,15 @@
 
   <div class="studyo-ayar">
     <div class="kart">
-      <h2>1. Katalogdan başlayın</h2>
+      <h2>1. Halı türü ve başlangıç modeli</h2>
+      <div class="secim-izgara">
+        {% for k, ad in modeller %}<label class="secim"><input type="radio" name="model" value="{{ k }}"{% if v.model == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}
+      </div>
+      <p class="soluk">Katalogdaki ya da atölyedeki bir halıdan başlayın, sonra istediğinizi değiştirin.</p>
       <div class="hazir-izgara">
         {% for h in hazirlar %}
-        <button type="button" class="hazir{% if v.katalog == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}">
-          {% if h.model and h.model.resim %}<img src="{{ h.model.resim.url }}" alt="" loading="lazy">{% endif %}
+        <button type="button" class="hazir{% if v.katalog == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}" data-model="{{ h.deger.model }}">
+          {% if h.resim %}<img src="{{ h.resim }}" alt="" loading="lazy">{% endif %}
           <b>{{ h.kod }}</b><span>{{ h.ad }}</span>
         </button>
         {% endfor %}
@@ -37,6 +41,10 @@
         <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" inputmode="decimal" min="60" max="800" step="5" value="{{ v.boy|floatformat:'-1' }}"></p>
       </div>
       <p class="soluk oval-not" hidden>Oval halıda bantlar düz (desensiz) yapılır.</p>
+      <label class="alt-baslik">Kenar biyesi (halının çevresindeki şerit)</label>
+      <div class="secim-izgara">
+        {% for k, ad, hex in biyeler %}<label class="secim"><input type="radio" name="biye" value="{{ k }}"{% if v.biye == k %} checked{% endif %}><span>{% if hex %}<i class="nokta" style="background:{{ hex }}"></i>{% endif %}{{ ad }}</span></label>{% endfor %}
+      </div>
     </div>
 
     <div class="kart">
@@ -46,7 +54,7 @@
     </div>
 
     <div class="kart">
-      <h2>4. Kürk halka (iki bant arası)</h2>
+      <h2>4. Halka (iki bant arası)</h2>
       <p><label for="halka">Genişlik (cm) — 0 yazarsanız halka olmaz</label><input id="halka" name="halka" type="number" inputmode="decimal" min="0" max="60" step="1" value="{{ v.halka|floatformat:'-1' }}"></p>
       {% include "uretim/_zemin_secimi.html" with alan="halka_zemin" secili=v.halka_zemin %}
     </div>
@@ -62,7 +70,7 @@
       {% include "uretim/_zemin_secimi.html" with alan="zemin" secili=v.zemin %}
       <label class="alt-baslik">Desen kesiklerinin içinden görünen renk</label>
       <div class="renkler">
-        {% for k, ad, hex in altlar %}<label class="renk" title="{{ ad }}"><input type="radio" name="desen_alti" value="{{ k }}" aria-label="{{ ad }}"{% if v.desen_alti == k %} checked{% endif %}><span style="background:{{ hex }}"></span></label>{% endfor %}
+        {% for k, ad, hex in altlar %}<label class="renk renk-{{ k }}" title="{{ ad }}"><input type="radio" name="desen_alti" value="{{ k }}" aria-label="{{ ad }}"{% if v.desen_alti == k %} checked{% endif %}><span style="background-color:{{ hex }}"></span></label>{% endfor %}
       </div>
     </div>
 
@@ -108,6 +116,8 @@
   .hazir img { width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:6px; background:#222; }
   .hazir span { color:#7a6f66; line-height:1.2; }
   .hazir.secili { border-color:var(--ana); background:#fbf6f1; }
+  .hazir[hidden], .doku[hidden] { display:none; }
+  .nokta { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; vertical-align:-1px; border:1px solid #0002; }
   .malzemeler, .dokular { display:grid; grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:8px; }
   .malzeme, .doku { display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-weight:normal !important; font-size:12px; text-align:center; }
   .malzeme span, .doku span { width:56px; height:56px; border-radius:10px; border:3px solid #e6ddd3; display:block; background-size:cover; background-position:center; }
@@ -115,9 +125,14 @@
   .m-altin span { background:linear-gradient(135deg,#f6e6b8,#d6b26a 45%,#9c7a3c); }
   .m-gumus span { background:linear-gradient(135deg,#f4f5f7,#c2c5c9 45%,#808389); }
   .m-bronz span { background:linear-gradient(135deg,#e7c7a0,#a57846 45%,#6b4a26); }
+  .m-varak_altin span { background-image:url('{% url 'tasarim_doku' 'varak_altin' %}'); }
+  .m-varak_gumus span { background-image:url('{% url 'tasarim_doku' 'varak_gumus' %}'); }
+  .m-varak_sampanya span { background-image:url('{% url 'tasarim_doku' 'varak_sampanya' %}'); }
   .m-beyaz_deri span { background:#f1ede4; } .m-krem_deri span { background:#e4d6b8; } .m-siyah_deri span { background:#1f1d1c; }
   .renkler { display:flex; flex-wrap:wrap; gap:6px; }
   .renk span { display:block; width:38px; height:38px; border-radius:50%; border:2px solid #d9cfc4; cursor:pointer; }
+  .renk-altin_sim span, .renk-gumus_sim span { background-image:radial-gradient(#fff9 1px, transparent 1.5px); background-size:5px 5px; }
+  .renk-siyah_rugan span { background-image:linear-gradient(135deg, transparent 40%, #fff6 50%, transparent 60%); }
   .renk input:checked + span { border:3px solid var(--ana); box-shadow:0 0 0 2px #fff inset; }
   .desen-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); gap:6px; }
   .desen { border:2px solid #e6ddd3; border-radius:8px; padding:3px; text-align:center; cursor:pointer; background:#fff; font-size:11px; font-weight:normal !important; }
@@ -152,6 +167,19 @@
     siparisAlanlari.forEach((a) => v.delete(a));
     return v.toString();
   }
+  function modelGoster() {
+    const model = form.querySelector('input[name="model"]:checked').value;
+    document.querySelectorAll(".hazir").forEach((h) => { h.hidden = h.dataset.model !== model; });
+    ["halka_zemin", "zemin"].forEach((ad) => {
+      const secenekler = [...form.querySelectorAll(`input[name="${ad}"]`)];
+      secenekler.forEach((g) => { g.closest(".doku").hidden = g.dataset.model !== model; });
+      const secili = secenekler.find((g) => g.checked);
+      if (!secili || secili.dataset.model !== model) {
+        const ilk = secenekler.find((g) => g.dataset.model === model);
+        if (ilk) ilk.checked = true;
+      }
+    });
+  }
   function ovalNot() {
     const oval = form.querySelector('input[name="sekil"]:checked').value === "oval";
     form.querySelector(".oval-not").hidden = !oval;
@@ -169,7 +197,7 @@
     } catch (e) { /* bağlantı yoksa özet eski kalır */ }
   }
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
-  function yakinda() { ovalNot(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); }
+  function yakinda() { modelGoster(); ovalNot(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); }
 
   form.addEventListener("input", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
   form.addEventListener("change", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
@@ -184,9 +212,17 @@
       });
     });
     document.querySelectorAll(".hazir").forEach((h) => h.classList.toggle("secili", h === d));
+    modelGoster();
     ovalNot();
     guncelle();
   }));
+  // Halı türü değişince o türün ilk modeliyle başla (malzemeler uyumlu gelsin)
+  form.querySelectorAll('input[name="model"]').forEach((r) => r.addEventListener("change", () => {
+    modelGoster();
+    const ilk = [...document.querySelectorAll(".hazir")].find((h) => !h.hidden);
+    if (ilk) ilk.click();
+  }));
+  modelGoster();
   ovalNot();
   guncelle();
 })();
