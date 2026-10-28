@@ -116,10 +116,15 @@ def azalan_stoklar():
     from django.urls import reverse
 
     uyarilar = []
-    for tur in DeriTuru.objects.filter(min_kg__isnull=False):
-        toplam = deri_ozeti().get(tur.pk, {}).get("kalan_kg", Decimal(0))
-        if toplam < tur.min_kg:
-            uyarilar.append(StokUyarisi(f"{tur.ad} derisi", toplam, tur.min_kg, "kg", reverse("stok_listesi")))
+    ozet = deri_ozeti()
+    for tur in DeriTuru.objects.exclude(min_kg__isnull=True, min_m2__isnull=True):
+        kalan = ozet.get(tur.pk, {})
+        if tur.min_kg is not None and kalan.get("kalan_kg", Decimal(0)) < tur.min_kg:
+            uyarilar.append(StokUyarisi(tur.ad, kalan.get("kalan_kg", Decimal(0)), tur.min_kg, "kg",
+                                        reverse("stok_listesi")))
+        if tur.min_m2 is not None and kalan.get("kalan_m2", Decimal(0)) < tur.min_m2:
+            uyarilar.append(StokUyarisi(tur.ad, kalan.get("kalan_m2", Decimal(0)), tur.min_m2, "m²",
+                                        reverse("stok_listesi")))
     for m in Malzeme.objects.filter(aktif=True, min_stok__isnull=False):
         stok = m.stok
         if stok < m.min_stok:

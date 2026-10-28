@@ -218,16 +218,26 @@ class Musteri(models.Model):
 
 
 class DeriTuru(models.Model):
+    """Ana malzeme türü: Deri çeşitleri, Keçe, Süet, Rona, Suni deri… ve fasonda birleştirilen malzemeler."""
+
     ad = models.CharField(max_length=60, unique=True)
+    bilesik = models.BooleanField(
+        "birleşik malzeme", default=False,
+        help_text="Fasonda birkaç malzeme preslenerek yapılır (ör. 3'lü lamine, halı tabanı).",
+    )
     min_kg = models.DecimalField(
         "en az stok (kg)", max_digits=10, decimal_places=2, null=True, blank=True,
         help_text="Bu türün toplam stoğu bunun altına düşünce uyarı verilir.",
     )
+    min_m2 = models.DecimalField(
+        "en az stok (m²)", max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Bu türün toplam m² stoğu bunun altına düşünce uyarı verilir.",
+    )
 
     class Meta:
-        ordering = ["ad"]
-        verbose_name = "deri türü"
-        verbose_name_plural = "deri türleri"
+        ordering = ["bilesik", "ad"]
+        verbose_name = "malzeme türü"
+        verbose_name_plural = "malzeme türleri"
 
     def __str__(self):
         return self.ad
@@ -266,7 +276,9 @@ class HamDeriGirisi(models.Model):
     lot_no = models.CharField("stok lot no", max_length=20, unique=True, blank=True)
     tarih = models.DateField(default=timezone.localdate)
     tedarikci = models.ForeignKey(Tedarikci, on_delete=models.PROTECT, verbose_name="tedarikçi")
-    deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, verbose_name="deri türü")
+    deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, verbose_name="malzeme türü")
+    renk = models.CharField(max_length=60, blank=True)
+    model = models.CharField(max_length=60, blank=True, help_text="Desen / model adı ya da kodu")
     kalite = models.CharField(max_length=1, choices=KALITE, default="K")
     adet = models.PositiveIntegerField(null=True, blank=True)
     kg = models.DecimalField(max_digits=10, decimal_places=2, validators=pozitif)
@@ -280,8 +292,8 @@ class HamDeriGirisi(models.Model):
 
     class Meta:
         ordering = ["-tarih", "-lot_no"]
-        verbose_name = "stok lotu (ham deri)"
-        verbose_name_plural = "stok lotları (ham deri)"
+        verbose_name = "stok lotu (ana malzeme)"
+        verbose_name_plural = "stok lotları (ana malzeme)"
 
     def __str__(self):
         return f"{self.lot_no} – {self.tedarikci} ({self.deri_turu})"
@@ -290,6 +302,11 @@ class HamDeriGirisi(models.Model):
         if not self.lot_no:
             self.lot_no = sonraki_numara(HamDeriGirisi, "lot_no", "HD")
         super().save(*args, **kwargs)
+
+    @property
+    def cesit_metni(self):
+        """Ör. 'Süet · Bej · Mermer desen'."""
+        return " · ".join(p for p in (str(self.deri_turu), self.renk, self.model) if p)
 
     @property
     def giris_metni(self):

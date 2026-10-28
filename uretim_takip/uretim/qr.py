@@ -84,7 +84,7 @@ def etiketler(request):
         else:
             stoklar = [s for s in stoklar if s.kalan_kg > 0 or s.kalan_m2 > 0]
         for s in stoklar:
-            satirlar = [f"{s.deri_turu} · {s.get_kalite_display()}", str(s.tedarikci),
+            satirlar = [s.cesit_metni, str(s.tedarikci),
                         (f"{s.giris_metni} = " if s.giris_metni else "") + f"{localize(s.m2)} m²"
                         + (f" · {localize(s.kg)} kg" if s.kg else "") + (f" · {s.adet} adet" if s.adet else ""),
                         f"Giriş: {s.tarih:%d.%m.%Y}"]

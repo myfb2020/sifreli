@@ -39,7 +39,7 @@
     <h2>Stok lotu</h2>
     <table>
       <tr><th>Tedarikçi</th><td>{{ stok.tedarikci }}</td></tr>
-      <tr><th>Deri türü / kalite</th><td>{{ stok.deri_turu }} / {{ stok.get_kalite_display }}</td></tr>
+      <tr><th>Malzeme</th><td>{{ stok.cesit_metni }}{% if stok.kalite != 'K' %} · {{ stok.get_kalite_display }}{% endif %}</td></tr>
       <tr><th>Giriş tarihi</th><td>{{ stok.tarih|date:"d.m.Y" }}</td></tr>
       {% if stok.adet %}<tr><th>Adet</th><td>{{ stok.adet }}</td></tr>{% endif %}
       {% if stok.notlar %}<tr><th>Not</th><td>{{ stok.notlar|linebreaksbr }}</td></tr>{% endif %}

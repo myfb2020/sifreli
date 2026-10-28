@@ -58,7 +58,7 @@
       const y = await fetch("{% url 'stok_bilgi' 'NO' %}".replace("NO", encodeURIComponent(no)));
       const v = await y.json();
       ozet.innerHTML = v.bulundu
-        ? `${v.deri_turu} · ${v.kalite} · ${v.tedarikci}<br>Stokta: <b>${v.kalan_kg} kg / ${v.kalan_m2} m²</b>`
+        ? `${v.deri_turu} · ${v.tedarikci}<br>Stokta: <b>${v.kalan_kg} kg / ${v.kalan_m2} m²</b>`
         : v.malzeme
           ? `<span class="uyari">Bu bir malzeme etiketi (${v.malzeme.replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";")}). Malzemeler işi bitirirken girilir; buraya ana malzemenin (deri/kumaş) stok etiketini okutun.</span>`
           : '<span class="uyari">Bu numarada stok lotu yok</span>';

@@ -248,6 +248,8 @@ class Aktarici:
         h.adet = tam_sayi(s.get("Adet"), "Adet")
         h.kalite = secim(s.get("Kalite"), "Kalite", HamDeriGirisi.KALITE) or h.kalite
         h.notlar = metin(s.get("Not")) or h.notlar
+        h.renk = sinirli(s.get("Renk"), "Renk", 60) or h.renk
+        h.model = sinirli(s.get("Model"), "Model", 60) or h.model
         h.save()
         return yeni
 
@@ -356,7 +358,7 @@ SAYFALAR = [
         Sutun("Lot No", False, "Boş bırakılırsa sistem numara verir (HD-2026-0001). Eski numaralarınızı yazarsanız onlar kullanılır.", "HD-2026-0001"),
         Sutun("Tarih", False, "Giriş tarihi (boşsa bugün)", "01.10.2026"),
         Sutun("Tedarikçi", True, "", "Anadolu Deri Ltd."),
-        Sutun("Deri Türü", True, "Koyun, Kuzu, Keçi…", "Kuzu"),
+        Sutun("Deri Türü", True, "Malzeme türü: Keçe, Süet, Rona, Suni deri, Kuzu…", "Süet", ("Malzeme Türü",)),
         Sutun("Kalite", False, "A / B / C / Karışık", "A"),
         Sutun("Adet", False, "Deri adedi", "200"),
         Sutun("Kg", False, "Toplam ağırlık (isteğe bağlı)", "640"),
@@ -365,6 +367,8 @@ SAYFALAR = [
         Sutun("Giriş Birimi", False, "m² / metretül / ayak (boşsa m²)", "ayak"),
         Sutun("Giriş Miktarı", False, "Geldiği birimdeki miktar", "1200"),
         Sutun("En (cm)", False, "Metretül girişinde rulo eni", "140"),
+        Sutun("Renk", False, "", "Bej"),
+        Sutun("Model", False, "Desen / model", "Mermer"),
     ], "ham_deri", ("hamderigirisleri", "hamderi", "hammadde", "stok")),
     Sayfa("Siparişler", "Müşteri siparişleri. Müşteri sistemde yoksa otomatik eklenir.", [
         Sutun("Sipariş No", False, "Boş bırakılırsa sistem numara verir (SP-2026-0001)", "SP-2026-0001"),

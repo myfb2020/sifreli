@@ -98,8 +98,8 @@ admin.site.register([Tedarikci, Musteri], admin.ModelAdmin)
 
 @admin.register(DeriTuru)
 class DeriTuruAdmin(admin.ModelAdmin):
-    list_display = ["ad", "min_kg"]
-    list_editable = ["min_kg"]
+    list_display = ["ad", "bilesik", "min_m2", "min_kg"]
+    list_editable = ["bilesik", "min_m2", "min_kg"]
 
 
 class HareketInline(admin.TabularInline):

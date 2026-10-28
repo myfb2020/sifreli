@@ -285,15 +285,25 @@ class StokGirisForm(forms.ModelForm):
 
     class Meta:
         model = HamDeriGirisi
-        fields = ["tarih", "deri_turu", "kalite", "adet", "giris_birimi", "giris_miktari", "en_cm", "kg", "notlar"]
+        fields = ["tarih", "deri_turu", "renk", "model", "kalite", "adet", "giris_birimi", "giris_miktari", "en_cm", "kg",
+                  "notlar"]
         widgets = {
             "tarih": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
         }
-        labels = {"notlar": "Not (isteğe bağlı)", "adet": "Adet (isteğe bağlı)"}
+        labels = {"notlar": "Not (isteğe bağlı)", "adet": "Adet / rulo (isteğe bağlı)", "renk": "Renk",
+                  "model": "Model / desen", "deri_turu": "Malzeme türü"}
 
-    field_order = ["tedarikci", "yeni_tedarikci", "tarih", "deri_turu", "kalite", "adet",
+    field_order = ["tedarikci", "yeni_tedarikci", "tarih", "deri_turu", "renk", "model", "kalite", "adet",
                    "giris_birimi", "giris_miktari", "en_cm", "kg", "notlar"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Daha önce yazılan renk ve modeller öneri olarak çıkar (aynı adın farklı yazımı azalır).
+        self.fields["renk"].widget.attrs.update({"list": "renk-onerileri", "autocomplete": "off"})
+        self.fields["model"].widget.attrs.update({"list": "model-onerileri", "autocomplete": "off"})
+        self.fields["deri_turu"].help_text = ("Fasonda birleştirilen malzemeler (lamine, taban) normalde Stok → Fason'dan "
+                                              "teslim alınırken kendiliğinden oluşur; buradan yalnızca hazır alınanları girin.")
 
     def clean(self):
         veri = super().clean()

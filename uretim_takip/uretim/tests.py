@@ -798,11 +798,11 @@ class StokDuzeltmeVeMalzemeTesti(TemelVeri):
         tur = self.ham.deri_turu
         tur.min_kg = Decimal("80")
         tur.save()
-        self.assertNotIn("Kuzu derisi", [u.ad for u in uyarilar.azalan_stoklar()])
+        self.assertNotIn("Kuzu", [u.ad for u in uyarilar.azalan_stoklar()])
         self.yeni_lot(baslangic_kg=Decimal("30"), baslangic_m2=Decimal("5"))
         ozet = uyarilar.deri_ozeti()[tur.pk]
         self.assertEqual((ozet["kalan_kg"], ozet["kalan_m2"]), (Decimal("70"), Decimal("15")))
-        self.assertIn("Kuzu derisi", [u.ad for u in uyarilar.azalan_stoklar()])
+        self.assertIn("Kuzu", [u.ad for u in uyarilar.azalan_stoklar()])
 
     def test_bitir_ekraninda_malzeme(self):
         servisler.malzeme_giris(malzeme=self.krom, miktar=Decimal("50"))

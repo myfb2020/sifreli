@@ -54,6 +54,13 @@ def yeni_is(request):
     return render(request, "uretim/yeni_is.html", {"form": form, "satirlar": satirlar, "gecis_modu": gecis_modu})
 
 
+def cesit_onerileri():
+    """Stok formlarında renk / model kutularına öneri listesi."""
+    def liste(alan):
+        return (HamDeriGirisi.objects.exclude(**{alan: ""}).order_by(alan).values_list(alan, flat=True).distinct()[:200])
+    return {"renk_onerileri": liste("renk"), "model_onerileri": liste("model")}
+
+
 @login_required
 def stok_bilgi(request, lot_no):
     """Yeni iş ekranında okutulan stok lotunun özeti."""
@@ -62,7 +69,7 @@ def stok_bilgi(request, lot_no):
         malzeme = Malzeme.objects.filter(kod=lot_no.upper()).first()
         return JsonResponse({"bulundu": False, "malzeme": malzeme.ad if malzeme else None}, status=404)
     return JsonResponse({
-        "bulundu": True, "lot_no": stok.lot_no, "deri_turu": str(stok.deri_turu), "kalite": stok.get_kalite_display(),
+        "bulundu": True, "lot_no": stok.lot_no, "deri_turu": stok.cesit_metni, "kalite": stok.get_kalite_display(),
         "tedarikci": str(stok.tedarikci), "kalan_kg": str(stok.kalan_kg), "kalan_m2": str(stok.kalan_m2),
     })
 
@@ -73,7 +80,8 @@ def stok_listesi(request):
     stoklar = HamDeriGirisi.objects.select_related("tedarikci", "deri_turu").prefetch_related("cikislar", "duzeltmeler")
     ara = request.GET.get("ara", "").strip()
     if ara:
-        stoklar = stoklar.filter(Q(lot_no__icontains=ara) | Q(tedarikci__ad__icontains=ara) | Q(deri_turu__ad__icontains=ara))
+        stoklar = stoklar.filter(Q(lot_no__icontains=ara) | Q(tedarikci__ad__icontains=ara) | Q(deri_turu__ad__icontains=ara)
+                                 | Q(renk__icontains=ara) | Q(model__icontains=ara))
     satirlar = []
     for s in stoklar[:500]:
         kullanilan_kg = sum((c.kg for c in s.cikislar.all()), 0) - sum((d.kg for d in s.duzeltmeler.all()), 0)
@@ -110,4 +118,4 @@ def stok_yeni(request):
         stok = form.save()
         messages.success(request, f"{stok.lot_no} stok lotu kaydedildi. Etiketini basıp malın üzerine yapıştırın.")
         return redirect("stok_detay", pk=stok.pk)
-    return render(request, "uretim/stok_yeni.html", {"form": form})
+    return render(request, "uretim/stok_yeni.html", {"form": form, **cesit_onerileri()})
