@@ -5,11 +5,12 @@
 <div class="kart" style="max-width:640px;margin:0 auto">
   <p style="margin:0 0 8px"><a href="{% url 'islem_merkezi' %}">← İşlem Başlat</a></p>
   <h1>🆕 Yeni İş</h1>
+  {% if gecis_modu %}<div class="mesaj info">Geçiş dönemi açık: etiketi olmayan eski malzemeden aldıysanız <b>Eski stoktan</b> alanlarını doldurun; stok lotu okutmanız gerekmez.</div>{% endif %}
   <form method="post" class="dikey" id="yeni-is-formu">
     {% include "uretim/_form.html" %}
 
     <h2 style="margin-top:20px">Malzeme alınan stok lotları</h2>
-    <p class="soluk">Her satıra bir stok lotu: 📷 ile etiketini okutun ya da numarasını yazın, aldığınız miktarı girin. Kullanmadığınız satırları boş bırakın.</p>
+    <p class="soluk">{% if gecis_modu %}Etiketli yeni malzemeden aldıysanız: {% endif %}Her satıra bir stok lotu: 📷 ile etiketini okutun ya da numarasını yazın, aldığınız miktarı girin. Kullanmadığınız satırları boş bırakın.</p>
     {{ satirlar.management_form }}
     {% if satirlar.non_form_errors %}<div class="mesaj error">{{ satirlar.non_form_errors|join:" " }}</div>{% endif %}
     {% for s in satirlar %}

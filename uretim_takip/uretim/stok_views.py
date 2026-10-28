@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from . import servisler, uyarilar
 from .views import geri_don
 from .forms import KaynakFormSet, StokGirisForm, YeniIsForm
-from .models import HamDeriGirisi, Malzeme, UretimLotu
+from .models import HamDeriGirisi, Malzeme, SistemAyari, UretimLotu
 
 
 @login_required
@@ -28,7 +28,8 @@ def yeni_is(request):
     baslangic_satirlar = []
     if request.GET.get("stok"):
         baslangic_satirlar = [{"stok_no": request.GET["stok"].strip().upper()}]
-    form = YeniIsForm(request.POST or None, initial={"siparis": request.GET.get("siparis")})
+    gecis_modu = SistemAyari.yukle().gecis_modu
+    form = YeniIsForm(request.POST or None, initial={"siparis": request.GET.get("siparis")}, gecis_modu=gecis_modu)
     satirlar = KaynakFormSet(request.POST or None, initial=baslangic_satirlar, prefix="kaynak")
 
     if request.method == "POST" and form.is_valid() and satirlar.is_valid():
@@ -40,7 +41,7 @@ def yeni_is(request):
         try:
             islem = servisler.yeni_is_baslat(
                 personel=v["personel"], siparis=v["siparis"], kaynaklar=kaynaklar, asama=v["asama"],
-                aciklama=v["aciklama"], makine=v.get("makine"),
+                aciklama=v["aciklama"], makine=v.get("makine"), eski_stok=form.eski_stok(),
             )
         except ValidationError as hata:
             form.add_error(None, hata)
@@ -50,7 +51,7 @@ def yeni_is(request):
                          f"“{islem.asama.ad}” başladı."
             )
             return geri_don(request, "pano")
-    return render(request, "uretim/yeni_is.html", {"form": form, "satirlar": satirlar})
+    return render(request, "uretim/yeni_is.html", {"form": form, "satirlar": satirlar, "gecis_modu": gecis_modu})
 
 
 @login_required

@@ -2,7 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from .models import (
-    NEDENLER, Asama, HaliTuru, HamDeriGirisi, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
+    NEDENLER, Asama, DeriTuru, HaliTuru, HamDeriGirisi, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
     m2_hesapla, pin_dogrulayici,
 )
 
@@ -192,12 +192,33 @@ class YeniIsForm(PinliForm):
         empty_label="— Halı türüne göre ilk istasyon —",
     )
     makine = makine_alani()
+    eski_tur = forms.ModelChoiceField(
+        queryset=DeriTuru.objects.all(), label="Eski stoktan (etiketsiz) – malzeme türü", required=False,
+        empty_label="— Eski stok kullanılmadı —",
+        help_text="Geçiş dönemi: etiketi olmayan eski malzemeden aldıysanız türünü seçip miktarı yazın.",
+    )
+    eski_m2 = ondalik_alan("Eski stoktan alınan m²", required=False)
+    eski_kg = ondalik_alan("Eski stoktan alınan kg (isteğe bağlı)", required=False)
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
-    field_order = ["personel", "pin", "siparis", "asama", "makine", "aciklama"]
+    field_order = ["personel", "pin", "siparis", "asama", "makine", "eski_tur", "eski_m2", "eski_kg", "aciklama"]
+
+    def __init__(self, *args, gecis_modu=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not gecis_modu:
+            for alan in ("eski_tur", "eski_m2", "eski_kg"):
+                del self.fields[alan]
+
+    def eski_stok(self):
+        v = self.cleaned_data
+        if not v.get("eski_tur"):
+            return None
+        return v["eski_tur"], v.get("eski_kg"), v.get("eski_m2")
 
     def clean(self):
         veri = super().clean()
+        if veri.get("eski_tur") and not veri.get("eski_m2") and not veri.get("eski_kg"):
+            self.add_error("eski_m2", "Eski stoktan aldığınız miktarı girin.")
         siparis = veri.get("siparis")
         if siparis and not veri.get("asama"):
             ilkler = siparis.ilk_asamalar()

@@ -44,3 +44,20 @@ def yedek_indir(request):
     dosya = open(yol, "rb")
     yol.unlink()  # Açık dosya tanıtıcısı okunmaya devam eder (Linux).
     return FileResponse(dosya, as_attachment=True, filename=dosya_adi())
+
+
+@sadece_yonetici
+def gecis_modu_degistir(request):
+    """Pano'daki düğme: geçiş dönemini açar/kapatır (yalnızca POST)."""
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    from .models import SistemAyari
+
+    if request.method == "POST":
+        ayar = SistemAyari.yukle()
+        ayar.gecis_modu = not ayar.gecis_modu
+        ayar.save(update_fields=["gecis_modu"])
+        messages.success(request, "Geçiş dönemi açıldı: işler etiketsiz eski stoktan da başlatılabilir."
+                         if ayar.gecis_modu else "Geçiş dönemi kapatıldı: işler yalnızca etiketli stoktan başlatılır.")
+    return redirect("pano")

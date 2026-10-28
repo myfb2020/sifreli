@@ -116,5 +116,12 @@
   <a href="{% url 'yedek_indir' %}">💾 Yedek indir</a> ·
   <a href="{% url 'tablet_girisleri' %}">📱 Tablet girişleri</a> ·
   <a href="{% url 'test_verilerini_sil' %}">🧹 Deneme kayıtlarını sil</a></p>
+<form method="post" action="{% url 'gecis_modu_degistir' %}" class="kart" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+  {% csrf_token %}
+  <span style="margin-right:auto"><b>Geçiş dönemi:</b>
+    {% if gecis_modu %}<span class="rozet islemde">AÇIK</span> İşler etiketsiz eski stoktan da başlatılabilir (stoktan düşülmez).
+    {% else %}<span class="rozet tamamlandi">KAPALI</span> İşler yalnızca etiketli stok lotlarından başlatılır.{% endif %}</span>
+  <button class="btn kucuk {% if not gecis_modu %}ikincil{% endif %}" type="submit">{% if gecis_modu %}Kapat{% else %}Aç{% endif %}</button>
+</form>
 {% endif %}
 {% endblock %}

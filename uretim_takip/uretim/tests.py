@@ -1258,3 +1258,32 @@ class PanoIstasyonSayilariTesti(TemelVeri):
         # Temel verideki türsüz sipariş de genel sırada ilk istasyona (Lazer kesim 1) düşer
         self.assertEqual(satir["bekleyen"], 2)
         self.assertContains(sayfa, "2 bekliyor")
+
+
+class GecisDonemiTesti(TemelVeri):
+    def test_eski_stoktan_is_yalnizca_gecis_doneminde(self):
+        from .models import SistemAyari
+
+        kece = DeriTuru.objects.get_or_create(ad="Keçe")[0]
+        yonetici = get_user_model().objects.create_superuser("gy", password="x")
+        self.client.force_login(yonetici)
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        v = {"personel": self.ahmet.pk, "pin": "1234", "siparis": self.siparis.pk, "asama": lazer.pk,
+             "makine": self.makine(lazer), "eski_tur": kece.pk, "eski_m2": "12,5",
+             "kaynak-TOTAL_FORMS": 1, "kaynak-INITIAL_FORMS": 0}
+        # Kapalıyken eski stok alanı yok, iş açılmaz
+        self.assertNotContains(self.client.get(reverse("yeni_is")), "Eski stoktan")
+        self.assertContains(self.client.post(reverse("yeni_is"), v), "En az bir stok lotundan")
+        # Aç
+        self.client.post(reverse("gecis_modu_degistir"))
+        self.assertTrue(SistemAyari.yukle().gecis_modu)
+        self.assertContains(self.client.get(reverse("pano")), "AÇIK")
+        self.assertRedirects(self.client.post(reverse("yeni_is"), v), reverse("pano"))
+        lot = UretimLotu.objects.latest("pk")
+        self.assertEqual((lot.baslangic_m2, lot.kaynak_listesi), (Decimal("12.50"), "Eski stok (Keçe)"))
+        self.assertEqual(self.ham.kalan_m2, Decimal("20"))  # etiketli stoktan düşülmedi
+        # Kapat: servis de reddeder
+        self.client.post(reverse("gecis_modu_degistir"))
+        with self.assertRaises(ValidationError):
+            servisler.yeni_is_baslat(personel=self.ahmet, siparis=self.siparis, kaynaklar=[], asama=lazer,
+                                     eski_stok=(kece, None, Decimal("5")))

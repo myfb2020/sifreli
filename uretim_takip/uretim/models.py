@@ -450,6 +450,10 @@ class UretimLotu(models.Model):
         help_text="Lotun en son işlem gördüğü aşama.",
     )
     durum = models.CharField(max_length=12, choices=DURUM, default="bekliyor")
+    eski_stok_turu = models.ForeignKey(
+        DeriTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="etiketsiz eski stok türü",
+        help_text="Geçiş döneminde stok etiketi olmadan, eski stoktan başlatılan işlerde.",
+    )
     notlar = models.TextField(blank=True)
 
     class Meta:
@@ -474,8 +478,11 @@ class UretimLotu(models.Model):
 
     @property
     def kaynak_listesi(self):
-        """Malzemenin alındığı stok lotları, ör. 'HD-2026-0001, HD-2026-0004'."""
-        return ", ".join(k.ham_deri.lot_no for k in self.kaynaklar.all())
+        """Malzemenin alındığı stok lotları, ör. 'HD-2026-0001, HD-2026-0004'; etiketsiz eski stok da yazılır."""
+        parcalar = [k.ham_deri.lot_no for k in self.kaynaklar.all()]
+        if self.eski_stok_turu_id:
+            parcalar.append(f"Eski stok ({self.eski_stok_turu})")
+        return ", ".join(parcalar)
 
     def asama_sonrasi(self, asama):
         """Bu iş için verilen istasyondan sonra gelecek istasyon(lar); boş liste: iş biter."""
@@ -738,3 +745,24 @@ def hesap_istasyonu(kullanici):
         return None
     ayar = HesapAyari.objects.filter(kullanici=kullanici, istasyon__aktif=True).select_related("istasyon").first()
     return ayar.istasyon if ayar else None
+
+
+class SistemAyari(models.Model):
+    """Tek satırlık genel ayarlar (yönetici değiştirir)."""
+
+    gecis_modu = models.BooleanField(
+        "geçiş dönemi", default=False,
+        help_text="Açıkken yeni iş, stok etiketi olmadan 'eski stoktan' başlatılabilir; stoktan düşülmez.",
+    )
+
+    class Meta:
+        verbose_name = "sistem ayarı"
+        verbose_name_plural = "sistem ayarları"
+
+    def __str__(self):
+        return "Sistem ayarları"
+
+    @classmethod
+    def yukle(cls):
+        ayar, _ = cls.objects.get_or_create(pk=1)
+        return ayar

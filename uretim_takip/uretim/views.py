@@ -13,7 +13,7 @@ from openpyxl.styles import Font
 
 from . import raporlar, servisler, uyarilar
 from .forms import IslemBaslatForm, IslemBitirForm, MalzemeKullanimFormSet, TarihAraligiForm
-from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Siparis, UretimLotu
+from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Siparis, SistemAyari, UretimLotu
 
 
 def geri_don(request, varsayilan):
@@ -56,6 +56,7 @@ def pano(request):
             durum__in=["acik", "uretimde"], teslim_tarihi__gte=bugun, teslim_tarihi__lte=bugun + timedelta(days=7)
         ).select_related("musteri"),
         "gecikmeler": uyarilar.gecikmeler(),
+        "gecis_modu": SistemAyari.yukle().gecis_modu,
         "azalan_stoklar": uyarilar.azalan_stoklar() if request.user.is_staff else [],
     }
     return render(request, "uretim/pano.html", baglam)

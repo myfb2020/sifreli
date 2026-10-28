@@ -37,6 +37,7 @@ urlpatterns = [
     path("sw.js", pwa.service_worker, name="service_worker"),
     path("cevrimdisi/", pwa.cevrimdisi, name="cevrimdisi"),
     path("yedek/", yedek.yedek_indir, name="yedek_indir"),
+    path("gecis-donemi/", yedek.gecis_modu_degistir, name="gecis_modu_degistir"),
     path("hesaplar/", hesaplar.hesap_listesi, name="hesap_listesi"),
     path("hesaplar/yeni/", hesaplar.hesap_formu, name="hesap_yeni"),
     path("hesaplar/<int:pk>/", hesaplar.hesap_formu, name="hesap_duzenle"),

@@ -6,7 +6,9 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import DeriDuzeltme, HamDeriGirisi, IslemKaydi, LotKaynagi, MalzemeHareketi, UretimLotu
+from .models import (
+    DeriDuzeltme, HamDeriGirisi, IslemKaydi, LotKaynagi, MalzemeHareketi, SistemAyari, UretimLotu,
+)
 
 
 @transaction.atomic
@@ -75,16 +77,24 @@ def islem_bitir(*, islem, personel, cikis_kg, cikis_m2, aciklama="", malzemeler=
 
 
 @transaction.atomic
-def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=None):
+def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=None, eski_stok=None):
     """Stoktan malzeme alarak yeni bir iş açar ve ilk aşamasını başlatır.
 
     kaynaklar: [(stok_lotu, kg, m2), ...]. Aynı stok lotu birden çok kez okutulduysa miktarlar toplanır.
+    eski_stok: (malzeme_turu, kg, m2) — yalnızca geçiş döneminde, etiketsiz eski stoktan; stoktan düşülmez.
     """
     toplam = {}
     for stok, kg, m2 in kaynaklar:
         onceki = toplam.get(stok.pk, (stok, Decimal(0), Decimal(0)))
         toplam[stok.pk] = (stok, onceki[1] + (kg or 0), onceki[2] + (m2 or 0))
-    if not toplam:
+    eski_tur, eski_kg, eski_m2 = eski_stok or (None, Decimal(0), Decimal(0))
+    eski_kg, eski_m2 = eski_kg or Decimal(0), eski_m2 or Decimal(0)
+    if eski_tur is not None:
+        if not SistemAyari.yukle().gecis_modu:
+            raise ValidationError("Geçiş dönemi kapalı: iş yalnızca etiketli stok lotlarından başlatılabilir.")
+        if eski_kg <= 0 and eski_m2 <= 0:
+            raise ValidationError("Eski stoktan aldığınız m² (ya da kg) miktarını girin.")
+    if not toplam and eski_tur is None:
         raise ValidationError("En az bir stok lotundan malzeme girin.")
     if siparis is not None and siparis.durum in ("sevk", "iptal"):
         raise ValidationError(f"{siparis} {siparis.get_durum_display().lower()}, bu siparişe iş açılamaz.")
@@ -102,8 +112,9 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=N
 
     lot = UretimLotu.objects.create(
         siparis=siparis,
-        baslangic_kg=sum((kg for _, kg, _ in toplam.values()), Decimal(0)),
-        baslangic_m2=sum((m2 for _, _, m2 in toplam.values()), Decimal(0)),
+        baslangic_kg=sum((kg for _, kg, _ in toplam.values()), Decimal(0)) + eski_kg,
+        baslangic_m2=sum((m2 for _, _, m2 in toplam.values()), Decimal(0)) + eski_m2,
+        eski_stok_turu=eski_tur,
     )
     LotKaynagi.objects.bulk_create(
         LotKaynagi(uretim_lotu=lot, ham_deri=kilitli[pk], kg=kg, m2=m2) for pk, (_, kg, m2) in toplam.items()
