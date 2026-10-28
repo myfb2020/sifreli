@@ -53,6 +53,7 @@ Sipariş girilirken **halı türü** seçilir; iş o türün istasyonlarından s
 | Lazerli halı | Lazer kesim 1 / 2 → Zig-zag → Biye / Lanfel |
 | Nakışlı halı | Nakış → Lazer kesim 1 / 2 → Zig-zag → Biye / Lanfel |
 | Peluş halı | Kaplama → Lazer kesim 1 / 2 → Zig-zag → Biye / Kenar dikişi |
+| Suni deri halı | Lazer kesim 1 / 2 → Zig-zag → Kenar dikişi / Biye |
 
 "Biye / Lanfel" ya biri ya diğeri demektir: iş iki istasyonun ekranına da düşer, hangisi başlarsa o yapar.
 Çalışan işe başlarken **hangi makinede** çalıştığını seçer; raporlarda makine bazında iş sayısı ve çalışma süresi görünür.
@@ -102,6 +103,9 @@ Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda d
 ## Stok: deri ve malzemeler
 
 - **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.
+- **Ana malzeme türleri:** Deri çeşitleri, Keçe, Süet, Rona, Suni deri ve fasonda birleştirilenler (3'lü lamine, Halı tabanı). Her lotta renk ve model ayrıca yazılır.
+- **Fason (Stok → Fason):** **📤 Fasona gönder** ile fasoncu ve yapılacak birleşik malzeme seçilir, giden rulolar QR ile okutulup m²'leri yazılır; bu miktarlar stoktan düşer. Mal gelince fason işinin sayfasında **Teslim al** ile gelen m² girilir: yeni stok lotu açılır, rengi ve modeli üst katmandan (rona / suni deri) gelir. Katman başına giden m² ile gelen arasındaki fark **fason firesi** olarak görünür. Gönderilmeden vazgeçilirse **İptal et** miktarları stoğa geri verir.
+- **Geçiş dönemi (Pano → Yönetici araçları):** Açıkken yeni iş etiketsiz eski stoktan da açılabilir (stoktan düşülmez). Tüm eski stok etiketlenince kapatılır.
 - **Malzemeler (Stok → Malzemeler):** Kimyasal, iplik, astar, yapıştırıcı, ambalaj gibi malzemeler kendi birimiyle (kg, litre, metre, m², adet, makara) tanımlanır. **"+ Malzeme girişi"** ile gelen mal eklenir.
 - **Malzeme etiketleri:** Her malzemeye otomatik bir kod verilir (`MZ-0001`). Malzeme sayfasındaki **🏷 Etiket bas** düğmesiyle QR etiket yazdırılır. "Her etiketten N adet" seçeneğiyle örneğin 10 bidonun her birine etiket basılabilir.
 - **Üretimde kullanım:** Çalışan bir aşamayı **bitirirken** kullandığı malzemeyi seçip miktarını girer. Malzemeyi listeden seçmek yerine **📷** ile bidonun etiketini okutabilir. Malzeme stoktan düşer, hangi işte ve kim tarafından kullanıldığı kaydedilir.

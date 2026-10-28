@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import aktarim_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
+from . import aktarim_views, fason_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -18,6 +18,10 @@ urlpatterns = [
     path("stok/<int:pk>/", stok_views.stok_detay, name="stok_detay"),
     path("stok/bilgi/<str:lot_no>/", stok_views.stok_bilgi, name="stok_bilgi"),
     path("stok/<int:pk>/duzelt/", malzeme_views.deri_duzelt, name="deri_duzelt"),
+    path("fason/", fason_views.fason_listesi, name="fason_listesi"),
+    path("fason/gonder/", fason_views.fason_gonder, name="fason_gonder"),
+    path("fason/<int:pk>/", fason_views.fason_detay, name="fason_detay"),
+    path("fason/<int:pk>/iptal/", fason_views.fason_iptal, name="fason_iptal"),
     path("malzemeler/", malzeme_views.malzeme_listesi, name="malzeme_listesi"),
     path("malzemeler/yeni/", malzeme_views.malzeme_yeni, name="malzeme_yeni"),
     path("malzemeler/giris/", malzeme_views.malzeme_giris, name="malzeme_giris"),

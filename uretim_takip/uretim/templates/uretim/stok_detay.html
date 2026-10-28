@@ -5,6 +5,7 @@
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
   <h1 style="margin:0;margin-right:auto">{{ stok.lot_no }}</h1>
   <a class="btn ikincil" href="{% url 'etiketler' %}?stok={{ stok.pk }}">🏷 Etiket bas</a>
+  {% if perms.uretim.add_fasonisi and not stok.deri_turu.bilesik %}{% if stok.kalan_kg > 0 or stok.kalan_m2 > 0 %}<a class="btn ikincil" href="{% url 'fason_gonder' %}?stok={{ stok.lot_no|urlencode }}">📤 Fasona gönder</a>{% endif %}{% endif %}
   {% if perms.uretim.add_deriduzeltme %}<a class="btn ikincil" href="{% url 'deri_duzelt' stok.pk %}">Düzeltme (sayım / fire)</a>{% endif %}
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_hamderigirisi_change' stok.pk %}">Düzenle</a>{% endif %}
 </div>
@@ -40,6 +41,7 @@
     <table>
       <tr><th>Tedarikçi</th><td>{{ stok.tedarikci }}</td></tr>
       <tr><th>Malzeme</th><td>{{ stok.cesit_metni }}{% if stok.kalite != 'K' %} · {{ stok.get_kalite_display }}{% endif %}</td></tr>
+      {% if stok.fason_kaynagi %}<tr><th>Fasondan geldi</th><td><a href="{% url 'fason_detay' stok.fason_kaynagi.pk %}">{{ stok.fason_kaynagi.no }}</a> · {% for lot, kg, m2 in stok.fason_kaynagi.gidenler %}<a href="{% url 'stok_detay' lot.pk %}">{{ lot.lot_no }}</a> ({{ lot.deri_turu }}){% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>{% endif %}
       <tr><th>Giriş tarihi</th><td>{{ stok.tarih|date:"d.m.Y" }}</td></tr>
       {% if stok.adet %}<tr><th>Adet</th><td>{{ stok.adet }}</td></tr>{% endif %}
       {% if stok.notlar %}<tr><th>Not</th><td>{{ stok.notlar|linebreaksbr }}</td></tr>{% endif %}
@@ -80,7 +82,7 @@
   <table>
     <tr><th>Tarih</th><th>Neden</th><th class="sayi">kg</th><th class="sayi">m²</th><th>Giren</th><th>Açıklama</th></tr>
     {% for d in duzeltmeler %}
-    <tr><td>{{ d.tarih|date:"d.m.Y H:i" }}</td><td>{{ d.get_neden_display }}</td>
+    <tr><td>{{ d.tarih|date:"d.m.Y H:i" }}</td><td>{% if d.fason_id %}<a href="{% url 'fason_detay' d.fason_id %}">{{ d.get_neden_display }}</a>{% else %}{{ d.get_neden_display }}{% endif %}</td>
         <td class="sayi">{% if d.kg > 0 %}+{% endif %}{{ d.kg }}</td><td class="sayi">{% if d.m2 > 0 %}+{% endif %}{{ d.m2 }}</td>
         <td>{{ d.kullanici|default:"" }}</td><td>{{ d.aciklama }}</td></tr>
     {% endfor %}

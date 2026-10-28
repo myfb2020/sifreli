@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block baslik %}Fason{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">Stok</h1>
+  {% if perms.uretim.add_fasonisi %}<a class="btn" href="{% url 'fason_gonder' %}">📤 Fasona gönder</a>{% endif %}
+</div>
+{% include "uretim/_stok_sekmeleri.html" %}
+<p class="soluk">Keçe, süet, rona / suni deri gibi malzemeleri preslenmeye gönderdiğinizde buraya kaydedin. Gönderilen miktarlar stoktan düşer; mal geri gelince <b>Teslim al</b> ile yeni stok lotu açılır.</p>
+
+<div class="sekmeler alt-sekme">
+  <a class="sekme{% if durum == 'fasonda' %} secili{% endif %}" href="?durum=fasonda">Fasonda</a>
+  <a class="sekme{% if durum == 'teslim' %} secili{% endif %}" href="?durum=teslim">Teslim alınan</a>
+  <a class="sekme{% if durum == 'hepsi' %} secili{% endif %}" href="?durum=hepsi">Hepsi</a>
+</div>
+<div class="kart tablo-kap">
+  <table>
+    <tr><th>Fason no</th><th>Gönderim</th><th>Fasoncu</th><th>Ne yapılacak</th><th class="sayi">Katman başına</th><th>Durum</th><th class="sayi">Gelen</th><th class="sayi">Fire</th></tr>
+    {% for f in isler %}
+    <tr>
+      <td><a href="{% url 'fason_detay' f.pk %}"><b>{{ f.no }}</b></a></td>
+      <td>{{ f.gonderim|date:"d.m.Y" }}</td>
+      <td>{{ f.fasoncu }}</td>
+      <td>{{ f.hedef_tur }}</td>
+      <td class="sayi">{{ f.katman_m2 }} m²</td>
+      <td><span class="rozet {% if f.durum == 'teslim' %}tamamlandi{% elif f.durum == 'iptal' %}iptal{% else %}bekliyor{% endif %}">{{ f.get_durum_display }}</span></td>
+      <td class="sayi">{% if f.gelen_lot %}<a href="{% url 'stok_detay' f.gelen_lot.pk %}">{{ f.gelen_lot.m2 }} m²</a>{% else %}–{% endif %}</td>
+      <td class="sayi">{% if f.fire_m2 is not None %}{{ f.fire_m2 }} m² <span class="soluk">(%{{ f.fire_yuzde }})</span>{% else %}–{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="soluk">Kayıt yok.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

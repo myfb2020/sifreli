@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Asama, DeriDuzeltme, DeriTuru, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
+    Asama, DeriDuzeltme, DeriTuru, FasonIsi, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
     Siparis, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
@@ -132,6 +132,14 @@ class MalzemeHareketiAdmin(admin.ModelAdmin):
     list_display = ["tarih", "malzeme", "tur", "miktar", "islem", "personel", "kullanici"]
     list_filter = ["tur", "malzeme"]
     date_hierarchy = "tarih"
+
+
+@admin.register(FasonIsi)
+class FasonIsiAdmin(admin.ModelAdmin):
+    list_display = ["no", "gonderim", "fasoncu", "hedef_tur", "durum", "gelen_lot"]
+    list_filter = ["durum", "hedef_tur"]
+    search_fields = ["no", "fasoncu__ad"]
+    readonly_fields = ["no", "gelen_lot"]
 
 
 @admin.register(DeriDuzeltme)

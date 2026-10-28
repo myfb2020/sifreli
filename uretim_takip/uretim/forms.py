@@ -329,6 +329,40 @@ class StokGirisForm(forms.ModelForm):
         return super().save(commit)
 
 
+# --- Fason ---------------------------------------------------------------------
+
+
+class FasonGonderForm(forms.Form):
+    fasoncu = forms.ModelChoiceField(queryset=Tedarikci.objects.all(), label="Fasoncu", required=False,
+                                     empty_label="— Fasoncu seçin —")
+    yeni_fasoncu = forms.CharField(label="veya yeni fasoncu adı", required=False, max_length=120)
+    hedef_tur = forms.ModelChoiceField(queryset=DeriTuru.objects.filter(bilesik=True), label="Ne yapılacak",
+                                       empty_label="— Seçin (ör. 3'lü lamine) —")
+    notlar = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def clean(self):
+        veri = super().clean()
+        if not (veri.get("yeni_fasoncu") or "").strip() and not veri.get("fasoncu"):
+            self.add_error("fasoncu", "Bir fasoncu seçin ya da yeni fasoncu adı yazın.")
+        return veri
+
+    def fasoncu_bul(self):
+        yeni = self.cleaned_data["yeni_fasoncu"].strip()
+        if yeni:
+            return Tedarikci.objects.filter(ad__iexact=yeni).first() or Tedarikci.objects.create(ad=yeni)
+        return self.cleaned_data["fasoncu"]
+
+
+class FasonTeslimForm(forms.Form):
+    m2 = ondalik_alan("Gelen m²")
+    kg = ondalik_alan("Gelen kg (isteğe bağlı)", required=False)
+    adet = forms.IntegerField(label="Adet / rulo (isteğe bağlı)", required=False, min_value=0)
+    renk = forms.CharField(label="Renk", required=False, max_length=60,
+                           help_text="Üst katmandan (rona / suni deri) geldi; farklıysa düzeltin.")
+    model = forms.CharField(label="Model / desen", required=False, max_length=60)
+    notlar = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+
 # --- Malzemeler ve stok düzeltme ----------------------------------------------
 
 

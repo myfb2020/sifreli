@@ -1,0 +1,64 @@
+{% load static %}
+<div id="tarama-perde" class="tarama-perde" hidden>
+  <div class="kart" style="max-width:480px;width:100%">
+    <div id="tarama-durum" class="mesaj info">Kamera açılıyor…</div>
+    <div id="kamera-kap" class="kamera-kap"><video id="kamera" playsinline muted></video><div class="nisangah"></div></div>
+    <button type="button" class="btn ikincil" id="tarama-kapat" style="width:100%;margin-top:12px">Kapat</button>
+  </div>
+</div>
+
+<script src="{% static 'uretim/vendor/jsQR.js' %}"></script>
+<script src="{% static 'uretim/tarayici.js' %}"></script>
+<script>
+(function () {
+  const perde = document.getElementById("tarama-perde");
+  let tarayici = null;
+
+  async function ozetGoster(girdi) {
+    const ozet = girdi.closest(".kaynak-no").querySelector(".stok-ozet");
+    const no = girdi.value.trim().toUpperCase();
+    if (!no) { ozet.textContent = ""; return; }
+    try {
+      const y = await fetch("{% url 'stok_bilgi' 'NO' %}".replace("NO", encodeURIComponent(no)));
+      const v = await y.json();
+      ozet.innerHTML = v.bulundu
+        ? `${v.deri_turu} · ${v.tedarikci}<br>Stokta: <b>${v.kalan_kg} kg / ${v.kalan_m2} m²</b>`
+        : v.malzeme
+          ? `<span class="uyari">Bu bir malzeme etiketi (${v.malzeme.replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";")}). Malzemeler işi bitirirken girilir; buraya ana malzemenin (deri/kumaş) stok etiketini okutun.</span>`
+          : '<span class="uyari">Bu numarada stok lotu yok</span>';
+    } catch (e) { ozet.textContent = ""; }
+  }
+
+  function kapat() {
+    if (tarayici) tarayici.durdur();
+    tarayici = null;
+    perde.hidden = true;
+  }
+
+  document.querySelectorAll(".stok-no").forEach((girdi) => {
+    girdi.addEventListener("change", () => ozetGoster(girdi));
+    if (girdi.value) ozetGoster(girdi);
+  });
+
+  document.querySelectorAll(".tara-dugme").forEach((dugme) => {
+    dugme.addEventListener("click", () => {
+      const girdi = dugme.parentElement.querySelector(".stok-no");
+      perde.hidden = false;
+      document.getElementById("kamera-kap").hidden = false;
+      tarayici = QrTarayici.baslat({
+        video: document.getElementById("kamera"),
+        durum: document.getElementById("tarama-durum"),
+        kap: document.getElementById("kamera-kap"),
+        onKod: (kod) => {
+          girdi.value = kod;
+          kapat();
+          ozetGoster(girdi);
+          const satir = girdi.closest(".kaynak-satir");
+          satir.querySelector(".kaynak-miktar input").focus();
+        },
+      });
+    });
+  });
+  document.getElementById("tarama-kapat").addEventListener("click", kapat);
+})();
+</script>

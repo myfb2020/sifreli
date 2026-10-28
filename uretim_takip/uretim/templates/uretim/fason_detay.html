@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block baslik %}{{ fason.no }}{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px"><a href="{% url 'fason_listesi' %}">← Fason</a></p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+  <h1 style="margin:0;margin-right:auto">{{ fason.no }} <span class="rozet {% if fason.durum == 'teslim' %}tamamlandi{% elif fason.durum == 'iptal' %}iptal{% else %}bekliyor{% endif %}">{{ fason.get_durum_display }}</span></h1>
+  {% if fason.durum == 'fasonda' and perms.uretim.change_fasonisi %}
+  <form method="post" action="{% url 'fason_iptal' fason.pk %}" onsubmit="return confirm('Fason işi iptal edilsin mi? Gönderilen miktarlar stoğa geri döner.')">
+    {% csrf_token %}<button class="btn ikincil" type="submit">İptal et (gönderilmedi)</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="izgara">
+  <div class="kart">
+    <h2>Fason işi</h2>
+    <table>
+      <tr><th>Fasoncu</th><td>{{ fason.fasoncu }}</td></tr>
+      <tr><th>Ne yapılacak</th><td>{{ fason.hedef_tur }}</td></tr>
+      <tr><th>Gönderim</th><td>{{ fason.gonderim|date:"d.m.Y H:i" }}{% if fason.kullanici %} · {{ fason.kullanici }}{% endif %}</td></tr>
+      {% if fason.teslim %}<tr><th>Teslim</th><td>{{ fason.teslim|date:"d.m.Y H:i" }}</td></tr>{% endif %}
+      {% if fason.notlar %}<tr><th>Not</th><td>{{ fason.notlar|linebreaksbr }}</td></tr>{% endif %}
+    </table>
+  </div>
+  <div class="kart">
+    <h2>Miktar</h2>
+    <table>
+      <tr><td>Katman başına giden</td><td class="sayi">{{ fason.katman_m2 }} m²</td></tr>
+      {% if fason.gelen_lot %}
+      <tr><td>Gelen</td><td class="sayi"><a href="{% url 'stok_detay' fason.gelen_lot.pk %}">{{ fason.gelen_lot.lot_no }}</a> · {{ fason.gelen_lot.m2 }} m²</td></tr>
+      <tr><td><b>Fason firesi</b></td><td class="sayi"><b>{{ fason.fire_m2 }} m²</b> (%{{ fason.fire_yuzde }})</td></tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<div class="kart tablo-kap">
+  <h2>Giden stok lotları</h2>
+  <table>
+    <tr><th>Stok lotu</th><th>Malzeme</th><th class="sayi">m²</th><th class="sayi">kg</th></tr>
+    {% for lot, kg, m2 in gidenler %}
+    <tr><td><a href="{% url 'stok_detay' lot.pk %}">{{ lot.lot_no }}</a></td><td>{{ lot.cesit_metni }}</td>
+        <td class="sayi">{{ m2 }}</td><td class="sayi">{% if kg %}{{ kg }}{% endif %}</td></tr>
+    {% empty %}
+    <tr><td colspan="4" class="soluk">{% if fason.durum == 'iptal' %}İptal edildi; miktarlar stoğa geri döndü.{% else %}Kayıt yok.{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if form %}
+<div class="kart" style="max-width:560px">
+  <h2>📥 Teslim al</h2>
+  <p class="soluk">Fasondan gelen malzemenin m²'sini girin. Yeni bir stok lotu açılır; rengi ve modeli üst katmandan (rona / suni deri) gelir. Gönderilen ile gelen arasındaki fark fason firesi olarak görünür.</p>
+  <form method="post" class="dikey">
+    {% include "uretim/_form.html" %}
+    <button class="btn buyuk" type="submit" style="width:100%">Teslim al ve stok lotu aç</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -24,6 +24,7 @@ OFIS_YETKILERI = {
     "hamderigirisi": "add change view",
     "tedarikci": "add change view",
     "deriduzeltme": "add view",
+    "fasonisi": "add change view",
     "malzeme": "add change view",
     "malzemehareketi": "add view",
     "uretimlotu": "view",

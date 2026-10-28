@@ -619,12 +619,79 @@ NEDENLER = [
 ]
 
 
+class FasonIsi(models.Model):
+    """Fasoncuya preslenmeye giden malzemeler (ör. Keçe + Süet + Rona → 3'lü lamine).
+
+    Gönderilen miktarlar stoktan "fasona gönderildi" düzeltmesiyle düşer; teslim alınınca yeni bir stok lotu açılır.
+    """
+
+    DURUMLAR = [("fasonda", "Fasonda"), ("teslim", "Teslim alındı"), ("iptal", "İptal")]
+
+    no = models.CharField("fason no", max_length=20, unique=True, blank=True)
+    fasoncu = models.ForeignKey(Tedarikci, on_delete=models.PROTECT, related_name="fason_isleri")
+    hedef_tur = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, verbose_name="yapılacak malzeme",
+                                  limit_choices_to={"bilesik": True})
+    durum = models.CharField(max_length=8, choices=DURUMLAR, default="fasonda")
+    gonderim = models.DateTimeField("gönderim", default=timezone.now)
+    teslim = models.DateTimeField("teslim", null=True, blank=True)
+    gelen_lot = models.OneToOneField(HamDeriGirisi, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name="fason_kaynagi", verbose_name="gelen stok lotu")
+    notlar = models.TextField(blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="gönderen")
+
+    class Meta:
+        ordering = ["-gonderim"]
+        verbose_name = "fason işi"
+        verbose_name_plural = "fason işleri"
+
+    def __str__(self):
+        return f"{self.no} – {self.fasoncu} ({self.hedef_tur})"
+
+    def save(self, *args, **kwargs):
+        if not self.no:
+            self.no = sonraki_numara(FasonIsi, "no", "FS")
+        super().save(*args, **kwargs)
+
+    def gidenler(self):
+        """Gönderilen stok lotları ve miktarları (stoktan düşülen pozitif değerlerle)."""
+        return [(d.ham_deri, -d.kg, -d.m2) for d in self.gonderimler.select_related("ham_deri__deri_turu")]
+
+    @property
+    def giden_kg(self):
+        return -(self.gonderimler.aggregate(t=models.Sum("kg"))["t"] or SIFIR)
+
+    @property
+    def katman_m2(self):
+        """Katman başına ortalama giden m²: üç katman 10'ar m² ise 10 m² lamine beklenir."""
+        turler = {}
+        for lot, _, m2 in self.gidenler():
+            turler[lot.deri_turu_id] = turler.get(lot.deri_turu_id, SIFIR) + m2
+        if not turler:
+            return SIFIR
+        return (sum(turler.values(), SIFIR) / len(turler)).quantize(Decimal("0.01"))
+
+    @property
+    def fire_m2(self):
+        if self.gelen_lot is None:
+            return None
+        return self.katman_m2 - self.gelen_lot.m2
+
+    @property
+    def fire_yuzde(self):
+        if self.fire_m2 is None or not self.katman_m2:
+            return None
+        return round(self.fire_m2 / self.katman_m2 * 100, 1)
+
+
 class DeriDuzeltme(models.Model):
     """Stok lotunun kalan miktarına elle yapılan düzeltme. Eksi: stoktan düşer, artı: stoğa eklenir."""
 
     ham_deri = models.ForeignKey(HamDeriGirisi, on_delete=models.CASCADE, related_name="duzeltmeler",
                                  verbose_name="stok lotu")
-    neden = models.CharField(max_length=10, choices=NEDENLER)
+    neden = models.CharField(max_length=10, choices=NEDENLER + [("fason", "Fasona gönderildi")])
+    fason = models.ForeignKey(FasonIsi, on_delete=models.CASCADE, null=True, blank=True, related_name="gonderimler",
+                              verbose_name="fason işi")
     kg = models.DecimalField(max_digits=10, decimal_places=2, default=SIFIR)
     m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, default=SIFIR)
     aciklama = models.CharField("açıklama", max_length=200, blank=True)

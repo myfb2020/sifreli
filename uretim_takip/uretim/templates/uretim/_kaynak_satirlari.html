@@ -1,0 +1,21 @@
+{# Stok lotu satırları: yeni iş ve fasona gönderme ekranlarında ortak. #}
+    {{ satirlar.management_form }}
+    {% if satirlar.non_form_errors %}<div class="mesaj error">{{ satirlar.non_form_errors|join:" " }}</div>{% endif %}
+    {% for s in satirlar %}
+    <div class="kaynak-satir">
+      <div class="kaynak-no">
+        <label for="{{ s.stok_no.id_for_label }}">{{ forloop.counter }}. stok lotu</label>
+        <div class="tara-grup">{{ s.stok_no }}<button type="button" class="btn tara-dugme" aria-label="QR okut">📷</button></div>
+        <div class="stok-ozet soluk"></div>
+        {% for e in s.stok_no.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="kaynak-miktar">
+        <label for="{{ s.kg.id_for_label }}">kg</label>{{ s.kg }}
+        {% for e in s.kg.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="kaynak-miktar">
+        <label for="{{ s.m2.id_for_label }}">m²</label>{{ s.m2 }}
+        {% for e in s.m2.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+    {% endfor %}

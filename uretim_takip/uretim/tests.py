@@ -1015,6 +1015,17 @@ class HaliTuruRotaTesti(TemelVeri):
         self.asamayi_yap(lot, self.ist("Kenar dikişi"))
         self.assertEqual(lot.durum, "tamamlandi")
 
+    def test_suni_deri_hali_lazerden_baslar(self):
+        sp = self.siparis_ac("Suni deri halı")
+        self.assertEqual(sp.ilk_asamalar(), [self.ist("Lazer kesim 1"), self.ist("Lazer kesim 2")])
+        lot = self.yeni_lot(siparis=sp)
+        self.asamayi_yap(lot, self.ist("Lazer kesim 2"))
+        self.assertEqual(lot.siradaki_metni, "Zig-zag")
+        self.asamayi_yap(lot, self.ist("Zig-zag"))
+        self.assertEqual(lot.siradaki_metni, "Biye / Kenar dikişi")
+        self.asamayi_yap(lot, self.ist("Biye"))
+        self.assertEqual(lot.durum, "tamamlandi")
+
     def test_makine_baska_istasyonun_olamaz(self):
         lot = self.yeni_lot(siparis=self.siparis_ac("Peluş halı"))
         lazer = self.ist("Lazer kesim 1")
@@ -1287,3 +1298,63 @@ class GecisDonemiTesti(TemelVeri):
         with self.assertRaises(ValidationError):
             servisler.yeni_is_baslat(personel=self.ahmet, siparis=self.siparis, kaynaklar=[], asama=lazer,
                                      eski_stok=(kece, None, Decimal("5")))
+
+
+class FasonTesti(TemelVeri):
+    def test_fasona_gonder_teslim_al_fire_ve_iz(self):
+        from .hesaplar import ofis_grubu
+        from .models import FasonIsi
+
+        tur = {ad: DeriTuru.objects.get(ad=ad) for ad in ("Keçe", "Süet", "Rona")}
+        lamine = DeriTuru.objects.get(ad="3'lü lamine (Keçe+Süet+Rona)")
+        fasoncu = Tedarikci.objects.create(ad="Presçi")
+        lotlar = {ad: HamDeriGirisi.objects.create(tedarikci=self.ham.tedarikci, deri_turu=t, kg=0, m2=Decimal("50"),
+                                                   renk="Bej" if ad == "Rona" else "Gri",
+                                                   model="Mermer" if ad == "Rona" else "")
+                  for ad, t in tur.items()}
+        ofis = get_user_model().objects.create_user("ofis", password="x", is_staff=True)
+        ofis.groups.add(ofis_grubu())
+        self.client.force_login(ofis)
+
+        v = {"fasoncu": fasoncu.pk, "hedef_tur": lamine.pk, "kaynak-TOTAL_FORMS": 3, "kaynak-INITIAL_FORMS": 0}
+        for i, ad in enumerate(("Keçe", "Süet", "Rona")):
+            v[f"kaynak-{i}-stok_no"] = lotlar[ad].lot_no
+            v[f"kaynak-{i}-m2"] = "10" if ad != "Rona" else "12"
+        # Stokta olandan fazlası gönderilemez
+        fazla = dict(v, **{"kaynak-0-m2": "60"})
+        self.assertContains(self.client.post(reverse("fason_gonder"), fazla), "stokta")
+        yanit = self.client.post(reverse("fason_gonder"), v)
+        fason = FasonIsi.objects.get()
+        self.assertRedirects(yanit, reverse("fason_detay", args=[fason.pk]))
+        lotlar["Keçe"].refresh_from_db()
+        self.assertEqual(lotlar["Keçe"].kalan_m2, Decimal("40"))
+        self.assertEqual(fason.katman_m2, Decimal("10.67"))
+        self.assertContains(self.client.get(reverse("fason_listesi")), fason.no)
+
+        # Teslim al: renk/model rona katmanından gelir
+        sayfa = self.client.get(reverse("fason_detay", args=[fason.pk]))
+        self.assertContains(sayfa, 'value="Bej"')
+        yanit = self.client.post(reverse("fason_detay", args=[fason.pk]), {"m2": "10", "renk": "Bej", "model": "Mermer"})
+        fason.refresh_from_db()
+        yeni = fason.gelen_lot
+        self.assertRedirects(yanit, reverse("stok_detay", args=[yeni.pk]))
+        self.assertEqual((yeni.deri_turu, yeni.tedarikci, yeni.m2, yeni.renk, yeni.model, fason.durum),
+                         (lamine, fasoncu, Decimal("10"), "Bej", "Mermer", "teslim"))
+        self.assertEqual(fason.fire_m2, Decimal("0.67"))
+        detay = self.client.get(reverse("stok_detay", args=[yeni.pk]))
+        self.assertContains(detay, fason.no)
+        self.assertContains(detay, lotlar["Rona"].lot_no)
+        # İkinci kez teslim alınamaz
+        with self.assertRaises(ValidationError):
+            servisler.fason_teslim_al(fason=fason, m2=Decimal("1"))
+
+    def test_iptal_stogu_geri_verir(self):
+        lamine = DeriTuru.objects.get(ad="Halı tabanı (Keçe+Süet)")
+        fason = servisler.fasona_gonder(fasoncu=self.ham.tedarikci, hedef_tur=lamine,
+                                        kaynaklar=[(self.ham, None, Decimal("5"))])
+        self.assertEqual(self.ham.kalan_m2, Decimal("15"))
+        servisler.fason_iptal(fason=fason)
+        self.assertEqual(self.ham.kalan_m2, Decimal("20"))
+        with self.assertRaises(ValidationError):
+            servisler.fasona_gonder(fasoncu=self.ham.tedarikci, hedef_tur=self.ham.deri_turu,
+                                    kaynaklar=[(self.ham, None, Decimal("5"))])
