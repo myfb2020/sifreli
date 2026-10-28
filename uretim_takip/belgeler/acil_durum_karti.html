@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acil Durum Kartı</title>
+<style>
+  :root { --ana:#7a4b2a; --yazi:#2b2522; --soluk:#6f655d; --cizgi:#e3d9cf; --uyari:#a3261b; --zemin:#ffffff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --yazi:#efe8e1; --soluk:#b9aea4; --cizgi:#4a403a; --zemin:#1d1a18; --ana:#d39a6a; } }
+  @page { size:A4; margin:12mm 13mm; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--zemin); color:var(--yazi); font:10.5pt/1.42 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .sayfa { max-width:190mm; margin:0 auto; padding:16px; }
+  .sayfa + .sayfa { break-before:page; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid var(--ana); padding-bottom:6px; margin-bottom:10px; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:17pt; margin:0; color:var(--ana); letter-spacing:.3px; }
+  header .alt { color:var(--soluk); font-size:9.5pt; }
+  h2 { font-size:12pt; margin:12px 0 4px; display:flex; gap:8px; align-items:baseline; }
+  h2 .no { background:var(--ana); color:#fff; border-radius:50%; min-width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:10pt; }
+  .belirti { color:var(--soluk); font-style:italic; margin:0 0 4px; }
+  ol, ul { margin:2px 0 6px; padding-left:20px; }
+  li { margin:1px 0; }
+  code, .komut { font-family:Consolas, "DejaVu Sans Mono", monospace; font-size:9.5pt; }
+  .komut { display:block; background:#2b2522; color:#f6efe7; padding:6px 9px; border-radius:6px; margin:4px 0; white-space:pre-wrap; word-break:break-all; }
+  .kutu { border:1px solid var(--cizgi); border-radius:8px; padding:8px 11px; margin:8px 0; }
+  .uyari { color:var(--uyari); font-weight:600; }
+  .iki { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .kural li { margin:2px 0; }
+  table { border-collapse:collapse; width:100%; font-size:9.5pt; }
+  td { border-bottom:1px solid var(--cizgi); padding:3px 4px; vertical-align:top; }
+  td:first-child { font-weight:600; white-space:nowrap; width:34%; }
+  @media (max-width:600px) { .iki { grid-template-columns:1fr; } .sayfa { padding:12px; } }
+  @media print { body { background:#fff; color:#2b2522; font-size:9.7pt; line-height:1.36; } .sayfa { padding:0; } h2 { margin:9px 0 3px; } .kutu { margin:6px 0; padding:6px 10px; } }
+</style>
+</head>
+<body>
+
+<section class="sayfa">
+  <header>
+    <h1>1 · Nöbetçi kurulumu</h1>
+    <div class="alt">BIENNA FUR Üretim Takip · bir kez yapılır, ~10 dakika</div>
+  </header>
+  <p>Nöbetçi, programı <b>gece gündüz 5 dakikada bir</b> kontrol eden ücretsiz bir servistir. Program kapanırsa ya da disk dolarsa size <b>e-posta ve telefon bildirimi</b> gönderir. Böylece sorunu sabah çalışanlardan önce siz öğrenirsiniz.</p>
+
+  <div class="kutu">
+    <b>Önce deneyin:</b> tarayıcıda şu adresi açın:
+    <span class="komut">https://uretim.pythonanywhere.com/saglik/</span>
+    Ekranda yalnızca <b>TAMAM</b> yazmalı. Nöbetçi bu sayfayı kontrol edecek. Program çalışıyorsa TAMAM, sorun varsa "SORUN: …" yazar.
+  </div>
+
+  <h2><span class="no">1</span> Hesap açın</h2>
+  <ol>
+    <li><b>uptimerobot.com</b> adresine girin, <b>Register / Sign up</b> ile ücretsiz hesap açın (e-postanızı onaylayın).</li>
+    <li>Telefonunuza <b>UptimeRobot</b> uygulamasını yükleyip aynı hesapla girin (telefona anlık bildirim için).</li>
+  </ol>
+
+  <h2><span class="no">2</span> Nöbetçiyi (monitör) ekleyin</h2>
+  <ol>
+    <li><b>+ New monitor</b> (Yeni monitör) düğmesine basın.</li>
+    <li><b>Monitor type:</b> <code>HTTP(s)</code> seçin. Varsa <code>Keyword</code> türünü seçip anahtar kelimeye <code>TAMAM</code> yazmak daha da iyidir.</li>
+    <li><b>Friendly name:</b> <code>Bienna Üretim</code></li>
+    <li><b>URL:</b> <code>https://uretim.pythonanywhere.com/saglik/</code></li>
+    <li><b>Monitoring interval:</b> 5 dakika</li>
+    <li><b>Alert contacts / Notifications:</b> e-postanızı ve telefon uygulamasını işaretleyin. Ofisten bir kişinin e-postasını da ekleyebilirsiniz.</li>
+    <li><b>Create monitor</b> ile kaydedin. Birkaç dakika içinde durum <b>Up</b> (yeşil) olmalı.</li>
+  </ol>
+  <p class="belirti">Servisin menü adları zamanla değişebilir; aradığınız şey "yeni monitör, adres, 5 dakika, bildirim" ayarlarıdır.</p>
+
+  <h2><span class="no">3</span> Alarm gelince</h2>
+  <ul>
+    <li><b>"Down"</b> bildirimi gelirse arkadaki <b>Acil durum kartı</b>na bakın, Durum 1'den başlayın.</li>
+    <li>Birkaç dakika sonra kendiliğinden <b>"Up"</b> bildirimi gelirse (PythonAnywhere kısa bakım) bir şey yapmanız gerekmez.</li>
+    <li>Ücretsiz PythonAnywhere hesabında <b>ayda bir</b> Web sekmesindeki <b>"Run until 1 month from today"</b> düğmesine basılmazsa site durur. Nöbetçi bunu da yakalar. Ücretli pakette bu derdi yoktur.</li>
+  </ul>
+
+  <div class="kutu">
+    <b>Bu kartı yazdırın</b>, ofiste görünür bir yere asın ve telefonunuza da kaydedin. Site kapalıyken programın içindeki yardıma ulaşamazsınız; kart o zaman işe yarar.
+  </div>
+</section>
+
+<section class="sayfa">
+  <header>
+    <h1>2 · Acil durum kartı</h1>
+    <div class="alt">Site: <b>uretim.pythonanywhere.com</b> · Sunucu: <b>pythonanywhere.com</b> (kullanıcı adı / şifre: ……………………)</div>
+  </header>
+
+  <h2><span class="no">1</span> Program hiçbir cihazda açılmıyor / nöbetçi "Down" dedi</h2>
+  <ol>
+    <li>Bilgisayardan <code>uretim.pythonanywhere.com/saglik/</code> adresini açın.
+      <ul>
+        <li><b>TAMAM</b> yazıyorsa sunucu sağlam; sorun internette ya da cihazdadır → <b>Durum 4</b>.</li>
+        <li><b>SORUN: disk</b> yazıyorsa → <b>Durum 3</b>.</li>
+      </ul></li>
+    <li><b>pythonanywhere.com</b>'a girin → üstte <b>Web</b> sekmesi.</li>
+    <li>Sarı/kırmızı bir uyarı ve <b>"Run until 1 month from today"</b> düğmesi varsa basın.</li>
+    <li>Yeşil <b>Reload</b> düğmesine basın, 1 dakika bekleyip siteyi tekrar açın.</li>
+    <li>Hâlâ açılmıyorsa: Web sekmesinde <b>Error log</b> bağlantısına tıklayın; <b>en alttaki satırların ekran görüntüsünü</b> Claude'a gönderin.</li>
+  </ol>
+
+  <h2><span class="no">2</span> Güncellemeden sonra hata çıktı</h2>
+  <p class="belirti">Yeni zip yükledikten sonra sayfalar hata veriyor, istasyonlar iş başlatamıyor.</p>
+  <ol>
+    <li>pythonanywhere.com → <b>Consoles</b> → <b>Bash</b> açın, şunu yapıştırıp Enter'a basın:
+      <span class="komut">cd ~/uretim_takip &amp;&amp; bash geri_al.sh surum</span></li>
+    <li>Ekranda ne olacağı yazar; onaylamak için <b>EVET</b> yazıp Enter'a basın.</li>
+    <li><b>Web</b> sekmesi → <b>Reload</b>. Program bir önceki sürüme, veri güncelleme öncesine döner.</li>
+  </ol>
+  <p class="uyari">Güncellemeden sonra girilen kayıtlar (sipariş, işlem) geri gelmez. Onları kâğıda not edip sonra yeniden girin.</p>
+
+  <div class="iki">
+    <div>
+      <h2><span class="no">3</span> Disk doldu</h2>
+      <p class="belirti">"SORUN: disk" ya da "Disk quota exceeded".</p>
+      <span class="komut">cd ~/uretim_takip &amp;&amp; bash geri_al.sh temizle</span>
+      <p>Eski yedekler silinir (her türden son 3 kalır). Sonra <b>Web → Reload</b>.</p>
+    </div>
+    <div>
+      <h2><span class="no">4</span> Yalnız bir tablet / telefon açılmıyor</h2>
+      <ol>
+        <li>İnternet (Wi-Fi) bağlı mı bakın.</li>
+        <li>Uygulamayı tamamen kapatıp yeniden açın.</li>
+        <li>"Oturum süresi doldu" çıkarsa sayfayı kapatıp açın, yeniden giriş yapın.</li>
+        <li>Olmazsa tarayıcıdan <code>uretim.pythonanywhere.com</code> deneyin.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h2><span class="no">5</span> Kayıt yanlışlıkla silindi / veri bozuldu</h2>
+  <ol>
+    <li>Acele etmeyin. Kayıt elle düzeltilebiliyorsa (yeniden girmek gibi) önce onu deneyin.</li>
+    <li>Gerçekten geri dönmek gerekiyorsa:
+      <span class="komut">cd ~/uretim_takip &amp;&amp; bash geri_al.sh veri</span>
+      Listeden tarihi uygun yedeğin <b>numarasını</b> yazın → <b>EVET</b> → <b>Web → Reload</b>.</li>
+  </ol>
+  <p class="uyari">Seçilen yedekten sonra girilen her şey kaybolur. Geri almadan önceki hâl de ayrıca yedeklenir; yanlış seçerseniz yine dönebilirsiniz.</p>
+
+  <div class="kutu kural">
+    <b>Altın kurallar</b>
+    <ul>
+      <li>Güncellemeyi <b>sabah</b> yükleyin, akşam değil. Yüklemeden önce programda <b>💾 Yedek</b> indirin.</li>
+      <li>Son 2 zip dosyasını bilgisayarınızda saklayın.</li>
+      <li>Claude'a yazarken: <b>ne oldu, ne zaman başladı, ekran görüntüsü, Error log'un son satırları</b>.</li>
+    </ul>
+  </div>
+</section>
+</body>
+</html>

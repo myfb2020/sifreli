@@ -1525,3 +1525,33 @@ class HaliGorselTesti(TestCase):
             v = tasarim_cizim.temizle({"dis_desen": desen, "ic_desen": desen, "sekil": "dikdortgen"}, desenler)
             hali_gorsel.ciz(v, 250)
         hali_gorsel.ciz(tasarim_cizim.temizle({"sekil": "oval", "dis_desen": "DB001"}, desenler), 250)
+
+
+class SaglikVeYedekTesti(TestCase):
+    def test_saglik_sayfasi_girissiz_tamam_der(self):
+        yanit = self.client.get(reverse("saglik"))
+        self.assertEqual((yanit.status_code, yanit.content), (200, b"TAMAM"))
+
+    def test_saglik_sayfasi_veritabani_sorununda_503(self):
+        from unittest import mock
+
+        with mock.patch("uretim.saglik.connection.cursor", side_effect=RuntimeError("bozuk")):
+            yanit = self.client.get(reverse("saglik"))
+        self.assertEqual(yanit.status_code, 503)
+        self.assertIn(b"veritabani", yanit.content)
+
+    def test_yedekle_komutu_onekle_ve_eskileri_siler(self):
+        import tempfile
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as klasor:
+            for i in range(3):
+                Path(klasor, f"gunluk_2020-01-0{i + 1}_000000.sqlite3").write_bytes(b"")
+            call_command("yedekle", klasor=klasor, onek="gunluk", tut=2, stdout=StringIO())
+            kalan = sorted(p.name for p in Path(klasor).iterdir())
+            self.assertEqual(len(kalan), 2)
+            self.assertNotIn("gunluk_2020-01-01_000000.sqlite3", kalan)
+            call_command("yedekle", klasor=klasor, stdout=StringIO())  # eski kullanım: uretim_yedek_…
+            self.assertTrue(any(p.name.startswith("uretim_yedek_") for p in Path(klasor).iterdir()))

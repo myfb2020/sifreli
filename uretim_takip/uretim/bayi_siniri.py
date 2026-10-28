@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 from .models import hesap_bayisi
 
 IZINLI = ("/bayi/", "/tasarim/", "/medya/", "/cikis/", "/giris/", "/static/", "/manifest.webmanifest", "/sw.js",
-          "/cevrimdisi/")
+          "/cevrimdisi/", "/saglik/")
 
 
 class BayiSiniri:

@@ -236,3 +236,11 @@ Raporlar → **📱 Tablet girişleri**: hangi hesabın ne zaman giriş/çıkı�
 
 ### Hesaplar
 Yönetici menüsünde **👥 Hesaplar**: yeni hesap açarken yalnızca **hesap türü** seçilir (İstasyon tableti / Ofis / Yönetici); yetkiler otomatik verilir. Ofis yetkileri "Ofis" grubunda tutulur.
+
+## Nöbetçi ve acil durum
+
+- **Sağlık sayfası:** `/saglik/` girişsiz açılır; veritabanı okunuyor ve diske yazılabiliyorsa `TAMAM`, değilse `SORUN: …` (HTTP 503) döner. UptimeRobot gibi bir izleme servisi bu adresi 5 dakikada bir kontrol eder.
+- **Güncelleme öncesi yedek:** `kurulum.sh` her çalıştığında önce `yedekler/guncelleme_oncesi_…` yedeği alır (son 10). Veritabanı güncellemesi başarısız olursa veri kendiliğinden eski hâline döner. Başarılı her kurulumun kopyası `~/uretim_surumler/` altında saklanır (son 3).
+- **Geri alma:** `bash geri_al.sh surum` (son güncellemeyi geri al), `bash geri_al.sh veri` (seçilen yedeğe dön), `bash geri_al.sh temizle` (disk dolduysa eski yedekleri sil). Her geri almadan önce o anki veri ayrıca yedeklenir.
+- **Günlük yedek:** `python manage.py yedekle --onek gunluk` (son 14 tutulur); ücretli PythonAnywhere'de Tasks sayfasına günlük görev olarak eklenir.
+- Yazdırılabilir kart: `belgeler/acil_durum_karti.pdf`.

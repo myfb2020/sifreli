@@ -39,8 +39,28 @@ else
   echo "==> .env zaten var, dokunulmadı"
 fi
 
-"$VENV/bin/python" manage.py migrate --noinput
+# Güncellemeden önce veritabanının yedeği (geri almak için: bash geri_al.sh)
+ONCEKI_YEDEK=""
+if [ -f db.sqlite3 ]; then
+  "$VENV/bin/python" manage.py yedekle --onek guncelleme_oncesi --tut 10
+  ONCEKI_YEDEK="$(ls -1 yedekler/guncelleme_oncesi_*.sqlite3 | tail -n 1)"
+fi
+if ! "$VENV/bin/python" manage.py migrate --noinput; then
+  echo "!!! Veritabanı güncellenemedi."
+  if [ -n "$ONCEKI_YEDEK" ]; then
+    cp "$ONCEKI_YEDEK" db.sqlite3
+    echo "!!! Veritabanı güncelleme öncesi hâline döndürüldü. Programı da eski sürüme almak için: bash geri_al.sh surum"
+  fi
+  exit 1
+fi
 "$VENV/bin/python" manage.py collectstatic --noinput -v0
+
+# Başarılı kurulan sürümün kopyası (geri_al.sh surum bununla bir önceki sürüme döner); son 3 tutulur
+SURUMLER="$HOME/uretim_surumler"
+mkdir -p "$SURUMLER"
+tar -czf "$SURUMLER/surum_$(date +%Y-%m-%d_%H%M%S).tar.gz" --exclude=./db.sqlite3 --exclude=./.env \
+    --exclude=./yedekler --exclude=./medya --exclude=./staticfiles --exclude='*/__pycache__' .
+ls -1t "$SURUMLER"/surum_*.tar.gz | tail -n +4 | xargs -r rm -f
 "$VENV/bin/python" manage.py check --deploy --fail-level ERROR >/dev/null 2>&1 \
   || "$VENV/bin/python" manage.py check --deploy --fail-level ERROR
 
