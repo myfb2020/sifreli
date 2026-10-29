@@ -1377,6 +1377,8 @@ class KatalogTesti(TemelVeri):
         self.assertEqual(self.client.get(model.resim.url).status_code, 200)
         self.assertContains(self.client.get(reverse("katalog"), {"ara": "lts-003"}), "LTS-003")
         self.assertContains(self.client.get(reverse("desenler")), "DB014")
+        self.assertEqual(self.client.get(reverse("tasarim_desen_onizleme", args=["DB014"])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("tasarim_desen_onizleme", args=["YOK"])).status_code, 404)
 
         # Model kodu küçük harf / noktalı yazılabilir; halı türü seriden, ürün koddan gelir
         desen = LazerDeseni.objects.get(kod="DB003")

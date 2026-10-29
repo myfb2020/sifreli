@@ -7,6 +7,6 @@
   <label class="alt-baslik">Lazer deseni</label>
   <div class="desen-izgara">
     <label class="desen"><input type="radio" name="{{ on }}_desen" value=""{% if not desen %} checked{% endif %}><span class="desen-yok">Desensiz</span></label>
-    {% for d in desenler %}<label class="desen"><input type="radio" name="{{ on }}_desen" value="{{ d.kod }}"{% if desen == d.kod %} checked{% endif %}>{% if d.resim %}<img src="{{ d.resim.url }}" alt="" loading="lazy">{% endif %}<span>{{ d.kod }}</span></label>{% endfor %}
+    {% for d in desenler %}<label class="desen"><input type="radio" name="{{ on }}_desen" value="{{ d.kod }}"{% if desen == d.kod %} checked{% endif %}><img src="{% url 'tasarim_desen_onizleme' d.kod %}" alt="" loading="lazy"><span>{{ d.kod }}</span></label>{% endfor %}
   </div>
 </div>

@@ -6,11 +6,12 @@
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_lazerdeseni_add' %}">+ Desen ekle</a>{% endif %}
 </div>
 {% include "uretim/_katalog_sekmeleri.html" %}
-<p class="soluk">Sabit lazer kesim desenleri. Müşteriye özel desenler de yapılır; siparişin notuna yazın.</p>
+<p class="soluk">Sabit lazer kesim desenleri; her resim desenin halı köşesindeki görünüşüdür. Müşteriye özel desenler de yapılır; siparişin notuna yazın.</p>
 <div class="katalog-izgara">
   {% for d in desenler %}
   <div class="kart katalog-kart">
-    {% if d.resim %}<a href="{{ d.resim.url }}" target="_blank"><img src="{{ d.resim.url }}" alt="{{ d.kod }}" loading="lazy"></a>{% endif %}
+    <img src="{% url 'tasarim_desen_onizleme' d.kod %}" alt="{{ d.kod }} halı köşesinde" loading="lazy">
+    {% if d.resim %}<a class="soluk" href="{{ d.resim.url }}" target="_blank">Çizimi aç</a>{% endif %}
     <div><b>{{ d.kod }}</b></div>
   </div>
   {% empty %}

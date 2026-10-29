@@ -3,6 +3,7 @@
 Gönderilen tasarım "Onay bekliyor" durumunda bir sipariş olur; ofis siparişin sayfasından onaylar ya da reddeder.
 """
 
+import re
 from datetime import timedelta
 from decimal import Decimal
 
@@ -146,6 +147,17 @@ def hazir_resmi(request, kod):
         raise Http404
     if not yol.exists():
         return _jpeg(_temizle(cizim.hazir_degerler(kod)), 300)
+    yanit = FileResponse(open(yol, "rb"), content_type="image/jpeg")
+    yanit["Cache-Control"] = "private, max-age=604800"
+    return yanit
+
+
+@login_required
+def desen_onizleme(request, kod):
+    """Desenin halı köşesinde nasıl göründüğü (seçim düğmeleri için)."""
+    yol = hali_gorsel.VARLIK / "desen_onizleme" / f"{kod}.jpg"
+    if not re.fullmatch(r"[A-Z0-9-]{1,20}", kod) or not yol.exists():
+        raise Http404
     yanit = FileResponse(open(yol, "rb"), content_type="image/jpeg")
     yanit["Cache-Control"] = "private, max-age=604800"
     return yanit

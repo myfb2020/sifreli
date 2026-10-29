@@ -67,7 +67,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - Yol haritası: 1 kullanıcıdan bilgi → 2 parça modeli + ızgara editörü → 3 üretim çıktıları → 4 maliyet/fire/rulo yerleşimi → 5 deri/kürk.
 - **Gelen bilgi (2026-10-29, atölye + bitmiş halı fotoğrafları):** tüm parçalar lazerle kesilir (desen delikleri dahil); nakış ayrı panel; parçalar zig-zag ile birleşir, kenar Lanfel veya Biye. Suni deri rulo **140 cm en × 30 m**; nakış alanı en fazla **40×60 cm**; dikiş payı modele göre **en fazla 2 cm**.
 - Fotoğraflardan çıkan parça türleri: zemin paneli (140 cm'den büyükse dikişle bölünür; zikzak/V uçlu paneller), düz desenli bant (köşelerde üst/alt bant yan bantların arasına uç uca), kavisli bant segmentleri (yuvarlak halkada ~5 yay parçası; dış kadife halka da segmentli), orta disk/oval, nakış şeridi (tekrar eden motif, her motif ≤40×60), desen altı katman (siyah/kahve/altın görünür), kenar biyesi. Deri/kürk: kare, 45° elmas, dikey şerit (rastgele boy), daire patchwork; merkezden kenara renk geçişi.
-- **Hâlâ eksik:** lazer tabla ölçüsü, DXF desen dosyaları, desen altı malzemesi.
+- Lazer tablası **140×300 cm**. Nakış: **7 kafalı** makine (aynı motif aynı anda 7 adet), keçe+rona+suni deri birleşik (lamine) malzemeye iplikle işleniyor. Desen altı = lamine malzeme.
+- **Hâlâ eksik:** DXF desen dosyaları; ilk sürüm (dikdörtgen çerçeve / oval + nakış şeridi / yuvarlak segmentli halka) için kullanıcının "başla" onayı.
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
 - Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
@@ -81,7 +82,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
-- 2026-10-28: Nöbetçi /saglik/, güncelleme öncesi yedek, geri_al.sh, acil durum kartı (349dd1e). **Kullanıcıdaki son sürüm bu.**
+- 2026-10-29: Stüdyo ve katalogda desen seçimi artık desenin halı köşesindeki görünüşüyle (`tasarim_varlik/desen_onizleme/`).
+- 2026-10-28: Nöbetçi /saglik/, güncelleme öncesi yedek, geri_al.sh, acil durum kartı (349dd1e). 
 - 2026-10-28: Suni deri stüdyo modeli SD-1…4 (31aa3a1); gerçekçi stüdyo + onay siparişte (ffe9748); stüdyo ilk sürüm (e7da1d9); katalog (25cd34c).
 - 2026-10-28: Fason + Suni deri halı rotası; ana malzeme türleri, renk/model; geçiş dönemi.
 - Öncesi: üretim takip çekirdeği, istasyonlar/rotalar, hesaplar, raporlar, PWA, Excel aktarma (README'de ayrıntı).
