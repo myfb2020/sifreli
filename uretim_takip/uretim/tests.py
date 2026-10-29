@@ -1631,3 +1631,23 @@ class ParcaliTasarimTesti(TasarimStudyosuTesti):
         self.assertEqual(self.client.get(reverse("tasarim_lazer", args=[t.pk, "svg"])).status_code, 404)
         from .tasarim_views import onay_formu
         self.assertEqual(onay_formu(t.siparis).initial["hali_turu"], HaliTuru.objects.get(ad="Suni deri halı").pk)
+
+
+class ParcaliGorselTumSecenekTesti(TestCase):
+    """Her düzen × kenar × kenar rengi × farklı ölçü/boyutta çizim hata vermemeli (Lanfel hatası tekrar etmesin)."""
+
+    def test_tum_kombinasyonlar_cizilir(self):
+        from . import parcali, parcali_gorsel
+
+        desenler = {"DB001", "DB003", "DB007"}
+        olculer = [(60, 60), (90, 160), (123, 187), (130, 190), (250, 350)]
+        for kod, _, _ in parcali.HAZIRLAR:
+            for kenar, _ in parcali.KENARLAR:
+                # her kenar rengi bir kez, her ölçü ve görsel boyutu (tek/çift piksel) bir kez
+                durumlar = [(renk, olculer[1], 240) for renk, _ in parcali.KENAR_RENKLERI]
+                durumlar += [("altin", o, u) for o in olculer for u in (161, 240, 333)]
+                for renk, (en, boy), uzun in durumlar:
+                    v = parcali.temizle({**parcali.hazir_degerler(kod), "kenar": kenar, "kenar_renk": renk,
+                                         "en": en, "boy": boy, "cap": en}, desenler)
+                    with self.subTest(kod=kod, kenar=kenar, renk=renk, olcu=(en, boy), uzun=uzun):
+                        parcali_gorsel.ciz(v, uzun)

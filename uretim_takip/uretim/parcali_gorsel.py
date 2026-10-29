@@ -2,7 +2,6 @@
 
 import io
 import math
-import random
 from functools import lru_cache
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
@@ -183,10 +182,11 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
              else Image.new("RGB", boyut, _hex(kenar_renk)))
     resim.paste(kenar, (0, 0), serit)
     if v["kenar"] == "lanfel":
-        ic = dis.filter(ImageFilter.MinFilter(b + 1))
+        # Lanfel (overlok): kenar şeridinin iç sınırında kesik kesik iplik izi.
+        ic = dis.filter(ImageFilter.MinFilter(b | 1))  # süzgeç boyu tek sayı olmalı
         dikis = ImageChops.subtract(ic, ic.filter(ImageFilter.MinFilter(3)))
-        rast = random.Random(1)
-        noktalar = dikis.point(lambda q: q if rast.random() < 0.5 else 0)
+        kesik = Image.effect_noise(boyut, 120).point(lambda q: 255 if q > 128 else 0)
+        noktalar = ImageChops.multiply(dikis, kesik)
         resim = Image.composite(Image.new("RGB", boyut, (70, 60, 45)), resim, noktalar)
 
     isik = Image.radial_gradient("L").resize(boyut).point(lambda q: 255 - q // 4)
