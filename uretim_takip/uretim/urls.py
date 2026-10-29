@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import aktarim_views, saglik, fason_views, katalog_views, tasarim_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
+from . import aktarim_views, parcali_views, saglik, fason_views, katalog_views, tasarim_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -20,6 +20,12 @@ urlpatterns = [
     path("stok/<int:pk>/duzelt/", malzeme_views.deri_duzelt, name="deri_duzelt"),
     path("bayi/", tasarim_views.bayi_ana, name="bayi_ana"),
     path("tasarim/", tasarim_views.studyo, name="tasarim_studyo"),
+    path("tasarim/parcali/", parcali_views.studyo, name="parcali_studyo"),
+    path("tasarim/parcali/onizleme/", parcali_views.onizleme, name="parcali_onizleme"),
+    path("tasarim/parcali/onizleme.jpg", parcali_views.onizleme_resmi, name="parcali_onizleme_resmi"),
+    path("tasarim/parcali/malzeme/<str:ad>.jpg", parcali_views.malzeme_ornegi, name="parcali_malzeme"),
+    path("tasarim/<int:pk>/plan.png", parcali_views.plan, name="parcali_plan"),
+    path("tasarim/<int:pk>/kesim/", parcali_views.kesim_listesi, name="parcali_kesim"),
     path("tasarim/onizleme/", tasarim_views.onizleme, name="tasarim_onizleme"),
     path("tasarim/onizleme.jpg", tasarim_views.onizleme_resmi, name="tasarim_onizleme_resmi"),
     path("tasarim/desen/<str:kod>.jpg", tasarim_views.desen_onizleme, name="tasarim_desen_onizleme"),

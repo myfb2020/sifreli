@@ -115,6 +115,13 @@ Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda d
 - **Bayi** Siparişlerim'de onay durumunu, teslim tarihini ve üretim ilerlemesini görür. Tasarım resmi istasyon ekranlarında da görünür.
 - Desen maskeleri ve dokular `uretim/tasarim_varlik/` klasöründedir.
 
+## Parçalı suni deri tasarım (lego)
+
+Bayi menüsünde **🧩 Parçalı tasarım**: halı lazerle kesilen parçalardan kurulur. Düzenler: *dikdörtgen çerçeve* (zemin + dış bant + ara şerit + desenli iç bant; üst/alt bantlar yan bantların arasına uç uca), *oval + nakış şeridi* (iki zemin yarımı + ortadaki nakışlı şerit), *yuvarlak* (orta disk + yay parçalarına bölünmüş desenli halka + dış halka). Her parçanın malzemesi, deseni, desen altı, dikiş payı (0–2 cm) ve kenar (biye / lanfel) seçilir; ekranda canlı görsel ve parça listesi görünür. Hazırlar P-1…P-4 atölye fotoğraflarından.
+
+- **Atölye kuralları** (`uretim/parcali.py`): rulo 140 cm, lazer tablası 140×300 cm — sığmayan parçalar bölünür, halkalar en az 4 yay parçasına ayrılır; nakış motifi en çok 40×60 cm, 7 kafalı makineye göre tur sayısı ve "7'nin katı" önerisi.
+- **Ofis:** siparişte **✂️ Kesim listesi ve parçalar**: numaralı parça planı, parça tablosu (paylı kesim ölçüsü, m², istasyon), malzeme başına rulo metresi, nakış adedi/turu, montaj sırası; malzeme başına **lazer DXF** (KESIM paylı hat, DIKIS net hat, parça no ve desen kodu notu). Desen delikleri desenlerin DXF dosyaları gelince eklenecek.
+
 ## Stok: deri ve malzemeler
 
 - **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block baslik %}Kesim listesi – {{ tasarim.siparis.siparis_no|default:tasarim.no }}{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px">{% if tasarim.siparis %}<a href="{% url 'siparis_detay' tasarim.siparis.pk %}">← {{ tasarim.siparis.siparis_no }}</a>{% endif %}</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">✂️ Kesim listesi</h1>
+  <button class="btn ikincil" onclick="window.print()">🖨 Yazdır</button>
+  <a class="btn ikincil" href="{{ dxf }}">⬇ Tüm lazer DXF</a>
+</div>
+<p>{{ h.ozet }} · <b>{{ adet }} adet</b> · alan {{ h.alan }} m²/adet · kenar {{ h.kenar_m }} m/adet</p>
+{% for u in h.uyarilar %}<div class="mesaj error">{{ u }}</div>{% endfor %}
+<div class="izgara">
+  <div class="kart" style="text-align:center"><img src="{% url 'parcali_plan' tasarim.pk %}?b=700" alt="Parça planı" style="max-width:100%"></div>
+  <div class="kart">
+    <h2>Malzeme ve rulo (1 adet için)</h2>
+    <table>
+      <tr><th>Malzeme</th><th class="sayi">Parça</th><th class="sayi">Net m²</th><th class="sayi">Rulo (140 cm)</th><th></th></tr>
+      {% for r in h.rulo %}<tr><td>{{ r.malzeme }}</td><td class="sayi">{{ r.adet }}</td><td class="sayi">{{ r.m2 }}</td><td class="sayi"><b>{{ r.metre }} m</b></td>
+        <td><a href="{{ dxf }}?malzeme={{ r.kod }}">DXF</a></td></tr>{% endfor %}
+    </table>
+    <p class="soluk">Rulo metresi tahminidir (parçalar dikdörtgen kutularıyla dizilir); yerleşimi lazer programında sıklaştırabilirsiniz.</p>
+    {% if h.nakis %}<h2>Nakış</h2>
+    <p>{{ h.nakis.adet }} × {{ h.nakis.motif }}, {{ h.nakis.olcu }} cm — {{ h.nakis.tur }} tur (7 kafa)</p>
+    {% if h.nakis.oneri %}<p class="uyari">{{ h.nakis.oneri }}</p>{% endif %}{% endif %}
+    <h2>Montaj sırası</h2>
+    <ol>{% for a in h.montaj %}<li>{{ a }}</li>{% endfor %}</ol>
+  </div>
+</div>
+<div class="kart tablo-kap">
+  <h2>Parçalar</h2>
+  <table>
+    <tr><th>No</th><th>Parça</th><th>Malzeme</th><th>Desen</th><th class="sayi">Kesim (cm, payla)</th><th class="sayi">m²</th><th>İstasyon</th></tr>
+    {% for p in h.parcalar %}<tr><td><b>{{ p.no }}</b></td><td>{{ p.ad }}</td><td>{{ p.malzeme }}</td><td>{{ p.desen|default:"–" }}</td><td class="sayi">{{ p.kesim }}</td><td class="sayi">{{ p.m2 }}</td><td>{{ p.istasyon }}</td></tr>{% endfor %}
+  </table>
+  <p class="soluk">Dikiş payı: {{ v.pay|floatformat:"-1" }} cm. DXF: KESIM katmanı paylı hat, DIKIS katmanı net hat; desen delikleri desen DXF dosyaları gelince eklenecek (şimdilik parça üzerinde desen kodu yazar).</p>
+</div>
+{% endblock %}

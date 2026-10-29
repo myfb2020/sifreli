@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import hali_gorsel
+from . import hali_gorsel, parcali, parcali_gorsel
 from . import tasarim_cizim as cizim
 from .forms import HaliTuruAlani
 from .models import HaliTuru, KatalogModeli, LazerDeseni, Siparis, Tasarim, UretimLotu
@@ -31,6 +31,20 @@ def _desen_kodlari():
 
 def _temizle(veri):
     return cizim.temizle(veri, _desen_kodlari())
+
+
+def parcali_mi(veri):
+    return (veri or {}).get("tip") == "parcali"
+
+
+def tasarim_temizle(veri):
+    """Kayıtlı tasarım değerleri: parçalı ya da klasik stüdyo."""
+    return parcali.temizle(veri, _desen_kodlari()) if parcali_mi(veri) else _temizle(veri)
+
+
+def tasarim_ozet(veri):
+    v = tasarim_temizle(veri)
+    return parcali.ozet(v) if parcali_mi(v) else cizim.ozet(v)
 
 
 def _bayi_gerekli(request):
@@ -48,7 +62,8 @@ def _tasarim_erisim(request, pk):
 
 
 def _jpeg(veri, boyut):
-    yanit = HttpResponse(hali_gorsel.jpeg(veri, boyut), content_type="image/jpeg")
+    icerik = parcali_gorsel.jpeg(veri, boyut) if parcali_mi(veri) else hali_gorsel.jpeg(veri, boyut)
+    yanit = HttpResponse(icerik, content_type="image/jpeg")
     yanit["Cache-Control"] = "private, max-age=86400"
     return yanit
 
@@ -72,12 +87,19 @@ class GonderForm(forms.Form):
 def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""):
     """Bayinin tasarımı: 'Onay bekliyor' durumunda sipariş + tasarım kaydı."""
     teslim = istenen_tarih or timezone.localdate() + timedelta(days=21)
-    desen = LazerDeseni.objects.filter(kod=veri["dis_desen"] or veri["ic_desen"]).first() \
-        if (veri["dis_desen"] or veri["ic_desen"]) else None
+    if parcali_mi(veri):
+        desen_kodu = veri.get("ic_desen") or veri.get("dis_desen") or veri.get("desen") or ""
+        olcu = f"Ø{veri['cap']:g} cm" if veri["duzen"] == "yuvarlak" else f"{veri['en']:g}×{veri['boy']:g} cm"
+        urun, m2, katalog = f"Parçalı suni deri halı {olcu}", parcali.alan_m2(veri), ""
+    else:
+        desen_kodu = veri["dis_desen"] or veri["ic_desen"]
+        urun = f"Bayi tasarımı {veri['en']:g}×{veri['boy']:g} cm" + (f" ({veri['katalog']} esinli)" if veri["katalog"] else "")
+        m2, katalog = cizim.alan_m2(veri), veri["katalog"]
     siparis = Siparis.objects.create(
-        musteri=bayi, durum="onay", urun=f"Bayi tasarımı {veri['en']:g}×{veri['boy']:g} cm" + (f" ({veri['katalog']} esinli)" if veri["katalog"] else ""), adet=adet,
-        toplam_m2=Decimal(str(cizim.alan_m2(veri))) * adet, teslim_tarihi=teslim, lazer_deseni=desen, notlar=notlar,
-        katalog_modeli=KatalogModeli.objects.filter(kod=veri["katalog"]).first() if veri["katalog"] else None,
+        musteri=bayi, durum="onay", urun=urun, adet=adet,
+        toplam_m2=Decimal(str(m2)) * adet, teslim_tarihi=teslim,
+        lazer_deseni=LazerDeseni.objects.filter(kod=desen_kodu).first() if desen_kodu else None, notlar=notlar,
+        katalog_modeli=KatalogModeli.objects.filter(kod=katalog).first() if katalog else None,
     )
     return Tasarim.objects.create(musteri=bayi, kullanici=kullanici, veri=veri, adet=adet, istenen_tarih=istenen_tarih,
                                   notlar=notlar, siparis=siparis)
@@ -96,6 +118,8 @@ def studyo(request):
             return redirect("bayi_ana")
     else:
         kaynak = Tasarim.objects.filter(pk=request.GET.get("kaynak") or 0, musteri=bayi).first()
+        if kaynak and parcali_mi(kaynak.veri):
+            return redirect(f"{reverse('parcali_studyo')}?kaynak={kaynak.pk}")
         if kaynak:
             veri = _temizle(kaynak.veri)
         else:
@@ -166,7 +190,7 @@ def desen_onizleme(request, kod):
 @login_required
 def resim(request, pk):
     tasarim = _tasarim_erisim(request, pk)
-    return _jpeg(_temizle(tasarim.veri), _boyut(request))
+    return _jpeg(tasarim_temizle(tasarim.veri), _boyut(request))
 
 
 @login_required
@@ -176,7 +200,16 @@ def lazer_dosyasi(request, pk, tur):
     if tur not in ("dxf", "svg"):
         raise Http404
     tasarim = _tasarim_erisim(request, pk)
-    veri = _temizle(tasarim.veri)
+    veri = tasarim_temizle(tasarim.veri)
+    if parcali_mi(veri):
+        mal = request.GET.get("malzeme") or None
+        if tur != "dxf" or (mal and mal not in parcali.MALZEME_AD):
+            raise Http404
+        yanit = HttpResponse(parcali.dxf(veri, mal, f"{tasarim.siparis.siparis_no if tasarim.siparis else tasarim.no}"),
+                             content_type="application/dxf")
+        ad = (tasarim.siparis.siparis_no if tasarim.siparis else tasarim.no) + (f"_{mal}" if mal else "")
+        yanit["Content-Disposition"] = f'attachment; filename="{ad}.dxf"'
+        return yanit
     if tur == "dxf":
         icerik, mime = cizim.dxf(veri, f"{tasarim.no} {tasarim.musteri}"), "application/dxf"
     else:
@@ -217,7 +250,7 @@ class OnayForm(forms.Form):
 def onay_formu(siparis, data=None):
     hali_turu = siparis.hali_turu
     tasarim = getattr(siparis, "tasarim", None)
-    if hali_turu is None and tasarim and tasarim.veri.get("model") == "suni":
+    if hali_turu is None and tasarim and (tasarim.veri.get("model") == "suni" or parcali_mi(tasarim.veri)):
         hali_turu = HaliTuru.objects.filter(ad="Suni deri halı", aktif=True).first()
     return OnayForm(data, initial={"teslim_tarihi": siparis.teslim_tarihi, "hali_turu": hali_turu.pk if hali_turu else None},
                     prefix="onay")

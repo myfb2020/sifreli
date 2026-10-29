@@ -1557,3 +1557,77 @@ class SaglikVeYedekTesti(TestCase):
             self.assertNotIn("gunluk_2020-01-01_000000.sqlite3", kalan)
             call_command("yedekle", klasor=klasor, stdout=StringIO())  # eski kullanım: uretim_yedek_…
             self.assertTrue(any(p.name.startswith("uretim_yedek_") for p in Path(klasor).iterdir()))
+
+
+class ParcaliTasarimTesti(TasarimStudyosuTesti):
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def test_parca_kurallari(self):
+        from . import parcali
+
+        k = {"DB003"}
+        # 250×350 çerçeve: tüm parçalar 140×300 tablaya sığar (dikiş payıyla)
+        v = parcali.temizle({"duzen": "cerceve", "en": 250, "boy": 350, "dis_bant": 10, "ara": 0, "ic_bant": 0, "pay": 2}, k)
+        for p in parcali.parcalar(v):
+            self.assertTrue(parcali.sigar(p["en"], p["boy"], v["pay"]), p["ad"])
+        self.assertTrue(any("1/2" in p["ad"] for p in parcali.parcalar(v)))
+        # yuvarlak halka en az 4 yay parçası, hepsi tablaya sığar
+        v = parcali.temizle({"duzen": "yuvarlak", "cap": 300, "dis_halka": 30, "desen_halka": 25, "desen": "DB003"}, k)
+        yaylar = [p for p in parcali.parcalar(v) if p["tur"] == "yay"]
+        self.assertGreaterEqual(len(yaylar), 8)
+        self.assertTrue(all(parcali.sigar(p["en"], p["boy"], v["pay"]) for p in yaylar))
+        self.assertTrue(all(p["desen"] == "DB003" for p in yaylar if p["ad"].startswith("Desenli")))
+        # nakış: motif 40 cm ile sınırlı, 7 kafa önerisi
+        v = parcali.temizle({"duzen": "oval_serit", "en": 130, "boy": 260, "serit": 50, "motif": 99, "aralik": 2}, k)
+        self.assertEqual(v["motif"], 40)
+        bilgi = parcali.nakis_bilgisi(v)
+        self.assertEqual(bilgi["tur"], -(-bilgi["adet"] // 7))
+        # rulo: her malzeme 140 cm enden metre verir
+        rulo = parcali.rulo_yerlesimi(parcali.parcalar(v), v["pay"])
+        self.assertTrue(all(b["metre"] > 0 for b in rulo.values()))
+
+    def test_bayi_parcali_tasarim_gonderir_ofis_kesim_listesi(self):
+        from .models import Tasarim
+
+        self.client.force_login(self.bayi_hesap)
+        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-4"})
+        self.assertContains(sayfa, "Parçalı suni deri halı")
+        self.assertContains(sayfa, "P-3")
+        j = self.client.get(reverse("parcali_onizleme"), {"duzen": "oval_serit", "en": "130", "boy": "190",
+                                                           "nakis": "grek_kare"}).json()
+        self.assertEqual(len(j["parcalar"]), 3)
+        self.assertEqual(j["nakis"]["adet"] % 1, 0)
+        self.assertEqual(self.client.get(reverse("parcali_onizleme_resmi"), {"duzen": "yuvarlak", "b": "300"})["Content-Type"],
+                         "image/jpeg")
+        self.assertEqual(self.client.get(reverse("parcali_malzeme", args=["varak_gumus"])).status_code, 200)
+        yanit = self.client.post(reverse("parcali_studyo"), {
+            "duzen": "cerceve", "en": "100", "boy": "160", "dis_bant": "6", "dis_malzeme": "antrasit_keten", "ara": "12",
+            "ara_malzeme": "beyaz_keten", "ic_bant": "11", "ic_malzeme": "antrasit_keten", "ic_desen": "DB003",
+            "zemin": "beyaz_keten", "desen_alti": "krem", "kenar": "biye", "kenar_renk": "siyah", "pay": "1", "adet": "2",
+        })
+        self.assertRedirects(yanit, reverse("bayi_ana"))
+        t = Tasarim.objects.get()
+        self.assertEqual((t.veri["tip"], t.siparis.durum, t.siparis.lazer_deseni.kod), ("parcali", "onay", "DB003"))
+        self.assertEqual(t.siparis.toplam_m2, Decimal("3.20"))
+        self.assertIn("parçalı halı", t.ozet)
+        self.assertEqual(self.client.get(reverse("tasarim_resim", args=[t.pk]))["Content-Type"], "image/jpeg")
+        self.assertEqual(self.client.get(reverse("parcali_kesim", args=[t.pk])).status_code, 403)
+        self.assertRedirects(self.client.get(reverse("tasarim_studyo"), {"kaynak": t.pk}),
+                             f"{reverse('parcali_studyo')}?kaynak={t.pk}", fetch_redirect_response=False)
+
+        self.client.force_login(self.ofis)
+        detay = self.client.get(reverse("siparis_detay", args=[t.siparis.pk]))
+        self.assertContains(detay, reverse("parcali_kesim", args=[t.pk]))
+        kesim = self.client.get(reverse("parcali_kesim", args=[t.pk]))
+        self.assertContains(kesim, "Ara şerit (sol)")
+        self.assertContains(kesim, "Montaj sırası")
+        self.assertEqual(self.client.get(reverse("parcali_plan", args=[t.pk]))["Content-Type"], "image/png")
+        dxf = self.client.get(reverse("tasarim_lazer", args=[t.pk, "dxf"]), {"malzeme": "beyaz_keten"})
+        self.assertIn(b"KESIM", dxf.content)
+        self.assertIn(b"Orta zemin", dxf.content)
+        self.assertNotIn(b"Dis bant", dxf.content)  # antrasit parçalar bu dosyada yok
+        self.assertNotIn("Dış bant".encode(), dxf.content)
+        self.assertEqual(self.client.get(reverse("tasarim_lazer", args=[t.pk, "svg"])).status_code, 404)
+        from .tasarim_views import onay_formu
+        self.assertEqual(onay_formu(t.siparis).initial["hali_turu"], HaliTuru.objects.get(ad="Suni deri halı").pk)

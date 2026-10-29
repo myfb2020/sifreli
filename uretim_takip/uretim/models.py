@@ -932,9 +932,8 @@ class Tasarim(models.Model):
 
     @property
     def ozet(self):
-        from .hali_gorsel import desen_bilgisi
-        from .tasarim_cizim import ozet, temizle
-        return ozet(temizle(self.veri, set(desen_bilgisi())))
+        from .tasarim_views import tasarim_ozet
+        return tasarim_ozet(self.veri)
 
 
 class SistemAyari(models.Model):

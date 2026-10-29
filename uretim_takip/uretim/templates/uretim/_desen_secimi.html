@@ -1,0 +1,5 @@
+{# Lazer deseni seçimi: her desen halı köşesindeki görünüşüyle. alan: form alanı, secili: seçili kod. #}
+<div class="desen-izgara">
+  <label class="desen"><input type="radio" name="{{ alan }}" value=""{% if not secili %} checked{% endif %}><span class="desen-yok">Desensiz</span></label>
+  {% for d in desenler %}<label class="desen"><input type="radio" name="{{ alan }}" value="{{ d.kod }}"{% if secili == d.kod %} checked{% endif %}><img src="{% url 'tasarim_desen_onizleme' d.kod %}" alt="" loading="lazy"><span>{{ d.kod }}</span></label>{% endfor %}
+</div>
