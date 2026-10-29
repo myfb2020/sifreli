@@ -74,6 +74,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - **Hâlâ eksik:** DXF desen dosyaları; nakış motifi yalnız Grek kare (başka motif dosyası gelirse eklenir).
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
+- **Kağıtsız istasyon akışı (plan onaylandı, yazılmadı):** QR yalnız lazerde rulo kartından (borusuz rulo: lastik bantlı kart + iç uçta keçe tarafına yedek etiket); stok tasarımın kesim listesinden otomatik düşer, **fire %10** (sonra gerçek fireyle ayar). İstasyonlarda okutma yok: tablet listesinde halı resmi + SP no, Başla/Bitti. Rota: Lazer → (Nakış paralel, yalnız nakışlı parçalar) → Zig-zag (nakış bekleniyor işareti) → Biye/Lanfel. Lazerci büyük parçanın keçesine SP no yazar.
+- **Telefonda uyarılar yer kaplıyor** ve **sunucu diski %35**: plan yazıldı, kullanıcı kararı bekleniyor.
 - Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
 - Desenler: 3. fotoğraftaki işlemeli ve Grek bant için DXF/net foto → DB015/DB016; DB desenlerinin DXF'leri gelirse lazer dosyasına eklenir.
 - Yeni modeller: aplike Kufi düğüm, daire patchwork, Medusa/logo madalyonu.
