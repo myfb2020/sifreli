@@ -60,6 +60,13 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 | 6 Altyapı | `saglik.py`, `yedek.py`, `management/commands/yedekle.py`, `../kurulum.sh`, `../geri_al.sh`, `pwa.py`, `../fabrika/settings.py` |
 Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`, testler `tests.py`.
 
+## Karar: stüdyonun yeni yönü (2026-10-29, henüz kod yok)
+- Halı = **parçaların birleşimi** (lazer kesim parça/desen + nakış motifi + panel, dikiş makinesinde "lego" gibi birleşir). Deri/kürk da aynı.
+- Önce **suni deri**: parça kütüphanesi + ızgara (lego) düzenleyici; motif/desen her yere, simetri, geçiş = panel renk/desen dizisi.
+- Hedef: tasarımdan üretime tek hat → kesim listesi, malzeme bazlı lazer DXF, nakış listesi, montaj sırası, istasyonlara parça bazında iş, maliyet.
+- Yol haritası: 1 kullanıcıdan bilgi → 2 parça modeli + ızgara editörü → 3 üretim çıktıları → 4 maliyet/fire/rulo yerleşimi → 5 deri/kürk.
+- **Kullanıcıdan beklenen:** 2–3 suni deri halının parça listesi/eskizi, rulo eni, en küçük parça, dikiş payı, nakış kasnak ölçüsü, lazer DXF ve nakış dosyaları, dikiş türleri (zig-zag/düz/biye, bindirme mi uç uca mı).
+
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
 - Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
 - Desenler: 3. fotoğraftaki işlemeli ve Grek bant için DXF/net foto → DB015/DB016; DB desenlerinin DXF'leri gelirse lazer dosyasına eklenir.
