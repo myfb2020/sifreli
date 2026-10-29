@@ -1,0 +1,78 @@
+# Proje haritası – Bienna Fur Üretim Takip
+
+Bu dosya Claude'un hafızasıdır. Her oturumda önce bunu oku; her şeyi baştan okuma.
+Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. İş bitince bu haritayı güncelle (dal + günlük).
+
+## Kök
+- **Kullanıcı:** Bienna Fur sahibi (deri/kürk halı atölyesi, ~15 çalışan). Yazılımcı değil, **Türkçe**, sade anlatım ister; önce fikir/plan isteyebilir.
+- **Ürün:** `uretim_takip/` – Django 5.2 + SQLite, Türkçe arayüz, telefona yüklenen PWA. Canlı: https://uretim.pythonanywhere.com (ücretsiz PythonAnywhere).
+- **Depo:** `myfb2020/sifreli`, dal `claude/ben-code-capabilities-te6dv6`. Normal push (force push yok).
+- **Kullanıcının hedefi:** programı kendi atölyesinde oturtup başka atölyelere satılabilir hâle getirmek (yeni iş kolu).
+
+## Çalışma kuralları
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (103 test) + `manage.py makemigrations --check --dry-run`.
+- Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
+  `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
+- Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
+- Commit sonu: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` + `Claude-Session:` satırı. Commit/PR'da model adı geçmez.
+- Kod Türkçe adlandırılır (`siparis`, `lot`, `asama`…). Ekran kontrolü: Playwright node betiği, giriş için `form.dikey button[type=submit]`.
+- **Dikkat:** `kurulum.sh` / `geri_al.sh` denemelerini yalnızca geçici kopyada ve `( set -e; … )` içinde yap. Gerçek klasörde bir kez yanlışlıkla çalıştı.
+- Ağ: biennafur.com bu ortamdan kapalı (proxy 403).
+
+## Dallar
+```
+Üretim Takip
+├─ 1 Üretim akışı
+│   ├─ Sipariş SP-…  (durum: onay → acik → uretimde → tamamlandi → sevk / iptal)
+│   ├─ Halı türü + rota: Lazerli, Nakışlı, Peluş, Suni deri  (aynı sira = alternatif istasyon)
+│   ├─ İstasyonlar: Lazer kesim 1/2, Nakış, Kaplama, Zig-zag, Biye, Lanfel, Kenar dikişi (+ makineler)
+│   ├─ İş IS-…: yeni iş (stok QR + PIN) → işlem başlat/bitir → sıradaki istasyon
+│   └─ İstasyon ekranı (20 sn yenilenir), bekleme/süre uyarıları, pano
+├─ 2 Stok
+│   ├─ Ana malzeme lotu HD-… (QR etiket; birim m² / metretül / ayak)
+│   ├─ Malzeme türleri: deri, Keçe, Süet, Rona, Suni deri + bileşikler (3'lü lamine, Halı tabanı); renk/model
+│   ├─ Yardımcı malzeme MZ-… ; düzeltme (sayım/fire)
+│   ├─ Fason FS-…: gönder (stoktan düşer) → teslim al (yeni lot, renk/model üst katmandan) → fason firesi
+│   └─ Geçiş dönemi düğmesi (etiketsiz eski stoktan iş)
+├─ 3 Katalog + Tasarım stüdyosu
+│   ├─ Katalog: 13 seri, 192 model (TOS, HMK, IPS, LTS…), 14 lazer deseni DB001–DB014
+│   ├─ Stüdyo (bayi): Kürk (Toskana: dış bant → halka → iç bant → zemin → madalyon) / Suni deri (varak, peluş, kadife, sim/rugan alt, biye)
+│   ├─ Hazırlar: TOS-034…LTS-006, SD-1…SD-4 ; görsel Pillow ile sunucuda çizilir
+│   └─ Gönderim = "Onay bekliyor" sipariş → ofis sipariş sayfasından onay/ret; lazer DXF/SVG (hat + bantlar; DB deseni yalnız not)
+├─ 4 Hesaplar: Tablet (istasyona bağlı) / Ofis ("Ofis" grubu) / Yönetici / Bayi (yalnız stüdyo + kendi siparişleri)
+├─ 5 Raporlar: makine, personel-istasyon, bekleme, Excel çıktı; Excel'den aktarma; tablet giriş kaydı
+└─ 6 Altyapı / işletme
+    ├─ PythonAnywhere ücretsiz (ayda bir "Run until 1 month"), ücretli pakete geçiş önerildi (~5 $/ay)
+    ├─ /saglik/ (TAMAM / SORUN, 503) → UptimeRobot nöbetçi
+    ├─ kurulum.sh: güncelleme öncesi yedek + migrate hatasında geri dönüş + sürüm arşivi ~/uretim_surumler
+    ├─ geri_al.sh surum | veri | temizle ; manage.py yedekle [--onek gunluk]
+    └─ belgeler/acil_durum_karti.pdf (nöbetçi kurulumu + acil durum)
+```
+
+## Dal → dosyalar (`uretim_takip/uretim/`)
+| Dal | Dosyalar |
+|---|---|
+| 1 Üretim | `models.py` (Siparis, HaliTuru, RotaAdimi, Asama, Makine, UretimLotu, IslemKaydi), `servisler.py`, `views.py`, `istasyon_views.py`, `siparis_views.py`, `uyarilar.py` |
+| 2 Stok | `models.py` (HamDeriGirisi, DeriTuru, DeriDuzeltme, FasonIsi, Malzeme), `stok_views.py`, `malzeme_views.py`, `fason_views.py`, `qr.py` |
+| 3 Katalog/Tasarım | `katalog_views.py`, `tasarim_views.py`, `tasarim_cizim.py` (değerler, hazırlar, DXF), `hali_gorsel.py` (çizim), `tasarim_varlik/` (doku/, desen/ maskeler+desenler.json, hazir/), `katalog_tohum/` |
+| 4 Hesaplar | `hesaplar.py`, `bayi_siniri.py` (bayi erişim sınırı), `baglam.py`, `oturum.py` |
+| 5 Raporlar | `raporlar.py`, `excel_aktar.py`, `aktarim_views.py` |
+| 6 Altyapı | `saglik.py`, `yedek.py`, `management/commands/yedekle.py`, `../kurulum.sh`, `../geri_al.sh`, `pwa.py`, `../fabrika/settings.py` |
+Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`, testler `tests.py`.
+
+## Bekleyenler (kullanıcı onayı / bilgi gerekli)
+- Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
+- Desenler: 3. fotoğraftaki işlemeli ve Grek bant için DXF/net foto → DB015/DB016; DB desenlerinin DXF'leri gelirse lazer dosyasına eklenir.
+- Yeni modeller: aplike Kufi düğüm, daire patchwork, Medusa/logo madalyonu.
+- Lazer makinesi IP entegrasyonu (IP + kontrol kartı modeli lazım).
+- Paraşüt otomatik veri çekme (API erişimi lazım). WhatsApp sipariş yapıştırma (örnek mesaj lazım).
+- Tek dokunuşla usta akışı (PIN her gün mü hatırlansın? cevap bekleniyor). Çevrimdışı kuyruk.
+- Raporlar: fire nedeni, geri çağırma, kapasite.
+- Kullanım kılavuzu (Claude Docs: https://claude.ai/artifact/BxoN64k1AxL1g9TQWnv4o8) fason, katalog, stüdyo, acil durum ile güncellenmedi.
+- İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
+
+## Günlük (en yeni üstte, bir satır)
+- 2026-10-28: Nöbetçi /saglik/, güncelleme öncesi yedek, geri_al.sh, acil durum kartı (349dd1e). **Kullanıcıdaki son sürüm bu.**
+- 2026-10-28: Suni deri stüdyo modeli SD-1…4 (31aa3a1); gerçekçi stüdyo + onay siparişte (ffe9748); stüdyo ilk sürüm (e7da1d9); katalog (25cd34c).
+- 2026-10-28: Fason + Suni deri halı rotası; ana malzeme türleri, renk/model; geçiş dönemi.
+- Öncesi: üretim takip çekirdeği, istasyonlar/rotalar, hesaplar, raporlar, PWA, Excel aktarma (README'de ayrıntı).
