@@ -2,197 +2,207 @@
 {% block baslik %}Parçalı Tasarım{% endblock %}
 {% block icerik %}
 <h1 style="margin-top:0">🧩 Parçalı suni deri halı</h1>
-<p class="soluk">Halınız atölyede lazerle kesilen parçaların dikilmesiyle yapılır. Düzeni seçin, her parçanın malzemesini ve desenini belirleyin; program parçaları ve kesim listesini kendisi çıkarır.</p>
+<p class="soluk">Halınız iç içe halkalardan ve ortadaki büyük parçadan oluşur; atölyede lazerle kesilip zig-zag ile dikilir. Adım adım seçin, resim hemen değişir.</p>
 
 <form method="post" class="studyo dikey" id="studyo">
   {% csrf_token %}
+  <input type="hidden" name="duzen" value="halkali">
   <input type="hidden" name="hazir" value="{{ v.hazir }}">
+  <input type="hidden" name="pay" value="{{ v.pay|floatformat:'-1' }}">
+  <input type="hidden" name="halka_sayisi" id="halka_sayisi" value="{{ v.halka_sayisi }}">
   <div class="studyo-onizleme kart">
-    <img id="onizleme" alt="Halı önizlemesi" title="Büyütmek için dokunun" src="{% url 'parcali_onizleme_resmi' %}?b=900">
-    <div class="soluk" style="font-size:12px">🔍 Yakından görmek için resme dokunun</div>
+    <img id="onizleme" alt="Halı önizlemesi" src="{% url 'parcali_onizleme_resmi' %}?b=900">
+    <div class="soluk" style="font-size:12px;text-align:center">🔍 Büyük görmek için resme dokunun</div>
     <div id="ozet" class="soluk">{{ h.ozet }}</div>
-    <div class="soluk">Alan: <b id="alan">{{ h.alan }}</b> m² · Kenar: <b id="kenar-m">{{ h.kenar_m }}</b> m</div>
-    <div id="uyarilar">{% for u in h.uyarilar %}<div class="mesaj error">{{ u }}</div>{% endfor %}</div>
-    <details class="parca-bilgi" open>
-      <summary><b id="parca-sayisi">{{ h.parcalar|length }}</b> parça · rulo ihtiyacı</summary>
-      <table class="kucuk-tablo"><thead><tr><th>No</th><th>Parça</th><th>Malzeme</th><th>Kesim (cm)</th></tr></thead>
-        <tbody id="parca-tablo">{% for p in h.parcalar %}<tr><td>{{ p.no }}</td><td>{{ p.ad }}{% if p.desen %} · {{ p.desen }}{% endif %}</td><td>{{ p.malzeme }}</td><td>{{ p.kesim }}</td></tr>{% endfor %}</tbody></table>
-      <div id="rulo">{% for r in h.rulo %}<div>{{ r.malzeme }}: <b>{{ r.metre }} m</b> rulo ({{ r.adet }} parça)</div>{% endfor %}</div>
-      <div id="nakis">{% if h.nakis %}Nakış: {{ h.nakis.adet }} × {{ h.nakis.motif }} ({{ h.nakis.tur }} tur){% if h.nakis.oneri %}<div class="uyari">{{ h.nakis.oneri }}</div>{% endif %}{% endif %}</div>
-    </details>
+    <div id="uyarilar">{% for u in h.uyarilar %}<div class="mesaj error">{{ u }}</div>{% empty %}<div class="uygun">✓ Bu tasarım atölyede üretilebilir</div>{% endfor %}</div>
   </div>
 
   <div class="studyo-ayar">
-    <div class="kart">
-      <h2>1. Düzen</h2>
-      <div class="duzen-izgara">
-        {% for k, ad, acik in duzenler %}<label class="duzen"><input type="radio" name="duzen" value="{{ k }}"{% if v.duzen == k %} checked{% endif %}><span><b>{{ ad }}</b><small>{{ acik }}</small></span></label>{% endfor %}
-      </div>
-      <div class="fikir-kap">
-        <button type="button" class="btn" id="fikir-dugme">💡 Bana fikir ver</button>
-        <span class="soluk">Atölye kurallarına uygun 6 yeni tasarım önerir; beğendiğinize dokunun.</span>
-      </div>
-      <div class="hazir-izgara" id="fikirler"></div>
-      <label class="alt-baslik">Atölyedeki halılardan başla</label>
-      <div class="hazir-izgara">
-        {% for h in hazirlar %}<button type="button" class="hazir{% if v.hazir == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}">
-          <img src="{% url 'parcali_onizleme_resmi' %}?b=240&amp;hazir={{ h.kod }}&amp;{% for a, d in h.deger.items %}{{ a }}={{ d|urlencode }}&amp;{% endfor %}" alt="" loading="lazy">
-          <b>{{ h.kod }}</b><span>{{ h.ad }}</span></button>{% endfor %}
-      </div>
-    </div>
+    <nav class="adimlar" aria-label="Adımlar">
+      <button type="button" data-git="1">1 Şekil</button>
+      <button type="button" data-git="2">2 Halkalar</button>
+      <button type="button" data-git="3">3 Orta</button>
+      <button type="button" data-git="4">4 Kenar</button>
+      <button type="button" data-git="5">5 Gönder</button>
+    </nav>
 
-    <div class="kart">
-      <h2>2. Ölçü</h2>
-      <div class="iki-sutun" data-duzen="cerceve oval_serit seritler izgara elmas yarim">
+    <section class="kart adim" data-adim="1">
+      <h2>1. Şekil ve ölçü</h2>
+      <div class="secim-izgara">{% for k, ad in sekiller %}<label class="secim buyuk-secim"><input type="radio" name="sekil" value="{{ k }}"{% if v.sekil == k %} checked{% endif %}><span>{% if k == "oval" %}⬭{% else %}▭{% endif %} {{ ad }}</span></label>{% endfor %}</div>
+      <div class="iki-sutun">
         <p><label for="en">En (cm)</label><input id="en" name="en" type="number" min="60" max="400" step="5" value="{{ v.en|floatformat:'-1' }}"></p>
         <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" min="60" max="600" step="5" value="{{ v.boy|floatformat:'-1' }}"></p>
       </div>
-      <p data-duzen="yuvarlak"><label for="cap">Çap (cm)</label><input id="cap" name="cap" type="number" min="60" max="400" step="5" value="{{ v.cap|default:v.en|floatformat:'-1' }}"></p>
-      <p><label for="pay">Dikiş payı (cm, 0–2)</label><input id="pay" name="pay" type="number" min="0" max="2" step="0.5" value="{{ v.pay|floatformat:'-1' }}"></p>
-      <p class="soluk">Atölye sınırları: rulo eni {{ kurallar.rulo }} cm, lazer tablası {{ kurallar.rulo }}×{{ kurallar.tabla }} cm. Büyük parçaları program kendisi böler.</p>
-    </div>
+      <p class="soluk" style="margin-top:0">Oval seçip eni ve boyu eşit yazarsanız halı yuvarlak olur.</p>
+      <label class="alt-baslik">Hazır bir halıdan başlayın (isterseniz)</label>
+      <div class="hazir-izgara">
+        {% for h in hazirlar %}<button type="button" class="hazir{% if v.hazir == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}">
+          <img src="{% url 'parcali_onizleme_resmi' %}?b=240&amp;hazir={{ h.kod }}&amp;{% for a, d in h.deger.items %}{{ a }}={{ d|urlencode }}&amp;{% endfor %}" alt="" loading="lazy">
+          <span>{{ h.ad }}</span></button>{% endfor %}
+      </div>
+      <div class="fikir-kap">
+        <button type="button" class="btn" id="fikir-dugme">💡 Bana fikir ver</button>
+        <span class="soluk">Bu ölçüde 6 yeni öneri; beğendiğinize dokunun.</span>
+      </div>
+      <div class="hazir-izgara" id="fikirler"></div>
+    </section>
 
-    <div class="kart" data-duzen="seritler izgara elmas yarim">
-      <h2>3. Parçalar ve renkler</h2>
-      <div data-duzen="izgara elmas"><p><label for="hucre">Parça kenarı (cm)</label><input id="hucre" name="hucre" type="number" min="15" max="140" step="1" value="{{ v.hucre|default:40|floatformat:'-1' }}"></p></div>
-      <div data-duzen="seritler">
-        <div class="iki-sutun">
-          <p><label for="serit_sayisi">Şerit sayısı</label><input id="serit_sayisi" name="serit_sayisi" type="number" min="2" max="24" step="1" value="{{ v.serit_sayisi|default:7 }}"></p>
-          <p><label>Yön</label><span class="secim-izgara">{% for k, ad in yonler %}<label class="secim"><input type="radio" name="yon" value="{{ k }}"{% if v.yon == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</span></p>
+    <section class="kart adim" data-adim="2">
+      <h2>2. Halkalar <small class="soluk">(dışarıdan içeriye)</small></h2>
+      <div class="sayac">
+        <button type="button" class="btn ikincil" id="halka-eksi" aria-label="Halka çıkar">−</button>
+        <b id="halka-yazi">{{ v.halka_sayisi }} halka</b>
+        <button type="button" class="btn ikincil" id="halka-arti" aria-label="Halka ekle">+</button>
+        <span class="soluk">en çok {{ en_cok_halka }}</span>
+      </div>
+      {% for r in halkalar %}
+      <div class="halka" data-halka="{{ r.no }}">
+        <h3>{{ r.no }}. halka{% if r.no == 1 %} <small class="soluk">(en dıştaki)</small>{% endif %}</h3>
+        <div class="secim-izgara">{% for k, ad in halka_turleri %}<label class="secim"><input type="radio" name="h{{ r.no }}_tur" value="{{ k }}"{% if r.tur == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+        <p><label for="h{{ r.no }}_gen">Genişlik (cm)</label><input id="h{{ r.no }}_gen" name="h{{ r.no }}_gen" type="number" min="0" max="50" step="1" value="{{ r.gen|floatformat:'-1' }}"></p>
+        <label class="alt-baslik">Malzeme</label>
+        {% include "uretim/_malzeme_secimi.html" with alan=r.ad_malzeme secili=r.malzeme %}
+        <div data-kosul="h{{ r.no }}_tur=desenli">
+          <label class="alt-baslik">Lazer deseni</label>
+          {% include "uretim/_desen_secimi.html" with alan=r.ad_desen secili=r.desen %}
         </div>
-        <p><label style="display:flex;gap:8px;align-items:center;font-weight:normal"><input type="checkbox" name="serbest" value="on" style="width:auto"{% if v.serbest %} checked{% endif %}> Şerit genişlikleri serbest (farklı farklı)</label></p>
+        <div data-kosul="h{{ r.no }}_tur=nakisli">
+          <label class="alt-baslik">Nakış motifi</label>
+          <div class="secim-izgara">{% for k, ad in motifler %}<label class="secim"><input type="radio" name="h{{ r.no }}_nakis" value="{{ k }}"{% if r.nakis == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+          <p class="soluk">Motif ölçüsü halka genişliğine göre ayarlanır (en çok 40 cm).</p>
+        </div>
       </div>
-      <div data-duzen="seritler izgara elmas">
-        <label class="alt-baslik">Renk ailesi</label>
-        <div class="aile-izgara">{% for k, ad, mal in aileler %}<label class="aile"><input type="radio" name="aile" value="{{ k }}"{% if v.aile == k %} checked{% endif %}><span>{% for m in mal %}<i style="background-image:url('{% url 'parcali_malzeme' m %}')"></i>{% endfor %}</span><small>{{ ad }}</small></label>{% endfor %}</div>
-        <label class="alt-baslik">Renk dizilimi</label>
-        <div class="secim-izgara">{% for k, ad in dizilimler %}<label class="secim"><input type="radio" name="dizilim" value="{{ k }}"{% if v.dizilim == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-        <input type="hidden" name="tohum" value="{{ v.tohum|default:1 }}">
-        <button type="button" class="btn kucuk ikincil" id="karistir">🎲 Karıştır (yeni dağılım)</button>
-      </div>
-      <div data-duzen="yarim">
-        <label class="alt-baslik">Bölme</label>
-        <div class="secim-izgara">{% for k, ad in bolmeler %}<label class="secim"><input type="radio" name="bolme" value="{{ k }}"{% if v.bolme == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-        <label class="alt-baslik">2. bölge malzemesi (1. bölge = aşağıdaki zemin)</label>
-        {% include "uretim/_malzeme_secimi.html" with alan="ikinci" secili=v.ikinci %}
-      </div>
-    </div>
+      {% endfor %}
+      <p class="soluk" id="halka-yok">Halka yok: halı yalnız orta parçadan oluşur.</p>
+    </section>
 
-    <div class="kart" data-duzen="cerceve seritler izgara elmas yarim">
-      <h2>Dış bant</h2>
-      <p><label for="dis_bant">Dış bant genişliği (cm) — 0: yok</label><input id="dis_bant" name="dis_bant" type="number" min="0" max="40" step="1" value="{{ v.dis_bant|default:0|floatformat:'-1' }}"></p>
-      {% include "uretim/_malzeme_secimi.html" with alan="dis_malzeme" secili=v.dis_malzeme %}
-      {% include "uretim/_desen_secimi.html" with alan="dis_desen" secili=v.dis_desen %}
-    </div>
-
-    <div class="kart" data-duzen="cerceve">
-      <h2>3. Ara şerit ve iç bant</h2>
-      <p><label for="ara">Ara şerit genişliği (cm) — 0: yok</label><input id="ara" name="ara" type="number" min="0" max="40" step="1" value="{{ v.ara|default:0|floatformat:'-1' }}"></p>
-      {% include "uretim/_malzeme_secimi.html" with alan="ara_malzeme" secili=v.ara_malzeme %}
-      <p><label for="ic_bant">İç (desenli) bant genişliği (cm) — 0: yok</label><input id="ic_bant" name="ic_bant" type="number" min="0" max="40" step="1" value="{{ v.ic_bant|default:0|floatformat:'-1' }}"></p>
-      {% include "uretim/_malzeme_secimi.html" with alan="ic_malzeme" secili=v.ic_malzeme %}
-      {% include "uretim/_desen_secimi.html" with alan="ic_desen" secili=v.ic_desen %}
-    </div>
-
-    <div class="kart" data-duzen="oval_serit">
-      <h2>3. Nakış şeridi</h2>
-      <p><label for="serit">Şerit genişliği (cm)</label><input id="serit" name="serit" type="number" min="10" max="60" step="1" value="{{ v.serit|default:26|floatformat:'-1' }}"></p>
-      {% include "uretim/_malzeme_secimi.html" with alan="serit_malzeme" secili=v.serit_malzeme %}
-      <label class="alt-baslik">Nakış</label>
-      <div class="secim-izgara">{% for k, ad in nakislar %}<label class="secim"><input type="radio" name="nakis" value="{{ k }}"{% if v.nakis == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-      <div class="iki-sutun">
-        <p><label for="motif">Motif ölçüsü (cm, en çok {{ kurallar.nakis }})</label><input id="motif" name="motif" type="number" min="8" max="40" step="1" value="{{ v.motif|default:22|floatformat:'-1' }}"></p>
-        <p><label for="aralik">Motif aralığı (cm)</label><input id="aralik" name="aralik" type="number" min="1" max="30" step="1" value="{{ v.aralik|default:4|floatformat:'-1' }}"></p>
-      </div>
-      <p class="soluk">Nakış makinesi {{ kurallar.kafa }} kafalı: aynı motifi aynı anda {{ kurallar.kafa }} kez işler.</p>
-    </div>
-
-    <div class="kart" data-duzen="yuvarlak">
-      <h2>3. Halkalar</h2>
-      <p><label for="dis_halka">Dış halka genişliği (cm) — 0: yok</label><input id="dis_halka" name="dis_halka" type="number" min="0" max="50" step="1" value="{{ v.dis_halka|default:0|floatformat:'-1' }}"></p>
-      {% include "uretim/_malzeme_secimi.html" with alan="halka_malzeme" secili=v.halka_malzeme %}
-      <p><label for="desen_halka">Desenli halka genişliği (cm) — 0: yok</label><input id="desen_halka" name="desen_halka" type="number" min="0" max="40" step="1" value="{{ v.desen_halka|default:0|floatformat:'-1' }}"></p>
-      {% include "uretim/_malzeme_secimi.html" with alan="desen_malzeme" secili=v.desen_malzeme %}
-      {% include "uretim/_desen_secimi.html" with alan="desen" secili=v.desen %}
-      <p class="soluk">Halkalar lazer tablasına sığacak yay parçalarına bölünür.</p>
-    </div>
-
-    <div class="kart">
-      <h2>4. Zemin, desen altı, kenar</h2>
-      <label class="alt-baslik">Zemin (orta) malzemesi</label>
+    <section class="kart adim" data-adim="3">
+      <h2>3. Orta</h2>
+      <label class="alt-baslik">Orta zemin malzemesi</label>
       {% include "uretim/_malzeme_secimi.html" with alan="zemin" secili=v.zemin %}
-      <label class="alt-baslik">Desen deliklerinden görünen</label>
-      <div class="secim-izgara">{% for k, ad in altlar %}<label class="secim"><input type="radio" name="desen_alti" value="{{ k }}"{% if v.desen_alti == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-      <label class="alt-baslik">Kenar</label>
-      <div class="secim-izgara">{% for k, ad in kenarlar %}<label class="secim"><input type="radio" name="kenar" value="{{ k }}"{% if v.kenar == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-      <div class="secim-izgara">{% for k, ad in kenar_renkleri %}<label class="secim"><input type="radio" name="kenar_renk" value="{{ k }}"{% if v.kenar_renk == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-    </div>
+      <label class="alt-baslik">Ortaya ne konsun?</label>
+      <div class="secim-izgara">{% for k, ad in orta_turleri %}<label class="secim"><input type="radio" name="orta" value="{{ k }}"{% if v.orta == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+      <div data-kosul="orta=panel">
+        <div class="iki-sutun">
+          <p><label for="panel_en">Panel eni (cm)</label><input id="panel_en" name="panel_en" type="number" min="20" max="200" step="5" value="{{ v.panel_en|floatformat:'-1' }}"></p>
+          <p><label for="panel_boy">Panel boyu (cm)</label><input id="panel_boy" name="panel_boy" type="number" min="20" max="300" step="5" value="{{ v.panel_boy|floatformat:'-1' }}"></p>
+        </div>
+        <label class="alt-baslik">Panel malzemesi</label>
+        {% include "uretim/_malzeme_secimi.html" with alan="panel_malzeme" secili=v.panel_malzeme %}
+        <p><label for="motif">Motif ölçüsü (cm, en çok 40)</label><input id="motif" name="motif" type="number" min="8" max="40" step="1" value="{{ v.motif|floatformat:'-1' }}"></p>
+      </div>
+      <div data-kosul="orta=serit">
+        <div class="secim-izgara">{% for k, ad in serit_turleri %}<label class="secim"><input type="radio" name="serit_tur" value="{{ k }}"{% if v.serit_tur == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+        <div class="secim-izgara">{% for k, ad in serit_yonleri %}<label class="secim"><input type="radio" name="serit_yon" value="{{ k }}"{% if v.serit_yon == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+        <div class="iki-sutun">
+          <p><label for="serit_adet">Şerit sayısı (1–3)</label><input id="serit_adet" name="serit_adet" type="number" min="1" max="3" step="1" value="{{ v.serit_adet }}"></p>
+          <p><label for="serit">Şerit genişliği (cm)</label><input id="serit" name="serit" type="number" min="8" max="60" step="1" value="{{ v.serit|floatformat:'-1' }}"></p>
+        </div>
+        <label class="alt-baslik">Şerit malzemesi</label>
+        {% include "uretim/_malzeme_secimi.html" with alan="serit_malzeme" secili=v.serit_malzeme %}
+        <div data-kosul="serit_tur=desenli">
+          <label class="alt-baslik">Lazer deseni</label>
+          {% include "uretim/_desen_secimi.html" with alan="serit_desen" secili=v.serit_desen %}
+        </div>
+      </div>
+      <div data-kosul="orta=panel,serit" data-kosul2="serit_tur=nakisli">
+        <label class="alt-baslik">Nakış motifi</label>
+        <div class="secim-izgara">{% for k, ad in motifler %}<label class="secim"><input type="radio" name="nakis" value="{{ k }}"{% if v.nakis == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+      </div>
+    </section>
 
-    <div class="kart">
-      <h2>5. Sipariş</h2>
+    <section class="kart adim" data-adim="4">
+      <h2>4. Kenar</h2>
+      <div class="secim-izgara">{% for k, ad in kenarlar %}<label class="secim buyuk-secim"><input type="radio" name="kenar" value="{{ k }}"{% if v.kenar == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+      <label class="alt-baslik">Kenar rengi</label>
+      <div class="secim-izgara">{% for k, ad in kenar_renkleri %}<label class="secim"><input type="radio" name="kenar_renk" value="{{ k }}"{% if v.kenar_renk == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+    </section>
+
+    <section class="kart adim" data-adim="5">
+      <h2>5. Siparişi gönder</h2>
       {% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
       {% for alan in form %}
       <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}{% for e in alan.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
       {% endfor %}
       <button class="btn buyuk" type="submit" style="width:100%">📤 Siparişi gönder</button>
+      <p class="soluk">Siparişiniz onaylanınca üretime alınır; kesim ve nakış listesini atölye hazırlar.</p>
+    </section>
+
+    <div class="adim-gecis">
+      <button type="button" class="btn ikincil" id="geri">← Geri</button>
+      <button type="button" class="btn" id="ileri">İleri →</button>
     </div>
   </div>
 </form>
+
+<div class="buyuk-gorunum" id="buyuk" hidden role="dialog" aria-label="Büyük görünüm">
+  <button type="button" class="kapat" id="kapat" aria-label="Kapat">✕</button>
+  <div class="buyuk-ic" id="buyuk-ic"><img id="buyuk-resim" alt="Halı büyük görünüm"></div>
+  <div class="buyuk-not">Yakınlaştırmak için resme dokunun · ✕ ile düzenlemeye dönün</div>
+</div>
 {{ hazir_json|json_script:"hazir-veri" }}
 
 <style>
   .studyo { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
-  .studyo-onizleme { position:sticky; top:calc(var(--ust, 60px) + 8px); background:#26231f; color:#d8d0c6; max-height:calc(100vh - var(--ust, 60px) - 16px); overflow:auto; }
+  .studyo-onizleme { position:sticky; top:calc(var(--ust, 60px) + 8px); background:#26231f; color:#d8d0c6; }
   .studyo-onizleme .soluk { color:#cfc6bb; }
-  #onizleme { width:100%; max-height:60vh; object-fit:contain; display:block; margin:0 auto 8px; transition:opacity .15s; }
+  #onizleme { width:100%; max-height:62vh; object-fit:contain; display:block; margin:0 auto 6px; transition:opacity .15s; cursor:zoom-in; }
   #onizleme.bekle { opacity:.6; }
-  .parca-bilgi { margin-top:8px; font-size:13px; }
-  .kucuk-tablo { width:100%; border-collapse:collapse; margin:6px 0; }
-  .kucuk-tablo td, .kucuk-tablo th { border-bottom:1px solid #4a433d; padding:3px 4px; text-align:left; color:#e9e1d7; }
-  .studyo-ayar .kart { margin-bottom:12px; }
+  .uygun { color:#9fd49a; margin-top:6px; }
+  .adimlar { display:flex; gap:4px; margin-bottom:10px; overflow-x:auto; }
+  .adimlar button { flex:1; white-space:nowrap; border:1px solid #d9cfc4; background:#fff; border-radius:20px; padding:8px 10px; font:inherit; cursor:pointer; }
+  .adimlar button.etkin { background:var(--ana); color:#fff; border-color:var(--ana); }
+  .adim[hidden], [data-kosul][hidden], .halka[hidden] { display:none !important; }
+  .adim-gecis { display:flex; justify-content:space-between; gap:8px; margin:4px 0 12px; }
+  .adim-gecis .btn { flex:1; }
   .studyo h2 { margin-top:0; }
+  .halka { border-top:1px solid #eee4da; padding-top:8px; margin-top:8px; }
+  .halka h3 { margin:4px 0 8px; font-size:16px; }
+  .sayac { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .sayac .btn { width:44px; font-size:20px; padding:4px 0; }
   .alt-baslik { display:block; font-weight:600; margin:12px 0 6px; }
   .secim-izgara { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-  .secim, .mal, .desen, .duzen { position:relative; }
-  .secim input, .mal input, .desen input, .duzen input { position:absolute; opacity:0; pointer-events:none; width:auto !important; }
+  .secim, .mal, .desen { position:relative; }
+  .secim input, .mal input, .desen input { position:absolute; opacity:0; pointer-events:none; width:auto !important; }
   .secim span { display:inline-block; padding:8px 14px; border:1px solid #d9cfc4; border-radius:20px; cursor:pointer; background:#fff; font-weight:normal; }
+  .buyuk-secim span { padding:12px 20px; font-size:16px; }
   .secim input:checked + span { background:var(--ana); color:#fff; border-color:var(--ana); }
   input:focus-visible + span { outline:2px solid var(--ana); outline-offset:2px; }
   .iki-sutun { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .duzen-izgara { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-  .duzen span { display:flex; flex-direction:column; gap:4px; border:2px solid #e6ddd3; border-radius:10px; padding:10px; cursor:pointer; background:#fff; font-weight:normal; height:100%; }
-  .duzen small { color:#7a6f66; }
-  .duzen input:checked + span { border-color:var(--ana); background:#fbf6f1; }
-  .hazir-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
+  .hazir-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; }
   .hazir { border:2px solid #e6ddd3; border-radius:10px; background:#fff; padding:4px; cursor:pointer; text-align:center; font:inherit; font-size:12px; display:flex; flex-direction:column; gap:2px; }
   .hazir img { width:100%; aspect-ratio:3/4; object-fit:contain; border-radius:6px; background:#26231f; }
   .hazir span { color:#7a6f66; line-height:1.2; }
   .hazir.secili { border-color:var(--ana); background:#fbf6f1; }
   .fikir-kap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 8px; }
   #fikirler:empty { display:none; }
-  #fikirler { margin-bottom:10px; }
-  .aile-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
-  .aile { position:relative; cursor:pointer; font-weight:normal !important; font-size:12px; text-align:center; }
-  .aile input { position:absolute; opacity:0; pointer-events:none; width:auto !important; }
-  .aile span { display:flex; border:3px solid #e6ddd3; border-radius:8px; overflow:hidden; height:34px; }
-  .aile i { flex:1; background-size:cover; }
-  .aile input:checked + span { border-color:var(--ana); }
-  .mal-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); gap:6px; margin-bottom:8px; }
+  .mal-izgara, .desen-izgara { display:grid; gap:6px; margin-bottom:4px; }
+  .mal-izgara { grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); }
   .mal { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; font-weight:normal !important; font-size:11px; text-align:center; line-height:1.15; }
   .mal span { width:48px; height:48px; border-radius:8px; border:3px solid #e6ddd3; display:block; background-size:cover; }
   .mal input:checked + span { border-color:var(--ana); }
-  .desen-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; margin-bottom:10px; }
+  .desen-izgara { grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); }
   .desen { border:2px solid #e6ddd3; border-radius:8px; padding:3px; text-align:center; cursor:pointer; background:#fff; font-size:11px; font-weight:normal !important; }
   .desen img { width:100%; aspect-ratio:1; object-fit:cover; display:block; border-radius:6px; }
-  .desen .desen-yok { display:flex; align-items:center; justify-content:center; aspect-ratio:1; }
   .desen:has(input:checked) { border-color:var(--ana); background:#fbf6f1; }
-  [data-duzen][hidden] { display:none !important; }
+  /* ilk seçenekler görünür, gerisi "Tümünü göster" ile açılır (seçili olan hep görünür) */
+  .kisa:not(.acik) > .mal:nth-child(n+9):not(:has(input:checked)),
+  .kisa:not(.acik) > .desen:nth-child(n+7):not(:has(input:checked)) { display:none; }
+  .tumu { background:none; border:0; color:var(--ana); font:inherit; cursor:pointer; padding:2px 0 8px; text-decoration:underline; }
+  .buyuk-gorunum { position:fixed; inset:0; z-index:100; background:rgba(20,18,16,.96); display:flex; flex-direction:column; }
+  .buyuk-gorunum[hidden] { display:none; }
+  .buyuk-ic { flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; touch-action:pinch-zoom pan-x pan-y; }
+  .buyuk-ic img { max-width:100%; max-height:100%; object-fit:contain; cursor:zoom-in; }
+  .buyuk-ic.yakin { display:block; }
+  .buyuk-ic.yakin img { max-width:none; max-height:none; width:220%; cursor:zoom-out; }
+  .kapat { position:absolute; top:12px; right:12px; z-index:2; width:52px; height:52px; border-radius:50%; border:0; background:#fff; color:#222; font-size:26px; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.4); }
+  .buyuk-not { color:#cfc6bb; text-align:center; font-size:13px; padding:8px; }
   @media (max-width: 760px) {
     .studyo { grid-template-columns:1fr; }
-    .studyo-onizleme { top:var(--ust, 60px); z-index:5; padding:8px; max-height:none; }
-    #onizleme { max-height:30vh; }
-    .parca-bilgi { display:none; }
-    .duzen-izgara { grid-template-columns:1fr; }
+    .studyo-onizleme { top:var(--ust, 60px); z-index:5; padding:8px; }
+    #onizleme { max-height:28vh; }
+    #ozet { display:none; }
+    .adimlar button { padding:6px 8px; font-size:13px; }
   }
 </style>
 <script>
@@ -203,25 +213,59 @@
   const resimAdresi = "{% url 'parcali_onizleme_resmi' %}";
   const veriAdresi = "{% url 'parcali_onizleme' %}";
   const siparisAlanlari = ["adet", "istenen_tarih", "notlar", "csrfmiddlewaretoken"];
+  const enCok = {{ en_cok_halka }};
   const kac = (t) => String(t).replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";");
-  let zamanlayici = null, sira = 0;
+  const deger = (ad) => (form.querySelector(`[name="${ad}"]:checked`) || form.querySelector(`[name="${ad}"]:not([type=radio])`) || {}).value;
+  let zamanlayici = null, sira = 0, adim = {% if form.errors %}5{% else %}1{% endif %};
   const ustAyarla = () => document.documentElement.style.setProperty("--ust", (document.querySelector("header")?.offsetHeight || 0) + "px");
   ustAyarla(); window.addEventListener("resize", ustAyarla);
 
-  function duzenGoster() {
-    const d = form.querySelector('input[name="duzen"]:checked').value;
-    form.querySelectorAll("[data-duzen]").forEach((e) => { e.hidden = !e.dataset.duzen.split(" ").includes(d); });
+  // seçim listelerinde "Tümünü göster"
+  form.querySelectorAll(".mal-izgara, .desen-izgara").forEach((iz) => {
+    const sinir = iz.classList.contains("mal-izgara") ? 8 : 6;
+    if (iz.children.length <= sinir) return;
+    iz.classList.add("kisa");
+    const d = document.createElement("button");
+    d.type = "button"; d.className = "tumu"; d.textContent = "Tümünü göster ▾";
+    d.addEventListener("click", () => { const a = iz.classList.toggle("acik"); d.textContent = a ? "Daha az ▴" : "Tümünü göster ▾"; });
+    iz.after(d);
+  });
+
+  function kosulTut(k) {
+    const [ad, liste] = k.split("=");
+    return liste.split(",").includes(deger(ad));
   }
+  function goster() {
+    const n = parseInt(document.getElementById("halka_sayisi").value, 10) || 0;
+    form.querySelectorAll(".halka").forEach((h) => { h.hidden = parseInt(h.dataset.halka, 10) > n; });
+    document.getElementById("halka-yok").hidden = n > 0;
+    document.getElementById("halka-yazi").textContent = n + " halka";
+    form.querySelectorAll("[data-kosul]").forEach((e) => {
+      let ac = kosulTut(e.dataset.kosul);
+      if (ac && e.dataset.kosul2 && deger("orta") === "serit") ac = kosulTut(e.dataset.kosul2);
+      e.hidden = !ac;
+    });
+    form.querySelectorAll(".adim").forEach((a) => { a.hidden = String(adim) !== a.dataset.adim; });
+    document.querySelectorAll(".adimlar button").forEach((b) => b.classList.toggle("etkin", String(adim) === b.dataset.git));
+    document.getElementById("geri").style.visibility = adim > 1 ? "visible" : "hidden";
+    document.getElementById("ileri").style.visibility = adim < 5 ? "visible" : "hidden";
+  }
+  function adimaGit(n) { adim = Math.min(5, Math.max(1, n)); goster(); form.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  document.querySelectorAll(".adimlar button").forEach((b) => b.addEventListener("click", () => adimaGit(parseInt(b.dataset.git, 10))));
+  document.getElementById("geri").addEventListener("click", () => adimaGit(adim - 1));
+  document.getElementById("ileri").addEventListener("click", () => adimaGit(adim + 1));
+
+  function halkaSayisi(fark) {
+    const a = document.getElementById("halka_sayisi");
+    a.value = Math.min(enCok, Math.max(0, (parseInt(a.value, 10) || 0) + fark));
+    yakinda();
+  }
+  document.getElementById("halka-arti").addEventListener("click", () => halkaSayisi(1));
+  document.getElementById("halka-eksi").addEventListener("click", () => halkaSayisi(-1));
+
   function sorgu() {
     const v = new URLSearchParams();
-    const d = form.querySelector('input[name="duzen"]:checked').value;
-    new FormData(form).forEach((deger, ad) => {
-      if (siparisAlanlari.includes(ad)) return;
-      const alan = form.querySelector(`[name="${ad}"]`);
-      const kap = alan && alan.closest("[data-duzen]");
-      if (kap && !kap.dataset.duzen.split(" ").includes(d)) return;
-      v.set(ad, deger);
-    });
+    new FormData(form).forEach((d, ad) => { if (!siparisAlanlari.includes(ad)) v.set(ad, d); });
     return v.toString();
   }
   async function guncelle() {
@@ -232,52 +276,55 @@
       const j = await (await fetch(veriAdresi + "?" + q)).json();
       if (benim !== sira) return;
       document.getElementById("ozet").textContent = j.ozet;
-      document.getElementById("alan").textContent = j.alan;
-      document.getElementById("kenar-m").textContent = j.kenar_m;
-      document.getElementById("parca-sayisi").textContent = j.parcalar.length;
-      document.getElementById("parca-tablo").innerHTML = j.parcalar.map((p) =>
-        `<tr><td>${p.no}</td><td>${kac(p.ad)}${p.desen ? " · " + p.desen : ""}</td><td>${kac(p.malzeme)}</td><td>${p.kesim}</td></tr>`).join("");
-      document.getElementById("rulo").innerHTML = j.rulo.map((r) => `<div>${kac(r.malzeme)}: <b>${r.metre} m</b> rulo (${r.adet} parça)</div>`).join("");
-      document.getElementById("nakis").innerHTML = j.nakis ? `Nakış: ${j.nakis.adet} × ${kac(j.nakis.motif)} (${j.nakis.tur} tur)` +
-        (j.nakis.oneri ? `<div class="uyari">${kac(j.nakis.oneri)}</div>` : "") : "";
-      document.getElementById("uyarilar").innerHTML = j.uyarilar.map((u) => `<div class="mesaj error">${kac(u)}</div>`).join("");
-    } catch (e) { /* bağlantı yoksa liste eski kalır */ }
+      document.getElementById("uyarilar").innerHTML = j.uyarilar.length
+        ? j.uyarilar.map((u) => `<div class="mesaj error">${kac(u)}</div>`).join("")
+        : '<div class="uygun">✓ Bu tasarım atölyede üretilebilir</div>';
+    } catch (e) { /* bağlantı yoksa eski bilgi kalır */ }
   }
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
-  resim.style.cursor = "zoom-in";
-  resim.addEventListener("click", () => window.open(resim.src.replace("b=900", "b=1400"), "_blank"));
-  const yakinda = () => { duzenGoster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
+  const yakinda = () => { goster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
   form.addEventListener("input", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
   form.addEventListener("change", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
 
-  function uygula(deger, kod) {
+  // büyük görünüm: sayfa içinde açılır, ✕ / dışına dokunma / geri tuşu / Esc ile düzenlemeye döner
+  const buyuk = document.getElementById("buyuk"), buyukIc = document.getElementById("buyuk-ic");
+  const buyukResim = document.getElementById("buyuk-resim");
+  function ac() {
+    buyukResim.src = resimAdresi + "?b=1400&" + sorgu();
+    buyukIc.classList.remove("yakin");
+    buyuk.hidden = false; document.body.style.overflow = "hidden";
+    history.pushState({ buyuk: 1 }, "");
+  }
+  function kapat() { if (buyuk.hidden) return; buyuk.hidden = true; document.body.style.overflow = ""; }
+  resim.addEventListener("click", ac);
+  document.getElementById("kapat").addEventListener("click", () => { if (history.state && history.state.buyuk) history.back(); else kapat(); });
+  buyukIc.addEventListener("click", (e) => { if (e.target === buyukIc && !buyukIc.classList.contains("yakin")) document.getElementById("kapat").click(); });
+  buyukResim.addEventListener("click", () => buyukIc.classList.toggle("yakin"));
+  window.addEventListener("popstate", kapat);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !buyuk.hidden) document.getElementById("kapat").click(); });
+
+  function uygula(d, kod) {
     form.querySelector('[name="hazir"]').value = kod || "";
-    Object.entries(deger).forEach(([ad, deg]) => {
-      if (ad === "hazir") return;
+    Object.entries(d).forEach(([ad, deg]) => {
+      if (ad === "hazir" || ad === "duzen") return;
       form.querySelectorAll(`[name="${ad}"]`).forEach((a) => {
         if (a.type === "radio") a.checked = a.value === String(deg);
-        else if (a.type === "checkbox") a.checked = String(deg) === "on";
         else a.value = String(deg).replace(/\.0$/, "");
       });
     });
   }
   function secimiIsaretle(d) {
     document.querySelectorAll(".hazir").forEach((h) => h.classList.toggle("secili", h === d));
-    duzenGoster(); guncelle();
+    goster(); guncelle();
   }
   document.querySelectorAll(".hazir[data-kod]").forEach((d) => d.addEventListener("click", () => {
     uygula(hazirlar[d.dataset.kod], d.dataset.kod);
     secimiIsaretle(d);
   }));
-  document.getElementById("karistir").addEventListener("click", () => {
-    const t = form.querySelector('[name="tohum"]');
-    t.value = (parseInt(t.value || "1", 10) % 9999) + 1;
-    yakinda();
-  });
   document.getElementById("fikir-dugme").addEventListener("click", async () => {
     const kap = document.getElementById("fikirler");
     kap.innerHTML = '<span class="soluk">Fikirler hazırlanıyor…</span>';
-    const q = new URLSearchParams({ en: form.querySelector('[name="en"]').value, boy: form.querySelector('[name="boy"]').value });
+    const q = new URLSearchParams({ en: deger("en"), boy: deger("boy") });
     const liste = await (await fetch("{% url 'parcali_fikir' %}?" + q)).json();
     kap.innerHTML = "";
     liste.forEach((f) => {
@@ -288,7 +335,7 @@
       kap.appendChild(d);
     });
   });
-  duzenGoster(); guncelle();
+  goster(); guncelle();
 })();
 </script>
 {% endblock %}

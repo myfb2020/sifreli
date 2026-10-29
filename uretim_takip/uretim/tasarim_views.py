@@ -88,7 +88,7 @@ def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""
     """Bayinin tasarımı: 'Onay bekliyor' durumunda sipariş + tasarım kaydı."""
     teslim = istenen_tarih or timezone.localdate() + timedelta(days=21)
     if parcali_mi(veri):
-        desen_kodu = veri.get("ic_desen") or veri.get("dis_desen") or veri.get("desen") or ""
+        desen_kodu = parcali.ana_desen(veri)
         olcu = f"Ø{veri['cap']:g} cm" if veri["duzen"] == "yuvarlak" else f"{veri['en']:g}×{veri['boy']:g} cm"
         urun, m2, katalog = f"Parçalı suni deri halı {olcu}", parcali.alan_m2(veri), ""
     else:

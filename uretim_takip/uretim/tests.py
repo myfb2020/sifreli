@@ -1593,7 +1593,7 @@ class ParcaliTasarimTesti(TasarimStudyosuTesti):
         self.client.force_login(self.bayi_hesap)
         sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-4"})
         self.assertContains(sayfa, "Parçalı suni deri halı")
-        self.assertContains(sayfa, "P-3")
+        self.assertContains(sayfa, 'data-kod="P-3"')
         j = self.client.get(reverse("parcali_onizleme"), {"duzen": "oval_serit", "en": "130", "boy": "190",
                                                            "nakis": "grek_kare"}).json()
         self.assertEqual(len(j["parcalar"]), 3)
@@ -1688,16 +1688,112 @@ class ParcaliYeniDuzenTesti(TasarimStudyosuTesti):
         # iki parçalı: iki bölge (tablaya sığmayan bölünür), toplam alan halı alanı
         v = parcali.temizle({"duzen": "yarim", "en": 160, "boy": 230, "bolme": "capraz"}, k)
         self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in parcali.parcalar(v)), 160 * 230, delta=5)
-        # fikirler: farklı düzenler, hepsi geçerli
+        # fikirler: halkalı yapıda, birbirinden farklı
         fikirler = parcali.fikirler(7, 1, k)
-        self.assertEqual(len({f["duzen"] for f in fikirler}), 7)
+        self.assertEqual({f["duzen"] for f in fikirler}, {"halkali"})
+        self.assertEqual(len({parcali.ozet(f) for f in fikirler}), 7)
 
         self.client.force_login(self.bayi_hesap)
         liste = self.client.get(reverse("parcali_fikir"), {"en": "160", "boy": "230"}).json()
         self.assertEqual(len(liste), 6)
         for f in liste:
-            if f["v"]["duzen"] != "yuvarlak":
-                self.assertEqual((f["v"]["en"], f["v"]["boy"]), (160.0, 230.0))
+            self.assertEqual((f["v"]["en"], f["v"]["boy"]), (160.0, 230.0))
         sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-7"})
         self.assertContains(sayfa, "Bana fikir ver")
-        self.assertContains(sayfa, "Renk ailesi")
+        self.assertContains(sayfa, "2. Halkalar")
+        self.assertNotContains(sayfa, "Elmas")
+
+
+class ParcaliHalkaliTesti(TasarimStudyosuTesti):
+    """Atölyenin asıl yapısı: iç içe halkalar + orta (düz / nakış paneli / şerit)."""
+
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def test_halka_parcalari(self):
+        from . import parcali
+
+        k = {"DB003", "DB007"}
+        # dikdörtgen: her halka 4 parça, uzun yanlar boydan boya, kısalar arada; alan tam dolu
+        v = parcali.temizle({"duzen": "halkali", "sekil": "dikdortgen", "en": 80, "boy": 150, "halka_sayisi": 2,
+                             "h1_tur": "duz", "h1_gen": 11, "h2_tur": "desenli", "h2_gen": 12, "h2_desen": "DB003"}, k)
+        ps = parcali.parcalar(v)
+        self.assertEqual(len([p for p in ps if p.get("halka") == 1]), 4)
+        sol = next(p for p in ps if p["ad"] == "1. halka (sol)")
+        ust = next(p for p in ps if p["ad"] == "1. halka (üst)")
+        self.assertEqual((sol["en"], sol["boy"], ust["en"], ust["boy"]), (11, 150, 58, 11))
+        self.assertTrue(all(p["desen"] == "DB003" for p in ps if p.get("halka") == 2))
+        self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), 80 * 150, delta=1)
+        self.assertEqual(parcali.ana_desen(v), "DB003")
+        self.assertEqual(v["desen_alti"], "yok")
+        # yatay halıda uzun yanlar üst/alt olur
+        v2 = parcali.temizle({**v, "en": 150, "boy": 80}, k)
+        self.assertEqual(next(p for p in parcali.parcalar(v2) if p["ad"] == "1. halka (üst)")["en"], 150)
+        # en çok 4 halka; ortada en az 30 cm kalır
+        v = parcali.temizle({"duzen": "halkali", "en": 100, "boy": 100, "halka_sayisi": 9,
+                             **{f"h{i}_gen": 40 for i in range(1, 5)}}, k)
+        self.assertEqual(v["halka_sayisi"], 4)
+        self.assertLessEqual(parcali.halka_toplami(v), 35)
+        # oval: yay parçaları tablaya sığar, toplam alan oval alanı
+        v = parcali.temizle({"duzen": "halkali", "sekil": "oval", "en": 250, "boy": 380, "halka_sayisi": 2,
+                             "h1_tur": "nakisli", "h1_gen": 24, "h2_tur": "desenli", "h2_gen": 14, "h2_desen": "DB007", "pay": 2}, k)
+        ps = parcali.parcalar(v)
+        self.assertTrue(all(parcali.sigar(p["en"], p["boy"], v["pay"]) for p in ps))
+        self.assertGreaterEqual(len([p for p in ps if p.get("yay") and p.get("halka") == 1]), 4)
+        self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), parcali.alan(parcali.dis_hat(v)), delta=60)
+        n = parcali.nakis_bilgisi(v)
+        self.assertGreater(n["adet"], 10)
+        self.assertEqual(n["tur"], -(-n["adet"] // 7))
+        self.assertTrue(all(p["motif"] <= 40 for p in ps if p["tur"] == "nakis"))
+
+    def test_orta_panel_ve_serit(self):
+        from . import parcali
+
+        k = {"DB003"}
+        v = parcali.temizle({"duzen": "halkali", "en": 120, "boy": 180, "halka_sayisi": 1, "h1_gen": 12, "orta": "panel",
+                             "panel_en": 40, "panel_boy": 60, "motif": 16}, k)
+        ps = parcali.parcalar(v)
+        panel = next(p for p in ps if p["ad"] == "Nakış paneli")
+        self.assertEqual((panel["en"], panel["boy"], panel["tur"]), (40, 60, "nakis"))
+        self.assertEqual(len(panel["motifler"]), 2 * 3)
+        self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), 120 * 180, delta=1)
+        # iki enine desenli şerit: 3 zemin + 2 şerit
+        v = parcali.temizle({"duzen": "halkali", "en": 160, "boy": 230, "halka_sayisi": 1, "h1_gen": 14, "orta": "serit",
+                             "serit_tur": "desenli", "serit_yon": "enine", "serit_adet": 2, "serit": 16, "serit_desen": "DB003"}, k)
+        ps = parcali.parcalar(v)
+        seritler = [p for p in ps if p["ad"].startswith("Desenli şerit")]
+        self.assertEqual([(p["en"], p["boy"]) for p in seritler], [(132, 16), (132, 16)])
+        self.assertEqual(len([p for p in ps if p["ad"].startswith("Zemin")]), 3)
+        self.assertIn("2 enine desenli şerit", parcali.ozet(v))
+        # oval + boyuna nakışlı şerit: motifler ovalin içinde kalır
+        v = parcali.temizle({**parcali.hazir_degerler("P-3")}, k)
+        serit = next(p for p in parcali.parcalar(v) if p["ad"].startswith("Nakışlı şerit"))
+        orta = parcali.dis_hat(v)
+        self.assertTrue(serit["motifler"])
+        self.assertTrue(all(parcali.icinde(orta, m) for m in serit["motifler"]))
+
+    def test_eski_tasarim_cevrilir_ve_bayi_gonderir(self):
+        from . import parcali
+        from .models import Tasarim
+
+        k = {"DB003"}
+        eski = parcali.temizle({"duzen": "cerceve", "en": 100, "boy": 160, "dis_bant": 6, "ara": 12, "ic_bant": 11,
+                                "ic_desen": "DB003"}, k)
+        yeni = parcali.temizle(parcali.eskiden_cevir(eski), k)
+        self.assertEqual((yeni["duzen"], yeni["halka_sayisi"], yeni["h3_tur"], yeni["h3_desen"]),
+                         ("halkali", 3, "desenli", "DB003"))
+        yuv = parcali.temizle(parcali.eskiden_cevir(parcali.temizle({"duzen": "yuvarlak", "cap": 200, "dis_halka": 20,
+                                                                      "desen_halka": 20, "desen": "DB003"}, k)), k)
+        self.assertEqual((yuv["sekil"], yuv["en"], yuv["boy"], yuv["halka_sayisi"]), ("oval", 200, 200, 2))
+
+        self.client.force_login(self.bayi_hesap)
+        yanit = self.client.post(reverse("parcali_studyo"), {
+            **{a: str(d) for a, d in parcali.hazir_degerler("P-7").items()}, "hazir": "P-7", "adet": "1"})
+        self.assertRedirects(yanit, reverse("bayi_ana"))
+        t = Tasarim.objects.get()
+        self.assertEqual((t.veri["duzen"], t.siparis.lazer_deseni.kod), ("halkali", "DB003"))
+        self.assertEqual(self.client.get(reverse("parcali_studyo"), {"kaynak": t.pk}).status_code, 200)
+        self.client.force_login(self.ofis)
+        kesim = self.client.get(reverse("parcali_kesim", args=[t.pk]))
+        self.assertContains(kesim, "1. halka (sol)")
+        self.assertContains(kesim, "Desenli şerit 2")

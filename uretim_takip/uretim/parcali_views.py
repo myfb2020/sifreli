@@ -51,17 +51,18 @@ def studyo(request):
     else:
         kaynak = Tasarim.objects.filter(pk=request.GET.get("kaynak") or 0, musteri=bayi).first()
         veri = _temizle(kaynak.veri if kaynak else parcali.hazir_degerler(request.GET.get("hazir") or "P-1"))
+    veri = _temizle(parcali.eskiden_cevir(veri))  # ekran yalnız halkalı yapıyı düzenler
     desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari())
     hazirlar = [{"kod": k, "ad": a, "deger": _temizle(parcali.hazir_degerler(k))} for k, a, _ in parcali.HAZIRLAR]
+    halkalar = [{"no": i, "tur": veri[f"h{i}_tur"], "gen": veri[f"h{i}_gen"], "malzeme": veri[f"h{i}_malzeme"],
+                 "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"],
+                 "ad_malzeme": f"h{i}_malzeme", "ad_desen": f"h{i}_desen"} for i in range(1, parcali.EN_COK_HALKA + 1)]
     return render(request, "uretim/tasarim_parcali.html", {
-        "form": form, "v": veri, "h": hesap(veri), "duzenler": parcali.DUZENLER, "malzemeler": parcali.MALZEMELER,
-        "altlar": parcali.ALTLAR, "nakislar": parcali.NAKISLAR, "aileler": parcali.AILELER,
-        "dizilimler": parcali.DIZILIMLER, "yonler": [("dikey", "Dikey"), ("yatay", "Yatay")],
-        "bolmeler": [("capraz", "Çapraz"), ("duz", "Düz (ortadan)")], "kenarlar": parcali.KENARLAR,
-        "kenar_renkleri": parcali.KENAR_RENKLERI, "desenler": desenler, "hazirlar": hazirlar,
-        "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "kurallar": {
-            "rulo": parcali.RULO_ENI, "tabla": parcali.TABLA_BOYU, "nakis": f"{parcali.NAKIS_EN}×{parcali.NAKIS_BOY}",
-            "kafa": parcali.NAKIS_KAFA},
+        "form": form, "v": veri, "h": hesap(veri), "halkalar": halkalar, "malzemeler": parcali.MALZEMELER,
+        "sekiller": parcali.SEKILLER, "halka_turleri": parcali.HALKA_TURLERI, "orta_turleri": parcali.ORTA_TURLERI,
+        "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "motifler": parcali.MOTIFLER,
+        "kenarlar": parcali.KENARLAR, "kenar_renkleri": parcali.KENAR_RENKLERI, "desenler": desenler,
+        "hazirlar": hazirlar, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "en_cok_halka": parcali.EN_COK_HALKA,
     })
 
 
@@ -80,10 +81,9 @@ def fikir(request):
         olcu = None
     sonuc = []
     for v in parcali.fikirler(6, None, _desen_kodlari(), olcu):
-        ad = dict((k, a) for k, a, _ in parcali.DUZENLER)[v["duzen"]]
-        aile = dict((k, a) for k, a, _ in parcali.AILELER).get(v.get("aile"), "")
+        orta = dict(parcali.ORTA_TURLERI)[v["orta"]].lower()
         sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()},
-                      "baslik": f"{ad}" + (f" · {aile}" if v["duzen"] in parcali.IZGARALI[:3] else "")})
+                      "baslik": f"{dict(parcali.SEKILLER)[v['sekil']]} · {v['halka_sayisi']} halka · orta {orta}"})
     return JsonResponse(sonuc, safe=False)
 
 

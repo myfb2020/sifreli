@@ -97,6 +97,55 @@ def _halka_deseni(kod, boyut, merkez, r1, r2):
     return maske
 
 
+def _yol_deseni(kod, boyut, yol, bant):
+    """Kapalı bir yol (px) boyunca desen: düz bant deseni küçük dilimler hâlinde yolun yönüne çevrilip dizilir."""
+    b = max(6, int(bant))
+    uzunluklar = [math.dist(yol[i - 1], yol[i]) for i in range(len(yol))]
+    cevre = int(sum(uzunluklar))
+    serit = _desen_serit(kod, cevre, b)
+    maske = Image.new("L", boyut, 0)
+    dilim = max(4, b // 3)
+    i, gecilen = 0, 0.0
+    for x in range(0, cevre, dilim):
+        t = x + dilim / 2
+        while i < len(yol) - 1 and gecilen + uzunluklar[(i + 1) % len(yol)] < t:
+            gecilen += uzunluklar[(i + 1) % len(yol)]
+            i += 1
+        (x1, y1), (x2, y2) = yol[i], yol[(i + 1) % len(yol)]
+        oran = (t - gecilen) / (uzunluklar[(i + 1) % len(yol)] or 1)
+        cx, cy = x1 + (x2 - x1) * oran, y1 + (y2 - y1) * oran
+        aci = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        parca = serit.crop((x, 0, x + dilim + 1, b))
+        dondu = parca.rotate(-aci, expand=True, resample=Image.BICUBIC)
+        maske.paste(dondu, (int(cx - dondu.width / 2), int(cy - dondu.height / 2)), dondu)
+    return maske
+
+
+def _halkali_desen(v, anahtar, boyut, px):
+    """Halkalı tasarımda bir halkanın (ya da orta şeridin) desen delikleri."""
+    W, H = boyut
+    tur, no = anahtar
+    if tur == "h":
+        h = next(h for h in pc.halkalar(v) if h["no"] == no)
+        if v["sekil"] == "oval":
+            orta = h["d"] + h["gen"] / 2
+            yol = [(x * px, y * px) for x, y in pc.stadyum_ofset(v["en"], v["boy"], orta)]
+            return _yol_deseni(h["desen"], boyut, yol, h["gen"] * px)
+        x0 = int(round(h["d"] * px))
+        m = Image.new("L", boyut, 0)
+        m.paste(hg._kenar_desen_maskesi(h["desen"], (W - 2 * x0, H - 2 * x0), h["gen"] * px), (x0, x0))
+        return m
+    p = next(p for p in pc.parcalar(v) if p.get("desen_anahtar") == anahtar)
+    x0, y0, x1, y1 = pc.kutu(p["poli"])
+    m = Image.new("L", boyut, 0)
+    if p["yon"] == "dikey":
+        serit = _desen_serit(p["desen"], int((y1 - y0) * px), int((x1 - x0) * px)).rotate(90, expand=True)
+    else:
+        serit = _desen_serit(p["desen"], int((x1 - x0) * px), int((y1 - y0) * px))
+    m.paste(serit, (int(x0 * px), int(y0 * px)))
+    return m
+
+
 def _poli_maske(boyut, poli):
     m = Image.new("L", boyut, 0)
     ImageDraw.Draw(m).polygon(poli, fill=255)
@@ -111,7 +160,9 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     parcalar = pc.parcalar(v)
     resim = Image.new("RGB", boyut, (0, 0, 0))
     dokular = {}
-    alt = hg.alt_katman(v["desen_alti"], boyut, px)
+    bos_alt = v["desen_alti"] == "yok"  # delikler boş: altından halının altı (zemin) görünür
+    alt = None if bos_alt else hg.alt_katman(v["desen_alti"], boyut, px)
+    delikler = Image.new("L", boyut, 0)
 
     # desen maskeleri (tüm halka/çerçeve için bir kez)
     desen_maskeleri = {}
@@ -128,6 +179,11 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
         r2 = (v["cap"] / 2 - v["dis_halka"]) * px
         desen_maskeleri["halka"] = _halka_deseni(v["desen"], boyut, (W / 2, H / 2), r2 - v["desen_halka"] * px, r2)
 
+    if v["duzen"] == "halkali":
+        for p in parcalar:
+            if p.get("desen_anahtar") and p["desen_anahtar"] not in desen_maskeleri:
+                desen_maskeleri[p["desen_anahtar"]] = _halkali_desen(v, p["desen_anahtar"], boyut, px)
+
     golge_kaynak = Image.new("L", boyut, 0)
     for p in parcalar:
         poli = olc(p["poli"])
@@ -136,7 +192,9 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
             dokular[p["malzeme"]] = malzeme_dokusu(p["malzeme"], boyut, px)
         katman = dokular[p["malzeme"]]
         if p["desen"]:
-            if v["duzen"] == "yuvarlak":
+            if v["duzen"] == "halkali":
+                delik = desen_maskeleri.get(p.get("desen_anahtar"))
+            elif v["duzen"] == "yuvarlak":
                 delik = desen_maskeleri.get("halka")
             else:
                 delik = next((m for (kod, gen, d), m in desen_maskeleri.items() if kod == p["desen"]
@@ -144,23 +202,20 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
             if delik is not None:
                 delik = ImageChops.multiply(delik, maske)
                 kenar = ImageChops.subtract(delik.filter(ImageFilter.MaxFilter(3)), delik)
-                katman = Image.composite(alt, katman, delik)
+                if bos_alt:
+                    delikler = ImageChops.lighter(delikler, delik)
+                else:
+                    katman = Image.composite(alt, katman, delik)
                 katman = Image.composite(Image.new("RGB", boyut, (25, 20, 15)), katman, kenar.point(lambda q: q // 2))
             golge_kaynak = ImageChops.lighter(golge_kaynak, maske)
         resim.paste(katman, (0, 0), maske)
 
     # nakış motifleri
     if v["duzen"] == "oval_serit" and v["nakis"] != "yok":
-        boy = max(8, int(v["motif"] * px))
-        mm = motif_maskesi(boy)
-        renk = (214, 186, 120) if v["nakis"] == "grek_kare" else (200, 202, 206)
-        iplik = hg.malzeme("altin" if v["nakis"] == "grek_kare" else "gumus", (boy, boy), px)
-        iplik = Image.blend(Image.new("RGB", (boy, boy), renk), iplik, 0.5)
-        golge = mm.filter(ImageFilter.GaussianBlur(max(1, boy / 60)))
-        for cx, cy in pc.nakis_konumlari(v):
-            x, y = int(cx * px - boy / 2), int(cy * px - boy / 2)
-            resim.paste((40, 32, 20), (x + 1, y + 2), golge.point(lambda q: q // 3))
-            resim.paste(iplik, (x, y), mm)
+        _motifler(resim, v["nakis"], v["motif"], pc.nakis_konumlari(v), px)
+    for p in parcalar:
+        if p.get("motifler"):
+            _motifler(resim, p["nakis"], p["motif"], p["motifler"], px)
 
     # bantların gölgesi ve dikiş (zig-zag) izleri
     if golge_kaynak.getbbox():
@@ -206,8 +261,21 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     golge.paste(dis, (pay + int(px * 1.5), pay + int(px * 2.5)))
     golge = golge.filter(ImageFilter.GaussianBlur(pay / 3)).point(lambda q: int(q * 0.7))
     tuval = Image.composite(Image.new("RGB", tuval.size, (0, 0, 0)), tuval, golge)
-    tuval.paste(resim, (pay, pay), dis)
+    tuval.paste(resim, (pay, pay), ImageChops.subtract(dis, delikler))
     return tuval
+
+
+def _motifler(resim, nakis, olcu, konumlar, px):
+    boy = max(8, int(olcu * px))
+    mm = motif_maskesi(boy)
+    renk = (214, 186, 120) if nakis == "grek_kare" else (200, 202, 206)
+    iplik = hg.malzeme("altin" if nakis == "grek_kare" else "gumus", (boy, boy), px)
+    iplik = Image.blend(Image.new("RGB", (boy, boy), renk), iplik, 0.5)
+    golge = mm.filter(ImageFilter.GaussianBlur(max(1, boy / 60)))
+    for cx, cy in konumlar:
+        x, y = int(cx * px - boy / 2), int(cy * px - boy / 2)
+        resim.paste((40, 32, 20), (x + 1, y + 2), golge.point(lambda q: q // 3))
+        resim.paste(iplik, (x, y), mm)
 
 
 def parca_plani(v, uzun_kenar=700):

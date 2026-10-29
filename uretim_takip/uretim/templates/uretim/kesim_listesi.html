@@ -20,7 +20,8 @@
     </table>
     <p class="soluk">Rulo metresi tahminidir (parçalar dikdörtgen kutularıyla dizilir); yerleşimi lazer programında sıklaştırabilirsiniz.</p>
     {% if h.nakis %}<h2>Nakış</h2>
-    <p>{{ h.nakis.adet }} × {{ h.nakis.motif }}, {{ h.nakis.olcu }} cm — {{ h.nakis.tur }} tur (7 kafa)</p>
+    {% if h.nakis.satirlar %}{% for n in h.nakis.satirlar %}<p>{{ n.adet }} × {{ n.motif }}, {{ n.olcu }} cm — {{ n.tur }} tur (7 kafa)</p>{% endfor %}
+    {% else %}<p>{{ h.nakis.adet }} × {{ h.nakis.motif }}, {{ h.nakis.olcu }} cm — {{ h.nakis.tur }} tur (7 kafa)</p>{% endif %}
     {% if h.nakis.oneri %}<p class="uyari">{{ h.nakis.oneri }}</p>{% endif %}{% endif %}
     <h2>Montaj sırası</h2>
     <ol>{% for a in h.montaj %}<li>{{ a }}</li>{% endfor %}</ol>

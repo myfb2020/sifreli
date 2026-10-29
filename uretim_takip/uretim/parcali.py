@@ -14,6 +14,7 @@ NAKIS_EN, NAKIS_BOY = 40, 60  # cm, nakış makinesinin en büyük alanı
 NAKIS_KAFA = 7  # aynı motif aynı anda kaç kez işlenir
 
 DUZENLER = [
+    ("halkali", "Halkalı", "İç içe halkalar + orta; dikdörtgen ya da oval"),
     ("cerceve", "Dikdörtgen çerçeve", "Zemin + desenli bantlar; bantlar uç uca birleşir"),
     ("oval_serit", "Oval + nakış şeridi", "Oval zemin, ortadan geçen nakışlı şerit"),
     ("yuvarlak", "Yuvarlak halka", "Orta disk + parçalı desenli halka + dış halka"),
@@ -23,6 +24,15 @@ DUZENLER = [
     ("yarim", "İki parçalı", "Halı düz ya da çapraz iki bölgeye ayrılır"),
 ]
 IZGARALI = ("seritler", "izgara", "elmas", "yarim")  # bu düzenlerde isteğe bağlı dış desenli bant da olur
+# Atölyenin asıl yapısı "halkali": dış hat dikdörtgen ya da oval; dışarıdan içeriye en çok 4 halka, ortada büyük parça.
+# Dikdörtgen halka 4 parça: uzun yanlar boydan boya, kısa üst/alt aralarına. Oval halka: düz yanlar + uç yayları.
+# Diğer düzenler eski tasarımlar açılsın diye duruyor; bayi ekranında gösterilmez.
+SEKILLER = [("dikdortgen", "Dikdörtgen"), ("oval", "Oval")]
+HALKA_TURLERI = [("duz", "Düz"), ("desenli", "Lazer desenli"), ("nakisli", "Nakışlı")]
+ORTA_TURLERI = [("duz", "Düz"), ("panel", "Nakış paneli"), ("serit", "Şerit")]
+SERIT_TURLERI = [("desenli", "Lazer desenli"), ("nakisli", "Nakışlı")]
+SERIT_YONLERI = [("boyuna", "Boyuna (uzunlamasına)"), ("enine", "Enine")]
+EN_COK_HALKA = 4
 
 # Renk aileleri: açıktan koyuya. Izgara / şerit / elmas parçaları bu sırayla boyanır.
 AILELER = [
@@ -67,14 +77,23 @@ MALZEMELER = [
 ]
 MALZEME_AD = {k: a for k, a, _ in MALZEMELER}
 MALZEME_HEX = {k: h for k, _, h in MALZEMELER}
-ALTLAR = [("siyah", "Siyah"), ("kahve", "Kahve"), ("krem", "Krem"), ("altin_sim", "Altın sim"),
+ALTLAR = [("yok", "Boş (altı yok)"), ("siyah", "Siyah"), ("kahve", "Kahve"), ("krem", "Krem"), ("altin_sim", "Altın sim"),
           ("gumus_sim", "Gümüş sim"), ("siyah_rugan", "Siyah rugan")]
 NAKISLAR = [("yok", "Nakış yok"), ("grek_kare", "Grek kare (altın iplik)"), ("grek_kare_gumus", "Grek kare (gümüş iplik)")]
+MOTIFLER = NAKISLAR[1:]
 KENARLAR = [("biye", "Biye"), ("lanfel", "Lanfel")]
 KENAR_RENKLERI = [("altin", "Altın"), ("gumus", "Gümüş"), ("siyah", "Siyah"), ("beyaz", "Beyaz"), ("bej", "Bej")]
 
 VARSAYILAN = {
-    "duzen": "cerceve", "en": 120, "boy": 180, "pay": 1,
+    "duzen": "halkali", "en": 120, "boy": 180, "pay": 1,
+    # halkalı
+    "sekil": "dikdortgen", "halka_sayisi": 2,
+    "h1_tur": "duz", "h1_gen": 12, "h1_malzeme": "beyaz_keten", "h1_desen": "", "h1_nakis": "grek_kare",
+    "h2_tur": "desenli", "h2_gen": 14, "h2_malzeme": "antrasit_keten", "h2_desen": "DB003", "h2_nakis": "grek_kare",
+    "h3_tur": "duz", "h3_gen": 8, "h3_malzeme": "antrasit_keten", "h3_desen": "", "h3_nakis": "grek_kare",
+    "h4_tur": "duz", "h4_gen": 8, "h4_malzeme": "beyaz_keten", "h4_desen": "", "h4_nakis": "grek_kare",
+    "orta": "duz", "panel_en": 40, "panel_boy": 60, "panel_malzeme": "beyaz_keten",
+    "serit_tur": "desenli", "serit_yon": "boyuna", "serit_adet": 1, "serit_desen": "DB003",
     # çerçeve
     "dis_bant": 8, "dis_malzeme": "antrasit_keten", "dis_desen": "",
     "ara": 14, "ara_malzeme": "beyaz_keten",
@@ -91,38 +110,46 @@ VARSAYILAN = {
     "tohum": 1, "bolme": "capraz", "ikinci": "kahve_keten",
 }
 
-# Fotoğraflardaki atölye halıları (başlangıç noktası)
+# Atölye halıları (başlangıç noktası); hepsi halkalı yapıda.
+def _h(*halkalar):
+    d = {"halka_sayisi": len(halkalar)}
+    for i, (tur, gen, mal, ek) in enumerate(halkalar, 1):
+        d.update({f"h{i}_tur": tur, f"h{i}_gen": gen, f"h{i}_malzeme": mal,
+                  f"h{i}_desen": ek if tur == "desenli" else "", f"h{i}_nakis": ek if tur == "nakisli" else "grek_kare"})
+    return d
+
+
 HAZIRLAR = [
-    ("P-1", "Gri bant, beyaz zemin, lazer çerçeve", {
-        "duzen": "cerceve", "en": 90, "boy": 160, "dis_bant": 6, "dis_malzeme": "antrasit_keten", "dis_desen": "",
-        "ara": 12, "ara_malzeme": "beyaz_keten", "ic_bant": 11, "ic_malzeme": "antrasit_keten", "ic_desen": "DB003",
-        "zemin": "beyaz_keten", "desen_alti": "krem", "kenar": "biye", "kenar_renk": "siyah"}),
-    ("P-2", "Gümüş varak, lazer bant, altın biye", {
-        "duzen": "cerceve", "en": 100, "boy": 150, "dis_bant": 0, "ara": 0, "ic_bant": 13,
-        "ic_malzeme": "varak_gumus", "ic_desen": "DB001", "zemin": "varak_gumus", "desen_alti": "altin_sim",
-        "kenar": "biye", "kenar_renk": "altin"}),
-    ("P-3", "Bej oval, beyaz şerit, Grek nakış", {
-        "duzen": "oval_serit", "en": 130, "boy": 190, "zemin": "bej_keten", "serit": 26, "serit_malzeme": "beyaz_keten",
-        "nakis": "grek_kare", "motif": 22, "aralik": 4, "kenar": "biye", "kenar_renk": "bej"}),
+    ("P-1", "Krem düz halka, koyu lazer desenli halka", {
+        "sekil": "dikdortgen", "en": 80, "boy": 150, **_h(("duz", 11, "beyaz_keten", ""), ("desenli", 12, "antrasit_keten", "DB003")),
+        "zemin": "beyaz_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "siyah"}),
+    ("P-2", "Gümüş varak, lazer desenli halka, altın biye", {
+        "sekil": "dikdortgen", "en": 100, "boy": 150, **_h(("desenli", 13, "varak_gumus", "DB001")),
+        "zemin": "varak_gumus", "orta": "duz", "kenar": "biye", "kenar_renk": "altin"}),
+    ("P-3", "Bej oval, boyuna nakışlı şerit", {
+        "sekil": "oval", "en": 130, "boy": 190, "halka_sayisi": 0, "zemin": "bej_keten", "orta": "serit",
+        "serit_tur": "nakisli", "serit_yon": "boyuna", "serit_adet": 1, "serit": 26, "serit_malzeme": "beyaz_keten",
+        "nakis": "grek_kare", "aralik": 4, "kenar": "biye", "kenar_renk": "bej"}),
     ("P-4", "Yuvarlak: siyah kadife, gümüş desenli halka", {
-        "duzen": "yuvarlak", "cap": 200, "dis_halka": 26, "halka_malzeme": "siyah_kadife", "desen_halka": 24,
-        "desen_malzeme": "varak_gumus", "desen": "DB003", "zemin": "siyah_kadife", "desen_alti": "krem",
-        "kenar": "biye", "kenar_renk": "siyah"}),
-]
-HAZIRLAR += [
-    ("P-5", "Dikey şeritler, kahve tonları", {
-        "duzen": "seritler", "en": 160, "boy": 230, "aile": "krem_kahve", "dizilim": "karisik", "serit_sayisi": 9,
-        "yon": "dikey", "serbest": "on", "tohum": 3, "dis_bant": 0, "kenar": "biye", "kenar_renk": "bej"}),
-    ("P-6", "Elmas, gri tonlarda geçiş", {
-        "duzen": "elmas", "en": 200, "boy": 290, "aile": "gri_antrasit", "dizilim": "gecis", "hucre": 36,
-        "dis_bant": 10, "dis_malzeme": "antrasit_keten", "dis_desen": "", "kenar": "biye", "kenar_renk": "siyah"}),
-    ("P-7", "Kare ızgara, siyah-altın dama", {
-        "duzen": "izgara", "en": 160, "boy": 230, "aile": "siyah_altin", "dizilim": "dama", "hucre": 45,
-        "dis_bant": 12, "dis_malzeme": "siyah_keten", "dis_desen": "DB007", "desen_alti": "altin_sim",
-        "kenar": "biye", "kenar_renk": "altin"}),
-    ("P-8", "Çapraz iki parça, gri ve bakır", {
-        "duzen": "yarim", "en": 160, "boy": 230, "bolme": "capraz", "zemin": "gri_keten", "ikinci": "bakir_varak",
-        "dis_bant": 0, "kenar": "lanfel", "kenar_renk": "bej"}),
+        "sekil": "oval", "en": 200, "boy": 200, **_h(("duz", 24, "siyah_kadife", ""), ("desenli", 22, "varak_gumus", "DB003")),
+        "zemin": "siyah_kadife", "orta": "duz", "kenar": "biye", "kenar_renk": "siyah"}),
+    ("P-5", "Dört halka: siyah-altın", {
+        "sekil": "dikdortgen", "en": 160, "boy": 230,
+        **_h(("duz", 8, "siyah_keten", ""), ("desenli", 12, "varak_altin", "DB007"), ("duz", 10, "siyah_keten", ""),
+             ("nakisli", 20, "beyaz_keten", "grek_kare")),
+        "zemin": "siyah_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "altin"}),
+    ("P-6", "Oval: nakışlı halka, orta nakış paneli", {
+        "sekil": "oval", "en": 150, "boy": 220, **_h(("duz", 12, "kahve_keten", ""), ("nakisli", 22, "krem_keten", "grek_kare")),
+        "zemin": "bej_keten", "orta": "panel", "panel_en": 40, "panel_boy": 60, "panel_malzeme": "krem_keten",
+        "nakis": "grek_kare", "motif": 30, "kenar": "lanfel", "kenar_renk": "bej"}),
+    ("P-7", "Gri halka, ortada iki enine desenli şerit", {
+        "sekil": "dikdortgen", "en": 160, "boy": 230, **_h(("duz", 14, "antrasit_keten", "")),
+        "zemin": "acik_gri_keten", "orta": "serit", "serit_tur": "desenli", "serit_yon": "enine", "serit_adet": 2,
+        "serit": 16, "serit_malzeme": "antrasit_keten", "serit_desen": "DB003", "kenar": "biye", "kenar_renk": "siyah"}),
+    ("P-8", "Krem-kahve, orta nakış paneli", {
+        "sekil": "dikdortgen", "en": 120, "boy": 180, **_h(("desenli", 12, "kahve_keten", "DB001"), ("duz", 10, "krem_keten", "")),
+        "zemin": "krem_keten", "orta": "panel", "panel_en": 40, "panel_boy": 60, "panel_malzeme": "kahve_keten",
+        "nakis": "grek_kare", "motif": 34, "kenar": "biye", "kenar_renk": "altin"}),
 ]
 HAZIR = {k: d for k, _, d in HAZIRLAR}
 
@@ -161,6 +188,8 @@ def temizle(veri, desen_kodlari=()):
     v["kenar"] = _sec(g("kenar"), KENARLAR, "biye")
     v["kenar_renk"] = _sec(g("kenar_renk"), KENAR_RENKLERI, "altin")
     v["hazir"] = veri.get("hazir") if veri.get("hazir") in HAZIR else ""
+    if v["duzen"] == "halkali":
+        return _halkali_temizle(v, g, desen)
     if v["duzen"] == "yuvarlak":
         v["cap"] = _sayi(g("cap"), 200, 60, 400)
         v["en"] = v["boy"] = v["cap"]
@@ -207,6 +236,101 @@ def temizle(veri, desen_kodlari=()):
     v["dis_desen"] = desen("dis_desen")
     v["ic_desen"] = desen("ic_desen")
     return v
+
+
+def _halkali_temizle(v, g, desen):
+    v["desen_alti"] = "yok"  # atölyede desenli parçanın altına bir şey konmaz; delikler boş
+    v["sekil"] = _sec(g("sekil"), SEKILLER, "dikdortgen")
+    v["en"] = _sayi(g("en"), 120, 60, 400)
+    v["boy"] = _sayi(g("boy"), 180, 60, 600)
+    kisa = min(v["en"], v["boy"])
+    v["halka_sayisi"] = int(_sayi(g("halka_sayisi"), 2, 0, EN_COK_HALKA))
+    kalan = kisa / 2 - 15  # ortada en az 30 cm kalsın
+    for i in range(1, EN_COK_HALKA + 1):
+        on = f"h{i}_"
+        v[on + "tur"] = _sec(g(on + "tur"), HALKA_TURLERI, "duz")
+        v[on + "malzeme"] = _sec(g(on + "malzeme"), MALZEMELER, "beyaz_keten")
+        v[on + "desen"] = desen(on + "desen")
+        v[on + "nakis"] = _sec(g(on + "nakis"), MOTIFLER, "grek_kare")
+        alt = {"duz": 3, "desenli": 8, "nakisli": 12}[v[on + "tur"]]
+        v[on + "gen"] = _sayi(g(on + "gen"), 10, 0, 50)
+        if i <= v["halka_sayisi"]:
+            v[on + "gen"] = min(v[on + "gen"], round(max(0, kalan), 1))
+            if v[on + "gen"] < min(alt, kalan):
+                v[on + "gen"] = round(max(0, min(alt, kalan)), 1)
+            kalan -= v[on + "gen"]
+    v["orta"] = _sec(g("orta"), ORTA_TURLERI, "duz")
+    v["nakis"] = _sec(g("nakis"), MOTIFLER, "grek_kare")
+    v["aralik"] = _sayi(g("aralik"), 4, 1, 30)
+    v["panel_en"] = _sayi(g("panel_en"), 40, 20, 200)
+    v["panel_boy"] = _sayi(g("panel_boy"), 60, 20, 300)
+    v["panel_malzeme"] = _sec(g("panel_malzeme"), MALZEMELER, "beyaz_keten")
+    v["motif"] = _sayi(g("motif"), 22, 8, NAKIS_EN)
+    v["serit_tur"] = _sec(g("serit_tur"), SERIT_TURLERI, "desenli")
+    v["serit_yon"] = _sec(g("serit_yon"), SERIT_YONLERI, "boyuna")
+    v["serit_adet"] = int(_sayi(g("serit_adet"), 1, 1, 3))
+    v["serit"] = _sayi(g("serit"), 20, 8 if v["serit_tur"] == "desenli" else 12, 60)
+    v["serit_malzeme"] = _sec(g("serit_malzeme"), MALZEMELER, "beyaz_keten")
+    v["serit_desen"] = desen("serit_desen")
+    return v
+
+
+def eskiden_cevir(v):
+    """Eski düzenli bir tasarımı (çerçeve, oval şerit, yuvarlak) yeni halkalı yapıya çevirir; ızgara türleri P-1'den başlar."""
+    if v.get("duzen") == "halkali":
+        return v
+    d = {k: v.get(k, VARSAYILAN[k]) for k in ("en", "boy", "pay", "zemin", "kenar", "kenar_renk")}
+    d.update(duzen="halkali", orta="duz", sekil="dikdortgen")
+    halka = []
+    if v.get("duzen") == "cerceve":
+        for gen, mal, desen in ((v.get("dis_bant"), v.get("dis_malzeme"), v.get("dis_desen")),
+                                (v.get("ara"), v.get("ara_malzeme"), ""), (v.get("ic_bant"), v.get("ic_malzeme"), v.get("ic_desen"))):
+            if gen:
+                halka.append(("desenli" if desen else "duz", gen, mal, desen or ""))
+    elif v.get("duzen") == "oval_serit":
+        d.update(sekil="oval", orta="serit", serit_tur="nakisli" if v.get("nakis") != "yok" else "desenli",
+                 serit_yon="boyuna", serit_adet=1, serit=v.get("serit"), serit_malzeme=v.get("serit_malzeme"),
+                 nakis=v.get("nakis") if v.get("nakis") != "yok" else "grek_kare", aralik=v.get("aralik"))
+    elif v.get("duzen") == "yuvarlak":
+        d.update(sekil="oval", en=v.get("cap"), boy=v.get("cap"))
+        if v.get("dis_halka"):
+            halka.append(("duz", v["dis_halka"], v.get("halka_malzeme"), ""))
+        if v.get("desen_halka"):
+            halka.append(("desenli" if v.get("desen") else "duz", v["desen_halka"], v.get("desen_malzeme"), v.get("desen") or ""))
+    else:
+        return {**hazir_degerler("P-1"), "en": d["en"], "boy": d["boy"]}
+    d["halka_sayisi"] = len(halka)
+    for i, (tur, gen, mal, desen) in enumerate(halka, 1):
+        d.update({f"h{i}_tur": tur, f"h{i}_gen": gen, f"h{i}_malzeme": mal, f"h{i}_desen": desen})
+    return d
+
+
+def halkalar(v):
+    """Kullanılan halkalar, dışarıdan içeriye: [{"no", "tur", "gen", "malzeme", "desen", "nakis", "d"(dış kenara uzaklık)}]."""
+    sonuc, d = [], 0.0
+    for i in range(1, v["halka_sayisi"] + 1):
+        on = f"h{i}_"
+        if v[on + "gen"] <= 0:
+            continue
+        sonuc.append({"no": i, "tur": v[on + "tur"], "gen": v[on + "gen"], "malzeme": v[on + "malzeme"],
+                      "desen": v[on + "desen"] if v[on + "tur"] == "desenli" else "",
+                      "nakis": v[on + "nakis"] if v[on + "tur"] == "nakisli" else "", "d": d})
+        d += v[on + "gen"]
+    return sonuc
+
+
+def halka_toplami(v):
+    return sum(h["gen"] for h in halkalar(v))
+
+
+def ana_desen(v):
+    """Siparişe yazılacak lazer deseni: tasarımda geçen ilk desen."""
+    if v.get("duzen") == "halkali":
+        kodlar = [h["desen"] for h in halkalar(v) if h["desen"]]
+        if v["orta"] == "serit" and v["serit_tur"] == "desenli" and v["serit_desen"]:
+            kodlar.append(v["serit_desen"])
+        return kodlar[0] if kodlar else ""
+    return v.get("ic_desen") or v.get("dis_desen") or v.get("desen") or ""
 
 
 # --- Geometri (cm, y aşağı) --------------------------------------------------------
@@ -521,21 +645,172 @@ def _yarim(v):
     return sonuc
 
 
+def stadyum_ofset(en, boy, d):
+    """Ovalin d cm içeriden geçen eşi (merkezler aynı kalır)."""
+    return [(x + d, y + d) for x, y in stadyum(en - 2 * d, boy - 2 * d)]
+
+
+def icinde(poli, p):
+    x, y = p
+    ic = False
+    for i in range(len(poli)):
+        (x1, y1), (x2, y2) = poli[i - 1], poli[i]
+        if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / ((y2 - y1) or 1e-12):
+            ic = not ic
+    return ic
+
+
+def _sira(bas, son, m, a):
+    """bas–son arasına ortalanmış, m boyunda, a aralıklı motif merkezleri."""
+    n = int((son - bas + a) // (m + a)) if son - bas >= m else 0
+    ilk = (bas + son) / 2 - (n * m + (n - 1) * a) / 2 + m / 2
+    return [ilk + i * (m + a) for i in range(n)]
+
+
+def _kare_icinde(poli, cx, cy, m, pay=1.5):
+    y = m / 2 + pay
+    return all(icinde(poli, (cx + dx, cy + dy)) for dx in (-y, y) for dy in (-y, y))
+
+
+def _motif_olcusu(gen):
+    return max(8.0, min(float(NAKIS_EN), gen - 4))
+
+
+def _halkali_yerel(v):
+    """Parçalar yerel düzende: x kısa kenar (S), y uzun kenar (L). Yatay halıda sonra çevrilir."""
+    S, L = sorted((v["en"], v["boy"]))
+    oval = v["sekil"] == "oval"
+    a = v["aralik"]
+    sonuc = []
+    for h in halkalar(v):
+        d, g, no = h["d"], h["gen"], h["no"]
+        tur = {"duz": "serit", "desenli": "bant", "nakisli": "nakis"}[h["tur"]]
+        ad = f"{no}. halka"
+        m = _motif_olcusu(g)
+        if g < 12:  # motif sığmaz: nakışsız kalır, uyarı verilir
+            tur = "serit" if tur == "nakis" else tur
+        ek = {"halka": no, "desen_anahtar": ("h", no) if h["desen"] else None, "nakis": h["nakis"], "motif": m}
+        if not oval:
+            for yon, (x, y, w, hh) in (("sol", (d, d, g, L - 2 * d)), ("sağ", (S - d - g, d, g, L - 2 * d)),
+                                        ("üst", (d + g, d, S - 2 * d - 2 * g, g)), ("alt", (d + g, L - d - g, S - 2 * d - 2 * g, g))):
+                motifler = []
+                if tur == "nakis":
+                    if yon in ("sol", "sağ"):
+                        motifler = [(x + w / 2, c) for c in _sira(y + 2, y + hh - 2, m, a)]
+                    else:
+                        motifler = [(c, y + hh / 2) for c in _sira(x + 2, x + w - 2, m, a)]
+                sonuc.append(_parca(f"{ad} ({yon})", tur, dikd(x, y, w, hh), h["malzeme"], h["desen"],
+                                    yon="dikey" if yon in ("sol", "sağ") else "yatay", motifler=motifler, **ek))
+            continue
+        r = S / 2
+        r2, r1 = r - d, r - d - g
+        rm = (r1 + r2) / 2
+        duz = L - 2 * r
+        if duz > 0.5:
+            for yon, x in (("sol", d), ("sağ", S - d - g)):
+                motifler = [(x + g / 2, c) for c in _sira(r, L - r, m, a)] if tur == "nakis" else []
+                sonuc.append(_parca(f"{ad} ({yon})", tur, dikd(x, r, g, duz), h["malzeme"], h["desen"], yon="dikey",
+                                    motifler=motifler, **ek))
+        for uc, (cy, a0) in (("üst", (r, math.pi)), ("alt", (L - r, 0.0))):
+            for k in range(2, 40):
+                x0, y0, x1, y1 = kutu(yay(r, cy, r1, r2, a0, a0 + math.pi / k))
+                if sigar(x1 - x0, y1 - y0, v["pay"]):
+                    break
+            for i in range(k):
+                b0, b1 = a0 + math.pi * i / k, a0 + math.pi * (i + 1) / k
+                motifler = []
+                if tur == "nakis":
+                    motifler = [(r + rm * math.cos(t / rm), cy + rm * math.sin(t / rm))
+                                for t in _sira(b0 * rm + 1, b1 * rm - 1, m, a)]
+                sonuc.append(_parca(f"{ad} ({uc} yay {i + 1}/{k})", tur, yay(r, cy, r1, r2, b0, b1), h["malzeme"],
+                                    h["desen"], yay=True, motifler=motifler, **ek))
+    D = halka_toplami(v)
+    orta = stadyum_ofset(S, L, D) if oval else dikd(D, D, S - 2 * D, L - 2 * D)
+    x0, y0, x1, y1 = kutu(orta)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    zemin = v["zemin"]
+    if v["orta"] == "panel":
+        pw = min(v["panel_en"], x1 - x0 - 16)
+        ph = min(v["panel_boy"], y1 - y0 - 16)
+        while oval and pw > 20 and not all(icinde(orta, (cx + sx * (pw / 2 + 8), cy + sy * (ph / 2 + 8)))
+                                           for sx in (-1, 1) for sy in (-1, 1)):
+            pw, ph = pw * 0.95, ph * 0.95
+        px0, py0 = cx - pw / 2, cy - ph / 2
+        m = min(v["motif"], _motif_olcusu(min(pw, ph)))
+        motifler = [(mx, my) for my in _sira(py0 + 2, py0 + ph - 2, m, a) for mx in _sira(px0 + 2, px0 + pw - 2, m, a)]
+        orta_sutun = kirp(kirp(orta, 0, px0, True), 0, px0 + pw, False)
+        sonuc += [_parca("Zemin (sol)", "zemin", kirp(orta, 0, px0, False), zemin),
+                  _parca("Zemin (sağ)", "zemin", kirp(orta, 0, px0 + pw, True), zemin),
+                  _parca("Zemin (üst)", "zemin", kirp(orta_sutun, 1, py0, False), zemin),
+                  _parca("Zemin (alt)", "zemin", kirp(orta_sutun, 1, py0 + ph, True), zemin),
+                  _parca("Nakış paneli", "nakis", dikd(px0, py0, pw, ph), v["panel_malzeme"], nakis=v["nakis"],
+                         motif=m, motifler=motifler)]
+    elif v["orta"] == "serit":
+        n = v["serit_adet"]
+        eksen = 0 if v["serit_yon"] == "boyuna" else 1  # şeritlerin dizildiği eksen
+        bas, son = (x0, x1) if eksen == 0 else (y0, y1)
+        w = min(v["serit"], (son - bas) / (n + 1) * 0.8)
+        merkezler = [bas + (son - bas) * (i + 1) / (n + 1) for i in range(n)]
+        desenli = v["serit_tur"] == "desenli"
+        m = _motif_olcusu(w)
+        onceki = bas
+        for i, c in enumerate(merkezler, 1):
+            parca = kirp(kirp(orta, eksen, onceki, True), eksen, c - w / 2, False)
+            sonuc.append(_parca(f"Zemin {i}", "zemin", parca, zemin))
+            serit = kirp(kirp(orta, eksen, c - w / 2, True), eksen, c + w / 2, False)
+            motifler = []
+            if not desenli:
+                ub, us = (y0, y1) if eksen == 0 else (x0, x1)
+                for say in range(int((us - ub) // (m + a)), 0, -1):
+                    adaylar = _sira((ub + us) / 2 - (say * (m + a) - a) / 2, (ub + us) / 2 + (say * (m + a) - a) / 2, m, a)
+                    noktalar = [(c, t) if eksen == 0 else (t, c) for t in adaylar]
+                    if all(_kare_icinde(orta, px_, py_, m) for px_, py_ in noktalar):
+                        motifler = noktalar
+                        break
+            ad = f"{'Desenli' if desenli else 'Nakışlı'} şerit" + (f" {i}" if n > 1 else "")
+            sonuc.append(_parca(ad, "bant" if desenli else "nakis", serit, v["serit_malzeme"],
+                                v["serit_desen"] if desenli else "", yon="dikey" if eksen == 0 else "yatay",
+                                desen_anahtar=("s", i) if desenli and v["serit_desen"] else None,
+                                nakis="" if desenli else v["nakis"], motif=m, motifler=motifler))
+            onceki = c + w / 2
+        sonuc.append(_parca(f"Zemin {n + 1}", "zemin", kirp(orta, eksen, onceki, True), zemin))
+    else:
+        sonuc.append(_parca("Orta zemin", "zemin", orta, zemin))
+    return [p for p in sonuc if len(p["poli"]) >= 3 and alan(p["poli"]) > 1]
+
+
+_CEVIR = {"sol": "üst", "sağ": "alt", "üst": "sol", "alt": "sağ"}
+
+
+def _halkali(v):
+    ps = _halkali_yerel(v)
+    if v["en"] <= v["boy"]:
+        return ps
+    for p in ps:  # yatay halı: x ↔ y
+        p["poli"] = [(y, x) for x, y in p["poli"]]
+        p["motifler"] = [(y, x) for x, y in p.get("motifler", [])]
+        p["ad"] = re.sub(r"\((sol|sağ|üst|alt)", lambda e: "(" + _CEVIR[e.group(1)], p["ad"])
+        if p.get("yon"):
+            p["yon"] = "yatay" if p["yon"] == "dikey" else "dikey"
+    return ps
+
+
 def parcalar(v):
     """Tasarımın tüm parçaları; tablaya sığmayanlar bölünmüş, numaralı, kesim ölçüleriyle."""
-    ham = {"cerceve": _cerceve, "oval_serit": _oval_serit, "yuvarlak": _yuvarlak, "seritler": _seritler,
+    ham = {"halkali": _halkali, "cerceve": _cerceve, "oval_serit": _oval_serit, "yuvarlak": _yuvarlak, "seritler": _seritler,
            "izgara": _izgara, "elmas": _elmas, "yarim": _yarim}[v["duzen"]](v)
     sonuc = []
     for p in ham:
-        if p["tur"] == "yay":
+        if p["tur"] == "yay" or p.get("yay"):
             bolunmus = [p["poli"]]
         else:
             bolunmus = bol(p["poli"], v["pay"])
         for i, poli in enumerate(bolunmus):
             q = dict(p, poli=poli)
+            x0, y0, x1, y1 = kutu(poli)
             if len(bolunmus) > 1:
                 q["ad"] = f"{p['ad']} {i + 1}/{len(bolunmus)}"
-            x0, y0, x1, y1 = kutu(poli)
+                q["motifler"] = [(mx, my) for mx, my in p.get("motifler", []) if x0 <= mx < x1 and y0 <= my < y1]
             q["en"], q["boy"] = round(x1 - x0, 1), round(y1 - y0, 1)
             q["kesim_en"], q["kesim_boy"] = round(x1 - x0 + 2 * v["pay"], 1), round(y1 - y0 + 2 * v["pay"], 1)
             q["m2"] = round(alan(poli) / 10000, 3)
@@ -549,7 +824,7 @@ def parcalar(v):
 def dis_hat(v):
     if v["duzen"] == "yuvarlak":
         return daire(v["cap"] / 2, v["cap"] / 2, v["cap"] / 2)
-    if v["duzen"] == "oval_serit":
+    if v["duzen"] == "oval_serit" or (v["duzen"] == "halkali" and v["sekil"] == "oval"):
         return stadyum(v["en"], v["boy"])
     return dikd(0, 0, v["en"], v["boy"])
 
@@ -592,7 +867,123 @@ def rulo_yerlesimi(parcalar_, pay):
     return sonuc
 
 
+def _halkali_nakis(v):
+    gruplar = {}
+    for p in parcalar(v):
+        if p["tur"] == "nakis" and p.get("motifler"):
+            g = gruplar.setdefault((p["nakis"], p["motif"]), [])
+            g.extend(p["motifler"])
+    if not gruplar:
+        return None
+    satirlar = [{"motif": dict(NAKISLAR)[k], "olcu": round(m, 1), "adet": len(liste),
+                 "tur": math.ceil(len(liste) / NAKIS_KAFA)} for (k, m), liste in gruplar.items()]
+    adet = sum(s_["adet"] for s_ in satirlar)
+    bos = sum(s_["tur"] * NAKIS_KAFA - s_["adet"] for s_ in satirlar)
+    return {"motif": ", ".join(f"{s_['motif']} {s_['olcu']:g} cm" for s_ in satirlar), "olcu": satirlar[0]["olcu"],
+            "adet": adet, "tur": sum(s_["tur"] for s_ in satirlar), "satirlar": satirlar,
+            "oneri": f"Son turda {bos} kafa boş çalışır." if bos else None}
+
+
+def _halkali_uyarilar(v):
+    u = []
+    ps = parcalar(v)
+    for i in range(1, v["halka_sayisi"] + 1):
+        gen, tur = v[f"h{i}_gen"], v[f"h{i}_tur"]
+        if gen < {"duz": 3, "desenli": 8, "nakisli": 12}[tur]:
+            u.append(f"{i}. halkaya yer kalmadı ({gen:g} cm); halıyı büyütün ya da diğer halkaları daraltın.")
+    for h in halkalar(v):
+        if h["tur"] == "nakisli" and h["gen"] >= 12 and not any(p.get("motifler") for p in ps if p.get("halka") == h["no"]):
+            u.append(f"{h['no']}. halka nakış için çok dar.")
+    if v["orta"] == "serit" and v["serit_tur"] == "nakisli" and not any(
+            p.get("motifler") for p in ps if p["ad"].startswith("Nakışlı şerit")):
+        u.append("Ortadaki şerit nakış için çok kısa ya da dar.")
+    panel = next((p for p in ps if p["ad"] == "Nakış paneli"), None)
+    if panel and (panel["en"] < v["panel_en"] - 0.5 or panel["boy"] < v["panel_boy"] - 0.5):
+        u.append(f"Nakış paneli ortaya sığmadığı için {panel['en']:g}×{panel['boy']:g} cm yapıldı.")
+    kucuk = [p for p in ps if min(p["en"], p["boy"]) < 4]
+    if kucuk:
+        u.append(f"{len(kucuk)} parça 4 cm'den dar; dikişi zor olabilir.")
+    return u
+
+
+def _halkali_montaj(v):
+    oval = v["sekil"] == "oval"
+    adimlar = ["Lazer: tüm parçaları malzemelerine göre kes (desen delikleri dahil); parça numaralarını arkalarına yaz."]
+    n = _halkali_nakis(v)
+    if n:
+        adimlar.append(f"Nakış: nakışlı parçalara {n['adet']} motif işle ({NAKIS_KAFA} kafa, {n['tur']} tur).")
+    if v["orta"] == "panel":
+        adimlar.append("Orta: nakış panelini zemin parçalarının arasına zig-zag ile dik.")
+    elif v["orta"] == "serit":
+        adimlar.append("Orta: zemin parçalarını şeritlerle sırayla zig-zag ile birleştir.")
+    if halkalar(v):
+        adimlar.append("İçten dışa her halka: önce yay parçalarını birbirine, sonra düz yanlarla birlikte ortaya zig-zag ile dik."
+                       if oval else
+                       "İçten dışa her halka: önce kısa üst/alt parçaları, sonra boydan boya uzun yanları zig-zag ile dik.")
+    adimlar.append(f"Kenar: {dict(KENARLAR)[v['kenar']]} ({dict(KENAR_RENKLERI)[v['kenar_renk']].lower()}) ile çevir.")
+    return adimlar
+
+
+def _halkali_ozet(v):
+    p = [f"Suni deri parçalı halı – {dict(SEKILLER)[v['sekil']].lower()} {v['en']:g}×{v['boy']:g} cm"]
+    for h in halkalar(v):
+        tur = {"duz": "düz", "desenli": "lazer desenli", "nakisli": "nakışlı"}[h["tur"]]
+        p.append(f"{h['no']}. halka {h['gen']:g} cm {tur} {MALZEME_AD[h['malzeme']].lower()}"
+                 + (f" {h['desen']}" if h["desen"] else ""))
+    orta = f"orta {MALZEME_AD[v['zemin']].lower()}"
+    if v["orta"] == "panel":
+        orta += f" + nakış paneli {v['panel_en']:g}×{v['panel_boy']:g} cm"
+    elif v["orta"] == "serit":
+        orta += (f" + {v['serit_adet']} {'enine' if v['serit_yon'] == 'enine' else 'boyuna'} "
+                 f"{'desenli' if v['serit_tur'] == 'desenli' else 'nakışlı'} şerit {v['serit']:g} cm"
+                 + (f" {v['serit_desen']}" if v["serit_tur"] == "desenli" and v["serit_desen"] else ""))
+    p.append(orta)
+    p.append(f"{dict(KENARLAR)[v['kenar']].lower()} {dict(KENAR_RENKLERI)[v['kenar_renk']].lower()}")
+    if v.get("hazir"):
+        p.append(f"({v['hazir']} esinli)")
+    return " · ".join(p)
+
+
+def _rastlar(adet, tohum):
+    import random
+
+    ana = random.Random(tohum)
+    return [(i, random.Random(ana.randint(1, 10 ** 9))) for i in range(adet)]
+
+
+def _halkali_fikir(i, rast, desen_kodlari, olcu):
+    """Bir öneri: renk ailesinden açık/koyu sırayla halkalar; şekil, orta ve kenar karışık."""
+    desenler = sorted(desen_kodlari)
+    renkler = rast.choice(AILELER)[2]
+    acik, koyu = renkler[0], renkler[-1]
+    en, boy = olcu or rast.choice([(120, 180), (160, 230), (200, 290)])
+    sekil = "oval" if i % 3 == 1 else "dikdortgen"
+    v = {"duzen": "halkali", "sekil": sekil, "en": en, "boy": boy, "pay": 1,
+         "halka_sayisi": rast.choice([1, 2, 2, 3, 3, 4]), "zemin": rast.choice([acik, renkler[1 % len(renkler)]]),
+         "kenar": rast.choice(KENARLAR)[0], "kenar_renk": rast.choice(KENAR_RENKLERI)[0], "aralik": 4}
+    turler = ["duz", "desenli", "nakisli"]
+    for n in range(1, v["halka_sayisi"] + 1):
+        tur = rast.choice(turler if desenler else ["duz", "nakisli"])
+        v.update({f"h{n}_tur": tur, f"h{n}_gen": {"nakisli": rast.choice([20, 24]), "desenli": rast.choice([10, 12, 14])}.get(tur, rast.choice([6, 8, 10])),
+                  f"h{n}_malzeme": koyu if n % 2 else rast.choice(renkler[:-1]),
+                  f"h{n}_desen": rast.choice(desenler) if tur == "desenli" else "",
+                  f"h{n}_nakis": rast.choice(MOTIFLER)[0]})
+    orta = rast.choice(["duz", "panel", "serit"])
+    v["orta"] = orta
+    if orta == "panel":
+        v.update(panel_en=rast.choice([40, 50]), panel_boy=rast.choice([60, 80]), panel_malzeme=koyu,
+                 nakis=rast.choice(MOTIFLER)[0], motif=rast.choice([24, 30, 36]))
+    elif orta == "serit":
+        tur = "desenli" if desenler and rast.random() < 0.6 else "nakisli"
+        v.update(serit_tur=tur, serit_yon=rast.choice(["boyuna", "enine"]), serit_adet=rast.choice([1, 1, 2, 3]),
+                 serit=rast.choice([12, 16, 20]) if tur == "desenli" else rast.choice([24, 28]), serit_malzeme=koyu,
+                 serit_desen=rast.choice(desenler) if desenler else "", nakis=rast.choice(MOTIFLER)[0])
+    return temizle(v, desen_kodlari)
+
+
 def nakis_bilgisi(v):
+    if v["duzen"] == "halkali":
+        return _halkali_nakis(v)
     if v["duzen"] != "oval_serit" or v["nakis"] == "yok":
         return None
     n = len(nakis_konumlari(v))
@@ -603,6 +994,8 @@ def nakis_bilgisi(v):
 
 
 def uyarilar(v):
+    if v["duzen"] == "halkali":
+        return _halkali_uyarilar(v)
     u = []
     if v["duzen"] == "oval_serit" and v["nakis"] != "yok" and v["motif"] > NAKIS_EN:
         u.append(f"Nakış motifi {NAKIS_EN}×{NAKIS_BOY} cm alanı aşıyor.")
@@ -616,6 +1009,8 @@ def uyarilar(v):
 
 
 def montaj_sirasi(v):
+    if v["duzen"] == "halkali":
+        return _halkali_montaj(v)
     kenar = dict(KENARLAR)[v["kenar"]]
     if v["duzen"] == "cerceve":
         adimlar = ["Lazer: tüm parçaları malzemelerine göre kes (desenli bantların delikleri dahil).",
@@ -638,6 +1033,8 @@ def montaj_sirasi(v):
 
 
 def ozet(v):
+    if v["duzen"] == "halkali":
+        return _halkali_ozet(v)
     d = dict((k, a) for k, a, _ in DUZENLER)[v["duzen"]]
     if v["duzen"] == "yuvarlak":
         olcu = f"Ø{v['cap']:g} cm"
@@ -682,44 +1079,7 @@ def ozet(v):
 
 def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None):
     """'Bana fikir ver': atölye kurallarına uyan, birbirinden farklı rastgele tasarımlar."""
-    import random
-
-    rast = random.Random(tohum)
-    desenler = sorted(desen_kodlari)
-    duzenler = [k for k, _, _ in DUZENLER]
-    sira = []
-    while len(sira) < adet:  # her düzenden birer tane, sonra yeniden karıştır: öneriler birbirine benzemesin
-        tur = duzenler[:]
-        rast.shuffle(tur)
-        sira += tur
-    sonuc = []
-    for i in range(adet):
-        duzen = sira[i]
-        aile = rast.choice(AILELER)
-        renkler = aile[2]
-        en, boy = olcu or rast.choice([(120, 180), (160, 230), (200, 290), (250, 350)])
-        v = {"duzen": duzen, "en": en, "boy": boy, "cap": rast.choice([150, 200, 250]), "aile": aile[0],
-             "dizilim": rast.choice(DIZILIMLER)[0], "tohum": rast.randint(1, 9999),
-             "kenar": rast.choice(KENARLAR)[0], "kenar_renk": rast.choice(KENAR_RENKLERI)[0],
-             "zemin": renkler[0], "ikinci": renkler[-1], "desen_alti": rast.choice(ALTLAR)[0], "pay": 1}
-        desen = rast.choice(desenler) if desenler and rast.random() < 0.7 else ""
-        if duzen == "cerceve":
-            v.update(dis_bant=rast.choice([0, 6, 8, 10]), dis_malzeme=renkler[-1], ara=rast.choice([0, 10, 14]),
-                     ara_malzeme=renkler[0], ic_bant=rast.choice([10, 12, 15]), ic_malzeme=rast.choice(renkler),
-                     ic_desen=desen, zemin=rast.choice(renkler[:2]))
-        elif duzen == "oval_serit":
-            v.update(serit=rast.choice([22, 26, 30]), serit_malzeme=renkler[0], zemin=rast.choice(renkler[1:]),
-                     nakis=rast.choice(["grek_kare", "grek_kare_gumus"]), motif=rast.choice([18, 22, 26]), aralik=4)
-        elif duzen == "yuvarlak":
-            v.update(dis_halka=rast.choice([0, 20, 26]), halka_malzeme=renkler[-1], desen_halka=rast.choice([18, 24]),
-                     desen_malzeme=rast.choice(renkler), desen=desen, zemin=renkler[0])
-        else:
-            v.update(hucre=rast.choice([30, 36, 45, 60]), serit_sayisi=rast.choice([5, 7, 9, 12]),
-                     yon=rast.choice(["dikey", "yatay"]), serbest=rast.choice(["", "on"]),
-                     bolme=rast.choice(["capraz", "duz"]), dis_bant=rast.choice([0, 0, 8, 12]),
-                     dis_malzeme=renkler[-1], dis_desen=desen if rast.random() < 0.5 else "")
-        sonuc.append(temizle(v, desen_kodlari))
-    return sonuc
+    return [_halkali_fikir(i, rast, desen_kodlari, olcu) for i, rast in _rastlar(adet, tohum)]
 
 
 def dxf(v, malzeme=None, baslik=""):

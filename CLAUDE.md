@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (107 test) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (110 test) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -39,7 +39,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 │   ├─ Katalog: 13 seri, 192 model (TOS, HMK, IPS, LTS…), 14 lazer deseni DB001–DB014
 │   ├─ Stüdyo (bayi): Kürk (Toskana: dış bant → halka → iç bant → zemin → madalyon) / Suni deri (varak, peluş, kadife, sim/rugan alt, biye)
 │   ├─ Hazırlar: TOS-034…LTS-006, SD-1…SD-4 ; görsel Pillow ile sunucuda çizilir
-│   ├─ **Parçalı (lego) suni deri** /tasarim/parcali/: çerçeve | oval+nakış şeridi | yuvarlak | şeritler | kare ızgara | elmas | iki parçalı; renk aileleri + dizilim; 💡 fikir ver; P-1…P-8; gerçek malzeme fotoğraf dokuları; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
+│   ├─ **Parçalı (lego) suni deri** /tasarim/parcali/: **halkalı** (dikdörtgen/oval, ≤4 halka düz/desenli/nakışlı + orta düz/nakış paneli/enine-boyuna şerit), 5 adımlı ekran + ✕'li büyük görünüm; eski düzenler (çerçeve, oval şerit, yuvarlak, ızgara…) yalnız eski kayıtlar için, `eskiden_cevir`; 💡 fikir ver; P-1…P-8; gerçek malzeme fotoğraf dokuları; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
 │   └─ Gönderim = "Onay bekliyor" sipariş → ofis sipariş sayfasından onay/ret; lazer DXF/SVG (hat + bantlar; DB deseni yalnız not)
 ├─ 4 Hesaplar: Tablet (istasyona bağlı) / Ofis ("Ofis" grubu) / Yönetici / Bayi (yalnız stüdyo + kendi siparişleri)
 ├─ 5 Raporlar: makine, personel-istasyon, bekleme, Excel çıktı; Excel'den aktarma; tablet giriş kaydı
@@ -70,8 +70,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - **Gelen bilgi (2026-10-29, atölye + bitmiş halı fotoğrafları):** tüm parçalar lazerle kesilir (desen delikleri dahil); nakış ayrı panel; parçalar zig-zag ile birleşir, kenar Lanfel veya Biye. Suni deri rulo **140 cm en × 30 m**; nakış alanı en fazla **40×60 cm**; dikiş payı modele göre **en fazla 2 cm**.
 - Fotoğraflardan çıkan parça türleri: zemin paneli (140 cm'den büyükse dikişle bölünür; zikzak/V uçlu paneller), düz desenli bant (köşelerde üst/alt bant yan bantların arasına uç uca), kavisli bant segmentleri (yuvarlak halkada ~5 yay parçası; dış kadife halka da segmentli), orta disk/oval, nakış şeridi (tekrar eden motif, her motif ≤40×60), desen altı katman (siyah/kahve/altın görünür), kenar biyesi. Deri/kürk: kare, 45° elmas, dikey şerit (rastgele boy), daire patchwork; merkezden kenara renk geçişi.
 - Lazer tablası **140×300 cm**. Nakış: **7 kafalı** makine (aynı motif aynı anda 7 adet), keçe+rona+suni deri birleşik (lamine) malzemeye iplikle işleniyor. Desen altı = lamine malzeme.
-- **Yeni karar (2026-10-29, foto: krem + koyu desenli çerçeveli halı):** parçalı halı = **iç içe halkalar** (en fazla 4) + orta. Dikdörtgende her halka 4 dikdörtgen parça: uzun yanlar tam boy, kısa üst/alt araya girer; hepsi zig-zag. Ovalde oval halkalar. Halka türü: düz / lazer desenli / nakışlı. **Desen altında bir şey yok** (delikler boş). Orta: düz, nakış paneli veya desenli şerit. Elmas/ızgara bayiden kalkacak; büyük önizleme sayfa içinde ✕ ile kapanacak; ekran adım adım sadeleşecek. Kodlama için kullanıcının "başla" onayı bekleniyor.
-- **Hâlâ eksik:** DXF desen dosyaları; ilk sürüm (dikdörtgen çerçeve / oval + nakış şeridi / yuvarlak segmentli halka) için kullanıcının "başla" onayı.
+- **Yeni karar (2026-10-29, foto: krem + koyu desenli çerçeveli halı):** parçalı halı = **iç içe halkalar** (en fazla 4) + orta. Dikdörtgende her halka 4 dikdörtgen parça: uzun yanlar tam boy, kısa üst/alt araya girer; hepsi zig-zag. Ovalde oval halkalar. Halka türü: düz / lazer desenli / nakışlı. **Desen altında bir şey yok** (delikler boş). Orta: düz, nakış paneli veya desenli şerit. **Yazıldı** (aşağıda günlük).
+- **Hâlâ eksik:** DXF desen dosyaları; nakış motifi yalnız Grek kare (başka motif dosyası gelirse eklenir).
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
 - Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
@@ -85,7 +85,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
-- 2026-10-29: Lanfel hatası düzeltildi (e1c9c76); 16 malzeme fotoğrafından gerçek dokular (kart ölçeği 92.6 px/cm), kabartma + yakınlaştırma; yeni düzenler (şerit/ızgara/elmas/iki parça), renk aileleri, 💡 Bana fikir ver. **Kullanıcıya gönderilen son zip bu.** Bekleyen: malzeme adları (geçici), Odamda gör, istasyonlara parça bazında iş, desen DXF'leri.
+- 2026-10-29: Halkalı parçalı halı (≤4 halka + orta panel/şerit, desen delikleri boş), sade 5 adımlı ekran, ✕'li büyük görünüm, yeni P-1…P-8, eski tasarım çevirme. **Kullanıcıya gönderilen son zip bu.**
+- 2026-10-29: Lanfel hatası düzeltildi (e1c9c76); 16 malzeme fotoğrafından gerçek dokular (kart ölçeği 92.6 px/cm), kabartma + yakınlaştırma; yeni düzenler (şerit/ızgara/elmas/iki parça), renk aileleri, 💡 Bana fikir ver. Bekleyen: malzeme adları (geçici), Odamda gör, istasyonlara parça bazında iş, desen DXF'leri.
 - 2026-10-29: Parçalı suni deri tasarım ilk sürüm (3 düzen, kesim listesi, malzeme bazlı DXF). Sıradaki: kullanıcı denemesi, desen DXF'leri, deri/kürk ızgara (kare/elmas/şerit/daire, renk geçişi), istasyonlara parça bazında iş.
 - 2026-10-29: Stüdyo ve katalogda desen seçimi artık desenin halı köşesindeki görünüşüyle (`tasarim_varlik/desen_onizleme/`).
 - 2026-10-28: Nöbetçi /saglik/, güncelleme öncesi yedek, geri_al.sh, acil durum kartı (349dd1e). 
