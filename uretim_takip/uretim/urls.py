@@ -21,6 +21,7 @@ urlpatterns = [
     path("bayi/", tasarim_views.bayi_ana, name="bayi_ana"),
     path("tasarim/", tasarim_views.studyo, name="tasarim_studyo"),
     path("tasarim/parcali/", parcali_views.studyo, name="parcali_studyo"),
+    path("tasarim/parcali/fikir/", parcali_views.fikir, name="parcali_fikir"),
     path("tasarim/parcali/onizleme/", parcali_views.onizleme, name="parcali_onizleme"),
     path("tasarim/parcali/onizleme.jpg", parcali_views.onizleme_resmi, name="parcali_onizleme_resmi"),
     path("tasarim/parcali/malzeme/<str:ad>.jpg", parcali_views.malzeme_ornegi, name="parcali_malzeme"),

@@ -17,24 +17,53 @@ DUZENLER = [
     ("cerceve", "Dikdörtgen çerçeve", "Zemin + desenli bantlar; bantlar uç uca birleşir"),
     ("oval_serit", "Oval + nakış şeridi", "Oval zemin, ortadan geçen nakışlı şerit"),
     ("yuvarlak", "Yuvarlak halka", "Orta disk + parçalı desenli halka + dış halka"),
+    ("seritler", "Şeritler", "Yan yana dikilmiş şeritler; eşit ya da serbest genişlikte"),
+    ("izgara", "Kare ızgara", "Kare parçalar; dama, geçiş ya da karışık renk"),
+    ("elmas", "Elmas (45°)", "Çapraz kare parçalar; merkezden kenara geçiş"),
+    ("yarim", "İki parçalı", "Halı düz ya da çapraz iki bölgeye ayrılır"),
 ]
+IZGARALI = ("seritler", "izgara", "elmas", "yarim")  # bu düzenlerde isteğe bağlı dış desenli bant da olur
+
+# Renk aileleri: açıktan koyuya. Izgara / şerit / elmas parçaları bu sırayla boyanır.
+AILELER = [
+    ("krem_kahve", "Krem → kahve", ["beyaz_keten", "krem_keten", "bej_keten", "vizon_keten", "kahve_keten"]),
+    ("gri_antrasit", "Beyaz → antrasit", ["beyaz_keten", "acik_gri_keten", "gri_keten", "antrasit_keten", "siyah_keten"]),
+    ("siyah_altin", "Siyah – altın", ["siyah_keten", "varak_altin", "siyah_simli", "altin_ayna"]),
+    ("gri_gumus", "Gri – gümüş", ["acik_gri_keten", "varak_gumus", "gri_keten", "gumus_sim"]),
+    ("toprak_bakir", "Toprak – bakır", ["krem_keten", "bakir_varak", "vizon_keten", "kahve_keten"]),
+    ("kontrast", "Siyah – beyaz", ["beyaz_keten", "siyah_keten"]),
+]
+AILE = {k: m for k, _, m in AILELER}
+DIZILIMLER = [("gecis", "Merkezden kenara geçiş"), ("dama", "Dama (sırayla)"), ("karisik", "Karışık")]
 
 # Suni deri malzemeler: doku = fotoğraf dokusu (tasarim_varlik/doku), yoksa renk.
 MALZEMELER = [
-    ("beyaz_keten", "Beyaz keten görünümlü", "#ece7dd"),
-    ("bej_keten", "Bej keten görünümlü", "#cdbd9f"),
-    ("gri_keten", "Gri keten görünümlü", "#9a9894"),
-    ("antrasit_keten", "Antrasit keten görünümlü", "#55524e"),
+    # keten görünümlü suni deriler (atölye fotoğrafları; adlar geçici)
+    ("beyaz_keten", "Kırık beyaz keten", "#e6e2d8"),
+    ("krem_keten", "Krem keten", "#d9d0bd"),
+    ("bej_keten", "Kum beji keten", "#cdbd9f"),
+    ("acik_gri_keten", "Açık gri keten", "#a9a7a2"),
+    ("gri_keten", "Gri keten", "#8e8c88"),
+    ("vizon_keten", "Vizon keten", "#8a8075"),
+    ("kahve_keten", "Kahve keten", "#6b5d4c"),
+    ("antrasit_keten", "Antrasit keten", "#55524e"),
+    ("siyah_keten", "Siyah keten", "#2b2a29"),
+    # varaklı / simli / metalik
+    ("varak_altin", "Beyaz-altın varak", "#e9dcbc"),
+    ("varak_gumus", "Beyaz-gümüş varak", "#cfd0d1"),
+    ("bakir_varak", "Gri-bakır varak", "#b7a99a"),
+    ("varak_sampanya", "Şampanya varak", "#ddd0b8"),
+    ("gumus_sim", "Gümüş sim", "#b9bbbe"),
+    ("siyah_simli", "Siyah simli", "#1a1a1c"),
+    ("altin_ayna", "Ayna altın", "#c9a75e"),
+    # diğer
     ("siyah_kadife", "Siyah kadife", "#151417"),
     ("gri_kadife", "Gri kadife", "#a7a6a3"),
     ("dalgali_pelus", "Dalgalı peluş", "#d9d3c8"),
-    ("varak_altin", "Altın varaklı", "#e9dcbc"),
-    ("varak_gumus", "Gümüş varaklı", "#cfd0d1"),
-    ("varak_sampanya", "Şampanya varaklı", "#ddd0b8"),
     ("krem_deri", "Krem deri", "#e4d6b8"),
     ("siyah_deri", "Siyah deri", "#1f1d1c"),
-    ("altin", "Altın (metalik)", "#d6b26a"),
-    ("gumus", "Gümüş (metalik)", "#c2c5c9"),
+    ("altin", "Altın (düz metalik)", "#d6b26a"),
+    ("gumus", "Gümüş (düz metalik)", "#c2c5c9"),
 ]
 MALZEME_AD = {k: a for k, a, _ in MALZEMELER}
 MALZEME_HEX = {k: h for k, _, h in MALZEMELER}
@@ -57,6 +86,9 @@ VARSAYILAN = {
     "cap": 200, "dis_halka": 26, "desen_halka": 24, "halka_malzeme": "siyah_kadife",
     "desen_malzeme": "varak_gumus", "desen": "DB003",
     "kenar": "biye", "kenar_renk": "altin",
+    # şerit / ızgara / elmas / iki parçalı
+    "aile": "krem_kahve", "dizilim": "gecis", "hucre": 40, "serit_sayisi": 7, "yon": "dikey", "serbest": "",
+    "tohum": 1, "bolme": "capraz", "ikinci": "kahve_keten",
 }
 
 # Fotoğraflardaki atölye halıları (başlangıç noktası)
@@ -76,6 +108,21 @@ HAZIRLAR = [
         "duzen": "yuvarlak", "cap": 200, "dis_halka": 26, "halka_malzeme": "siyah_kadife", "desen_halka": 24,
         "desen_malzeme": "varak_gumus", "desen": "DB003", "zemin": "siyah_kadife", "desen_alti": "krem",
         "kenar": "biye", "kenar_renk": "siyah"}),
+]
+HAZIRLAR += [
+    ("P-5", "Dikey şeritler, kahve tonları", {
+        "duzen": "seritler", "en": 160, "boy": 230, "aile": "krem_kahve", "dizilim": "karisik", "serit_sayisi": 9,
+        "yon": "dikey", "serbest": "on", "tohum": 3, "dis_bant": 0, "kenar": "biye", "kenar_renk": "bej"}),
+    ("P-6", "Elmas, gri tonlarda geçiş", {
+        "duzen": "elmas", "en": 200, "boy": 290, "aile": "gri_antrasit", "dizilim": "gecis", "hucre": 36,
+        "dis_bant": 10, "dis_malzeme": "antrasit_keten", "dis_desen": "", "kenar": "biye", "kenar_renk": "siyah"}),
+    ("P-7", "Kare ızgara, siyah-altın dama", {
+        "duzen": "izgara", "en": 160, "boy": 230, "aile": "siyah_altin", "dizilim": "dama", "hucre": 45,
+        "dis_bant": 12, "dis_malzeme": "siyah_keten", "dis_desen": "DB007", "desen_alti": "altin_sim",
+        "kenar": "biye", "kenar_renk": "altin"}),
+    ("P-8", "Çapraz iki parça, gri ve bakır", {
+        "duzen": "yarim", "en": 160, "boy": 230, "bolme": "capraz", "zemin": "gri_keten", "ikinci": "bakir_varak",
+        "dis_bant": 0, "kenar": "lanfel", "kenar_renk": "bej"}),
 ]
 HAZIR = {k: d for k, _, d in HAZIRLAR}
 
@@ -133,6 +180,24 @@ def temizle(veri, desen_kodlari=()):
         v["nakis"] = _sec(g("nakis"), NAKISLAR, "grek_kare")
         v["motif"] = _sayi(g("motif"), 22, 8, min(NAKIS_EN, v["serit"] - 2))
         v["aralik"] = _sayi(g("aralik"), 4, 1, 30)
+        return v
+    if v["duzen"] in IZGARALI:
+        v["dis_bant"] = _sayi(g("dis_bant"), 0, 0, max(0, min(30, kisa / 2 - 20)))
+        v["dis_malzeme"] = _sec(g("dis_malzeme"), MALZEMELER, "antrasit_keten")
+        v["dis_desen"] = desen("dis_desen")
+        v["ara"] = v["ic_bant"] = 0
+        v["ara_malzeme"] = v["ic_malzeme"] = v["dis_malzeme"]
+        v["ic_desen"] = ""
+        v["aile"] = _sec(g("aile"), AILELER, "krem_kahve")
+        v["dizilim"] = _sec(g("dizilim"), DIZILIMLER, "gecis")
+        ic_kisa = kisa - 2 * v["dis_bant"]
+        v["hucre"] = _sayi(g("hucre"), 40, 15, max(15, min(140, ic_kisa / 2)))
+        v["serit_sayisi"] = int(_sayi(g("serit_sayisi"), 7, 2, 24))
+        v["yon"] = g("yon") if g("yon") in ("dikey", "yatay") else "dikey"
+        v["serbest"] = "on" if g("serbest") in ("on", True, "1", "true") else ""
+        v["tohum"] = int(_sayi(g("tohum"), 1, 1, 9999))
+        v["bolme"] = g("bolme") if g("bolme") in ("capraz", "duz") else "capraz"
+        v["ikinci"] = _sec(g("ikinci"), MALZEMELER, "kahve_keten")
         return v
     kalan = kisa / 2 - 10
     for alan, mal in (("dis_bant", "dis_malzeme"), ("ara", "ara_malzeme"), ("ic_bant", "ic_malzeme")):
@@ -341,9 +406,125 @@ def _yuvarlak(v):
     return sonuc
 
 
+def _dis_bant_ve_alan(v):
+    """Izgaralı düzenlerde isteğe bağlı dış bant parçaları ve içte kalan alan (x, y, w, h)."""
+    en, boy, b = v["en"], v["boy"], v["dis_bant"]
+    sonuc = []
+    if b > 0:
+        tur = "bant" if v["dis_desen"] else "serit"
+        for yon, poli in (("sol", dikd(0, 0, b, boy)), ("sağ", dikd(en - b, 0, b, boy)),
+                          ("üst", dikd(b, 0, en - 2 * b, b)), ("alt", dikd(b, boy - b, en - 2 * b, b))):
+            sonuc.append(_parca(f"Dış bant ({yon})", tur, poli, v["dis_malzeme"], v["dis_desen"]))
+    return sonuc, (b, b, en - 2 * b, boy - 2 * b)
+
+
+def _boya(v, i, j, ni, nj, rast):
+    """Parçanın renk ailesindeki malzemesi: geçiş (merkezden uzaklık), dama ya da karışık."""
+    renkler = AILE[v["aile"]]
+    if v["dizilim"] == "dama":
+        return renkler[(i + j) % len(renkler)]
+    if v["dizilim"] == "karisik":
+        return rast.choice(renkler)
+    dx = abs((i + 0.5) / ni - 0.5) * 2 if ni else 0
+    dy = abs((j + 0.5) / nj - 0.5) * 2 if nj else 0
+    uzak = min(1.0, max(dx, dy))
+    return renkler[min(len(renkler) - 1, int(uzak * len(renkler)))]
+
+
+def _seritler(v):
+    import random
+
+    sonuc, (x, y, w, h) = _dis_bant_ve_alan(v)
+    rast = random.Random(v["tohum"])
+    n = v["serit_sayisi"]
+    uzun = w if v["yon"] == "dikey" else h
+    if v["serbest"]:
+        agirlik = [rast.uniform(0.5, 1.6) for _ in range(n)]
+    else:
+        agirlik = [1] * n
+    toplam = sum(agirlik)
+    konum = 0.0
+    for i, a in enumerate(agirlik):
+        gen = uzun * a / toplam
+        poli = dikd(x + konum, y, gen, h) if v["yon"] == "dikey" else dikd(x, y + konum, w, gen)
+        sonuc.append(_parca(f"Şerit {i + 1}", "panel", poli, _boya(v, i, 0, n, 1, rast) if v["dizilim"] != "gecis"
+                            else _boya(v, i, 0, n, 0, rast)))
+        konum += gen
+    return sonuc
+
+
+def _izgara(v):
+    import random
+
+    sonuc, (x, y, w, h) = _dis_bant_ve_alan(v)
+    rast = random.Random(v["tohum"])
+    ni, nj = max(1, round(w / v["hucre"])), max(1, round(h / v["hucre"]))
+    cw, ch = w / ni, h / nj
+    for j in range(nj):
+        for i in range(ni):
+            sonuc.append(_parca(f"Kare {j + 1}-{i + 1}", "panel", dikd(x + i * cw, y + j * ch, cw, ch),
+                                _boya(v, i, j, ni, nj, rast)))
+    return sonuc
+
+
+def _elmas(v):
+    import random
+
+    sonuc, (x, y, w, h) = _dis_bant_ve_alan(v)
+    rast = random.Random(v["tohum"])
+    d = v["hucre"] / math.sqrt(2)  # elmasın yarı köşegeni; kenar = hucre
+    cx0, cy0 = x + w / 2, y + h / 2
+    ki, kj = int(w / 2 / d) + 2, int(h / 2 / d) + 2
+    for b in range(-kj, kj + 1):
+        for a in range(-ki, ki + 1):
+            if (a + b) % 2:
+                continue
+            cx, cy = cx0 + a * d, cy0 + b * d
+            poli = [(cx, cy - d), (cx + d, cy), (cx, cy + d), (cx - d, cy)]
+            for eksen, deger, buyuk in ((0, x, True), (0, x + w, False), (1, y, True), (1, y + h, False)):
+                poli = kirp(poli, eksen, deger, buyuk)
+            if len(poli) < 3 or alan(poli) < 4:
+                continue
+            ui, uj = (a + ki) / (2 * ki), (b + kj) / (2 * kj)
+            sonuc.append(_parca(f"Elmas {b + kj + 1}-{a + ki + 1}", "panel", poli,
+                                _boya(v, int(ui * 20), int(uj * 20), 20, 20, rast) if v["dizilim"] == "gecis"
+                                else _boya(v, (a + b) // 2 + ki, (b - a) // 2 + kj, 2 * ki, 2 * kj, rast)))
+    return sonuc
+
+
+def _yarim(v):
+    sonuc, (x, y, w, h) = _dis_bant_ve_alan(v)
+    alanp = dikd(x, y, w, h)
+    if v["bolme"] == "duz":
+        eksen, orta = (1, y + h / 2) if h >= w else (0, x + w / 2)
+        a, b = kirp(alanp, eksen, orta, False), kirp(alanp, eksen, orta, True)
+    else:  # sol üstten sağ alta çapraz: döndürülmüş eksende kırp
+        def capraz(buyuk):
+            sonuc_ = []
+            pts = alanp
+            for i, cur in enumerate(pts):
+                prev = pts[i - 1]
+                f = lambda p: (p[0] - x) / w - (p[1] - y) / h  # noqa: E731
+                ic = (lambda p: f(p) >= 0) if buyuk else (lambda p: f(p) <= 0)
+                if ic(cur):
+                    if not ic(prev):
+                        t = f(prev) / (f(prev) - f(cur))
+                        sonuc_.append((prev[0] + (cur[0] - prev[0]) * t, prev[1] + (cur[1] - prev[1]) * t))
+                    sonuc_.append(cur)
+                elif ic(prev):
+                    t = f(prev) / (f(prev) - f(cur))
+                    sonuc_.append((prev[0] + (cur[0] - prev[0]) * t, prev[1] + (cur[1] - prev[1]) * t))
+            return sonuc_
+        a, b = capraz(True), capraz(False)
+    sonuc.append(_parca("Bölge 1", "panel", a, v["zemin"]))
+    sonuc.append(_parca("Bölge 2", "panel", b, v["ikinci"]))
+    return sonuc
+
+
 def parcalar(v):
     """Tasarımın tüm parçaları; tablaya sığmayanlar bölünmüş, numaralı, kesim ölçüleriyle."""
-    ham = {"cerceve": _cerceve, "oval_serit": _oval_serit, "yuvarlak": _yuvarlak}[v["duzen"]](v)
+    ham = {"cerceve": _cerceve, "oval_serit": _oval_serit, "yuvarlak": _yuvarlak, "seritler": _seritler,
+           "izgara": _izgara, "elmas": _elmas, "yarim": _yarim}[v["duzen"]](v)
     sonuc = []
     for p in ham:
         if p["tur"] == "yay":
@@ -427,6 +608,10 @@ def uyarilar(v):
         u.append(f"Nakış motifi {NAKIS_EN}×{NAKIS_BOY} cm alanı aşıyor.")
     if v["duzen"] == "oval_serit" and v["nakis"] != "yok" and not nakis_konumlari(v):
         u.append("Şerit nakış motifi için çok kısa.")
+    if v["duzen"] in IZGARALI:
+        kucuk = [p for p in parcalar(v) if p["tur"] == "panel" and min(p["en"], p["boy"]) < 8]
+        if kucuk:
+            u.append(f"{len(kucuk)} parça 8 cm'den dar (kenarlarda kalan küçük parçalar); dikişi zor olabilir.")
     return u
 
 
@@ -440,6 +625,10 @@ def montaj_sirasi(v):
         adimlar = ["Lazer: zemin yarımlarını ve şeridi kes.",
                    "Nakış: şeride motifleri işle (7 kafa aynı anda)." if v["nakis"] != "yok" else "Şeridi hazırla.",
                    "Şeridi iki zemin yarımı arasına zig-zag ile dik."]
+    elif v["duzen"] in IZGARALI:
+        adimlar = ["Lazer: parçaları malzemelerine göre kes; parça numaralarını arkalarına yaz.",
+                   "Planına göre parçaları önce sıra sıra, sonra sıraları birbirine zig-zag ile dik.",
+                   "Dış bant varsa: üst/alt bantları, sonra yan bantları ekle."]
     else:
         adimlar = ["Lazer: orta diski ve halka yay parçalarını kes.",
                    "Desenli halka parçalarının altına desen altı malzemesini yerleştir.",
@@ -454,8 +643,22 @@ def ozet(v):
         olcu = f"Ø{v['cap']:g} cm"
     else:
         olcu = f"{v['en']:g}×{v['boy']:g} cm"
-    p = [f"Suni deri parçalı halı – {d.lower()} {olcu}", f"zemin {MALZEME_AD[v['zemin']].lower()}"]
-    if v["duzen"] == "cerceve":
+    p = [f"Suni deri parçalı halı – {d.replace('İ', 'i').lower()} {olcu}"]
+    if v["duzen"] not in IZGARALI:
+        p.append(f"zemin {MALZEME_AD[v['zemin']].lower()}")
+    if v["duzen"] in IZGARALI:
+        if v["duzen"] == "yarim":
+            p.append(f"{'çapraz' if v['bolme'] == 'capraz' else 'düz'} bölme: {MALZEME_AD[v['zemin']].lower()} + "
+                     f"{MALZEME_AD[v['ikinci']].lower()}")
+        else:
+            adet = len([q for q in parcalar(v) if q["tur"] == "panel"])
+            olc = f"{v['serit_sayisi']} {v['yon']} şerit" if v["duzen"] == "seritler" else f"{v['hucre']:g} cm parça"
+            p.append(f"{olc}, {adet} panel, {dict((k, a) for k, a, _ in AILELER)[v['aile']].lower()}, "
+                     f"{dict(DIZILIMLER)[v['dizilim']].lower()}")
+        if v["dis_bant"]:
+            p.append(f"dış bant {v['dis_bant']:g} cm {MALZEME_AD[v['dis_malzeme']].lower()}"
+                     + (f" {v['dis_desen']}" if v["dis_desen"] else ""))
+    elif v["duzen"] == "cerceve":
         for gen, mal, desen, ad in ((v["dis_bant"], v["dis_malzeme"], v["dis_desen"], "dış bant"),
                                     (v["ara"], v["ara_malzeme"], "", "ara şerit"),
                                     (v["ic_bant"], v["ic_malzeme"], v["ic_desen"], "iç bant")):
@@ -475,6 +678,48 @@ def ozet(v):
     if v.get("hazir"):
         p.append(f"({v['hazir']} esinli)")
     return " · ".join(p)
+
+
+def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None):
+    """'Bana fikir ver': atölye kurallarına uyan, birbirinden farklı rastgele tasarımlar."""
+    import random
+
+    rast = random.Random(tohum)
+    desenler = sorted(desen_kodlari)
+    duzenler = [k for k, _, _ in DUZENLER]
+    sira = []
+    while len(sira) < adet:  # her düzenden birer tane, sonra yeniden karıştır: öneriler birbirine benzemesin
+        tur = duzenler[:]
+        rast.shuffle(tur)
+        sira += tur
+    sonuc = []
+    for i in range(adet):
+        duzen = sira[i]
+        aile = rast.choice(AILELER)
+        renkler = aile[2]
+        en, boy = olcu or rast.choice([(120, 180), (160, 230), (200, 290), (250, 350)])
+        v = {"duzen": duzen, "en": en, "boy": boy, "cap": rast.choice([150, 200, 250]), "aile": aile[0],
+             "dizilim": rast.choice(DIZILIMLER)[0], "tohum": rast.randint(1, 9999),
+             "kenar": rast.choice(KENARLAR)[0], "kenar_renk": rast.choice(KENAR_RENKLERI)[0],
+             "zemin": renkler[0], "ikinci": renkler[-1], "desen_alti": rast.choice(ALTLAR)[0], "pay": 1}
+        desen = rast.choice(desenler) if desenler and rast.random() < 0.7 else ""
+        if duzen == "cerceve":
+            v.update(dis_bant=rast.choice([0, 6, 8, 10]), dis_malzeme=renkler[-1], ara=rast.choice([0, 10, 14]),
+                     ara_malzeme=renkler[0], ic_bant=rast.choice([10, 12, 15]), ic_malzeme=rast.choice(renkler),
+                     ic_desen=desen, zemin=rast.choice(renkler[:2]))
+        elif duzen == "oval_serit":
+            v.update(serit=rast.choice([22, 26, 30]), serit_malzeme=renkler[0], zemin=rast.choice(renkler[1:]),
+                     nakis=rast.choice(["grek_kare", "grek_kare_gumus"]), motif=rast.choice([18, 22, 26]), aralik=4)
+        elif duzen == "yuvarlak":
+            v.update(dis_halka=rast.choice([0, 20, 26]), halka_malzeme=renkler[-1], desen_halka=rast.choice([18, 24]),
+                     desen_malzeme=rast.choice(renkler), desen=desen, zemin=renkler[0])
+        else:
+            v.update(hucre=rast.choice([30, 36, 45, 60]), serit_sayisi=rast.choice([5, 7, 9, 12]),
+                     yon=rast.choice(["dikey", "yatay"]), serbest=rast.choice(["", "on"]),
+                     bolme=rast.choice(["capraz", "duz"]), dis_bant=rast.choice([0, 0, 8, 12]),
+                     dis_malzeme=renkler[-1], dis_desen=desen if rast.random() < 0.5 else "")
+        sonuc.append(temizle(v, desen_kodlari))
+    return sonuc
 
 
 def dxf(v, malzeme=None, baslik=""):

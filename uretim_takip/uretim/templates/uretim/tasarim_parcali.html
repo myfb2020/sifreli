@@ -8,7 +8,8 @@
   {% csrf_token %}
   <input type="hidden" name="hazir" value="{{ v.hazir }}">
   <div class="studyo-onizleme kart">
-    <img id="onizleme" alt="Halı önizlemesi" src="{% url 'parcali_onizleme_resmi' %}?b=900">
+    <img id="onizleme" alt="Halı önizlemesi" title="Büyütmek için dokunun" src="{% url 'parcali_onizleme_resmi' %}?b=900">
+    <div class="soluk" style="font-size:12px">🔍 Yakından görmek için resme dokunun</div>
     <div id="ozet" class="soluk">{{ h.ozet }}</div>
     <div class="soluk">Alan: <b id="alan">{{ h.alan }}</b> m² · Kenar: <b id="kenar-m">{{ h.kenar_m }}</b> m</div>
     <div id="uyarilar">{% for u in h.uyarilar %}<div class="mesaj error">{{ u }}</div>{% endfor %}</div>
@@ -27,6 +28,11 @@
       <div class="duzen-izgara">
         {% for k, ad, acik in duzenler %}<label class="duzen"><input type="radio" name="duzen" value="{{ k }}"{% if v.duzen == k %} checked{% endif %}><span><b>{{ ad }}</b><small>{{ acik }}</small></span></label>{% endfor %}
       </div>
+      <div class="fikir-kap">
+        <button type="button" class="btn" id="fikir-dugme">💡 Bana fikir ver</button>
+        <span class="soluk">Atölye kurallarına uygun 6 yeni tasarım önerir; beğendiğinize dokunun.</span>
+      </div>
+      <div class="hazir-izgara" id="fikirler"></div>
       <label class="alt-baslik">Atölyedeki halılardan başla</label>
       <div class="hazir-izgara">
         {% for h in hazirlar %}<button type="button" class="hazir{% if v.hazir == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}">
@@ -37,7 +43,7 @@
 
     <div class="kart">
       <h2>2. Ölçü</h2>
-      <div class="iki-sutun" data-duzen="cerceve oval_serit">
+      <div class="iki-sutun" data-duzen="cerceve oval_serit seritler izgara elmas yarim">
         <p><label for="en">En (cm)</label><input id="en" name="en" type="number" min="60" max="400" step="5" value="{{ v.en|floatformat:'-1' }}"></p>
         <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" min="60" max="600" step="5" value="{{ v.boy|floatformat:'-1' }}"></p>
       </div>
@@ -46,11 +52,41 @@
       <p class="soluk">Atölye sınırları: rulo eni {{ kurallar.rulo }} cm, lazer tablası {{ kurallar.rulo }}×{{ kurallar.tabla }} cm. Büyük parçaları program kendisi böler.</p>
     </div>
 
-    <div class="kart" data-duzen="cerceve">
-      <h2>3. Çerçeve bantları</h2>
+    <div class="kart" data-duzen="seritler izgara elmas yarim">
+      <h2>3. Parçalar ve renkler</h2>
+      <div data-duzen="izgara elmas"><p><label for="hucre">Parça kenarı (cm)</label><input id="hucre" name="hucre" type="number" min="15" max="140" step="1" value="{{ v.hucre|default:40|floatformat:'-1' }}"></p></div>
+      <div data-duzen="seritler">
+        <div class="iki-sutun">
+          <p><label for="serit_sayisi">Şerit sayısı</label><input id="serit_sayisi" name="serit_sayisi" type="number" min="2" max="24" step="1" value="{{ v.serit_sayisi|default:7 }}"></p>
+          <p><label>Yön</label><span class="secim-izgara">{% for k, ad in yonler %}<label class="secim"><input type="radio" name="yon" value="{{ k }}"{% if v.yon == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</span></p>
+        </div>
+        <p><label style="display:flex;gap:8px;align-items:center;font-weight:normal"><input type="checkbox" name="serbest" value="on" style="width:auto"{% if v.serbest %} checked{% endif %}> Şerit genişlikleri serbest (farklı farklı)</label></p>
+      </div>
+      <div data-duzen="seritler izgara elmas">
+        <label class="alt-baslik">Renk ailesi</label>
+        <div class="aile-izgara">{% for k, ad, mal in aileler %}<label class="aile"><input type="radio" name="aile" value="{{ k }}"{% if v.aile == k %} checked{% endif %}><span>{% for m in mal %}<i style="background-image:url('{% url 'parcali_malzeme' m %}')"></i>{% endfor %}</span><small>{{ ad }}</small></label>{% endfor %}</div>
+        <label class="alt-baslik">Renk dizilimi</label>
+        <div class="secim-izgara">{% for k, ad in dizilimler %}<label class="secim"><input type="radio" name="dizilim" value="{{ k }}"{% if v.dizilim == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+        <input type="hidden" name="tohum" value="{{ v.tohum|default:1 }}">
+        <button type="button" class="btn kucuk ikincil" id="karistir">🎲 Karıştır (yeni dağılım)</button>
+      </div>
+      <div data-duzen="yarim">
+        <label class="alt-baslik">Bölme</label>
+        <div class="secim-izgara">{% for k, ad in bolmeler %}<label class="secim"><input type="radio" name="bolme" value="{{ k }}"{% if v.bolme == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+        <label class="alt-baslik">2. bölge malzemesi (1. bölge = aşağıdaki zemin)</label>
+        {% include "uretim/_malzeme_secimi.html" with alan="ikinci" secili=v.ikinci %}
+      </div>
+    </div>
+
+    <div class="kart" data-duzen="cerceve seritler izgara elmas yarim">
+      <h2>Dış bant</h2>
       <p><label for="dis_bant">Dış bant genişliği (cm) — 0: yok</label><input id="dis_bant" name="dis_bant" type="number" min="0" max="40" step="1" value="{{ v.dis_bant|default:0|floatformat:'-1' }}"></p>
       {% include "uretim/_malzeme_secimi.html" with alan="dis_malzeme" secili=v.dis_malzeme %}
       {% include "uretim/_desen_secimi.html" with alan="dis_desen" secili=v.dis_desen %}
+    </div>
+
+    <div class="kart" data-duzen="cerceve">
+      <h2>3. Ara şerit ve iç bant</h2>
       <p><label for="ara">Ara şerit genişliği (cm) — 0: yok</label><input id="ara" name="ara" type="number" min="0" max="40" step="1" value="{{ v.ara|default:0|floatformat:'-1' }}"></p>
       {% include "uretim/_malzeme_secimi.html" with alan="ara_malzeme" secili=v.ara_malzeme %}
       <p><label for="ic_bant">İç (desenli) bant genişliği (cm) — 0: yok</label><input id="ic_bant" name="ic_bant" type="number" min="0" max="40" step="1" value="{{ v.ic_bant|default:0|floatformat:'-1' }}"></p>
@@ -132,6 +168,15 @@
   .hazir img { width:100%; aspect-ratio:3/4; object-fit:contain; border-radius:6px; background:#26231f; }
   .hazir span { color:#7a6f66; line-height:1.2; }
   .hazir.secili { border-color:var(--ana); background:#fbf6f1; }
+  .fikir-kap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 8px; }
+  #fikirler:empty { display:none; }
+  #fikirler { margin-bottom:10px; }
+  .aile-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+  .aile { position:relative; cursor:pointer; font-weight:normal !important; font-size:12px; text-align:center; }
+  .aile input { position:absolute; opacity:0; pointer-events:none; width:auto !important; }
+  .aile span { display:flex; border:3px solid #e6ddd3; border-radius:8px; overflow:hidden; height:34px; }
+  .aile i { flex:1; background-size:cover; }
+  .aile input:checked + span { border-color:var(--ana); }
   .mal-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); gap:6px; margin-bottom:8px; }
   .mal { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; font-weight:normal !important; font-size:11px; text-align:center; line-height:1.15; }
   .mal span { width:48px; height:48px; border-radius:8px; border:3px solid #e6ddd3; display:block; background-size:cover; }
@@ -199,21 +244,50 @@
     } catch (e) { /* bağlantı yoksa liste eski kalır */ }
   }
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
+  resim.style.cursor = "zoom-in";
+  resim.addEventListener("click", () => window.open(resim.src.replace("b=900", "b=1400"), "_blank"));
   const yakinda = () => { duzenGoster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
   form.addEventListener("input", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
   form.addEventListener("change", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
 
-  document.querySelectorAll(".hazir").forEach((d) => d.addEventListener("click", () => {
-    Object.entries(hazirlar[d.dataset.kod]).forEach(([ad, deg]) => {
+  function uygula(deger, kod) {
+    form.querySelector('[name="hazir"]').value = kod || "";
+    Object.entries(deger).forEach(([ad, deg]) => {
+      if (ad === "hazir") return;
       form.querySelectorAll(`[name="${ad}"]`).forEach((a) => {
         if (a.type === "radio") a.checked = a.value === String(deg);
-        else if (a.type !== "hidden" || ad === "hazir") a.value = String(deg).replace(/\.0$/, "");
+        else if (a.type === "checkbox") a.checked = String(deg) === "on";
+        else a.value = String(deg).replace(/\.0$/, "");
       });
     });
-    if (form.querySelector('[name="cap"]') && hazirlar[d.dataset.kod].cap) form.querySelector('[name="cap"]').value = hazirlar[d.dataset.kod].cap;
+  }
+  function secimiIsaretle(d) {
     document.querySelectorAll(".hazir").forEach((h) => h.classList.toggle("secili", h === d));
     duzenGoster(); guncelle();
+  }
+  document.querySelectorAll(".hazir[data-kod]").forEach((d) => d.addEventListener("click", () => {
+    uygula(hazirlar[d.dataset.kod], d.dataset.kod);
+    secimiIsaretle(d);
   }));
+  document.getElementById("karistir").addEventListener("click", () => {
+    const t = form.querySelector('[name="tohum"]');
+    t.value = (parseInt(t.value || "1", 10) % 9999) + 1;
+    yakinda();
+  });
+  document.getElementById("fikir-dugme").addEventListener("click", async () => {
+    const kap = document.getElementById("fikirler");
+    kap.innerHTML = '<span class="soluk">Fikirler hazırlanıyor…</span>';
+    const q = new URLSearchParams({ en: form.querySelector('[name="en"]').value, boy: form.querySelector('[name="boy"]').value });
+    const liste = await (await fetch("{% url 'parcali_fikir' %}?" + q)).json();
+    kap.innerHTML = "";
+    liste.forEach((f) => {
+      const d = document.createElement("button");
+      d.type = "button"; d.className = "hazir";
+      d.innerHTML = `<img src="${resimAdresi}?b=240&${new URLSearchParams(f.v)}" alt="" loading="lazy"><span>${kac(f.baslik)}</span>`;
+      d.addEventListener("click", () => { uygula(f.v, ""); secimiIsaretle(d); });
+      kap.appendChild(d);
+    });
+  });
   duzenGoster(); guncelle();
 })();
 </script>

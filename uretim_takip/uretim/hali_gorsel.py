@@ -17,6 +17,8 @@ from . import tasarim_cizim as cizim
 VARLIK = Path(__file__).resolve().parent / "tasarim_varlik"
 DOKU_CM = 55  # bir doku parçasının halıda kapladığı genişlik (katalog fotoğraflarından ≈ 3 px/cm)
 DOKU_CM_OZEL = {"dalgali_pelus": 75, "gri_kadife": 30, "varak_altin": 70, "varak_gumus": 60, "varak_sampanya": 70}
+# Atölye malzeme fotoğraflarının gerçek genişliği (cm); kartla ölçüldü (tasarim_varlik/doku/olcek.json)
+DOKU_CM_OZEL.update(json.loads((VARLIK / "doku" / "olcek.json").read_text(encoding="utf-8")))
 SERIT_DOKULAR = {"dalgali_pelus"}  # sıra sıra dalgalı: rastgele yama yerine düz döşenir
 
 
@@ -59,8 +61,10 @@ def doku_doldur(ad, boyut, px_cm):
             for i, x in enumerate(range(0, boyut[0], kw)):
                 tuval.paste(ImageOps.mirror(kaynak) if i % 2 else kaynak, (x, y))
         return tuval
-    pw, ph = max(8, int(kw * 0.6)), max(8, int(kh * 0.6))  # bir yama
-    adim_x, adim_y = max(4, int(pw * 0.75)), max(4, int(ph * 0.75))
+    keten = ad.endswith("_keten")
+    oran_yama, oran_adim = (0.85, 0.55) if keten else (0.6, 0.75)  # keten: büyük, bol örtüşen yama (tekrar belli olmasın)
+    pw, ph = max(8, int(kw * oran_yama)), max(8, int(kh * oran_yama))  # bir yama
+    adim_x, adim_y = max(4, int(pw * oran_adim)), max(4, int(ph * oran_adim))
     rast = random.Random(ad)  # aynı doku her çizimde aynı görünür
     tuval = Image.new("RGB", boyut, kaynak.resize((1, 1)).getpixel((0, 0)))
     maske = _yumusak_maske(pw, ph, max(2, min(pw, ph) // 8))
@@ -70,7 +74,17 @@ def doku_doldur(ad, boyut, px_cm):
             yama = kaynak.crop((sx, sy, sx + pw, sy + ph))
             if rast.random() < 0.5:
                 yama = ImageOps.mirror(yama)
-            tuval.paste(yama, (x + rast.randint(-adim_x // 6, adim_x // 6), y), maske)
+            if keten and rast.random() < 0.5:
+                yama = ImageOps.flip(yama)
+            tuval.paste(yama, (x + rast.randint(-adim_x // 6, adim_x // 6), y + (rast.randint(-adim_y // 6, adim_y // 6)
+                                                                                  if keten else 0)), maske)
+    if keten:  # büyük ölçekli hafif ton dalgası: gerçek malzemedeki gibi geniş açık-koyu bölgeler
+        w, h = boyut
+        dalga = Image.effect_noise((max(2, w // max(8, int(40 * px_cm))) + 2, max(2, h // max(8, int(40 * px_cm))) + 2),
+                                   50).resize(boyut, Image.BICUBIC)
+        acik = ImageChops.add(tuval, Image.new("RGB", boyut, (14, 14, 14)))
+        koyu = ImageChops.subtract(tuval, Image.new("RGB", boyut, (14, 14, 14)))
+        tuval = Image.composite(acik, koyu, dalga)
     return tuval
 
 
@@ -79,7 +93,9 @@ def _var_mi(ad):
 
 
 def alt_katman(ad, boyut, px_cm):
-    """Desen kesiklerinin altında görünen: düz deri, rugan ya da sim."""
+    """Desen kesiklerinin altında görünen: düz deri, rugan ya da sim (fotoğrafı varsa gerçek doku)."""
+    if _var_mi(ad):
+        return doku_doldur(ad, boyut, px_cm)
     taban = Image.new("RGB", boyut, _hex(cizim.ALT_HEX[ad]))
     if ad.endswith("_sim"):
         kum = Image.effect_noise(boyut, 90).point(lambda p: 255 if p > 190 else (0 if p < 70 else 128))

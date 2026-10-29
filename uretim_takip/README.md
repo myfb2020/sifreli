@@ -119,6 +119,9 @@ Süresi aşan işler istasyon ekranında kırmızı görünür. Ofis panosunda d
 
 Bayi menüsünde **🧩 Parçalı tasarım**: halı lazerle kesilen parçalardan kurulur. Düzenler: *dikdörtgen çerçeve* (zemin + dış bant + ara şerit + desenli iç bant; üst/alt bantlar yan bantların arasına uç uca), *oval + nakış şeridi* (iki zemin yarımı + ortadaki nakışlı şerit), *yuvarlak* (orta disk + yay parçalarına bölünmüş desenli halka + dış halka). Her parçanın malzemesi, deseni, desen altı, dikiş payı (0–2 cm) ve kenar (biye / lanfel) seçilir; ekranda canlı görsel ve parça listesi görünür. Hazırlar P-1…P-4 atölye fotoğraflarından.
 
+- **Yeni düzenler:** *şeritler* (dikey/yatay, eşit ya da serbest genişlik), *kare ızgara*, *elmas (45°)*, *iki parçalı* (düz/çapraz); hepsinde isteğe bağlı desenli dış bant. **Renk aileleri** (krem→kahve, beyaz→antrasit, siyah–altın, gri–gümüş, toprak–bakır, siyah–beyaz) ve **dizilim** (merkezden kenara geçiş, dama, karışık; 🎲 Karıştır). Hazırlar P-5…P-8.
+- **💡 Bana fikir ver:** bayinin ölçüsünde, kurallara uyan 6 farklı tasarım önerir; dokununca uygulanır.
+- **Gerçek malzeme dokuları:** atölye fotoğraflarından (keten görünümlüler, varaklar, gümüş sim, siyah simli, ayna altın); ölçek kartla ölçüldü (`tasarim_varlik/doku/olcek.json`). Malzeme adları geçicidir.
 - **Atölye kuralları** (`uretim/parcali.py`): rulo 140 cm, lazer tablası 140×300 cm — sığmayan parçalar bölünür, halkalar en az 4 yay parçasına ayrılır; nakış motifi en çok 40×60 cm, 7 kafalı makineye göre tur sayısı ve "7'nin katı" önerisi.
 - **Ofis:** siparişte **✂️ Kesim listesi ve parçalar**: numaralı parça planı, parça tablosu (paylı kesim ölçüsü, m², istasyon), malzeme başına rulo metresi, nakış adedi/turu, montaj sırası; malzeme başına **lazer DXF** (KESIM paylı hat, DIKIS net hat, parça no ve desen kodu notu). Desen delikleri desenlerin DXF dosyaları gelince eklenecek.
 

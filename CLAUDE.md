@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (105 test) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (107 test) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -39,7 +39,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 │   ├─ Katalog: 13 seri, 192 model (TOS, HMK, IPS, LTS…), 14 lazer deseni DB001–DB014
 │   ├─ Stüdyo (bayi): Kürk (Toskana: dış bant → halka → iç bant → zemin → madalyon) / Suni deri (varak, peluş, kadife, sim/rugan alt, biye)
 │   ├─ Hazırlar: TOS-034…LTS-006, SD-1…SD-4 ; görsel Pillow ile sunucuda çizilir
-│   ├─ **Parçalı (lego) suni deri** /tasarim/parcali/: çerçeve | oval+nakış şeridi | yuvarlak; P-1…P-4; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
+│   ├─ **Parçalı (lego) suni deri** /tasarim/parcali/: çerçeve | oval+nakış şeridi | yuvarlak | şeritler | kare ızgara | elmas | iki parçalı; renk aileleri + dizilim; 💡 fikir ver; P-1…P-8; gerçek malzeme fotoğraf dokuları; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
 │   └─ Gönderim = "Onay bekliyor" sipariş → ofis sipariş sayfasından onay/ret; lazer DXF/SVG (hat + bantlar; DB deseni yalnız not)
 ├─ 4 Hesaplar: Tablet (istasyona bağlı) / Ofis ("Ofis" grubu) / Yönetici / Bayi (yalnız stüdyo + kendi siparişleri)
 ├─ 5 Raporlar: makine, personel-istasyon, bekleme, Excel çıktı; Excel'den aktarma; tablet giriş kaydı
@@ -84,7 +84,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
-- 2026-10-29: Parçalı suni deri tasarım ilk sürüm (3 düzen, kesim listesi, malzeme bazlı DXF). **Kullanıcıya gönderilen son zip bu.** Sıradaki: kullanıcı denemesi, desen DXF'leri, deri/kürk ızgara (kare/elmas/şerit/daire, renk geçişi), istasyonlara parça bazında iş.
+- 2026-10-29: Lanfel hatası düzeltildi (e1c9c76); 16 malzeme fotoğrafından gerçek dokular (kart ölçeği 92.6 px/cm), kabartma + yakınlaştırma; yeni düzenler (şerit/ızgara/elmas/iki parça), renk aileleri, 💡 Bana fikir ver. **Kullanıcıya gönderilen son zip bu.** Bekleyen: malzeme adları (geçici), Odamda gör, istasyonlara parça bazında iş, desen DXF'leri.
+- 2026-10-29: Parçalı suni deri tasarım ilk sürüm (3 düzen, kesim listesi, malzeme bazlı DXF). Sıradaki: kullanıcı denemesi, desen DXF'leri, deri/kürk ızgara (kare/elmas/şerit/daire, renk geçişi), istasyonlara parça bazında iş.
 - 2026-10-29: Stüdyo ve katalogda desen seçimi artık desenin halı köşesindeki görünüşüyle (`tasarim_varlik/desen_onizleme/`).
 - 2026-10-28: Nöbetçi /saglik/, güncelleme öncesi yedek, geri_al.sh, acil durum kartı (349dd1e). 
 - 2026-10-28: Suni deri stüdyo modeli SD-1…4 (31aa3a1); gerçekçi stüdyo + onay siparişte (ffe9748); stüdyo ilk sürüm (e7da1d9); katalog (25cd34c).

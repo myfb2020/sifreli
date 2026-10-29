@@ -1651,3 +1651,53 @@ class ParcaliGorselTumSecenekTesti(TestCase):
                                          "en": en, "boy": boy, "cap": en}, desenler)
                     with self.subTest(kod=kod, kenar=kenar, renk=renk, olcu=(en, boy), uzun=uzun):
                         parcali_gorsel.ciz(v, uzun)
+
+
+class ParcaliYeniDuzenTesti(TasarimStudyosuTesti):
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def test_izgara_elmas_serit_yarim_ve_fikir(self):
+        from . import parcali
+
+        k = {"DB007"}
+        # ızgara: hücre sayısı ve dış bant; tüm parçalar tablaya sığar
+        v = parcali.temizle({"duzen": "izgara", "en": 160, "boy": 240, "hucre": 40, "dis_bant": 10,
+                             "dis_desen": "DB007", "aile": "siyah_altin", "dizilim": "dama"}, k)
+        ps = parcali.parcalar(v)
+        self.assertEqual(len([p for p in ps if p["tur"] == "panel"]), 4 * 6)
+        self.assertEqual(len([p for p in ps if p["desen"] == "DB007"]), 4)
+        self.assertTrue(all(parcali.sigar(p["en"], p["boy"], v["pay"]) for p in ps))
+        self.assertGreater(len({p["malzeme"] for p in ps if p["tur"] == "panel"}), 1)
+        # elmas: parçaların toplam alanı iç alanı doldurur
+        v = parcali.temizle({"duzen": "elmas", "en": 200, "boy": 290, "hucre": 36, "dis_bant": 0}, k)
+        toplam = sum(parcali.alan(p["poli"]) for p in parcali.parcalar(v))
+        self.assertAlmostEqual(toplam, 200 * 290, delta=5)
+        # geçiş: merkez ile köşe farklı renk
+        ps = parcali.parcalar(v)
+        merkez = min(ps, key=lambda p: (sum(x for x, _ in p["poli"]) / len(p["poli"]) - 100) ** 2
+                     + (sum(y for _, y in p["poli"]) / len(p["poli"]) - 145) ** 2)
+        self.assertEqual(merkez["malzeme"], parcali.AILE[v["aile"]][0])
+        # şerit: serbest genişlik, toplam en korunur
+        v = parcali.temizle({"duzen": "seritler", "en": 150, "boy": 220, "serit_sayisi": 6, "serbest": "on", "dis_bant": 0,
+                             "tohum": 5}, k)
+        seritler = [p for p in parcali.parcalar(v) if p["ad"].startswith("Şerit")]
+        self.assertEqual(len(seritler), 6)
+        self.assertAlmostEqual(sum(p["en"] for p in seritler), 150, delta=1)
+        self.assertGreater(len({p["en"] for p in seritler}), 1)
+        # iki parçalı: iki bölge (tablaya sığmayan bölünür), toplam alan halı alanı
+        v = parcali.temizle({"duzen": "yarim", "en": 160, "boy": 230, "bolme": "capraz"}, k)
+        self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in parcali.parcalar(v)), 160 * 230, delta=5)
+        # fikirler: farklı düzenler, hepsi geçerli
+        fikirler = parcali.fikirler(7, 1, k)
+        self.assertEqual(len({f["duzen"] for f in fikirler}), 7)
+
+        self.client.force_login(self.bayi_hesap)
+        liste = self.client.get(reverse("parcali_fikir"), {"en": "160", "boy": "230"}).json()
+        self.assertEqual(len(liste), 6)
+        for f in liste:
+            if f["v"]["duzen"] != "yuvarlak":
+                self.assertEqual((f["v"]["en"], f["v"]["boy"]), (160.0, 230.0))
+        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-7"})
+        self.assertContains(sayfa, "Bana fikir ver")
+        self.assertContains(sayfa, "Renk ailesi")

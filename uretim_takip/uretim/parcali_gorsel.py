@@ -115,7 +115,7 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
 
     # desen maskeleri (tüm halka/çerçeve için bir kez)
     desen_maskeleri = {}
-    if v["duzen"] == "cerceve":
+    if v["duzen"] == "cerceve" or v["duzen"] in pc.IZGARALI:
         d = 0.0
         for gen, desen in ((v["dis_bant"], v["dis_desen"]), (v["ara"], ""), (v["ic_bant"], v["ic_desen"])):
             if gen and desen:
@@ -167,11 +167,19 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
         golge = golge_kaynak.filter(ImageFilter.GaussianBlur(max(2, px * 0.8)))
         golge = ImageChops.subtract(golge, golge_kaynak).point(lambda q: int(q * 0.45))
         resim = Image.composite(Image.new("RGB", boyut, (0, 0, 0)), resim, golge)
-    cizgi = ImageDraw.Draw(resim)
-    kalin = max(1, int(px * 0.25))
+    # kabartma: her parça dikiş yerinde hafifçe içe çöker (gölge), ortası ışık alır
+    dikis = Image.new("L", boyut, 0)
+    cizgi = ImageDraw.Draw(dikis)
+    kalin = max(1, int(px * 0.3))
     for p in parcalar:
         poli = olc(p["poli"])
-        cizgi.line(poli + [poli[0]], fill=(60, 55, 50), width=kalin)
+        cizgi.line(poli + [poli[0]], fill=255, width=kalin)
+    yumusak = dikis.filter(ImageFilter.GaussianBlur(max(1.5, px * 1.2)))
+    resim = Image.composite(Image.new("RGB", boyut, (20, 16, 12)), resim, yumusak.point(lambda q: int(q * 0.55)))
+    isik_kenar = ImageChops.offset(yumusak, -max(1, int(px * 0.6)), -max(1, int(px * 0.6)))
+    isik_kenar = ImageChops.subtract(isik_kenar, yumusak).point(lambda q: int(q * 0.35))
+    resim = Image.composite(Image.new("RGB", boyut, (255, 250, 240)), resim, isik_kenar)
+    resim = Image.composite(Image.new("RGB", boyut, (48, 42, 36)), resim, dikis.point(lambda q: int(q * 0.7)))
 
     # kenar (biye / lanfel)
     dis = _poli_maske(boyut, olc(pc.dis_hat(v)))

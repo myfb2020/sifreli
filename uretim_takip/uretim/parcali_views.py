@@ -55,7 +55,9 @@ def studyo(request):
     hazirlar = [{"kod": k, "ad": a, "deger": _temizle(parcali.hazir_degerler(k))} for k, a, _ in parcali.HAZIRLAR]
     return render(request, "uretim/tasarim_parcali.html", {
         "form": form, "v": veri, "h": hesap(veri), "duzenler": parcali.DUZENLER, "malzemeler": parcali.MALZEMELER,
-        "altlar": parcali.ALTLAR, "nakislar": parcali.NAKISLAR, "kenarlar": parcali.KENARLAR,
+        "altlar": parcali.ALTLAR, "nakislar": parcali.NAKISLAR, "aileler": parcali.AILELER,
+        "dizilimler": parcali.DIZILIMLER, "yonler": [("dikey", "Dikey"), ("yatay", "Yatay")],
+        "bolmeler": [("capraz", "Çapraz"), ("duz", "Düz (ortadan)")], "kenarlar": parcali.KENARLAR,
         "kenar_renkleri": parcali.KENAR_RENKLERI, "desenler": desenler, "hazirlar": hazirlar,
         "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "kurallar": {
             "rulo": parcali.RULO_ENI, "tabla": parcali.TABLA_BOYU, "nakis": f"{parcali.NAKIS_EN}×{parcali.NAKIS_BOY}",
@@ -67,6 +69,22 @@ def studyo(request):
 def onizleme(request):
     v = _temizle(request.GET)
     return JsonResponse({"v": v, **hesap(v)})
+
+
+@login_required
+def fikir(request):
+    """'Bana fikir ver': kurallara uygun 6 farklı öneri (bayi ölçüsü korunur)."""
+    try:
+        olcu = (float(request.GET["en"]), float(request.GET["boy"]))
+    except (KeyError, ValueError):
+        olcu = None
+    sonuc = []
+    for v in parcali.fikirler(6, None, _desen_kodlari(), olcu):
+        ad = dict((k, a) for k, a, _ in parcali.DUZENLER)[v["duzen"]]
+        aile = dict((k, a) for k, a, _ in parcali.AILELER).get(v.get("aile"), "")
+        sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()},
+                      "baslik": f"{ad}" + (f" · {aile}" if v["duzen"] in parcali.IZGARALI[:3] else "")})
+    return JsonResponse(sonuc, safe=False)
 
 
 @login_required
