@@ -1,17 +1,20 @@
 {% extends "base.html" %}
-{% block baslik %}Parçalı Tasarım{% endblock %}
+{% block baslik %}Suni Deri Halı{% endblock %}
 {% block icerik %}
-<h1 style="margin-top:0">🧩 Parçalı suni deri halı</h1>
-<p class="soluk">Halınız iç içe halkalardan ve ortadaki büyük parçadan oluşur; atölyede lazerle kesilip zig-zag ile dikilir. Adım adım seçin, resim hemen değişir.</p>
+<h1 style="margin-top:0">🧩 Suni deri halı tasarla</h1>
+<p class="soluk">Katalogdan bir model seçin: olduğu gibi sipariş edin ya da o modelden başlayıp renk, bant, desen ve ölçüyü değiştirin.</p>
 
 <form method="post" class="studyo dikey" id="studyo">
   {% csrf_token %}
   <input type="hidden" name="duzen" value="halkali">
   <input type="hidden" name="hazir" value="{{ v.hazir }}">
+  <input type="hidden" name="katalog" value="{{ v.katalog }}">
+  <input type="hidden" name="aynen" value="{{ v.aynen }}">
   <input type="hidden" name="pay" value="{{ v.pay|floatformat:'-1' }}">
   <input type="hidden" name="halka_sayisi" id="halka_sayisi" value="{{ v.halka_sayisi }}">
   <div class="studyo-onizleme kart">
     <img id="onizleme" alt="Halı önizlemesi" src="{% url 'parcali_onizleme_resmi' %}?b=900">
+    <div id="aynen-not" class="aynen-not" hidden>📷 Katalog modeli <b id="aynen-kod"></b> olduğu gibi sipariş edilecek. <button type="button" class="btn kucuk ikincil" id="aynen-birak">Değiştirmek istiyorum</button></div>
     <div class="soluk" style="font-size:12px;text-align:center">🔍 Büyük görmek için resme dokunun</div>
     <div id="ozet" class="soluk">{{ h.ozet }}</div>
     <button type="button" id="rozet" class="rozet{% if h.uyarilar %} sorun{% endif %}" aria-expanded="false">{% if h.uyarilar %}⚠ {{ h.uyarilar|length }} uyarı{% else %}✓ Üretilebilir{% endif %}</button>
@@ -35,11 +38,17 @@
         <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" min="60" max="600" step="5" value="{{ v.boy|floatformat:'-1' }}"></p>
       </div>
       <p class="soluk" style="margin-top:0">Oval seçip eni ve boyu eşit yazarsanız halı yuvarlak olur.</p>
-      <label class="alt-baslik">Hazır bir halıdan başlayın (isterseniz)</label>
-      <div class="hazir-izgara">
-        {% for h in hazirlar %}<button type="button" class="hazir{% if v.hazir == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}">
-          {% if h.foto %}<img src="{% url 'parcali_hazir_foto' h.kod %}" alt="" loading="lazy"><em class="gercek">📷 Gerçek ürün</em>{% else %}<img src="{% url 'parcali_onizleme_resmi' %}?b=240&amp;hazir={{ h.kod }}&amp;{% for a, d in h.deger.items %}{{ a }}={{ d|urlencode }}&amp;{% endfor %}" alt="" loading="lazy">{% endif %}
-          <span>{{ h.ad }}</span></button>{% endfor %}
+      <label class="alt-baslik">Katalogdan model seçin</label>
+      <div class="seri-sekme" role="tablist">{% for sr in seriler %}<button type="button" data-seri="{{ sr.on }}"{% if forloop.first %} class="etkin"{% endif %}>{{ sr.ad }} <small>({{ sr.modeller|length }})</small></button>{% endfor %}</div>
+      {% for sr in seriler %}<div class="hazir-izgara katalog-izgara" data-seri-izgara="{{ sr.on }}"{% if not forloop.first %} hidden{% endif %}>
+        {% for m in sr.modeller %}<button type="button" class="hazir katalog-model{% if v.katalog == m.kod %} secili{% endif %}" data-kod="{{ m.kod }}" data-resim="{{ m.resim }}"{% if m.duzenlenir %} data-duzenlenir="1"{% endif %}>
+          <img src="{{ m.resim }}" alt="" loading="lazy"><span>{{ m.kod }}</span></button>{% endfor %}
+      </div>{% endfor %}
+      <div class="model-secim" id="model-secim" hidden>
+        <b id="model-secim-kod"></b>
+        <button type="button" class="btn" id="aynen-sec">🛒 Bu modeli olduğu gibi sipariş et</button>
+        <button type="button" class="btn ikincil" id="basla-sec">✏️ Bu modelden başla, değiştir</button>
+        <span class="soluk" id="basla-yok" hidden>Bu modelin yapısı düzenleyicide henüz yok; olduğu gibi sipariş edilebilir.</span>
       </div>
       <div class="fikir-kap">
         <button type="button" class="btn" id="fikir-dugme">💡 Bana fikir ver</button>
@@ -85,6 +94,21 @@
       {% include "uretim/_malzeme_secimi.html" with alan="zemin" secili=v.zemin %}
       <label class="alt-baslik">Ortaya ne konsun?</label>
       <div class="secim-izgara">{% for k, ad in orta_turleri %}<label class="secim"><input type="radio" name="orta" value="{{ k }}"{% if v.orta == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+      <div data-kosul="orta=duz">
+        <label class="alt-baslik">Ortada madalyon (yuvarlak parça)</label>
+        <div class="secim-izgara">{% for k, ad in madalyonlar %}<label class="secim"><input type="radio" name="madalyon" value="{{ k }}"{% if v.madalyon == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+        <div data-kosul="madalyon=duz,nakisli">
+          <p><label for="madalyon_cap">Madalyon çapı (cm)</label><input id="madalyon_cap" name="madalyon_cap" type="number" min="15" max="80" step="1" value="{{ v.madalyon_cap|floatformat:'-1' }}"></p>
+          <label class="alt-baslik">Madalyon malzemesi</label>
+          {% include "uretim/_malzeme_secimi.html" with alan="madalyon_malzeme" secili=v.madalyon_malzeme %}
+          <label class="alt-baslik">Madalyon çerçevesi (3 cm halka)</label>
+          <div class="secim-izgara"><label class="secim"><input type="radio" name="madalyon_cerceve" value=""{% if not v.madalyon_cerceve %} checked{% endif %}><span>Yok</span></label><label class="secim"><input type="radio" name="madalyon_cerceve" value="altin"{% if v.madalyon_cerceve == "altin" %} checked{% endif %}><span>Altın</span></label><label class="secim"><input type="radio" name="madalyon_cerceve" value="gumus"{% if v.madalyon_cerceve == "gumus" %} checked{% endif %}><span>Gümüş</span></label></div>
+        </div>
+        <div data-kosul="madalyon=nakisli">
+          <label class="alt-baslik">Madalyondaki nakış</label>
+          {% include "uretim/_motif_secimi.html" with alan="madalyon_motif" secili=v.madalyon_motif %}
+        </div>
+      </div>
       <div data-kosul="orta=panel">
         <label class="alt-baslik">Kaç motif? (alt alta, aynı panelde)</label>
         <div class="secim-izgara">{% for n in "123" %}<label class="secim"><input type="radio" name="motif_adet" value="{{ n }}"{% if v.motif_adet|stringformat:"s" == n %} checked{% endif %}><span>{{ n }}</span></label>{% endfor %}</div>
@@ -188,6 +212,16 @@
   .motif:has(input:checked) { border-color:var(--ana); background:#fbf6f1; }
   .iplik-renk { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:5px; vertical-align:-1px; border:1px solid #0003; }
   .hazir { position:relative; }
+  .seri-sekme { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .seri-sekme button { border:1px solid #d9cfc4; background:#fff; border-radius:18px; padding:6px 12px; font:inherit; cursor:pointer; }
+  .seri-sekme button.etkin { background:var(--ana); color:#fff; border-color:var(--ana); }
+  .katalog-izgara { max-height:420px; overflow-y:auto; padding-right:2px; }
+  .katalog-izgara[hidden] { display:none; }
+  .katalog-model img { aspect-ratio:3/4; object-fit:cover; }
+  .model-secim { position:sticky; bottom:0; background:#fbf6f1; border:2px solid var(--ana); border-radius:10px; padding:10px; margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .model-secim[hidden] { display:none; }
+  .aynen-not { background:#2f4a2c; color:#d9f0d4; border-radius:8px; padding:8px; margin:6px 0; font-size:14px; }
+  .aynen-not[hidden] { display:none; }
   .gercek { position:absolute; top:6px; left:6px; background:#000a; color:#fff; font-style:normal; font-size:10px; padding:1px 5px; border-radius:6px; }
   .hazir-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; }
   .hazir { border:2px solid #e6ddd3; border-radius:10px; background:#fff; padding:4px; cursor:pointer; text-align:center; font:inherit; font-size:12px; display:flex; flex-direction:column; gap:2px; }
@@ -291,8 +325,15 @@
   }
   async function guncelle() {
     const benim = ++sira, q = sorgu();
-    resim.classList.add("bekle");
-    resim.src = resimAdresi + "?b=900&" + q;
+    const aynen = form.querySelector('[name="aynen"]').value;
+    document.getElementById("aynen-not").hidden = !aynen;
+    if (aynen) {
+      document.getElementById("aynen-kod").textContent = form.querySelector('[name="katalog"]').value;
+      resim.src = katalogResmi();
+    } else {
+      resim.classList.add("bekle");
+      resim.src = resimAdresi + "?b=900&" + q;
+    }
     try {
       const j = await (await fetch(veriAdresi + "?" + q)).json();
       if (benim !== sira) return;
@@ -333,6 +374,9 @@
   uyarilariGoster(JSON.parse(document.getElementById("ilk-uyarilar").textContent), {{ h.kalan_yer|stringformat:"s" }});
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
   const yakinda = () => { goster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
+  const aynenBirak = (e) => { if (!siparisAlanlari.includes(e.target.name) && !["en", "boy"].includes(e.target.name)) form.querySelector('[name="aynen"]').value = ""; };
+  form.addEventListener("input", aynenBirak);
+  form.addEventListener("change", aynenBirak);
   form.addEventListener("input", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
   form.addEventListener("change", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });
 
@@ -340,7 +384,7 @@
   const buyuk = document.getElementById("buyuk"), buyukIc = document.getElementById("buyuk-ic");
   const buyukResim = document.getElementById("buyuk-resim");
   function ac() {
-    buyukResim.src = resimAdresi + "?b=1400&" + sorgu();
+    buyukResim.src = form.querySelector('[name="aynen"]').value ? katalogResmi() : resimAdresi + "?b=1400&" + sorgu();
     buyukIc.classList.remove("yakin");
     buyuk.hidden = false; document.body.style.overflow = "hidden";
     history.pushState({ buyuk: 1 }, "");
@@ -367,10 +411,39 @@
     document.querySelectorAll(".hazir").forEach((h) => h.classList.toggle("secili", h === d));
     goster(); guncelle();
   }
-  document.querySelectorAll(".hazir[data-kod]").forEach((d) => d.addEventListener("click", () => {
-    uygula(hazirlar[d.dataset.kod], d.dataset.kod);
-    secimiIsaretle(d);
+  // katalog: seri sekmeleri; bir modele dokununca "olduğu gibi sipariş" ya da "bu modelden başla"
+  const katalogResmi = () => (document.querySelector(`.katalog-model[data-kod="${form.querySelector('[name="katalog"]').value}"]`) || {}).dataset?.resim || "";
+  document.querySelectorAll(".seri-sekme button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".seri-sekme button").forEach((x) => x.classList.toggle("etkin", x === b));
+    document.querySelectorAll("[data-seri-izgara]").forEach((g) => { g.hidden = g.dataset.seriIzgara !== b.dataset.seri; });
   }));
+  let secilen = null;
+  const secimKutusu = document.getElementById("model-secim");
+  document.querySelectorAll(".katalog-model").forEach((d) => d.addEventListener("click", () => {
+    secilen = d;
+    document.querySelectorAll(".hazir").forEach((h) => h.classList.toggle("secili", h === d));
+    document.getElementById("model-secim-kod").textContent = d.dataset.kod;
+    document.getElementById("basla-sec").hidden = !d.dataset.duzenlenir;
+    document.getElementById("basla-yok").hidden = !!d.dataset.duzenlenir;
+    secimKutusu.hidden = false;
+  }));
+  document.getElementById("aynen-sec").addEventListener("click", () => {
+    if (hazirlar[secilen.dataset.kod]) uygula(hazirlar[secilen.dataset.kod], secilen.dataset.kod);
+    form.querySelector('[name="katalog"]').value = secilen.dataset.kod;
+    form.querySelector('[name="aynen"]').value = "on";
+    secimKutusu.hidden = true; guncelle(); adimaGit(5);
+  });
+  document.getElementById("basla-sec").addEventListener("click", () => {
+    uygula(hazirlar[secilen.dataset.kod], secilen.dataset.kod);
+    form.querySelector('[name="katalog"]').value = secilen.dataset.kod;
+    form.querySelector('[name="aynen"]').value = "";
+    secimKutusu.hidden = true; secimiIsaretle(secilen);
+  });
+  document.getElementById("aynen-birak").addEventListener("click", () => {
+    form.querySelector('[name="aynen"]').value = "";
+    if (!hazirlar[form.querySelector('[name="katalog"]').value]) form.querySelector('[name="katalog"]').value = "";
+    guncelle(); adimaGit(1);
+  });
   document.getElementById("fikir-dugme").addEventListener("click", async () => {
     const kap = document.getElementById("fikirler");
     kap.innerHTML = '<span class="soluk">Fikirler hazırlanıyor…</span>';

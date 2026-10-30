@@ -12,7 +12,6 @@ from . import parcali as pc
 from . import tasarim_cizim as cizim
 
 NAKIS_KLASORU = Path(__file__).resolve().parent / "tasarim_varlik" / "nakis"
-HAZIR_FOTO_KLASORU = Path(__file__).resolve().parent / "tasarim_varlik" / "hazir_foto"
 KENAR_HEX = {"altin": "#d6b26a", "gumus": "#c2c5c9", "siyah": "#1c1b1a", "beyaz": "#f1ede4", "bej": "#cdbd9f"}
 
 

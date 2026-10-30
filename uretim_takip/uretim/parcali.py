@@ -48,6 +48,18 @@ DIZILIMLER = [("gecis", "Merkezden kenara geçiş"), ("dama", "Dama (sırayla)")
 
 # Suni deri malzemeler: doku = fotoğraf dokusu (tasarim_varlik/doku), yoksa renk.
 MALZEMELER = [
+    # katalogdaki lazer serilerinin malzemeleri (İpek Peluş, Peluche, Bienca, Rono); adlar geçici
+    ("pelus_krem", "Krem peluş", "#e8dfcf"),
+    ("pelus_beyaz", "Beyaz peluş", "#efece6"),
+    ("pelus_gri", "Gri peluş", "#9a9a9c"),
+    ("pelus_vizon", "Vizon peluş", "#8c7a68"),
+    ("pelus_taba", "Taba peluş", "#96552d"),
+    ("pelus_pembe", "Pembe peluş", "#deb4b4"),
+    ("pelus_lacivert", "Lacivert peluş", "#283458"),
+    ("pelus_siyah", "Siyah peluş", "#262424"),
+    ("bienca_krem", "Bienca krem (gümüş-siyah varak)", "#d8d2c8"),
+    ("bienca_gri", "Bienca gri (gümüş varak)", "#9c9a96"),
+    ("rona_kahve_simli", "Rona kahve simli", "#4a4038"),
     # keten görünümlü suni deriler (atölye fotoğrafları; adlar geçici)
     ("beyaz_keten", "Kırık beyaz keten", "#e6e2d8"),
     ("krem_keten", "Krem keten", "#d9d0bd"),
@@ -83,35 +95,22 @@ NAKISLAR = [("yok", "Nakış yok"), ("grek_kare", "Grek kare (altın iplik)"), (
 
 # Nakış makinesindeki motifler (atölyenin nakış kataloğundan; ölçüler nakış dosyasındaki gibi, cm).
 # tur "serit": uç uca dizilmek için yapılmış bant motifi; "tek": tek başına motif.
-# Marka logoları (FF, GG, LV, Medusa) bilerek listede yok. Maske: tasarim_varlik/nakis/<kod>.png
+# Marka logoları (FF, GG, LV, Medusa) ve görüntüsü bozuk olanlar (2026-10-30, kullanıcı onayı) listede yok. Maske: tasarim_varlik/nakis/<kod>.png
 NAKIS_MOTIFLERI = [
     ("61.01", "Grek madalyon", 11.5, 11.5, "tek"),
     ("61.02", "Grek madalyon (kalın)", 11.4, 11.4, "tek"),
     ("54.01", "Grek kare küçük", 7.5, 7.5, "tek"),
     ("60.03", "Grek köşe", 10.7, 10.0, "tek"),
     ("56.01", "Bienna Fur logo", 15.0, 15.0, "tek"),
-    ("82.01", "Soyut kare", 18.0, 18.0, "tek"),
     ("73.01", "Kare ve sütun", 33.9, 33.9, "tek"),
-    ("55.02", "Dörtlü Grek kare", 40.0, 40.0, "tek"),
-    ("55.01", "Altılı Grek kare", 40.0, 65.0, "tek"),
-    ("55.03", "Altılı Grek kare (ince)", 40.0, 65.0, "tek"),
-    ("75.01", "Dörtlü çerçeveli kare", 40.0, 43.0, "tek"),
-    ("76.02", "Altılı madalyon", 40.0, 39.0, "tek"),
-    ("74.03", "Üçlü Grek çizgi", 37.7, 49.4, "tek"),
     ("57.01", "Elmas kafes", 40.0, 25.0, "tek"),
-    ("79.01", "Çiçekli dal", 40.0, 18.0, "tek"),
-    ("81.01", "Dalga", 40.0, 18.0, "tek"),
     ("60.01", "Grek şerit", 40.0, 10.0, "serit"),
     ("60.05", "Grek şerit (çift çizgi)", 40.0, 10.0, "serit"),
     ("68.01", "İnce Grek şerit", 40.0, 6.0, "serit"),
     ("61.03", "İkili Grek madalyon", 38.3, 10.0, "serit"),
     ("76.03", "İkili madalyon", 40.0, 15.0, "serit"),
     ("74.01", "Grek çizgi bant", 37.7, 8.1, "serit"),
-    ("62.01", "Düğüm şerit", 40.0, 9.8, "serit"),
-    ("63.03", "İkili düğüm", 40.0, 10.0, "serit"),
-    ("63.01", "Geniş düğüm şerit", 40.0, 25.6, "serit"),
     ("65.01", "İnce zincir", 39.7, 3.2, "serit"),
-    ("66.01", "İnce zincir 2", 39.2, 2.9, "serit"),
 ]
 MOTIF = {k: {"ad": a, "en": e, "boy": b, "tur": t} for k, a, e, b, t in NAKIS_MOTIFLERI}
 MOTIFLER = [(k, f"{k} {a}") for k, a, _, _, _ in NAKIS_MOTIFLERI]
@@ -120,6 +119,8 @@ IPLIKLER = [("altin", "Altın", "#c9a75e"), ("gumus", "Gümüş", "#c2c5c9"), ("
             ("beyaz", "Beyaz", "#f1ede4"), ("kahve", "Kahve", "#6b5440"), ("siyah", "Siyah", "#1e1d1c")]
 IPLIK_HEX = {k: h for k, _, h in IPLIKLER}
 MOTIF_PAY = 2  # motifin iki yanında kalan en az pay (cm)
+GIZLI_DESENLER = {"DB002", "DB007", "DB010", "DB011"}  # suni deri tasarımda gösterilmeyen lazer desenleri
+MADALYONLAR = [("yok", "Yok"), ("duz", "Düz"), ("nakisli", "Nakışlı")]
 
 
 def motif_kisa(kod):
@@ -140,6 +141,8 @@ VARSAYILAN = {
     "h3_tur": "duz", "h3_gen": 8, "h3_malzeme": "antrasit_keten", "h3_desen": "", "h3_nakis": "61.01",
     "h4_tur": "duz", "h4_gen": 8, "h4_malzeme": "beyaz_keten", "h4_desen": "", "h4_nakis": "61.01",
     "orta": "duz", "panel_en": 40, "panel_boy": 60, "panel_malzeme": "beyaz_keten", "motif_adet": 1, "iplik": "altin",
+    "madalyon": "yok", "madalyon_cap": 28, "madalyon_malzeme": "pelus_krem", "madalyon_cerceve": "varak_altin",
+    "madalyon_motif": "61.01",
     "serit_tur": "desenli", "serit_yon": "boyuna", "serit_adet": 1, "serit_desen": "DB003",
     # çerçeve
     "dis_bant": 8, "dis_malzeme": "antrasit_keten", "dis_desen": "",
@@ -166,53 +169,116 @@ def _h(*halkalar):
     return d
 
 
-# Atölye halıları (başlangıç noktası). Fotoğrafı olanların kartında gerçek ürün fotoğrafı görünür
-# (tasarim_varlik/hazir_foto/<kod>.jpg); değerler o halıya en yakın parçalı tasarımdır.
-HAZIRLAR = [
-    ("P-1", "Krem düz halka, koyu lazer desenli halka", {
-        "sekil": "dikdortgen", "en": 80, "boy": 150, **_h(("duz", 11, "beyaz_keten", ""), ("desenli", 12, "antrasit_keten", "DB003")),
-        "zemin": "beyaz_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "siyah"}),
-    ("P-2", "Altın varak, lazer desenli çerçeve", {
-        "sekil": "dikdortgen", "en": 100, "boy": 150, **_h(("desenli", 14, "varak_altin", "DB009")),
-        "zemin": "varak_altin", "orta": "duz", "kenar": "biye", "kenar_renk": "altin"}),
-    ("P-3", "Bej oval, nakışlı şerit", {
-        "sekil": "oval", "en": 130, "boy": 190, "halka_sayisi": 0, "zemin": "bej_keten", "orta": "serit",
-        "serit_tur": "nakisli", "serit_yon": "boyuna", "serit_adet": 1, "serit": 16, "serit_malzeme": "beyaz_keten",
-        "nakis": "61.01", "iplik": "bej", "aralik": 3, "kenar": "biye", "kenar_renk": "bej"}),
-    ("P-4", "Yuvarlak: siyah kadife, gümüş desenli halka", {
-        "sekil": "oval", "en": 200, "boy": 200, **_h(("duz", 26, "siyah_kadife", ""), ("desenli", 18, "varak_gumus", "DB006")),
-        "zemin": "siyah_kadife", "orta": "duz", "kenar": "biye", "kenar_renk": "siyah"}),
-    ("P-5", "Altın varak, desenli çerçeve ve uç panelleri", {
-        "sekil": "dikdortgen", "en": 160, "boy": 240, **_h(("desenli", 18, "varak_altin", "DB008")),
-        "zemin": "varak_altin", "orta": "serit", "serit_tur": "desenli", "serit_yon": "enine", "serit_adet": 2,
-        "serit": 18, "serit_malzeme": "varak_altin", "serit_desen": "DB008", "kenar": "biye", "kenar_renk": "altin"}),
-    ("P-6", "Oval: krem ve haki halkalar", {
-        "sekil": "oval", "en": 100, "boy": 180, **_h(("duz", 14, "krem_keten", ""), ("duz", 14, "vizon_keten", "")),
-        "zemin": "krem_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "bej"}),
-    ("P-7", "Oval krem, ince varak halka", {
-        "sekil": "oval", "en": 100, "boy": 180, **_h(("duz", 16, "beyaz_keten", ""), ("duz", 4, "varak_altin", "")),
-        "zemin": "beyaz_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "beyaz"}),
-    ("P-8", "Varak çerçeve, krem orta", {
-        "sekil": "dikdortgen", "en": 120, "boy": 180, **_h(("duz", 24, "varak_altin", "")),
-        "zemin": "beyaz_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "beyaz"}),
-    ("P-9", "Gri-krem uzun halı", {
-        "sekil": "dikdortgen", "en": 80, "boy": 240, **_h(("duz", 4, "gri_keten", ""), ("duz", 12, "beyaz_keten", ""),
-                                                            ("duz", 10, "gri_keten", "")),
-        "zemin": "beyaz_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "beyaz"}),
-    ("P-10", "Desenli halka, orta Grek nakış paneli", {
-        "sekil": "dikdortgen", "en": 120, "boy": 180, **_h(("desenli", 12, "kahve_keten", "DB001"), ("duz", 10, "krem_keten", "")),
-        "zemin": "krem_keten", "orta": "panel", "panel_malzeme": "kahve_keten", "nakis": "55.02", "motif_adet": 1,
-        "iplik": "altin", "kenar": "biye", "kenar_renk": "altin"}),
-    ("P-11", "Siyah-altın, nakışlı Grek şerit halkası", {
-        "sekil": "dikdortgen", "en": 160, "boy": 230,
-        **_h(("duz", 8, "siyah_keten", ""), ("desenli", 12, "varak_altin", "DB007"), ("nakisli", 14, "beyaz_keten", "60.01")),
-        "zemin": "siyah_keten", "orta": "duz", "iplik": "altin", "kenar": "biye", "kenar_renk": "altin"}),
-    ("P-12", "Oval: nakışlı halka, ortada üç madalyon", {
-        "sekil": "oval", "en": 150, "boy": 220, **_h(("duz", 12, "kahve_keten", ""), ("nakisli", 16, "krem_keten", "61.02")),
-        "zemin": "bej_keten", "orta": "panel", "panel_malzeme": "krem_keten", "nakis": "61.01", "motif_adet": 3,
-        "iplik": "kahve", "kenar": "lanfel", "kenar_renk": "bej"}),
-]
-HAZIR_FOTO = {"P-1", "P-2", "P-3", "P-4", "P-5", "P-6", "P-7", "P-8", "P-9"}
+# Hazır modeller = katalogdaki tamamen lazerle üretilen seriler (İpek Peluş, Bienca, Peluche, Rono).
+# Kartta katalog fotoğrafı görünür (katalog_tohum/model). Değerler o modele en yakın tasarımdır; programın henüz
+# kuramadığı yapıdaki modeller (çapraz/kavisli çizgi, köşe parçası, dama) yalnız "olduğu gibi sipariş" edilir.
+G = "DB015"  # Grek bant (lazer)
+
+
+def _k(zemin, *halkalar, sekil="dikdortgen", en=160, boy=230, madalyon=None, **ek):
+    d = {"sekil": sekil, "en": en, "boy": boy, "zemin": zemin, "orta": "duz", **_h(*halkalar), **ek}
+    if madalyon:
+        cerceve = next((h[2] for h in halkalar if h[2] in ("altin", "gumus")), "altin")
+        d.update(madalyon="duz", madalyon_malzeme=madalyon, madalyon_cerceve=cerceve, madalyon_cap=28)
+    return d
+
+
+def _serit(zemin, halka, tur, yon, adet, gen, mal, desen):
+    return _k(zemin, halka, orta="serit", serit_tur=tur, serit_yon=yon, serit_adet=adet, serit=gen,
+              serit_malzeme=mal, serit_desen=desen)
+
+
+A, GU = "altin", "gumus"  # katalogdaki bantlar düz metalik
+KATALOG_SERILERI = [("IPS", "İpek Peluş"), ("BNA", "Bienca"), ("PCH", "Peluche"), ("RNO", "Rono")]
+KATALOG_DEGER = {
+    # İpek Peluş
+    "IPS-435": _k("pelus_krem", ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-439": _k("pelus_krem", ("duz", 8, A, ""), madalyon="pelus_krem"),
+    "IPS-440": _k("pelus_gri", ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-442": _k("pelus_siyah", ("duz", 5, A, ""), ("duz", 14, "pelus_siyah", ""), ("duz", 3, "pelus_beyaz", "")),
+    "IPS-448": _k("pelus_krem", ("desenli", 10, A, G), ("duz", 8, "pelus_krem", ""), ("duz", 3, A, ""), madalyon="pelus_krem"),
+    "IPS-449": _k("pelus_krem", ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-451": _k("pelus_gri", ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-452": _k("pelus_krem", ("desenli", 10, GU, G), madalyon="pelus_beyaz"),
+    "IPS-453": _k("pelus_gri", ("duz", 10, GU, ""), ("duz", 6, "pelus_gri", ""), ("duz", 3, GU, "")),
+    "IPS-454": _k("pelus_krem", ("duz", 14, A, ""), madalyon="pelus_krem"),
+    "IPS-455": _k("pelus_siyah", ("duz", 10, A, ""), ("duz", 10, "pelus_siyah", ""), ("duz", 3, A, "")),
+    "IPS-456": _k("pelus_beyaz", ("duz", 12, GU, ""), madalyon="pelus_beyaz"),
+    "IPS-457": _k("pelus_siyah", ("desenli", 10, A, G), ("duz", 10, "pelus_siyah", ""), ("duz", 3, "pelus_beyaz", ""),
+                  madalyon="pelus_beyaz"),
+    "IPS-458": _k("pelus_siyah", ("desenli", 10, A, G), ("duz", 12, "pelus_siyah", ""), ("duz", 3, "pelus_beyaz", ""),
+                  madalyon="pelus_krem"),
+    "IPS-459": _k("pelus_krem", ("duz", 14, A, "")),
+    "IPS-460": _k("pelus_siyah", ("duz", 12, A, ""), madalyon="pelus_krem"),
+    "IPS-461": _k("pelus_krem", ("duz", 10, A, ""), madalyon="pelus_krem"),
+    "IPS-462": _k("pelus_siyah", ("duz", 3, A, ""), ("duz", 10, "pelus_siyah", ""), ("duz", 3, A, "")),
+    "IPS-463": _k("pelus_krem", ("duz", 14, "pelus_siyah", ""), ("desenli", 10, GU, G), madalyon="pelus_pembe"),
+    "IPS-465": _k("pelus_krem", ("duz", 14, "pelus_siyah", ""), ("duz", 8, A, "")),
+    "IPS-466": _k("pelus_krem", ("duz", 10, A, "")),
+    "IPS-467": _k("pelus_taba", ("desenli", 10, "pelus_beyaz", G), ("duz", 10, "pelus_taba", ""), ("duz", 3, "pelus_beyaz", ""),
+                  madalyon="pelus_beyaz"),
+    "IPS-468": _k("pelus_beyaz", ("duz", 10, "pelus_krem", "")),
+    "IPS-469": _k("pelus_taba", ("desenli", 12, "pelus_beyaz", G), sekil="oval"),
+    "IPS-470": _k("pelus_krem", ("duz", 14, "pelus_siyah", ""), ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-471": _k("pelus_gri", ("desenli", 10, GU, G), madalyon="pelus_beyaz"),
+    "IPS-473": _k("pelus_krem", ("duz", 10, "pelus_pembe", ""), ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-475": _k("pelus_siyah", ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-476": _k("pelus_siyah", ("desenli", 10, GU, G), madalyon="pelus_beyaz"),
+    "IPS-477": _k("pelus_krem", ("desenli", 10, A, G), madalyon="pelus_krem"),
+    "IPS-478": _k("pelus_siyah", ("desenli", 10, GU, G), madalyon="pelus_beyaz"),
+    "IPS-481": _k("pelus_krem", ("duz", 14, "pelus_siyah", ""), ("desenli", 10, GU, G), madalyon="pelus_krem"),
+    "IPS-482": _k("pelus_krem", ("duz", 12, "pelus_pembe", ""), ("desenli", 8, A, G), sekil="oval"),
+    "IPS-483": _k("pelus_beyaz", ("desenli", 8, A, G), sekil="oval", en=100),
+    "IPS-484": _k("pelus_siyah", ("duz", 20, "pelus_siyah", ""), ("desenli", 10, GU, G), sekil="oval", en=200, boy=200,
+                  madalyon="pelus_beyaz"),
+    "IPS-485": _k("pelus_siyah", ("duz", 12, "pelus_siyah", ""), ("desenli", 8, GU, G), ("duz", 14, "pelus_siyah", ""),
+                  ("desenli", 6, GU, G), sekil="oval", en=200, boy=200, madalyon="pelus_beyaz"),
+    # Bienca
+    "BNA-001": _k("bienca_krem", ("desenli", 8, "bienca_krem", "DB005")),
+    "BNA-002": _k("bienca_gri", ("desenli", 18, GU, "DB003")),
+    "BNA-003": _k("pelus_krem", ("desenli", 18, "bienca_krem", "DB013")),
+    "BNA-004": _k("bakir_varak", ("desenli", 16, A, "DB001")),
+    "BNA-005": _k("bienca_gri", ("desenli", 14, "bienca_gri", "DB005")),
+    "BNA-006": _k("bienca_gri", ("desenli", 10, "bienca_gri", "DB009")),
+    "BNA-007": _k("bienca_krem", ("desenli", 12, "bienca_krem", "DB004")),
+    "BNA-008": _k("bienca_krem", ("desenli", 12, "bienca_krem", "DB013")),
+    "BNA-009": _k("bienca_krem", ("desenli", 8, A, "DB001")),
+    "BNA-010": _k("pelus_taba", ("duz", 4, A, ""), ("desenli", 16, "bienca_gri", "DB005"), sekil="oval"),
+    "BNA-011": _k("pelus_siyah", ("duz", 4, A, ""), ("duz", 22, "bienca_gri", "")),
+    "BNA-013": _k("pelus_taba", ("duz", 26, "bienca_gri", "")),
+    "BNA-014": _k("pelus_lacivert", ("desenli", 16, "bienca_krem", "DB013")),
+    "BNA-015": _k("pelus_lacivert", ("desenli", 18, "bienca_gri", "DB006"), sekil="oval"),
+    "BNA-016": _k("bienca_krem", ("desenli", 14, "bienca_krem", "DB003"), sekil="oval"),
+    "BNA-017": _serit("bienca_gri", ("duz", 4, "bienca_gri", ""), "desenli", "enine", 2, 30, "bienca_gri", "DB005"),
+    "BNA-018": _k("bienca_krem", ("desenli", 16, "bakir_varak", "DB001")),
+    "BNA-019": _k("bienca_krem", ("desenli", 16, "bienca_gri", "DB004")),
+    "BNA-021": _serit("pelus_lacivert", ("duz", 3, A, ""), "desenli", "boyuna", 2, 18, A, "DB009"),
+    "BNA-025": _k("pelus_siyah", ("duz", 3, A, ""), ("duz", 18, "pelus_siyah", ""), ("duz", 4, A, "")),
+    "BNA-026": _k("bienca_krem", ("desenli", 14, "bienca_krem", "DB008")),
+    # Peluche
+    "PCH-002": _k("pelus_siyah", ("desenli", 12, A, "DB013"), madalyon="pelus_krem"),
+    "PCH-003": _k("pelus_beyaz", ("desenli", 12, GU, "DB013"), madalyon="pelus_beyaz"),
+    "PCH-004": _k("pelus_beyaz", ("duz", 4, "pelus_siyah", ""), ("desenli", 16, GU, "DB005")),
+    "PCH-005": _k("pelus_gri", ("desenli", 16, GU, "DB001"), madalyon="pelus_gri"),
+    "PCH-006": _k("pelus_beyaz", ("desenli", 12, A, "DB013"), madalyon="pelus_krem"),
+    "PCH-008": _k("pelus_beyaz", ("desenli", 14, A, "DB005"), madalyon="pelus_beyaz"),
+    "PCH-009": _k("pelus_krem", ("desenli", 14, GU, "DB006"), sekil="oval", madalyon="pelus_beyaz"),
+    "PCH-010": _k("pelus_siyah", ("duz", 6, "pelus_siyah", ""), ("desenli", 14, GU, "DB006"), sekil="oval"),
+    "PCH-011": _k("pelus_siyah", ("desenli", 12, A, "DB013"), madalyon="pelus_krem"),
+    "PCH-012": _k("pelus_beyaz", ("duz", 10, "pelus_beyaz", ""), ("desenli", 10, A, "DB013"), sekil="oval",
+                  madalyon="pelus_krem"),
+    "PCH-013": _k("pelus_siyah", ("desenli", 16, GU, "DB006"), madalyon="pelus_beyaz"),
+    "PCH-014": _k("pelus_beyaz", ("desenli", 12, GU, "DB005")),
+    "PCH-015": _k("pelus_siyah", ("desenli", 12, GU, "DB013"), madalyon="pelus_beyaz"),
+    "PCH-016": _k("pelus_beyaz", ("desenli", 12, A, "DB013"), madalyon="pelus_krem"),
+    # Rono
+    "RNO-001": _k("pelus_gri", ("desenli", 12, GU, "DB001")),
+    "RNO-002": _serit("pelus_gri", ("duz", 4, GU, ""), "desenli", "boyuna", 1, 24, "rona_kahve_simli", "DB006"),
+    "RNO-003": _k("pelus_gri", ("desenli", 14, A, "DB004")),
+    "RNO-004": _k("pelus_krem", ("duz", 3, A, ""), ("desenli", 10, "bienca_gri", "DB001")),
+    "RNO-005": _k("pelus_krem", ("duz", 16, "pelus_krem", ""), ("desenli", 8, "bienca_gri", "DB013")),
+}
+HAZIRLAR = [(k, dict(KATALOG_SERILERI)[k[:3]], d) for k, d in KATALOG_DEGER.items()]
 HAZIR = {k: d for k, _, d in HAZIRLAR}
 
 
@@ -235,7 +301,7 @@ def _sec(deger, secenekler, varsayilan):
 
 
 def hazir_degerler(kod):
-    return {**VARSAYILAN, **HAZIR.get(kod, {}), "hazir": kod if kod in HAZIR else ""}
+    return {**VARSAYILAN, **HAZIR.get(kod, {}), "hazir": kod if kod in HAZIR else "", "katalog": kod if kod in HAZIR else ""}
 
 
 def temizle(veri, desen_kodlari=()):
@@ -250,6 +316,9 @@ def temizle(veri, desen_kodlari=()):
     v["kenar"] = _sec(g("kenar"), KENARLAR, "biye")
     v["kenar_renk"] = _sec(g("kenar_renk"), KENAR_RENKLERI, "altin")
     v["hazir"] = veri.get("hazir") if veri.get("hazir") in HAZIR else ""
+    kat = str(veri.get("katalog") or "").upper()
+    v["katalog"] = kat if re.fullmatch(r"(IPS|BNA|PCH|RNO)-\d{3}", kat) else ""
+    v["aynen"] = "on" if v["katalog"] and veri.get("aynen") in ("on", True, "1", "true") else ""
     if v["duzen"] == "halkali":
         return _halkali_temizle(v, g, desen)
     if v["duzen"] == "yuvarlak":
@@ -336,6 +405,11 @@ def _halkali_temizle(v, g, desen):
     v["serit"] = _sayi(g("serit"), 20, 8 if v["serit_tur"] == "desenli" else motif_kisa(v["nakis"]) + 2 * MOTIF_PAY, 60)
     v["serit_malzeme"] = _sec(g("serit_malzeme"), MALZEMELER, "beyaz_keten")
     v["serit_desen"] = desen("serit_desen")
+    v["madalyon"] = _sec(g("madalyon"), MADALYONLAR, "yok") if v["orta"] == "duz" else "yok"
+    v["madalyon_cap"] = _sayi(g("madalyon_cap"), 28, 15, 80)
+    v["madalyon_malzeme"] = _sec(g("madalyon_malzeme"), MALZEMELER, "pelus_krem")
+    v["madalyon_cerceve"] = _sec(g("madalyon_cerceve"), MALZEMELER + [("", "Yok")], "")
+    v["madalyon_motif"] = _motif_sec(g("madalyon_motif"))
     return v
 
 
@@ -350,7 +424,7 @@ def halka_en_az(tur, motif):
 
 
 def eskiden_cevir(v):
-    """Eski düzenli bir tasarımı (çerçeve, oval şerit, yuvarlak) yeni halkalı yapıya çevirir; ızgara türleri P-1'den başlar."""
+    """Eski düzenli bir tasarımı (çerçeve, oval şerit, yuvarlak) yeni halkalı yapıya çevirir; ızgara türleri IPS-449 dan başlar."""
     if v.get("duzen") == "halkali":
         return v
     d = {k: v.get(k, VARSAYILAN[k]) for k in ("en", "boy", "pay", "zemin", "kenar", "kenar_renk")}
@@ -373,7 +447,7 @@ def eskiden_cevir(v):
         if v.get("desen_halka"):
             halka.append(("desenli" if v.get("desen") else "duz", v["desen_halka"], v.get("desen_malzeme"), v.get("desen") or ""))
     else:
-        return {**hazir_degerler("P-1"), "en": d["en"], "boy": d["boy"]}
+        return {**hazir_degerler("IPS-449"), "en": d["en"], "boy": d["boy"]}
     d["halka_sayisi"] = len(halka)
     for i, (tur, gen, mal, desen) in enumerate(halka, 1):
         d.update({f"h{i}_tur": tur, f"h{i}_gen": gen, f"h{i}_malzeme": mal, f"h{i}_desen": desen})
@@ -863,9 +937,51 @@ def _halkali_yerel(v):
                                 nakis="" if desenli else kod, motifler=motifler))
             onceki = c + w / 2
         sonuc.append(_parca(f"Zemin {n + 1}", "zemin", kirp(orta, eksen, onceki, True), zemin))
+    elif v["madalyon"] != "yok":
+        sonuc += _madalyonlu_orta(v, orta, cx, cy, min(x1 - x0, y1 - y0))
     else:
         sonuc.append(_parca("Orta zemin", "zemin", orta, zemin))
     return [p for p in sonuc if len(p["poli"]) >= 3 and alan(p["poli"]) > 1]
+
+
+MADALYON_CERCEVE = 3  # cm
+
+
+def _oyuk_yari(poli, cx, cy, r, sag):
+    """Orta zeminin yarısı; madalyonun yeri yarım daire olarak oyulur."""
+    yari = kirp(poli, 0, cx, sag)
+    sonraki = lambda i: yari[(i + 1) % len(yari)]  # noqa: E731
+    kenarlar = [i for i in range(len(yari)) if abs(yari[i][0] - cx) < 1e-6 and abs(sonraki(i)[0] - cx) < 1e-6]
+    if not kenarlar:
+        return yari
+    i = max(kenarlar, key=lambda i: abs(yari[i][1] - sonraki(i)[1]))  # kesim kenarı (en uzunu)
+    asagi = sonraki(i)[1] > yari[i][1]
+    bas = -math.pi / 2 if asagi else math.pi / 2  # yayın başladığı uç (üst ya da alt)
+    yon = 1 if sag == asagi else -1  # sağ yarıda yay sağa, sol yarıda sola şişer
+    acilar = [bas + yon * math.pi * k / 36 for k in range(37)]
+    return yari[:i + 1] + [(cx + r * math.cos(t), cy + r * math.sin(t)) for t in acilar] + yari[i + 1:]
+
+
+def _madalyonlu_orta(v, orta, cx, cy, kisa):
+    """Orta zemin + ortada yuvarlak madalyon (isteğe bağlı çerçeve halkası ve nakış motifi)."""
+    cerceve = MADALYON_CERCEVE if v["madalyon_cerceve"] else 0
+    r = min(v["madalyon_cap"] / 2, kisa / 2 - 10 - cerceve)
+    if r < 6:
+        return [_parca("Orta zemin", "zemin", orta, v["zemin"])]
+    dis = r + cerceve
+    sonuc = [_parca("Zemin (sol)", "zemin", _oyuk_yari(orta, cx, cy, dis, False), v["zemin"]),
+             _parca("Zemin (sağ)", "zemin", _oyuk_yari(orta, cx, cy, dis, True), v["zemin"])]
+    if cerceve:
+        for i, (a0, a1) in enumerate(((-math.pi / 2, math.pi / 2), (math.pi / 2, 3 * math.pi / 2)), 1):
+            sonuc.append(_parca(f"Madalyon çerçevesi {i}/2", "serit", yay(cx, cy, r, dis, a0, a1, 36),
+                                v["madalyon_cerceve"], yay=True))
+    motifler = []
+    kod = v["madalyon_motif"]
+    if v["madalyon"] == "nakisli" and motif_uzun(kod) <= 2 * r * 0.75:
+        motifler = [(cx, cy, MOTIF[kod]["en"], MOTIF[kod]["boy"], 0)]
+    sonuc.append(_parca("Madalyon", "nakis" if motifler else "zemin", daire(cx, cy, r, 90), v["madalyon_malzeme"],
+                        nakis=kod if motifler else "", motifler=motifler, yay=True))
+    return sonuc
 
 
 _CEVIR = {"sol": "üst", "sağ": "alt", "üst": "sol", "alt": "sağ"}
@@ -1029,7 +1145,9 @@ def _halkali_montaj(v):
 
 
 def _halkali_ozet(v):
-    p = [f"Suni deri parçalı halı – {dict(SEKILLER)[v['sekil']].lower()} {v['en']:g}×{v['boy']:g} cm"]
+    if v.get("aynen"):
+        return f"Suni deri halı – katalog modeli {v['katalog']} (olduğu gibi) · {v['en']:g}×{v['boy']:g} cm"
+    p = [f"Suni deri halı – {dict(SEKILLER)[v['sekil']].lower()} {v['en']:g}×{v['boy']:g} cm"]
     for h in halkalar(v):
         tur = {"duz": "düz", "desenli": "lazer desenli", "nakisli": "nakışlı"}[h["tur"]]
         p.append(f"{h['no']}. halka {h['gen']:g} cm {tur} {MALZEME_AD[h['malzeme']].lower()}"
@@ -1038,6 +1156,9 @@ def _halkali_ozet(v):
     iplik = dict((k, a) for k, a, _ in IPLIKLER)[v["iplik"]].lower()
     if v["orta"] == "panel":
         orta += f" + nakış paneli {v['motif_adet']} × {v['nakis']} {MOTIF[v['nakis']]['ad'].lower()} ({iplik} iplik)"
+    elif v.get("madalyon", "yok") != "yok":
+        orta += (f" + madalyon Ø{v['madalyon_cap']:g} cm {MALZEME_AD[v['madalyon_malzeme']].lower()}"
+                 + (f" ({v['madalyon_motif']} nakışlı)" if v["madalyon"] == "nakisli" else ""))
     elif v["orta"] == "serit":
         orta += (f" + {v['serit_adet']} {'enine' if v['serit_yon'] == 'enine' else 'boyuna'} "
                  f"{'desenli' if v['serit_tur'] == 'desenli' else 'nakışlı'} şerit {v['serit']:g} cm"
@@ -1045,8 +1166,8 @@ def _halkali_ozet(v):
                  + (f" {v['nakis']} ({iplik} iplik)" if v["serit_tur"] == "nakisli" else ""))
     p.append(orta)
     p.append(f"{dict(KENARLAR)[v['kenar']].lower()} {dict(KENAR_RENKLERI)[v['kenar_renk']].lower()}")
-    if v.get("hazir"):
-        p.append(f"({v['hazir']} esinli)")
+    if v.get("katalog"):
+        p.append(f"({v['katalog']} esinli)")
     return " · ".join(p)
 
 
@@ -1057,35 +1178,43 @@ def _rastlar(adet, tohum):
     return [(i, random.Random(ana.randint(1, 10 ** 9))) for i in range(adet)]
 
 
+# 'Bana fikir ver' renk takımları: katalogdaki gibi peluş zemin + metal bant + ikinci peluş
+FIKIR_TAKIMLARI = [
+    ("pelus_krem", "altin", "pelus_siyah"), ("pelus_siyah", "altin", "pelus_krem"), ("pelus_gri", "gumus", "pelus_beyaz"),
+    ("pelus_beyaz", "gumus", "pelus_siyah"), ("pelus_taba", "altin", "pelus_beyaz"), ("pelus_lacivert", "altin", "pelus_krem"),
+    ("pelus_krem", "altin", "pelus_pembe"), ("bienca_krem", "bienca_gri", "pelus_siyah"), ("pelus_vizon", "altin", "pelus_krem"),
+]
+
+
 def _halkali_fikir(i, rast, desen_kodlari, olcu):
-    """Bir öneri: renk ailesinden açık/koyu sırayla halkalar; şekil, orta ve kenar karışık."""
+    """Bir öneri: katalogdaki modeller gibi peluş zemin, metal/desenli bantlar; şekil, orta ve kenar karışık."""
     desenler = sorted(desen_kodlari)
-    renkler = rast.choice(AILELER)[2]
-    acik, koyu = renkler[0], renkler[-1]
+    zemin, metal, ikinci = rast.choice(FIKIR_TAKIMLARI)
     en, boy = olcu or rast.choice([(120, 180), (160, 230), (200, 290)])
     sekil = "oval" if i % 3 == 1 else "dikdortgen"
-    v = {"duzen": "halkali", "sekil": sekil, "en": en, "boy": boy, "pay": 1,
-         "halka_sayisi": rast.choice([1, 2, 2, 3, 3, 4]), "zemin": rast.choice([acik, renkler[1 % len(renkler)]]),
-         "kenar": rast.choice(KENARLAR)[0], "kenar_renk": rast.choice(KENAR_RENKLERI)[0], "aralik": 4}
-    turler = ["duz", "desenli", "nakisli"]
+    v = {"duzen": "halkali", "sekil": sekil, "en": en, "boy": boy, "pay": 1, "zemin": zemin,
+         "halka_sayisi": rast.choice([1, 2, 2, 3]), "kenar": "biye",
+         "kenar_renk": "altin" if metal == "altin" else rast.choice(["gumus", "siyah", "beyaz"]), "aralik": 4}
     kucukler = [k for k, *_ in NAKIS_MOTIFLERI if motif_kisa(k) <= 16]  # halka ve şeride sığanlar
     for n in range(1, v["halka_sayisi"] + 1):
-        tur = rast.choice(turler if desenler else ["duz", "nakisli"])
-        v.update({f"h{n}_tur": tur, f"h{n}_gen": {"nakisli": rast.choice([20, 24]), "desenli": rast.choice([10, 12, 14])}.get(tur, rast.choice([6, 8, 10])),
-                  f"h{n}_malzeme": koyu if n % 2 else rast.choice(renkler[:-1]),
-                  f"h{n}_desen": rast.choice(desenler) if tur == "desenli" else "",
+        tur = rast.choice(["duz", "desenli", "desenli"] if desenler else ["duz"]) if n != 2 else "duz"
+        mal = metal if n != 2 else ikinci
+        v.update({f"h{n}_tur": tur, f"h{n}_gen": rast.choice([10, 12, 14]) if tur == "desenli" else rast.choice([4, 8, 12]),
+                  f"h{n}_malzeme": mal, f"h{n}_desen": rast.choice(desenler) if tur == "desenli" else "",
                   f"h{n}_nakis": rast.choice(kucukler)})
-    orta = rast.choice(["duz", "panel", "serit"])
+    orta = rast.choice(["duz", "duz", "panel", "serit"])
     v["orta"] = orta
-    if orta == "panel":
-        v.update(panel_malzeme=koyu, nakis=rast.choice([k for k, _, _, _, t in NAKIS_MOTIFLERI if t == "tek"]),
+    if orta == "duz" and rast.random() < 0.6:
+        v.update(madalyon=rast.choice(["duz", "nakisli"]), madalyon_malzeme=ikinci, madalyon_cerceve=metal,
+                 madalyon_cap=rast.choice([24, 28, 34]), madalyon_motif=rast.choice(["61.01", "61.02", "56.01"]))
+    elif orta == "panel":
+        v.update(panel_malzeme=ikinci, nakis=rast.choice([k for k, _, _, _, t in NAKIS_MOTIFLERI if t == "tek"]),
                  motif_adet=rast.choice([1, 1, 2, 3]))
     elif orta == "serit":
-        tur = "desenli" if desenler and rast.random() < 0.6 else "nakisli"
-        v.update(serit_tur=tur, serit_yon=rast.choice(["boyuna", "enine"]), serit_adet=rast.choice([1, 1, 2, 3]),
-                 serit=rast.choice([12, 16, 20]) if tur == "desenli" else rast.choice([24, 28]), serit_malzeme=koyu,
+        v.update(serit_tur="desenli" if desenler else "nakisli", serit_yon=rast.choice(["boyuna", "enine"]),
+                 serit_adet=rast.choice([1, 2]), serit=rast.choice([14, 18, 22]), serit_malzeme=metal,
                  serit_desen=rast.choice(desenler) if desenler else "", nakis=rast.choice(kucukler))
-    v["iplik"] = rast.choice(IPLIKLER)[0]
+    v["iplik"] = "altin" if metal == "altin" else "gumus"
     return temizle(v, desen_kodlari)
 
 

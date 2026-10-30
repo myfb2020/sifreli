@@ -68,5 +68,10 @@
   "bant": 170,
   "periyot": null,
   "tur": "kose"
+ },
+ "DB015": {
+  "bant": 100,
+  "periyot": 100,
+  "tur": "periyodik"
  }
 }

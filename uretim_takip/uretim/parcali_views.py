@@ -8,7 +8,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from . import parcali, parcali_gorsel
-from .models import LazerDeseni, Tasarim
+from .models import KatalogModeli, LazerDeseni, Tasarim
 from .tasarim_views import (
     GonderForm, _bayi_gerekli, _boyut, _desen_kodlari, _jpeg, _tasarim_erisim, tasarim_gonder, tasarim_temizle,
 )
@@ -57,11 +57,15 @@ def studyo(request):
             return redirect("bayi_ana")
     else:
         kaynak = Tasarim.objects.filter(pk=request.GET.get("kaynak") or 0, musteri=bayi).first()
-        veri = _temizle(kaynak.veri if kaynak else parcali.hazir_degerler(request.GET.get("hazir") or "P-1"))
+        veri = _temizle(kaynak.veri if kaynak else parcali.hazir_degerler(request.GET.get("hazir") or "IPS-449"))
     veri = _temizle(parcali.eskiden_cevir(veri))  # ekran yalnız halkalı yapıyı düzenler
-    desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari())
-    hazirlar = [{"kod": k, "ad": a, "deger": _temizle(parcali.hazir_degerler(k)), "foto": k in parcali.HAZIR_FOTO}
-                for k, a, _ in parcali.HAZIRLAR]
+    desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari() - parcali.GIZLI_DESENLER)
+    hazirlar = [{"kod": k, "deger": _temizle(parcali.hazir_degerler(k))} for k, _, _ in parcali.HAZIRLAR]
+    seriler = []
+    for on, ad in parcali.KATALOG_SERILERI:
+        modeller = KatalogModeli.objects.filter(kod__startswith=on + "-").exclude(resim="").order_by("kod")
+        seriler.append({"on": on, "ad": ad, "modeller": [{"kod": m.kod, "resim": m.resim.url,
+                                                          "duzenlenir": m.kod in parcali.HAZIR} for m in modeller]})
     motifler = [{"kod": k, "ad": a, "olcu": f"{e:g}×{b:g}"} for k, a, e, b, _ in parcali.NAKIS_MOTIFLERI]
     halkalar = [{"no": i, "tur": veri[f"h{i}_tur"], "gen": veri[f"h{i}_gen"], "malzeme": veri[f"h{i}_malzeme"],
                  "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"],
@@ -72,7 +76,7 @@ def studyo(request):
         "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "nakis_motifleri": motifler,
         "iplikler": parcali.IPLIKLER,
         "kenarlar": parcali.KENARLAR, "kenar_renkleri": parcali.KENAR_RENKLERI, "desenler": desenler,
-        "hazirlar": hazirlar, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "en_cok_halka": parcali.EN_COK_HALKA,
+        "seriler": seriler, "madalyonlar": parcali.MADALYONLAR, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "en_cok_halka": parcali.EN_COK_HALKA,
     })
 
 
@@ -92,7 +96,7 @@ def fikir(request):
     except (KeyError, ValueError):
         olcu = None
     sonuc = []
-    for v in parcali.fikirler(6, None, _desen_kodlari(), olcu):
+    for v in parcali.fikirler(6, None, _desen_kodlari() - parcali.GIZLI_DESENLER, olcu):
         orta = dict(parcali.ORTA_TURLERI)[v["orta"]].lower()
         sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()},
                       "baslik": f"{dict(parcali.SEKILLER)[v['sekil']]} · {v['halka_sayisi']} halka · orta {orta}"})
@@ -109,16 +113,6 @@ def motif_ornegi(request, kod):
     if kod not in parcali.MOTIF:
         raise Http404
     yanit = HttpResponse(parcali_gorsel.nakis_ornegi(kod), content_type="image/png")
-    yanit["Cache-Control"] = "private, max-age=604800"
-    return yanit
-
-
-@login_required
-def hazir_foto(request, kod):
-    """Hazır modelin gerçek ürün fotoğrafı (atölyeden)."""
-    if kod not in parcali.HAZIR_FOTO:
-        raise Http404
-    yanit = FileResponse(open(parcali_gorsel.HAZIR_FOTO_KLASORU / f"{kod}.jpg", "rb"), content_type="image/jpeg")
     yanit["Cache-Control"] = "private, max-age=604800"
     return yanit
 

@@ -90,7 +90,10 @@ def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""
     if parcali_mi(veri):
         desen_kodu = parcali.ana_desen(veri)
         olcu = f"Ø{veri['cap']:g} cm" if veri["duzen"] == "yuvarlak" else f"{veri['en']:g}×{veri['boy']:g} cm"
-        urun, m2, katalog = f"Parçalı suni deri halı {olcu}", parcali.alan_m2(veri), ""
+        katalog = veri.get("katalog", "")
+        urun = (f"Suni deri halı {katalog} {olcu}" if veri.get("aynen") else
+                f"Suni deri halı {olcu}" + (f" ({katalog} esinli)" if katalog else ""))
+        m2 = parcali.alan_m2(veri)
     else:
         desen_kodu = veri["dis_desen"] or veri["ic_desen"]
         urun = f"Bayi tasarımı {veri['en']:g}×{veri['boy']:g} cm" + (f" ({veri['katalog']} esinli)" if veri["katalog"] else "")
@@ -193,7 +196,11 @@ def desen_onizleme(request, kod):
 @login_required
 def resim(request, pk):
     tasarim = _tasarim_erisim(request, pk)
-    return _jpeg(tasarim_temizle(tasarim.veri), _boyut(request))
+    veri = tasarim_temizle(tasarim.veri)
+    model = KatalogModeli.objects.filter(kod=veri.get("katalog") or "").first() if veri.get("aynen") else None
+    if model and model.resim:  # katalog modeli olduğu gibi: katalog fotoğrafı
+        return FileResponse(model.resim.open("rb"), content_type="image/jpeg")
+    return _jpeg(veri, _boyut(request))
 
 
 @login_required

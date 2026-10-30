@@ -1367,7 +1367,7 @@ class KatalogTesti(TemelVeri):
         from .models import KatalogModeli, LazerDeseni
 
         self.assertEqual(KatalogModeli.objects.count(), 192)
-        self.assertEqual(LazerDeseni.objects.count(), 14)
+        self.assertEqual(LazerDeseni.objects.count(), 15)
         model = KatalogModeli.objects.get(kod="LTS-003")
         # Resimler yalnızca giriş yapanlara
         self.assertEqual(self.client.get(model.resim.url).status_code, 302)
@@ -1507,7 +1507,7 @@ class SuniDeriTasarimTesti(TasarimStudyosuTesti):
                                                                            "b": "300"}).status_code, 200)
         t = tasarim_gonder(bayi=hesap_bayisi(self.bayi_hesap), kullanici=self.bayi_hesap, adet=1,
                            veri=tasarim_cizim.temizle(tasarim_cizim.hazir_degerler("SD-1"), {"DB010"}))
-        self.assertIn("Suni deri halı", t.ozet)
+        self.assertIn("Suni deri", t.ozet)
         self.assertEqual(onay_formu(t.siparis).initial["hali_turu"], HaliTuru.objects.get(ad="Suni deri halı").pk)
 
     test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
@@ -1519,7 +1519,7 @@ class HaliGorselTesti(TestCase):
         from . import hali_gorsel
 
         desenler = set(hali_gorsel.desen_bilgisi())
-        self.assertEqual(len(desenler), 14)
+        self.assertEqual(len(desenler), 15)
         for kod, _, _ in tasarim_cizim.HAZIRLAR:
             resim = hali_gorsel.ciz(tasarim_cizim.temizle(tasarim_cizim.hazir_degerler(kod), desenler), 300)
             self.assertGreater(resim.width, 100)
@@ -1591,9 +1591,9 @@ class ParcaliTasarimTesti(TasarimStudyosuTesti):
         from .models import Tasarim
 
         self.client.force_login(self.bayi_hesap)
-        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-4"})
-        self.assertContains(sayfa, "Parçalı suni deri halı")
-        self.assertContains(sayfa, 'data-kod="P-3"')
+        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "IPS-484"})
+        self.assertContains(sayfa, "Suni deri halı tasarla")
+        self.assertContains(sayfa, 'data-kod="PCH-010"')
         j = self.client.get(reverse("parcali_onizleme"), {"duzen": "oval_serit", "en": "130", "boy": "190",
                                                            "nakis": "grek_kare"}).json()
         self.assertEqual(len(j["parcalar"]), 3)
@@ -1610,7 +1610,7 @@ class ParcaliTasarimTesti(TasarimStudyosuTesti):
         t = Tasarim.objects.get()
         self.assertEqual((t.veri["tip"], t.siparis.durum, t.siparis.lazer_deseni.kod), ("parcali", "onay", "DB003"))
         self.assertEqual(t.siparis.toplam_m2, Decimal("3.20"))
-        self.assertIn("parçalı halı", t.ozet)
+        self.assertIn("Suni deri", t.ozet)
         self.assertEqual(self.client.get(reverse("tasarim_resim", args=[t.pk]))["Content-Type"], "image/jpeg")
         self.assertEqual(self.client.get(reverse("parcali_kesim", args=[t.pk])).status_code, 403)
         self.assertRedirects(self.client.get(reverse("tasarim_studyo"), {"kaynak": t.pk}),
@@ -1704,6 +1704,9 @@ class ParcaliYeniDuzenTesti(TasarimStudyosuTesti):
         self.assertNotContains(sayfa, "Elmas (45°)")
 
 
+P1 = {"duzen": "halkali", "sekil": "dikdortgen", "en": 80, "boy": 150, "halka_sayisi": 2, "h1_tur": "duz", "h1_gen": 11, "h1_malzeme": "beyaz_keten", "h2_tur": "desenli", "h2_gen": 12, "h2_malzeme": "antrasit_keten", "h2_desen": "DB003", "zemin": "beyaz_keten", "orta": "duz", "kenar": "biye", "kenar_renk": "siyah"}
+
+
 class ParcaliHalkaliTesti(TasarimStudyosuTesti):
     """Atölyenin asıl yapısı: iç içe halkalar + orta (düz / nakış paneli / şerit)."""
 
@@ -1760,7 +1763,7 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.assertEqual(parcali.nakis_bilgisi(v)["satirlar"][0]["olcu"], "11.5×11.5")
         # eski motif adı yeni kataloğa çevrilir; büyük motif sığmazsa uyarı
         self.assertEqual(parcali.temizle({"duzen": "halkali", "nakis": "grek_kare_gumus"}, k)["iplik"], "gumus")
-        v = parcali.temizle({"duzen": "halkali", "en": 60, "boy": 80, "halka_sayisi": 0, "orta": "panel", "nakis": "55.01"}, k)
+        v = parcali.temizle({"duzen": "halkali", "en": 60, "boy": 60, "halka_sayisi": 0, "orta": "panel", "nakis": "57.01"}, k)
         self.assertTrue(any("sığmıyor" in u for u in parcali.uyarilar(v)))
         self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), 120 * 180, delta=1)
         # iki enine desenli şerit: 3 zemin + 2 şerit
@@ -1772,7 +1775,8 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.assertEqual(len([p for p in ps if p["ad"].startswith("Zemin")]), 3)
         self.assertIn("2 enine desenli şerit", parcali.ozet(v))
         # oval + boyuna nakışlı şerit: motifler ovalin içinde kalır
-        v = parcali.temizle({**parcali.hazir_degerler("P-3")}, k)
+        v = parcali.temizle({"duzen": "halkali", "sekil": "oval", "en": 130, "boy": 190, "halka_sayisi": 0, "orta": "serit",
+                             "serit_tur": "nakisli", "serit_yon": "boyuna", "serit": 16, "nakis": "61.01"}, k)
         serit = next(p for p in parcali.parcalar(v) if p["ad"].startswith("Nakışlı şerit"))
         orta = parcali.dis_hat(v)
         self.assertTrue(serit["motifler"])
@@ -1794,7 +1798,7 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
 
         self.client.force_login(self.bayi_hesap)
         yanit = self.client.post(reverse("parcali_studyo"), {
-            **{a: str(d) for a, d in parcali.hazir_degerler("P-1").items()}, "hazir": "P-1", "orta": "serit",
+            **{a: str(d) for a, d in P1.items()}, "orta": "serit",
             "serit_tur": "desenli", "serit_adet": "2", "serit_desen": "DB003", "adet": "1"})
         self.assertRedirects(yanit, reverse("bayi_ana"))
         t = Tasarim.objects.get()
@@ -1809,20 +1813,49 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         from . import parcali
 
         self.client.force_login(self.bayi_hesap)
-        q = {**{a: str(d) for a, d in parcali.hazir_degerler("P-1").items()}, "halka_sayisi": "3", "h3_tur": "nakisli"}
+        q = {**{a: str(d) for a, d in P1.items()}, "halka_sayisi": "3", "h3_tur": "nakisli"}
         j = self.client.get(reverse("parcali_onizleme"), q).json()
         self.assertEqual(j["kalan_yer"], 0)
         self.assertEqual([(u["adim"], u["halka"]) for u in j["uyarilar"]], [(2, 3)])
         self.assertNotIn("parcalar", j)  # parça tablosu bayiye gitmez
         v = parcali.temizle(q, {"DB003"})
         self.assertTrue(any("4 cm" in u for u in parcali.uyarilar(v)))  # teknik uyarı ofiste görünür
-        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-1"})
+        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "IPS-449"})
         self.assertContains(sayfa, "✓ Üretilebilir")
         # nakış kataloğu motifleri ve gerçek ürün fotoğrafları
         self.assertContains(sayfa, reverse("parcali_motif", args=["61.01"]))
-        self.assertContains(sayfa, reverse("parcali_hazir_foto", args=["P-3"]))
+        self.assertContains(sayfa, 'data-kod="RNO-005"')  # katalog serileri
+        self.assertNotContains(sayfa, 'value="DB007"')  # gizlenen lazer deseni
         self.assertEqual(self.client.get(reverse("parcali_motif", args=["61.01"]))["Content-Type"], "image/png")
-        self.assertEqual(self.client.get(reverse("parcali_hazir_foto", args=["P-3"]))["Content-Type"], "image/jpeg")
         self.assertEqual(self.client.get(reverse("parcali_motif", args=["64.01"])).status_code, 404)  # marka logosu yok
+        self.assertEqual(self.client.get(reverse("parcali_motif", args=["82.01"])).status_code, 404)  # çıkarılan motif
         # kürk / deri sayfasında suni deri hazırları görünmez
         self.assertNotContains(self.client.get(reverse("tasarim_studyo")), "SD-1")
+
+    def test_katalog_modeli_aynen_ve_madalyon(self):
+        from . import parcali
+        from .models import Tasarim
+
+        k = {"DB015", "DB006"}
+        # madalyonlu orta: parçalar halıyı tam doldurur, madalyon çerçevesi + nakış
+        v = parcali.temizle({**parcali.hazir_degerler("IPS-449"), "madalyon": "nakisli", "madalyon_motif": "61.01"}, k)
+        ps = parcali.parcalar(v)
+        self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), 160 * 230, delta=10)
+        md = next(p for p in ps if p["ad"] == "Madalyon")
+        self.assertEqual((md["tur"], len(md["motifler"])), ("nakis", 1))
+        self.assertEqual(len([p for p in ps if p["ad"].startswith("Madalyon çerçevesi")]), 2)
+        self.assertEqual(v["h1_desen"], "DB015")
+        # her katalog hazırı geçerli ve çizilebilir yapıda
+        for kod in parcali.HAZIR:
+            v = parcali.temizle(parcali.hazir_degerler(kod), k)
+            self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in parcali.parcalar(v)),
+                                   parcali.alan(parcali.dis_hat(v)), delta=15, msg=kod)
+        # olduğu gibi sipariş: katalog kodu siparişe yazılır, resim katalog fotoğrafı
+        self.client.force_login(self.bayi_hesap)
+        yanit = self.client.post(reverse("parcali_studyo"), {**{a: str(d) for a, d in P1.items()}, "katalog": "BNA-022",
+                                                              "aynen": "on", "en": "120", "boy": "180", "adet": "1"})
+        self.assertRedirects(yanit, reverse("bayi_ana"))
+        t = Tasarim.objects.get()
+        self.assertEqual((t.veri["aynen"], t.siparis.katalog_modeli.kod), ("on", "BNA-022"))
+        self.assertIn("BNA-022", t.siparis.urun)
+        self.assertEqual(self.client.get(reverse("tasarim_resim", args=[t.pk])).status_code, 200)

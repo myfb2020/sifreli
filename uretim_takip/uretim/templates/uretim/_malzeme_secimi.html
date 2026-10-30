@@ -1,4 +1,4 @@
-{# Parçalı tasarımda malzeme seçimi (örnek dokulu düğmeler). alan: form alanı, secili: seçili malzeme. #}
+{# Suni deri tasarımda malzeme seçimi (örnek dokulu düğmeler). alan: form alanı, secili: seçili malzeme. #}
 <div class="mal-izgara">
   {% for k, ad, hex in malzemeler %}<label class="mal" title="{{ ad }}"><input type="radio" name="{{ alan }}" value="{{ k }}"{% if secili == k %} checked{% endif %}><span style="background-image:url('{% url 'parcali_malzeme' k %}')"></span>{{ ad }}</label>{% endfor %}
 </div>
