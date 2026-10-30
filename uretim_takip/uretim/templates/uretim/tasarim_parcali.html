@@ -14,7 +14,8 @@
     <img id="onizleme" alt="Halı önizlemesi" src="{% url 'parcali_onizleme_resmi' %}?b=900">
     <div class="soluk" style="font-size:12px;text-align:center">🔍 Büyük görmek için resme dokunun</div>
     <div id="ozet" class="soluk">{{ h.ozet }}</div>
-    <div id="uyarilar">{% for u in h.uyarilar %}<div class="mesaj error">{{ u }}</div>{% empty %}<div class="uygun">✓ Bu tasarım atölyede üretilebilir</div>{% endfor %}</div>
+    <button type="button" id="rozet" class="rozet{% if h.uyarilar %} sorun{% endif %}" aria-expanded="false">{% if h.uyarilar %}⚠ {{ h.uyarilar|length }} uyarı{% else %}✓ Üretilebilir{% endif %}</button>
+    <div id="uyari-listesi" class="uyari-listesi" hidden></div>
   </div>
 
   <div class="studyo-ayar">
@@ -53,11 +54,12 @@
         <button type="button" class="btn ikincil" id="halka-eksi" aria-label="Halka çıkar">−</button>
         <b id="halka-yazi">{{ v.halka_sayisi }} halka</b>
         <button type="button" class="btn ikincil" id="halka-arti" aria-label="Halka ekle">+</button>
-        <span class="soluk">en çok {{ en_cok_halka }}</span>
+        <span class="soluk" id="halka-not">en çok {{ en_cok_halka }}</span>
       </div>
       {% for r in halkalar %}
       <div class="halka" data-halka="{{ r.no }}">
         <h3>{{ r.no }}. halka{% if r.no == 1 %} <small class="soluk">(en dıştaki)</small>{% endif %}</h3>
+        <div class="yerinde-uyari" data-uyari-halka="{{ r.no }}" hidden></div>
         <div class="secim-izgara">{% for k, ad in halka_turleri %}<label class="secim"><input type="radio" name="h{{ r.no }}_tur" value="{{ k }}"{% if r.tur == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
         <p><label for="h{{ r.no }}_gen">Genişlik (cm)</label><input id="h{{ r.no }}_gen" name="h{{ r.no }}_gen" type="number" min="0" max="50" step="1" value="{{ r.gen|floatformat:'-1' }}"></p>
         <label class="alt-baslik">Malzeme</label>
@@ -78,6 +80,7 @@
 
     <section class="kart adim" data-adim="3">
       <h2>3. Orta</h2>
+      <div class="yerinde-uyari" data-uyari-adim="3" hidden></div>
       <label class="alt-baslik">Orta zemin malzemesi</label>
       {% include "uretim/_malzeme_secimi.html" with alan="zemin" secili=v.zemin %}
       <label class="alt-baslik">Ortaya ne konsun?</label>
@@ -120,6 +123,7 @@
 
     <section class="kart adim" data-adim="5">
       <h2>5. Siparişi gönder</h2>
+      <div class="yerinde-uyari" data-uyari-adim="5" hidden></div>
       {% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
       {% for alan in form %}
       <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}{% for e in alan.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
@@ -141,6 +145,7 @@
   <div class="buyuk-not">Yakınlaştırmak için resme dokunun · ✕ ile düzenlemeye dönün</div>
 </div>
 {{ hazir_json|json_script:"hazir-veri" }}
+{{ h.uyarilar|json_script:"ilk-uyarilar" }}
 
 <style>
   .studyo { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
@@ -148,7 +153,13 @@
   .studyo-onizleme .soluk { color:#cfc6bb; }
   #onizleme { width:100%; max-height:62vh; object-fit:contain; display:block; margin:0 auto 6px; transition:opacity .15s; cursor:zoom-in; }
   #onizleme.bekle { opacity:.6; }
-  .uygun { color:#9fd49a; margin-top:6px; }
+  .rozet { display:block; margin:6px auto 0; border:0; border-radius:16px; padding:5px 14px; font:inherit; font-size:14px; background:#2f4a2c; color:#bfe3b9; cursor:default; }
+  .rozet.sorun { background:#5a3a1e; color:#ffd9a8; cursor:pointer; }
+  .uyari-listesi { margin-top:6px; font-size:13px; color:#ffd9a8; }
+  .uyari-listesi div { padding:2px 0; }
+  .yerinde-uyari { background:#fff4e5; border-left:4px solid #e0902a; color:#7a4a10; padding:6px 10px; border-radius:6px; font-size:14px; margin:4px 0 8px; }
+  .yerinde-uyari[hidden] { display:none; }
+  #halka-arti:disabled { opacity:.35; cursor:not-allowed; }
   .adimlar { display:flex; gap:4px; margin-bottom:10px; overflow-x:auto; }
   .adimlar button { flex:1; white-space:nowrap; border:1px solid #d9cfc4; background:#fff; border-radius:20px; padding:8px 10px; font:inherit; cursor:pointer; }
   .adimlar button.etkin { background:var(--ana); color:#fff; border-color:var(--ana); }
@@ -276,11 +287,40 @@
       const j = await (await fetch(veriAdresi + "?" + q)).json();
       if (benim !== sira) return;
       document.getElementById("ozet").textContent = j.ozet;
-      document.getElementById("uyarilar").innerHTML = j.uyarilar.length
-        ? j.uyarilar.map((u) => `<div class="mesaj error">${kac(u)}</div>`).join("")
-        : '<div class="uygun">✓ Bu tasarım atölyede üretilebilir</div>';
+      uyarilariGoster(j.uyarilar, j.kalan_yer);
     } catch (e) { /* bağlantı yoksa eski bilgi kalır */ }
   }
+  // uyarılar: üstte tek satırlık rozet (dokununca açılır); ayrıntı ilgili adımda, ilgili halkanın yanında
+  const rozet = document.getElementById("rozet"), liste = document.getElementById("uyari-listesi");
+  rozet.addEventListener("click", () => {
+    if (!rozet.classList.contains("sorun")) return;
+    liste.hidden = !liste.hidden;
+    rozet.setAttribute("aria-expanded", String(!liste.hidden));
+  });
+  function uyarilariGoster(uyarilar, kalan) {
+    rozet.classList.toggle("sorun", uyarilar.length > 0);
+    rozet.textContent = uyarilar.length ? `⚠ ${uyarilar.length} uyarı` : "✓ Üretilebilir";
+    liste.innerHTML = uyarilar.map((u) => `<div>• ${kac(u.metin)}</div>`).join("");
+    if (!uyarilar.length) liste.hidden = true;
+    form.querySelectorAll("[data-uyari-halka]").forEach((e) => {
+      const m = uyarilar.filter((u) => String(u.halka) === e.dataset.uyariHalka).map((u) => kac(u.metin));
+      e.innerHTML = m.join("<br>"); e.hidden = !m.length;
+    });
+    form.querySelectorAll("[data-uyari-adim]").forEach((e) => {
+      const m = uyarilar.filter((u) => e.dataset.uyariAdim === "5" || String(u.adim) === e.dataset.uyariAdim).map((u) => kac(u.metin));
+      e.innerHTML = m.join("<br>"); e.hidden = !m.length;
+    });
+    // yer kalmadıysa yeni halka eklenemez; her halkanın genişliği kalan yerle sınırlanır
+    const n = parseInt(document.getElementById("halka_sayisi").value, 10) || 0;
+    const arti = document.getElementById("halka-arti");
+    arti.disabled = n >= enCok || kalan < 3;
+    document.getElementById("halka-not").textContent = n >= enCok ? `en çok ${enCok}` : (kalan < 3 ? "yer yok" : `${kalan} cm yer var`);
+    for (let i = 1; i <= enCok; i++) {
+      const a = form.querySelector(`[name="h${i}_gen"]`);
+      if (a) a.max = i <= n ? Math.floor((parseFloat(a.value) || 0) + kalan) : 50;
+    }
+  }
+  uyarilariGoster(JSON.parse(document.getElementById("ilk-uyarilar").textContent), {{ h.kalan_yer|stringformat:"s" }});
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
   const yakinda = () => { goster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
   form.addEventListener("input", (e) => { if (!siparisAlanlari.includes(e.target.name)) yakinda(); });

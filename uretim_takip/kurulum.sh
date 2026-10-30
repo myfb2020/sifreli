@@ -22,8 +22,8 @@ VENV="${VENV:-$HOME/.venv-uretim}"
 
 echo "==> Python: $($PY --version)   Sanal ortam: $VENV   Adres: https://$ALAN"
 [ -d "$VENV" ] || "$PY" -m venv "$VENV"
-"$VENV/bin/pip" install --quiet --upgrade pip
-"$VENV/bin/pip" install --quiet -r requirements.txt
+"$VENV/bin/pip" install --quiet --no-cache-dir --upgrade pip
+"$VENV/bin/pip" install --quiet --no-cache-dir -r requirements.txt
 
 if [ ! -f .env ]; then
   ANAHTAR="$("$VENV/bin/python" -c 'import secrets; print(secrets.token_urlsafe(50))')"
@@ -55,12 +55,18 @@ if ! "$VENV/bin/python" manage.py migrate --noinput; then
 fi
 "$VENV/bin/python" manage.py collectstatic --noinput -v0
 
-# Başarılı kurulan sürümün kopyası (geri_al.sh surum bununla bir önceki sürüme döner); son 3 tutulur
+# Başarılı kurulan sürümün kopyası (geri_al.sh surum bununla bir önceki sürüme döner); son 2 tutulur.
+# Hiç değişmeyen büyük dosyalar (katalog resimleri, malzeme dokuları) kopyaya girmez: geri alırken yerinde kalırlar.
 SURUMLER="$HOME/uretim_surumler"
 mkdir -p "$SURUMLER"
 tar -czf "$SURUMLER/surum_$(date +%Y-%m-%d_%H%M%S).tar.gz" --exclude=./db.sqlite3 --exclude=./.env \
-    --exclude=./yedekler --exclude=./medya --exclude=./staticfiles --exclude='*/__pycache__' .
-ls -1t "$SURUMLER"/surum_*.tar.gz | tail -n +4 | xargs -r rm -f
+    --exclude=./yedekler --exclude=./medya --exclude=./staticfiles --exclude='*/__pycache__' \
+    --exclude=./uretim/katalog_tohum --exclude=./uretim/tasarim_varlik/doku .
+ls -1t "$SURUMLER"/surum_*.tar.gz | tail -n +3 | xargs -r rm -f
+
+# Disk temizliği: yüklenen zip ve paket önbelleği artık gerekmez
+rm -f "$(dirname "$(pwd)")/uretim_takip.zip"
+rm -rf "$HOME/.cache/pip"
 "$VENV/bin/python" manage.py check --deploy --fail-level ERROR >/dev/null 2>&1 \
   || "$VENV/bin/python" manage.py check --deploy --fail-level ERROR
 

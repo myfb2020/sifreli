@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (110 test) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (111 test) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -75,7 +75,6 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
 - **Kağıtsız istasyon akışı (plan onaylandı, yazılmadı):** QR yalnız lazerde rulo kartından (borusuz rulo: lastik bantlı kart + iç uçta keçe tarafına yedek etiket); stok tasarımın kesim listesinden otomatik düşer, **fire %10** (sonra gerçek fireyle ayar). İstasyonlarda okutma yok: tablet listesinde halı resmi + SP no, Başla/Bitti. Rota: Lazer → (Nakış paralel, yalnız nakışlı parçalar) → Zig-zag (nakış bekleniyor işareti) → Biye/Lanfel. Lazerci büyük parçanın keçesine SP no yazar.
-- **Telefonda uyarılar yer kaplıyor** ve **sunucu diski %35**: plan yazıldı, kullanıcı kararı bekleniyor.
 - Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
 - Desenler: 3. fotoğraftaki işlemeli ve Grek bant için DXF/net foto → DB015/DB016; DB desenlerinin DXF'leri gelirse lazer dosyasına eklenir.
 - Yeni modeller: aplike Kufi düğüm, daire patchwork, Medusa/logo madalyonu.
@@ -87,7 +86,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
-- 2026-10-29: Halkalı parçalı halı (≤4 halka + orta panel/şerit, desen delikleri boş), sade 5 adımlı ekran, ✕'li büyük görünüm, yeni P-1…P-8, eski tasarım çevirme. **Kullanıcıya gönderilen son zip bu.**
+- 2026-10-30: Bayi uyarıları tek satır rozet (dokununca açılır) + ilgili halka/adımda; teknik uyarı yalnız kesim listesinde; yer yoksa "+ halka" kapalı, genişlik sınırı. kurulum.sh: zip + pip önbelleği silinir, `--no-cache-dir`, son 2 sürüm, sürüm kopyasında katalog_tohum/doku yok (~1 MB). Sunucu ölçümü: surumler 43M, takip 34M, .cache 18M, zip 15M. **Kullanıcıya gönderilen son zip bu.**
+- 2026-10-29: Halkalı parçalı halı (≤4 halka + orta panel/şerit, desen delikleri boş), sade 5 adımlı ekran, ✕'li büyük görünüm, yeni P-1…P-8, eski tasarım çevirme.
 - 2026-10-29: Lanfel hatası düzeltildi (e1c9c76); 16 malzeme fotoğrafından gerçek dokular (kart ölçeği 92.6 px/cm), kabartma + yakınlaştırma; yeni düzenler (şerit/ızgara/elmas/iki parça), renk aileleri, 💡 Bana fikir ver. Bekleyen: malzeme adları (geçici), Odamda gör, istasyonlara parça bazında iş, desen DXF'leri.
 - 2026-10-29: Parçalı suni deri tasarım ilk sürüm (3 düzen, kesim listesi, malzeme bazlı DXF). Sıradaki: kullanıcı denemesi, desen DXF'leri, deri/kürk ızgara (kare/elmas/şerit/daire, renk geçişi), istasyonlara parça bazında iş.
 - 2026-10-29: Stüdyo ve katalogda desen seçimi artık desenin halı köşesindeki görünüşüyle (`tasarim_varlik/desen_onizleme/`).

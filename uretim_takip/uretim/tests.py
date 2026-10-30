@@ -1797,3 +1797,17 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         kesim = self.client.get(reverse("parcali_kesim", args=[t.pk]))
         self.assertContains(kesim, "1. halka (sol)")
         self.assertContains(kesim, "Desenli şerit 2")
+
+    def test_bayi_uyarilari_yerinde_ve_teknik_olmadan(self):
+        from . import parcali
+
+        self.client.force_login(self.bayi_hesap)
+        q = {**{a: str(d) for a, d in parcali.hazir_degerler("P-1").items()}, "halka_sayisi": "3", "h3_tur": "nakisli"}
+        j = self.client.get(reverse("parcali_onizleme"), q).json()
+        self.assertEqual(j["kalan_yer"], 0)
+        self.assertEqual([(u["adim"], u["halka"]) for u in j["uyarilar"]], [(2, 3)])
+        self.assertNotIn("parcalar", j)  # parça tablosu bayiye gitmez
+        v = parcali.temizle(q, {"DB003"})
+        self.assertTrue(any("4 cm" in u for u in parcali.uyarilar(v)))  # teknik uyarı ofiste görünür
+        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-1"})
+        self.assertContains(sayfa, "✓ Üretilebilir")

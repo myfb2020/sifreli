@@ -885,25 +885,37 @@ def _halkali_nakis(v):
 
 
 def _halkali_uyarilar(v):
+    return [u["metin"] for u in halkali_uyari_listesi(v)]
+
+
+def halkali_uyari_listesi(v):
+    """Uyarılar, ekranda nerede gösterileceğiyle: adim (2 halkalar, 3 orta), halka no; teknik olanlar bayiye gösterilmez."""
     u = []
     ps = parcalar(v)
+    ekle = lambda metin, adim, halka=None, teknik=False: u.append(  # noqa: E731
+        {"metin": metin, "adim": adim, "halka": halka, "teknik": teknik})
     for i in range(1, v["halka_sayisi"] + 1):
         gen, tur = v[f"h{i}_gen"], v[f"h{i}_tur"]
         if gen < {"duz": 3, "desenli": 8, "nakisli": 12}[tur]:
-            u.append(f"{i}. halkaya yer kalmadı ({gen:g} cm); halıyı büyütün ya da diğer halkaları daraltın.")
+            ekle(f"{i}. halkaya yer kalmadı ({gen:g} cm); halıyı büyütün ya da diğer halkaları daraltın.", 2, i)
     for h in halkalar(v):
         if h["tur"] == "nakisli" and h["gen"] >= 12 and not any(p.get("motifler") for p in ps if p.get("halka") == h["no"]):
-            u.append(f"{h['no']}. halka nakış için çok dar.")
+            ekle(f"{h['no']}. halka nakış için çok dar.", 2, h["no"])
     if v["orta"] == "serit" and v["serit_tur"] == "nakisli" and not any(
             p.get("motifler") for p in ps if p["ad"].startswith("Nakışlı şerit")):
-        u.append("Ortadaki şerit nakış için çok kısa ya da dar.")
+        ekle("Ortadaki şerit nakış için çok kısa ya da dar.", 3)
     panel = next((p for p in ps if p["ad"] == "Nakış paneli"), None)
     if panel and (panel["en"] < v["panel_en"] - 0.5 or panel["boy"] < v["panel_boy"] - 0.5):
-        u.append(f"Nakış paneli ortaya sığmadığı için {panel['en']:g}×{panel['boy']:g} cm yapıldı.")
+        ekle(f"Nakış paneli ortaya sığmadığı için {panel['en']:g}×{panel['boy']:g} cm yapıldı.", 3)
     kucuk = [p for p in ps if min(p["en"], p["boy"]) < 4]
     if kucuk:
-        u.append(f"{len(kucuk)} parça 4 cm'den dar; dikişi zor olabilir.")
+        ekle(f"{len(kucuk)} parça 4 cm'den dar; dikişi zor olabilir.", 2, teknik=True)
     return u
+
+
+def kalan_yer(v):
+    """Halkalara daha ne kadar genişlik verilebilir (cm); ortada en az 30 cm kalır."""
+    return round(max(0.0, min(v["en"], v["boy"]) / 2 - 15 - halka_toplami(v)), 1)
 
 
 def _halkali_montaj(v):

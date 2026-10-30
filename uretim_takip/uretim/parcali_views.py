@@ -37,6 +37,13 @@ def hesap(v):
     }
 
 
+def bayi_hesap(v):
+    """Bayi ekranı için yalnız gerekenler: özet, teknik olmayan uyarılar (yeriyle), halkalara kalan yer."""
+    return {"ozet": parcali.ozet(v),
+            "uyarilar": [u for u in parcali.halkali_uyari_listesi(v) if not u["teknik"]],
+            "kalan_yer": parcali.kalan_yer(v)}
+
+
 @login_required
 def studyo(request):
     bayi = _bayi_gerekli(request)
@@ -58,7 +65,7 @@ def studyo(request):
                  "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"],
                  "ad_malzeme": f"h{i}_malzeme", "ad_desen": f"h{i}_desen"} for i in range(1, parcali.EN_COK_HALKA + 1)]
     return render(request, "uretim/tasarim_parcali.html", {
-        "form": form, "v": veri, "h": hesap(veri), "halkalar": halkalar, "malzemeler": parcali.MALZEMELER,
+        "form": form, "v": veri, "h": bayi_hesap(veri), "halkalar": halkalar, "malzemeler": parcali.MALZEMELER,
         "sekiller": parcali.SEKILLER, "halka_turleri": parcali.HALKA_TURLERI, "orta_turleri": parcali.ORTA_TURLERI,
         "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "motifler": parcali.MOTIFLER,
         "kenarlar": parcali.KENARLAR, "kenar_renkleri": parcali.KENAR_RENKLERI, "desenler": desenler,
@@ -69,6 +76,8 @@ def studyo(request):
 @login_required
 def onizleme(request):
     v = _temizle(request.GET)
+    if v["duzen"] == "halkali":
+        return JsonResponse({"v": v, **bayi_hesap(v)})
     return JsonResponse({"v": v, **hesap(v)})
 
 
