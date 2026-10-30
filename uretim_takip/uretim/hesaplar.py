@@ -32,6 +32,7 @@ OFIS_YETKILERI = {
     "islemkaydi": "view",
     "derituru": "view",
     "halituru": "view",
+    "katalogmodeli": "add view",  # müşteri fotoğrafını katalog modeline ekleme
 }
 TURLER = [("tablet", "İstasyon tableti"), ("ofis", "Ofis"), ("yonetici", "Yönetici"), ("bayi", "Bayi")]
 TUR_ACIKLAMA = {

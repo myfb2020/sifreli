@@ -37,7 +37,9 @@
       </div>
     </div>
     <div class="soluk" style="margin:6px 0 10px">{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b> · {% endif %}{{ siparis.urun }}{% if siparis.adet > 1 %} · {{ siparis.adet }} adet{% endif %}</div>
-    {% if siparis.tasarim %}<img class="sp-kucuk" src="{% url 'tasarim_resim' siparis.tasarim.pk %}?b=260" alt="Bayi tasarımı" loading="lazy">{% endif %}
+    {% with foto=siparis.fotograflar.all|first %}{% if foto %}<img class="sp-kucuk" src="{{ foto.resim.url }}" alt="Müşteri fotoğrafı" loading="lazy">
+    {% elif siparis.tasarim %}<img class="sp-kucuk" src="{% url 'tasarim_resim' siparis.tasarim.pk %}?b=260" alt="Bayi tasarımı" loading="lazy">
+    {% elif siparis.katalog_modeli and siparis.katalog_modeli.resim %}<img class="sp-kucuk" src="{{ siparis.katalog_modeli.resim.url }}" alt="{{ siparis.katalog_modeli.kod }}" loading="lazy">{% endif %}{% endwith %}
     {% if siparis.durum != "onay" %}{% include "uretim/_ilerleme.html" %}{% endif %}
   </a>
   {% empty %}

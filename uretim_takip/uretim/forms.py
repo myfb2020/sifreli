@@ -134,6 +134,29 @@ class TarihAraligiForm(forms.Form):
         return veri
 
 
+class CokluResim(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class CokluResimAlani(forms.FileField):
+    """Birden çok fotoğraf (telefonda galeriden çoklu seçim)."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", CokluResim(attrs={"accept": "image/*", "multiple": True}))
+        super().__init__(*args, **kwargs)
+
+    def clean(self, veri, ilk=None):
+        tek = super().clean
+        if isinstance(veri, (list, tuple)):
+            return [tek(d, ilk) for d in veri if d]
+        return [tek(veri, ilk)] if veri else []
+
+
+class FotografForm(forms.Form):
+    fotograflar = CokluResimAlani(label="Müşterinin gönderdiği fotoğraf(lar)", required=True,
+                                  help_text="WhatsApp'tan telefona kaydettiğiniz fotoğrafları seçin (en çok 3).")
+
+
 class SiparisForm(forms.ModelForm):
     # Müşteri model doğrulamasına girmez: yeni müşteri ancak form geçerliyse save() içinde oluşturulur.
     musteri = forms.ModelChoiceField(
@@ -158,6 +181,11 @@ class SiparisForm(forms.ModelForm):
         queryset=LazerDeseni.objects.filter(aktif=True), label="Lazer deseni (isteğe bağlı)", required=False,
         empty_label="— Desen yok —",
     )
+    fotograflar = CokluResimAlani(
+        label="📷 Müşterinin gönderdiği fotoğraf(lar)", required=False,
+        help_text="WhatsApp'tan telefona kaydettiğiniz ürün fotoğraflarını seçin (en çok 3). "
+                  "İş bitene kadar istasyon ekranlarında görünür.",
+    )
 
     class Meta:
         model = Siparis
@@ -168,7 +196,7 @@ class SiparisForm(forms.ModelForm):
         }
         labels = {"notlar": "Not (isteğe bağlı)"}
 
-    field_order = ["musteri", "yeni_musteri", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu", "adet",
+    field_order = ["musteri", "yeni_musteri", "fotograflar", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu", "adet",
                    "toplam_m2", "teslim_tarihi", "notlar"]
 
     def __init__(self, *args, **kwargs):
@@ -188,6 +216,14 @@ class SiparisForm(forms.ModelForm):
             raise forms.ValidationError(f"“{kod}” kodlu katalog modeli yok. Katalog sayfasından bakabilirsiniz.")
         return model
 
+    def clean_fotograflar(self):
+        from .models import SiparisFotografi
+
+        fotolar = self.cleaned_data.get("fotograflar") or []
+        if len(fotolar) > SiparisFotografi.EN_COK:
+            raise forms.ValidationError(f"En çok {SiparisFotografi.EN_COK} fotoğraf seçin.")
+        return fotolar
+
     def clean(self):
         veri = super().clean()
         if not (veri.get("yeni_musteri") or "").strip() and not veri.get("musteri"):
@@ -198,7 +234,9 @@ class SiparisForm(forms.ModelForm):
         if not veri.get("hali_turu") and HaliTuru.objects.filter(aktif=True).exists() and "hali_turu" not in self.errors:
             self.add_error("hali_turu", "Halı türünü seçin.")
         if not (veri.get("urun") or "").strip():
-            if model:
+            if veri.get("fotograflar") and "urun" not in self.errors:
+                veri["urun"] = self.instance.urun = "Müşteri fotoğrafındaki ürün"
+            elif model:
                 veri["urun"] = self.instance.urun = f"{model.kod} {model.seri}"
             elif "urun" not in self.errors:
                 self.add_error("urun", "Ürünü yazın ya da katalog modeli seçin.")

@@ -1859,3 +1859,90 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.assertEqual((t.veri["aynen"], t.siparis.katalog_modeli.kod), ("on", "BNA-022"))
         self.assertIn("BNA-022", t.siparis.urun)
         self.assertEqual(self.client.get(reverse("tasarim_resim", args=[t.pk])).status_code, 200)
+
+
+class SiparisFotografiTesti(TasarimStudyosuTesti):
+    """Ofis WhatsApp'tan gelen fotoğrafı siparişe ekler; istasyonda görünür, modele dönüştürülür, bayi görür."""
+
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def setUp(self):
+        import tempfile
+
+        from django.test import override_settings
+
+        super().setUp()
+        self.medya = tempfile.TemporaryDirectory()
+        self.ayar = override_settings(MEDIA_ROOT=self.medya.name)
+        self.ayar.enable()
+
+    def tearDown(self):
+        self.ayar.disable()
+        self.medya.cleanup()
+
+    def _foto(self, ad="foto.jpg", boyut=(3000, 2000)):
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        t = io.BytesIO()
+        Image.new("RGB", boyut, (200, 180, 150)).save(t, "JPEG")
+        return SimpleUploadedFile(ad, t.getvalue(), content_type="image/jpeg")
+
+    def test_fotograf_yukle_goster_modele_ekle(self):
+        from PIL import Image
+
+        from .models import KatalogModeli, Musteri, Siparis
+
+        tur = HaliTuru.objects.filter(aktif=True).first()
+        self.client.force_login(self.ofis)
+        yanit = self.client.post(reverse("siparis_yeni"), {
+            "yeni_musteri": "WhatsApp Müşteri", "hali_turu": tur.pk, "adet": "1",
+            "teslim_tarihi": (timezone.localdate() + timedelta(days=10)).isoformat(),
+            "fotograflar": [self._foto("a.jpg"), self._foto("b.jpg", (800, 1200))]})
+        s = Siparis.objects.get(musteri=Musteri.objects.get(ad="WhatsApp Müşteri"))
+        self.assertRedirects(yanit, reverse("siparis_detay", args=[s.pk]))
+        self.assertEqual(s.urun, "Müşteri fotoğrafındaki ürün")
+        fotolar = list(s.fotograflar.all())
+        self.assertEqual(len(fotolar), 2)
+        with fotolar[0].resim.open("rb") as f:
+            self.assertEqual(max(Image.open(f).size), 1600)  # küçültüldü
+        # liste ve detayda görünür; büyütme bağlantısı var
+        self.assertContains(self.client.get(reverse("siparis_listesi")), fotolar[0].resim.url)
+        detay = self.client.get(reverse("siparis_detay", args=[s.pk]))
+        self.assertContains(detay, 'class="buyut"')
+        self.assertContains(detay, "Fotoğraf ekle (1 yer)")
+        # istasyon ekranlarında kullanılan parça fotoğrafı gösterir
+        from django.template.loader import render_to_string
+        self.assertIn(fotolar[1].resim.url, render_to_string("uretim/_siparis_resim.html", {"s": s}))
+        # en çok 3: 2 fotoğraf daha eklenemez
+        self.client.post(reverse("siparis_foto_ekle", args=[s.pk]), {"fotograflar": [self._foto(), self._foto()]})
+        self.assertEqual(s.fotograflar.count(), 2)
+        self.client.post(reverse("siparis_foto_ekle", args=[s.pk]), {"fotograflar": [self._foto()]})
+        self.assertEqual(s.fotograflar.count(), 3)
+        # resim olmayan dosya reddedilir
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.post(reverse("siparis_foto_sil", args=[s.fotograflar.last().pk]))
+        self.client.post(reverse("siparis_foto_ekle", args=[s.pk]),
+                         {"fotograflar": [SimpleUploadedFile("x.jpg", b"resim degil", content_type="image/jpeg")]})
+        self.assertEqual(s.fotograflar.count(), 2)
+        # modellere ekle: MM-001, sipariş modele bağlanır
+        self.client.post(reverse("siparis_foto_model", args=[fotolar[0].pk]))
+        model = KatalogModeli.objects.get(kod="MM-001")
+        self.assertEqual(model.seri.ad, "Müşteri modelleri")
+        s.refresh_from_db()
+        self.assertEqual(s.katalog_modeli, model)
+        self.client.post(reverse("siparis_foto_model", args=[fotolar[1].pk]))
+        self.assertTrue(KatalogModeli.objects.filter(kod="MM-002").exists())
+        # bayi: Suni deri sayfasında Müşteri modelleri sekmesi; olduğu gibi sipariş edebilir; sipariş fotoğrafını göremez
+        self.client.force_login(self.bayi_hesap)
+        sayfa = self.client.get(reverse("parcali_studyo"))
+        self.assertContains(sayfa, "Müşteri modelleri")
+        self.assertContains(sayfa, 'data-kod="MM-001"')
+        self.assertEqual(self.client.get(fotolar[0].resim.url).status_code, 404)
+        self.assertEqual(self.client.get(model.resim.url).status_code, 200)
+        self.client.post(reverse("parcali_studyo"), {"duzen": "halkali", "katalog": "MM-002", "aynen": "on",
+                                                      "en": "120", "boy": "180", "adet": "1"})
+        self.assertEqual(Siparis.objects.get(durum="onay").katalog_modeli.kod, "MM-002")

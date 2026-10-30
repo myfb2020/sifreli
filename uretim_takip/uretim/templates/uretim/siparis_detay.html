@@ -39,6 +39,13 @@
   @media (max-width: 700px) { .tasarim-kart { grid-template-columns:1fr; } }
 </style>
 {% endif %}
+<style>
+  .sp-foto { display:inline-block; vertical-align:top; margin:0 8px 8px 0; }
+  .sp-foto img { height:180px; max-width:100%; border-radius:8px; display:block; }
+  .sp-foto-dugme { display:flex; gap:4px; margin-top:4px; }
+  .sp-foto-dugme form { margin:0; }
+  .foto-ekle { margin-top:6px; }
+</style>
 
 <div class="izgara">
   <div class="kart">
@@ -47,7 +54,19 @@
       <tr><th>Müşteri</th><td><b>{{ siparis.musteri }}</b>{% if siparis.musteri.telefon %}<br><span class="soluk">{{ siparis.musteri.telefon }}</span>{% endif %}</td></tr>
       <tr><th>Halı türü</th><td>{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b><br><span class="soluk">{{ siparis.hali_turu.rota_metni }}</span>{% else %}–{% endif %}</td></tr>
       <tr><th>Ürün</th><td>{{ siparis.urun }}</td></tr>
-      {% if not siparis.tasarim %}{% if siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 %}</td></tr>{% endif %}{% endif %}
+      {% if not siparis.tasarim %}{% if siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 fotosuz=1 %}</td></tr>{% endif %}{% endif %}
+      <tr><th>📷 Fotoğraf</th><td>
+        {% for f in siparis.fotograflar.all %}<div class="sp-foto">
+          <a href="{{ f.resim.url }}" class="buyut"><img src="{{ f.resim.url }}" alt="Müşteri fotoğrafı" loading="lazy"></a>
+          {% if foto_formu %}<div class="sp-foto-dugme">
+            {% if perms.uretim.add_katalogmodeli %}<form method="post" action="{% url 'siparis_foto_model' f.pk %}" onsubmit="return confirm('Bu fotoğraf Müşteri modelleri serisine yeni katalog modeli olarak eklensin mi? Bayiler de görecek.')">{% csrf_token %}<button class="btn kucuk ikincil">⭐ Modellere ekle</button></form>{% endif %}
+            <form method="post" action="{% url 'siparis_foto_sil' f.pk %}" onsubmit="return confirm('Fotoğraf silinsin mi?')">{% csrf_token %}<button class="btn kucuk ikincil">🗑</button></form>
+          </div>{% endif %}
+        </div>{% empty %}<span class="soluk">Fotoğraf yok.</span>{% endfor %}
+        {% if foto_formu and foto_yer > 0 %}<form method="post" action="{% url 'siparis_foto_ekle' siparis.pk %}" enctype="multipart/form-data" class="foto-ekle">{% csrf_token %}
+          <label class="btn kucuk ikincil">📷 Fotoğraf ekle ({{ foto_yer }} yer)<input type="file" name="fotograflar" accept="image/*" multiple hidden onchange="this.form.submit()"></label>
+        </form>{% endif %}
+      </td></tr>
       <tr><th>Deri türü</th><td>{{ siparis.deri_turu|default:"–" }}</td></tr>
       <tr><th>Adet / m²</th><td>{{ siparis.adet }} adet{% if siparis.toplam_m2 %} · {{ siparis.toplam_m2|floatformat:"-2" }} m²{% endif %}</td></tr>
       <tr><th>Sipariş tarihi</th><td>{{ siparis.tarih|date:"d.m.Y" }}</td></tr>

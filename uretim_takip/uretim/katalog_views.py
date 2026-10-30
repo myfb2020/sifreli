@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
+from django.http import Http404
 from django.views.static import serve
 
 from django.shortcuts import render
@@ -12,7 +13,9 @@ from .models import KatalogModeli, KatalogSerisi, LazerDeseni
 
 @login_required
 def medya(request, yol):
-    """Yüklenen resimler yalnızca giriş yapanlara gösterilir."""
+    """Yüklenen resimler yalnızca giriş yapanlara gösterilir; müşteri fotoğrafları bayilere gösterilmez."""
+    if yol.startswith("siparis/") and getattr(request, "bayi", None) is not None:
+        raise Http404
     yanit = serve(request, yol, document_root=settings.MEDIA_ROOT)
     yanit["Cache-Control"] = "private, max-age=604800"
     return yanit

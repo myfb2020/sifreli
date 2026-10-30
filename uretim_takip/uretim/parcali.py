@@ -190,6 +190,7 @@ def _serit(zemin, halka, tur, yon, adet, gen, mal, desen):
 
 A, GU = "altin", "gumus"  # katalogdaki bantlar düz metalik
 KATALOG_SERILERI = [("IPS", "İpek Peluş"), ("BNA", "Bienca"), ("PCH", "Peluche"), ("RNO", "Rono")]
+EK_SERILER = [("MM", "Müşteri modelleri")]  # ofisin müşteri fotoğraflarından eklediği modeller (yalnız olduğu gibi sipariş)
 KATALOG_DEGER = {
     # İpek Peluş
     "IPS-435": _k("pelus_krem", ("desenli", 10, A, G), madalyon="pelus_krem"),
@@ -317,7 +318,7 @@ def temizle(veri, desen_kodlari=()):
     v["kenar_renk"] = _sec(g("kenar_renk"), KENAR_RENKLERI, "altin")
     v["hazir"] = veri.get("hazir") if veri.get("hazir") in HAZIR else ""
     kat = str(veri.get("katalog") or "").upper()
-    v["katalog"] = kat if re.fullmatch(r"(IPS|BNA|PCH|RNO)-\d{3}", kat) else ""
+    v["katalog"] = kat if re.fullmatch(r"(IPS|BNA|PCH|RNO|MM)-\d{3}", kat) else ""
     v["aynen"] = "on" if v["katalog"] and veri.get("aynen") in ("on", True, "1", "true") else ""
     if v["duzen"] == "halkali":
         return _halkali_temizle(v, g, desen)

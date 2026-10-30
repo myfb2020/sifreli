@@ -62,10 +62,11 @@ def studyo(request):
     desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari() - parcali.GIZLI_DESENLER)
     hazirlar = [{"kod": k, "deger": _temizle(parcali.hazir_degerler(k))} for k, _, _ in parcali.HAZIRLAR]
     seriler = []
-    for on, ad in parcali.KATALOG_SERILERI:
+    for on, ad in parcali.KATALOG_SERILERI + parcali.EK_SERILER:
         modeller = KatalogModeli.objects.filter(kod__startswith=on + "-").exclude(resim="").order_by("kod")
         seriler.append({"on": on, "ad": ad, "modeller": [{"kod": m.kod, "resim": m.resim.url,
                                                           "duzenlenir": m.kod in parcali.HAZIR} for m in modeller]})
+    seriler = [sr for sr in seriler if sr["modeller"]]
     motifler = [{"kod": k, "ad": a, "olcu": f"{e:g}×{b:g}"} for k, a, e, b, _ in parcali.NAKIS_MOTIFLERI]
     halkalar = [{"no": i, "tur": veri[f"h{i}_tur"], "gen": veri[f"h{i}_gen"], "malzeme": veri[f"h{i}_malzeme"],
                  "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"],

@@ -502,6 +502,23 @@ class Siparis(models.Model):
 # --- Üretim -------------------------------------------------------------------
 
 
+
+class SiparisFotografi(models.Model):
+    """Müşterinin gönderdiği ürün fotoğrafı (WhatsApp vb.). Ofis yükler; iş bitene kadar istasyonlarda görünür."""
+
+    EN_COK = 3
+    siparis = models.ForeignKey(Siparis, on_delete=models.CASCADE, related_name="fotograflar", verbose_name="sipariş")
+    resim = models.FileField(upload_to="siparis/%Y/%m/", validators=[resim_dogrulayici])
+    olusturma = models.DateTimeField("yüklenme", default=timezone.now, editable=False)
+
+    class Meta:
+        ordering = ["olusturma", "pk"]
+        verbose_name = "sipariş fotoğrafı"
+        verbose_name_plural = "sipariş fotoğrafları"
+
+    def __str__(self):
+        return f"{self.siparis.siparis_no} fotoğrafı"
+
 class UretimLotu(models.Model):
     DURUM = [
         ("bekliyor", "Sıradaki aşamayı bekliyor"),

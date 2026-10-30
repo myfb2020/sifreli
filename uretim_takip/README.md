@@ -131,6 +131,10 @@ Eski düzenler (artık bayiye gösterilmez, eski siparişler için duruyor): *di
 - **Atölye kuralları** (`uretim/parcali.py`): rulo 140 cm, lazer tablası 140×300 cm — sığmayan parçalar bölünür, halkalar en az 4 yay parçasına ayrılır; nakış motifi en çok 40×60 cm, 7 kafalı makineye göre tur sayısı ve "7'nin katı" önerisi.
 - **Ofis:** siparişte **✂️ Kesim listesi ve parçalar**: numaralı parça planı, parça tablosu (paylı kesim ölçüsü, m², istasyon), malzeme başına rulo metresi, nakış adedi/turu, montaj sırası; malzeme başına **lazer DXF** (KESIM paylı hat, DIKIS net hat, parça no ve desen kodu notu). Desen delikleri desenlerin DXF dosyaları gelince eklenecek.
 
+## Sipariş fotoğrafı (WhatsApp'tan gelen ürün)
+
+Ofis yeni siparişte (ya da sipariş sayfasında **📷 Fotoğraf ekle**) müşterinin gönderdiği fotoğrafları seçer (en çok 3). Program fotoğrafı 1600 px JPEG'e küçültür (~200 KB). Fotoğraf sipariş listesinde, sipariş sayfasında, iş sayfasında ve istasyon tabletlerinde görünür; dokununca tam ekran açılır, ✕ ya da geri tuşuyla kapanır. Sipariş sayfasındaki **⭐ Modellere ekle**, fotoğrafı "Müşteri modelleri" serisinde yeni katalog modeli yapar (MM-001…); sipariş modelsizse ona bağlanır. Bu modeller bayilerin Suni deri sayfasında "Müşteri modelleri" sekmesinde görünür ve olduğu gibi sipariş edilebilir. Bayiler müşteri fotoğraflarını göremez.
+
 ## Stok: deri ve malzemeler
 
 - **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.

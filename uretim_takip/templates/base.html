@@ -233,6 +233,33 @@
     });
     bant.hidden = false;
   })();
+  // Resim büyütme: class="buyut" bağlantıları sayfa içinde tam ekran açılır; ✕, dışına dokunma, geri tuşu ya da Esc kapatır.
+  (function () {
+    const kap = document.createElement("div");
+    kap.id = "resim-buyuk"; kap.hidden = true;
+    kap.innerHTML = '<button type="button" aria-label="Kapat">✕</button><img alt="">';
+    document.body.appendChild(kap);
+    const img = kap.querySelector("img");
+    const kapat = () => { if (!kap.hidden) { kap.hidden = true; document.body.style.overflow = ""; } };
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a.buyut");
+      if (a) {
+        e.preventDefault();
+        img.src = a.href; kap.hidden = false; document.body.style.overflow = "hidden";
+        history.pushState({ resimBuyuk: 1 }, "");
+      } else if (!kap.hidden && (e.target === kap || e.target.closest("#resim-buyuk button"))) {
+        if (history.state && history.state.resimBuyuk) history.back(); else kapat();
+      }
+    });
+    window.addEventListener("popstate", kapat);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !kap.hidden) history.back(); });
+  })();
 </script>
+<style>
+  #resim-buyuk { position:fixed; inset:0; z-index:200; background:rgba(15,13,12,.95); display:flex; align-items:center; justify-content:center; }
+  #resim-buyuk[hidden] { display:none; }
+  #resim-buyuk img { max-width:96vw; max-height:92vh; object-fit:contain; touch-action:pinch-zoom; }
+  #resim-buyuk button { position:absolute; top:12px; right:12px; width:52px; height:52px; border-radius:50%; border:0; background:#fff; font-size:26px; cursor:pointer; }
+</style>
 </body>
 </html>
