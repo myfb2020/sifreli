@@ -1701,7 +1701,7 @@ class ParcaliYeniDuzenTesti(TasarimStudyosuTesti):
         sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-7"})
         self.assertContains(sayfa, "Bana fikir ver")
         self.assertContains(sayfa, "2. Halkalar")
-        self.assertNotContains(sayfa, "Elmas")
+        self.assertNotContains(sayfa, "Elmas (45°)")
 
 
 class ParcaliHalkaliTesti(TasarimStudyosuTesti):
@@ -1744,18 +1744,24 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         n = parcali.nakis_bilgisi(v)
         self.assertGreater(n["adet"], 10)
         self.assertEqual(n["tur"], -(-n["adet"] // 7))
-        self.assertTrue(all(p["motif"] <= 40 for p in ps if p["tur"] == "nakis"))
+        self.assertTrue(all(m[2] <= 40 and m[3] <= 65 for p in ps for m in p.get("motifler", [])))
 
     def test_orta_panel_ve_serit(self):
         from . import parcali
 
         k = {"DB003"}
+        # panel: motifin nakış dosyasındaki ölçüsü + 4 cm pay; 3 motif alt alta
         v = parcali.temizle({"duzen": "halkali", "en": 120, "boy": 180, "halka_sayisi": 1, "h1_gen": 12, "orta": "panel",
-                             "panel_en": 40, "panel_boy": 60, "motif": 16}, k)
+                             "nakis": "61.01", "motif_adet": 3}, k)
         ps = parcali.parcalar(v)
         panel = next(p for p in ps if p["ad"] == "Nakış paneli")
-        self.assertEqual((panel["en"], panel["boy"], panel["tur"]), (40, 60, "nakis"))
-        self.assertEqual(len(panel["motifler"]), 2 * 3)
+        self.assertEqual((panel["en"], panel["boy"], panel["tur"]), (19.5, 50.5, "nakis"))
+        self.assertEqual(len(panel["motifler"]), 3)
+        self.assertEqual(parcali.nakis_bilgisi(v)["satirlar"][0]["olcu"], "11.5×11.5")
+        # eski motif adı yeni kataloğa çevrilir; büyük motif sığmazsa uyarı
+        self.assertEqual(parcali.temizle({"duzen": "halkali", "nakis": "grek_kare_gumus"}, k)["iplik"], "gumus")
+        v = parcali.temizle({"duzen": "halkali", "en": 60, "boy": 80, "halka_sayisi": 0, "orta": "panel", "nakis": "55.01"}, k)
+        self.assertTrue(any("sığmıyor" in u for u in parcali.uyarilar(v)))
         self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), 120 * 180, delta=1)
         # iki enine desenli şerit: 3 zemin + 2 şerit
         v = parcali.temizle({"duzen": "halkali", "en": 160, "boy": 230, "halka_sayisi": 1, "h1_gen": 14, "orta": "serit",
@@ -1770,7 +1776,7 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         serit = next(p for p in parcali.parcalar(v) if p["ad"].startswith("Nakışlı şerit"))
         orta = parcali.dis_hat(v)
         self.assertTrue(serit["motifler"])
-        self.assertTrue(all(parcali.icinde(orta, m) for m in serit["motifler"]))
+        self.assertTrue(all(parcali.icinde(orta, m[:2]) for m in serit["motifler"]))
 
     def test_eski_tasarim_cevrilir_ve_bayi_gonderir(self):
         from . import parcali
@@ -1788,7 +1794,8 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
 
         self.client.force_login(self.bayi_hesap)
         yanit = self.client.post(reverse("parcali_studyo"), {
-            **{a: str(d) for a, d in parcali.hazir_degerler("P-7").items()}, "hazir": "P-7", "adet": "1"})
+            **{a: str(d) for a, d in parcali.hazir_degerler("P-1").items()}, "hazir": "P-1", "orta": "serit",
+            "serit_tur": "desenli", "serit_adet": "2", "serit_desen": "DB003", "adet": "1"})
         self.assertRedirects(yanit, reverse("bayi_ana"))
         t = Tasarim.objects.get()
         self.assertEqual((t.veri["duzen"], t.siparis.lazer_deseni.kod), ("halkali", "DB003"))
@@ -1811,3 +1818,11 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.assertTrue(any("4 cm" in u for u in parcali.uyarilar(v)))  # teknik uyarı ofiste görünür
         sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "P-1"})
         self.assertContains(sayfa, "✓ Üretilebilir")
+        # nakış kataloğu motifleri ve gerçek ürün fotoğrafları
+        self.assertContains(sayfa, reverse("parcali_motif", args=["61.01"]))
+        self.assertContains(sayfa, reverse("parcali_hazir_foto", args=["P-3"]))
+        self.assertEqual(self.client.get(reverse("parcali_motif", args=["61.01"]))["Content-Type"], "image/png")
+        self.assertEqual(self.client.get(reverse("parcali_hazir_foto", args=["P-3"]))["Content-Type"], "image/jpeg")
+        self.assertEqual(self.client.get(reverse("parcali_motif", args=["64.01"])).status_code, 404)  # marka logosu yok
+        # kürk / deri sayfasında suni deri hazırları görünmez
+        self.assertNotContains(self.client.get(reverse("tasarim_studyo")), "SD-1")

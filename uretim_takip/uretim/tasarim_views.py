@@ -126,7 +126,10 @@ def studyo(request):
             veri = _temizle(cizim.hazir_degerler(request.GET.get("katalog") or cizim.HAZIRLAR[0][0]))
     modeller = {m.kod: m for m in KatalogModeli.objects.filter(kod__in=cizim.HAZIR)}
     hazirlar = []
+    suni = veri["model"] == "suni"  # suni deri artık Parçalı tasarımda; eski suni tasarımlar açılabilsin diye kalır
     for kod, ad, _ in cizim.HAZIRLAR:
+        if kod.startswith("SD-") and not suni:
+            continue
         deger = cizim.temizle(cizim.hazir_degerler(kod), _desen_kodlari())
         model = modeller.get(kod)
         if model and model.resim and not (hali_gorsel.VARLIK / "hazir" / f"{kod}.jpg").exists():
@@ -138,7 +141,7 @@ def studyo(request):
     return render(request, "uretim/tasarim_studyo.html", {
         "form": form, "v": veri, "ozet": cizim.ozet(veri), "alan": cizim.alan_m2(veri), "hazirlar": hazirlar,
         "sekiller": cizim.SEKILLER, "bantlar": cizim.BANTLAR, "zeminler": cizim.ZEMINLER, "altlar": cizim.ALTLAR,
-        "modeller": cizim.MODELLER, "suni_zeminler": cizim.SUNI_ZEMINLER, "biyeler": cizim.BIYELER,
+        "modeller": cizim.MODELLER if suni else cizim.MODELLER[:1], "suni_zeminler": cizim.SUNI_ZEMINLER, "biyeler": cizim.BIYELER,
         "desenler": desenler, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar},
     })
 

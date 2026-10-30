@@ -3,7 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -60,14 +60,17 @@ def studyo(request):
         veri = _temizle(kaynak.veri if kaynak else parcali.hazir_degerler(request.GET.get("hazir") or "P-1"))
     veri = _temizle(parcali.eskiden_cevir(veri))  # ekran yalnız halkalı yapıyı düzenler
     desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari())
-    hazirlar = [{"kod": k, "ad": a, "deger": _temizle(parcali.hazir_degerler(k))} for k, a, _ in parcali.HAZIRLAR]
+    hazirlar = [{"kod": k, "ad": a, "deger": _temizle(parcali.hazir_degerler(k)), "foto": k in parcali.HAZIR_FOTO}
+                for k, a, _ in parcali.HAZIRLAR]
+    motifler = [{"kod": k, "ad": a, "olcu": f"{e:g}×{b:g}"} for k, a, e, b, _ in parcali.NAKIS_MOTIFLERI]
     halkalar = [{"no": i, "tur": veri[f"h{i}_tur"], "gen": veri[f"h{i}_gen"], "malzeme": veri[f"h{i}_malzeme"],
                  "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"],
-                 "ad_malzeme": f"h{i}_malzeme", "ad_desen": f"h{i}_desen"} for i in range(1, parcali.EN_COK_HALKA + 1)]
+                 "ad_malzeme": f"h{i}_malzeme", "ad_desen": f"h{i}_desen", "ad_nakis": f"h{i}_nakis"} for i in range(1, parcali.EN_COK_HALKA + 1)]
     return render(request, "uretim/tasarim_parcali.html", {
         "form": form, "v": veri, "h": bayi_hesap(veri), "halkalar": halkalar, "malzemeler": parcali.MALZEMELER,
         "sekiller": parcali.SEKILLER, "halka_turleri": parcali.HALKA_TURLERI, "orta_turleri": parcali.ORTA_TURLERI,
-        "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "motifler": parcali.MOTIFLER,
+        "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "nakis_motifleri": motifler,
+        "iplikler": parcali.IPLIKLER,
         "kenarlar": parcali.KENARLAR, "kenar_renkleri": parcali.KENAR_RENKLERI, "desenler": desenler,
         "hazirlar": hazirlar, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "en_cok_halka": parcali.EN_COK_HALKA,
     })
@@ -99,6 +102,25 @@ def fikir(request):
 @login_required
 def onizleme_resmi(request):
     return _jpeg(_temizle(request.GET), _boyut(request))
+
+
+@login_required
+def motif_ornegi(request, kod):
+    if kod not in parcali.MOTIF:
+        raise Http404
+    yanit = HttpResponse(parcali_gorsel.nakis_ornegi(kod), content_type="image/png")
+    yanit["Cache-Control"] = "private, max-age=604800"
+    return yanit
+
+
+@login_required
+def hazir_foto(request, kod):
+    """Hazır modelin gerçek ürün fotoğrafı (atölyeden)."""
+    if kod not in parcali.HAZIR_FOTO:
+        raise Http404
+    yanit = FileResponse(open(parcali_gorsel.HAZIR_FOTO_KLASORU / f"{kod}.jpg", "rb"), content_type="image/jpeg")
+    yanit["Cache-Control"] = "private, max-age=604800"
+    return yanit
 
 
 @login_required

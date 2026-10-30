@@ -21,6 +21,7 @@
         {% for k, ad in modeller %}<label class="secim"><input type="radio" name="model" value="{{ k }}"{% if v.model == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}
       </div>
       <p class="soluk">Katalogdaki ya da atölyedeki bir halıdan başlayın, sonra istediğinizi değiştirin.</p>
+      <p class="soluk">Suni deri halılar için <a href="{% url 'parcali_studyo' %}">🧩 Parçalı tasarım</a> sayfasını kullanın.</p>
       <div class="hazir-izgara">
         {% for h in hazirlar %}
         <button type="button" class="hazir{% if v.katalog == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}" data-model="{{ h.deger.model }}">

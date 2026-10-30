@@ -3,6 +3,7 @@
 import io
 import math
 from functools import lru_cache
+from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
 
@@ -10,6 +11,8 @@ from . import hali_gorsel as hg
 from . import parcali as pc
 from . import tasarim_cizim as cizim
 
+NAKIS_KLASORU = Path(__file__).resolve().parent / "tasarim_varlik" / "nakis"
+HAZIR_FOTO_KLASORU = Path(__file__).resolve().parent / "tasarim_varlik" / "hazir_foto"
 KENAR_HEX = {"altin": "#d6b26a", "gumus": "#c2c5c9", "siyah": "#1c1b1a", "beyaz": "#f1ede4", "bej": "#cdbd9f"}
 
 
@@ -212,10 +215,11 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
 
     # nakış motifleri
     if v["duzen"] == "oval_serit" and v["nakis"] != "yok":
-        _motifler(resim, v["nakis"], v["motif"], pc.nakis_konumlari(v), px)
+        _motifler(resim, "61.01", "gumus" if v["nakis"] == "grek_kare_gumus" else "altin",
+                  [(x, y, v["motif"], v["motif"], 0) for x, y in pc.nakis_konumlari(v)], px)
     for p in parcalar:
         if p.get("motifler"):
-            _motifler(resim, p["nakis"], p["motif"], p["motifler"], px)
+            _motifler(resim, p["nakis"], v.get("iplik", "altin"), p["motifler"], px)
 
     # bantların gölgesi ve dikiş (zig-zag) izleri
     if golge_kaynak.getbbox():
@@ -265,17 +269,51 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     return tuval
 
 
-def _motifler(resim, nakis, olcu, konumlar, px):
-    boy = max(8, int(olcu * px))
-    mm = motif_maskesi(boy)
-    renk = (214, 186, 120) if nakis == "grek_kare" else (200, 202, 206)
-    iplik = hg.malzeme("altin" if nakis == "grek_kare" else "gumus", (boy, boy), px)
-    iplik = Image.blend(Image.new("RGB", (boy, boy), renk), iplik, 0.5)
-    golge = mm.filter(ImageFilter.GaussianBlur(max(1, boy / 60)))
-    for cx, cy in konumlar:
-        x, y = int(cx * px - boy / 2), int(cy * px - boy / 2)
-        resim.paste((40, 32, 20), (x + 1, y + 2), golge.point(lambda q: q // 3))
-        resim.paste(iplik, (x, y), mm)
+@lru_cache(maxsize=64)
+def nakis_maskesi(kod):
+    """Atölyenin nakış kataloğundaki motifin şekli (L, 255 = iplik)."""
+    yol = NAKIS_KLASORU / f"{kod.replace('.', '_')}.png"
+    if not yol.exists():
+        return motif_maskesi(200)
+    return Image.open(yol).convert("L")
+
+
+def _iplik_dokusu(iplik, boyut, px):
+    renk = _hex(pc.IPLIK_HEX[iplik])
+    if iplik in ("altin", "gumus"):
+        return Image.blend(Image.new("RGB", boyut, renk), hg.malzeme(iplik, boyut, px), 0.5)
+    taban = Image.new("RGB", boyut, renk)
+    isik = Image.new("RGB", boyut, tuple(min(255, c + 35) for c in renk))
+    return Image.composite(isik, taban, Image.effect_noise(boyut, 60).point(lambda q: max(0, q - 150)))
+
+
+def _motifler(resim, kod, iplik, konumlar, px):
+    """Nakış motiflerini (cx, cy, w, h, açı) yerlerine işler; motifin uzun kenarı w/h'nin uzun olanına gelir."""
+    kaynak = nakis_maskesi(kod)
+    for cx, cy, w, h, aci in konumlar:
+        W, H = max(4, int(w * px)), max(4, int(h * px))
+        m = kaynak
+        if (m.width > m.height) != (W > H) and abs(W - H) > 2:
+            m = m.rotate(90, expand=True)
+        m = m.resize((W, H), Image.LANCZOS)
+        if aci:
+            m = m.rotate(-aci, expand=True, resample=Image.BICUBIC)
+        doku = _iplik_dokusu(iplik, m.size, px)
+        golge = m.filter(ImageFilter.GaussianBlur(max(1, px * 0.3))).point(lambda q: q // 3)
+        x, y = int(cx * px - m.width / 2), int(cy * px - m.height / 2)
+        resim.paste((40, 32, 20), (x + 1, y + 2), golge)
+        resim.paste(doku, (x, y), m)
+
+
+def nakis_ornegi(kod, iplik="altin", boy=160):
+    """Motif seçim düğmesi için: açık zemin üstünde motif."""
+    en, yuk = pc.MOTIF[kod]["en"], pc.MOTIF[kod]["boy"]
+    olcek = (boy - 16) / max(en, yuk)
+    im = Image.new("RGB", (boy, boy), (236, 231, 222))
+    _motifler(im, kod, iplik, [(boy / 2 / olcek, boy / 2 / olcek, en, yuk, 0)], olcek)
+    t = io.BytesIO()
+    im.save(t, "PNG")
+    return t.getvalue()
 
 
 def parca_plani(v, uzun_kenar=700):

@@ -1,0 +1,4 @@
+{# Nakış motifi seçimi: atölyenin nakış kataloğundaki motifler, gerçek ölçüleriyle. alan: form alanı, secili: seçili kod. #}
+<div class="motif-izgara">
+  {% for m in nakis_motifleri %}<label class="motif" title="{{ m.kod }} {{ m.ad }}"><input type="radio" name="{{ alan }}" value="{{ m.kod }}"{% if secili == m.kod %} checked{% endif %}><img src="{% url 'parcali_motif' m.kod %}" alt="" loading="lazy"><span>{{ m.ad }}<small>{{ m.olcu }} cm</small></span></label>{% endfor %}
+</div>

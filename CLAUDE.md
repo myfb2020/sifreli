@@ -38,8 +38,8 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 ├─ 3 Katalog + Tasarım stüdyosu
 │   ├─ Katalog: 13 seri, 192 model (TOS, HMK, IPS, LTS…), 14 lazer deseni DB001–DB014
 │   ├─ Stüdyo (bayi): Kürk (Toskana: dış bant → halka → iç bant → zemin → madalyon) / Suni deri (varak, peluş, kadife, sim/rugan alt, biye)
-│   ├─ Hazırlar: TOS-034…LTS-006, SD-1…SD-4 ; görsel Pillow ile sunucuda çizilir
-│   ├─ **Parçalı (lego) suni deri** /tasarim/parcali/: **halkalı** (dikdörtgen/oval, ≤4 halka düz/desenli/nakışlı + orta düz/nakış paneli/enine-boyuna şerit), 5 adımlı ekran + ✕'li büyük görünüm; eski düzenler (çerçeve, oval şerit, yuvarlak, ızgara…) yalnız eski kayıtlar için, `eskiden_cevir`; 💡 fikir ver; P-1…P-8; gerçek malzeme fotoğraf dokuları; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
+│   ├─ Hazırlar: TOS-034…LTS-006 (menü "Kürk / deri modelleri"); SD-1…SD-4 yalnız eski suni kayıtlar açılınca görünür
+│   ├─ **Parçalı (lego) suni deri** /tasarim/parcali/: nakış = atölye kataloğundan 27 motif (`NAKIS_MOTIFLERI`, gerçek ölçü, maske `tasarim_varlik/nakis/`, marka logoları yok) + iplik rengi; hazırlar P-1…P-12 (P-1…9 gerçek ürün fotoğraflı `tasarim_varlik/hazir_foto/`); **halkalı** (dikdörtgen/oval, ≤4 halka düz/desenli/nakışlı + orta düz/nakış paneli/enine-boyuna şerit), 5 adımlı ekran + ✕'li büyük görünüm; eski düzenler (çerçeve, oval şerit, yuvarlak, ızgara…) yalnız eski kayıtlar için, `eskiden_cevir`; 💡 fikir ver; P-1…P-8; gerçek malzeme fotoğraf dokuları; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
 │   └─ Gönderim = "Onay bekliyor" sipariş → ofis sipariş sayfasından onay/ret; lazer DXF/SVG (hat + bantlar; DB deseni yalnız not)
 ├─ 4 Hesaplar: Tablet (istasyona bağlı) / Ofis ("Ofis" grubu) / Yönetici / Bayi (yalnız stüdyo + kendi siparişleri)
 ├─ 5 Raporlar: makine, personel-istasyon, bekleme, Excel çıktı; Excel'den aktarma; tablet giriş kaydı
@@ -75,7 +75,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
 - **Kağıtsız istasyon akışı (plan onaylandı, yazılmadı):** QR yalnız lazerde rulo kartından (borusuz rulo: lastik bantlı kart + iç uçta keçe tarafına yedek etiket); stok tasarımın kesim listesinden otomatik düşer, **fire %10** (sonra gerçek fireyle ayar). İstasyonlarda okutma yok: tablet listesinde halı resmi + SP no, Başla/Bitti. Rota: Lazer → (Nakış paralel, yalnız nakışlı parçalar) → Zig-zag (nakış bekleniyor işareti) → Biye/Lanfel. Lazerci büyük parçanın keçesine SP no yazar.
-- **2026-10-30 gelen bilgi (plan yazıldı, onay bekliyor):** Nakış 7 kafa aynı motifi işler; en büyük alan 40 cm (kullanıcı "40×40" dedi, katalogda 400×650 mm motif var → sorulacak). Nakış programı kataloğu (97 desen) foto: alttaki 4 satır halı motifleri (54.01–82.01; Grek, kare, şerit 400×100, Bienna Fur logo 56.01; marka logoları FF/GG/LV/Medusa → bayiye konmaması önerildi). Plan: "motif ölçüsü" kutusu kalkar, motif listeden gerçek ölçüsüyle seçilir. "Hazır modelden" sekmesi kürk/deri katalog için kalır, SD-1…4 kaldırılır; parçalı hazırlar gerçek ürün fotoğraflı kart olur (13 foto geldi, scratchpad foto_*.jpg — kalıcı değil, gerekince kullanıcıdan istenir). Fotolardan yeni özellikler: 45° gönye köşe, Grek karo aplike şerit, ovalde ışınsal çubuklar, uçlarda enine desenli panel.
+- **Sıradaki (onaylı sıra):** 3) 45° gönye köşe 4) Grek karo şerit (karolar lazerle kesilir, aplike) 5) ovalde ışınsal çubuklar + uçlarda enine panel. Nakış: 7 kafa aynı motif; motif ≤40×60; uzun parçada 7'den sonra devamına 2–3 motif daha eklenebilir (tur = ⌈adet/7⌉).
 - Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
 - Desenler: 3. fotoğraftaki işlemeli ve Grek bant için DXF/net foto → DB015/DB016; DB desenlerinin DXF'leri gelirse lazer dosyasına eklenir.
 - Yeni modeller: aplike Kufi düğüm, daire patchwork, Medusa/logo madalyonu.
@@ -87,7 +87,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
-- 2026-10-30: Bayi uyarıları tek satır rozet (dokununca açılır) + ilgili halka/adımda; teknik uyarı yalnız kesim listesinde; yer yoksa "+ halka" kapalı, genişlik sınırı. kurulum.sh: zip + pip önbelleği silinir, `--no-cache-dir`, son 2 sürüm, sürüm kopyasında katalog_tohum/doku yok (~1 MB). Sunucu ölçümü: surumler 43M, takip 34M, .cache 18M, zip 15M. **Kullanıcıya gönderilen son zip bu.**
+- 2026-10-30: Nakış motif kataloğu (27 motif, gerçek ölçü, 'motif ölçüsü' kutusu kalktı; panel = motif + 4 cm, 1–3 motif), iplik rengi, gerçek ürün fotoğraflı hazırlar P-1…P-9 + P-10…12, kürk/deri sekmesinden suni deri kaldırıldı. **Kullanıcıya gönderilen son zip bu.**
+- 2026-10-30: Bayi uyarıları tek satır rozet (dokununca açılır) + ilgili halka/adımda; teknik uyarı yalnız kesim listesinde; yer yoksa "+ halka" kapalı, genişlik sınırı. kurulum.sh: zip + pip önbelleği silinir, `--no-cache-dir`, son 2 sürüm, sürüm kopyasında katalog_tohum/doku yok (~1 MB). Sunucu ölçümü: surumler 43M, takip 34M, .cache 18M, zip 15M. 
 - 2026-10-29: Halkalı parçalı halı (≤4 halka + orta panel/şerit, desen delikleri boş), sade 5 adımlı ekran, ✕'li büyük görünüm, yeni P-1…P-8, eski tasarım çevirme.
 - 2026-10-29: Lanfel hatası düzeltildi (e1c9c76); 16 malzeme fotoğrafından gerçek dokular (kart ölçeği 92.6 px/cm), kabartma + yakınlaştırma; yeni düzenler (şerit/ızgara/elmas/iki parça), renk aileleri, 💡 Bana fikir ver. Bekleyen: malzeme adları (geçici), Odamda gör, istasyonlara parça bazında iş, desen DXF'leri.
 - 2026-10-29: Parçalı suni deri tasarım ilk sürüm (3 düzen, kesim listesi, malzeme bazlı DXF). Sıradaki: kullanıcı denemesi, desen DXF'leri, deri/kürk ızgara (kare/elmas/şerit/daire, renk geçişi), istasyonlara parça bazında iş.

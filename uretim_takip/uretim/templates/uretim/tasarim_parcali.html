@@ -38,7 +38,7 @@
       <label class="alt-baslik">Hazır bir halıdan başlayın (isterseniz)</label>
       <div class="hazir-izgara">
         {% for h in hazirlar %}<button type="button" class="hazir{% if v.hazir == h.kod %} secili{% endif %}" data-kod="{{ h.kod }}">
-          <img src="{% url 'parcali_onizleme_resmi' %}?b=240&amp;hazir={{ h.kod }}&amp;{% for a, d in h.deger.items %}{{ a }}={{ d|urlencode }}&amp;{% endfor %}" alt="" loading="lazy">
+          {% if h.foto %}<img src="{% url 'parcali_hazir_foto' h.kod %}" alt="" loading="lazy"><em class="gercek">📷 Gerçek ürün</em>{% else %}<img src="{% url 'parcali_onizleme_resmi' %}?b=240&amp;hazir={{ h.kod }}&amp;{% for a, d in h.deger.items %}{{ a }}={{ d|urlencode }}&amp;{% endfor %}" alt="" loading="lazy">{% endif %}
           <span>{{ h.ad }}</span></button>{% endfor %}
       </div>
       <div class="fikir-kap">
@@ -70,8 +70,8 @@
         </div>
         <div data-kosul="h{{ r.no }}_tur=nakisli">
           <label class="alt-baslik">Nakış motifi</label>
-          <div class="secim-izgara">{% for k, ad in motifler %}<label class="secim"><input type="radio" name="h{{ r.no }}_nakis" value="{{ k }}"{% if r.nakis == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-          <p class="soluk">Motif ölçüsü halka genişliğine göre ayarlanır (en çok 40 cm).</p>
+          {% include "uretim/_motif_secimi.html" with alan=r.ad_nakis secili=r.nakis %}
+          <p class="soluk">Motif nakış dosyasındaki ölçüsüyle halka boyunca tekrar eder; halka genişliği motife göre kendiliğinden ayarlanır.</p>
         </div>
       </div>
       {% endfor %}
@@ -86,13 +86,11 @@
       <label class="alt-baslik">Ortaya ne konsun?</label>
       <div class="secim-izgara">{% for k, ad in orta_turleri %}<label class="secim"><input type="radio" name="orta" value="{{ k }}"{% if v.orta == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
       <div data-kosul="orta=panel">
-        <div class="iki-sutun">
-          <p><label for="panel_en">Panel eni (cm)</label><input id="panel_en" name="panel_en" type="number" min="20" max="200" step="5" value="{{ v.panel_en|floatformat:'-1' }}"></p>
-          <p><label for="panel_boy">Panel boyu (cm)</label><input id="panel_boy" name="panel_boy" type="number" min="20" max="300" step="5" value="{{ v.panel_boy|floatformat:'-1' }}"></p>
-        </div>
+        <label class="alt-baslik">Kaç motif? (alt alta, aynı panelde)</label>
+        <div class="secim-izgara">{% for n in "123" %}<label class="secim"><input type="radio" name="motif_adet" value="{{ n }}"{% if v.motif_adet|stringformat:"s" == n %} checked{% endif %}><span>{{ n }}</span></label>{% endfor %}</div>
         <label class="alt-baslik">Panel malzemesi</label>
         {% include "uretim/_malzeme_secimi.html" with alan="panel_malzeme" secili=v.panel_malzeme %}
-        <p><label for="motif">Motif ölçüsü (cm, en çok 40)</label><input id="motif" name="motif" type="number" min="8" max="40" step="1" value="{{ v.motif|floatformat:'-1' }}"></p>
+        <p class="soluk">Panel ölçüsü motife göre kendiliğinden belirlenir.</p>
       </div>
       <div data-kosul="orta=serit">
         <div class="secim-izgara">{% for k, ad in serit_turleri %}<label class="secim"><input type="radio" name="serit_tur" value="{{ k }}"{% if v.serit_tur == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
@@ -110,7 +108,7 @@
       </div>
       <div data-kosul="orta=panel,serit" data-kosul2="serit_tur=nakisli">
         <label class="alt-baslik">Nakış motifi</label>
-        <div class="secim-izgara">{% for k, ad in motifler %}<label class="secim"><input type="radio" name="nakis" value="{{ k }}"{% if v.nakis == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+        {% include "uretim/_motif_secimi.html" with alan="nakis" secili=v.nakis %}
       </div>
     </section>
 
@@ -119,6 +117,8 @@
       <div class="secim-izgara">{% for k, ad in kenarlar %}<label class="secim buyuk-secim"><input type="radio" name="kenar" value="{{ k }}"{% if v.kenar == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
       <label class="alt-baslik">Kenar rengi</label>
       <div class="secim-izgara">{% for k, ad in kenar_renkleri %}<label class="secim"><input type="radio" name="kenar_renk" value="{{ k }}"{% if v.kenar_renk == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+      <label class="alt-baslik">Nakış ipliği rengi <small class="soluk">(nakışlı parça varsa)</small></label>
+      <div class="secim-izgara">{% for k, ad, hex in iplikler %}<label class="secim"><input type="radio" name="iplik" value="{{ k }}"{% if v.iplik == k %} checked{% endif %}><span><i class="iplik-renk" style="background:{{ hex }}"></i>{{ ad }}</span></label>{% endfor %}</div>
     </section>
 
     <section class="kart adim" data-adim="5">
@@ -180,6 +180,15 @@
   .secim input:checked + span { background:var(--ana); color:#fff; border-color:var(--ana); }
   input:focus-visible + span { outline:2px solid var(--ana); outline-offset:2px; }
   .iki-sutun { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .motif-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:6px; margin-bottom:4px; }
+  .motif { position:relative; border:2px solid #e6ddd3; border-radius:8px; padding:3px; text-align:center; cursor:pointer; background:#fff; font-size:11px; font-weight:normal !important; line-height:1.15; }
+  .motif input { position:absolute; opacity:0; pointer-events:none; width:auto !important; }
+  .motif img { width:100%; aspect-ratio:1; object-fit:contain; display:block; border-radius:6px; }
+  .motif small { display:block; color:#7a6f66; }
+  .motif:has(input:checked) { border-color:var(--ana); background:#fbf6f1; }
+  .iplik-renk { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:5px; vertical-align:-1px; border:1px solid #0003; }
+  .hazir { position:relative; }
+  .gercek { position:absolute; top:6px; left:6px; background:#000a; color:#fff; font-style:normal; font-size:10px; padding:1px 5px; border-radius:6px; }
   .hazir-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; }
   .hazir { border:2px solid #e6ddd3; border-radius:10px; background:#fff; padding:4px; cursor:pointer; text-align:center; font:inherit; font-size:12px; display:flex; flex-direction:column; gap:2px; }
   .hazir img { width:100%; aspect-ratio:3/4; object-fit:contain; border-radius:6px; background:#26231f; }
@@ -198,7 +207,8 @@
   .desen:has(input:checked) { border-color:var(--ana); background:#fbf6f1; }
   /* ilk seçenekler görünür, gerisi "Tümünü göster" ile açılır (seçili olan hep görünür) */
   .kisa:not(.acik) > .mal:nth-child(n+9):not(:has(input:checked)),
-  .kisa:not(.acik) > .desen:nth-child(n+7):not(:has(input:checked)) { display:none; }
+  .kisa:not(.acik) > .desen:nth-child(n+7):not(:has(input:checked)),
+  .kisa:not(.acik) > .motif:nth-child(n+9):not(:has(input:checked)) { display:none; }
   .tumu { background:none; border:0; color:var(--ana); font:inherit; cursor:pointer; padding:2px 0 8px; text-decoration:underline; }
   .buyuk-gorunum { position:fixed; inset:0; z-index:100; background:rgba(20,18,16,.96); display:flex; flex-direction:column; }
   .buyuk-gorunum[hidden] { display:none; }
@@ -232,8 +242,8 @@
   ustAyarla(); window.addEventListener("resize", ustAyarla);
 
   // seçim listelerinde "Tümünü göster"
-  form.querySelectorAll(".mal-izgara, .desen-izgara").forEach((iz) => {
-    const sinir = iz.classList.contains("mal-izgara") ? 8 : 6;
+  form.querySelectorAll(".mal-izgara, .desen-izgara, .motif-izgara").forEach((iz) => {
+    const sinir = iz.classList.contains("desen-izgara") ? 6 : 8;
     if (iz.children.length <= sinir) return;
     iz.classList.add("kisa");
     const d = document.createElement("button");
