@@ -83,6 +83,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - Desenler: 3. fotoğraftaki işlemeli ve Grek bant için DXF/net foto → DB015/DB016; DB desenlerinin DXF'leri gelirse lazer dosyasına eklenir.
 - Yeni modeller: aplike Kufi düğüm, daire patchwork, Medusa/logo madalyonu.
 - Lazer makinesi IP entegrasyonu (IP + kontrol kartı modeli lazım).
+- **Paraşüt Excel'leri (2026-10-30, BEKLEMEDE – kullanıcı: önce atölyede deneme, sonra karar):** ürün listesi (5.438 kart, halı kartları eksi stok = satış; ~35.000 m²; Dana/Toskana m², Rono/Peluş adet önde; 160×230 en çok) ve tahsilatlar (1.680, 189 müşteri; 2024 ~304K$ → 2026 10 ay ~1,94M$; Özdallar %36, ilk 10 %60; 20 müşteri 6+ ay ödemesiz). Fikirler: yönetici paneli, Paraşüt'e fatura, müşteri takibi, maliyet/kâr. Dosyalar yalnız oturum yüklemesinde, kalıcı değil.
 - Paraşüt otomatik veri çekme (API erişimi lazım). WhatsApp sipariş yapıştırma (örnek mesaj lazım).
 - Tek dokunuşla usta akışı (PIN her gün mü hatırlansın? cevap bekleniyor). Çevrimdışı kuyruk.
 - Raporlar: fire nedeni, geri çağırma, kapasite.
