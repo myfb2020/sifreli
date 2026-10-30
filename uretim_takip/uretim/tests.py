@@ -1946,3 +1946,16 @@ class SiparisFotografiTesti(TasarimStudyosuTesti):
         self.client.post(reverse("parcali_studyo"), {"duzen": "halkali", "katalog": "MM-002", "aynen": "on",
                                                       "en": "120", "boy": "180", "adet": "1"})
         self.assertEqual(Siparis.objects.get(durum="onay").katalog_modeli.kod, "MM-002")
+
+    def test_android_paylas(self):
+        manifest = self.client.get(reverse("manifest")).json()
+        self.assertEqual(manifest["share_target"]["action"], reverse("paylas"))
+        self.assertEqual(manifest["share_target"]["params"]["files"][0]["name"], "fotograflar")
+        sw = self.client.get(reverse("service_worker")).content.decode()
+        self.assertIn('const PAYLAS_ADRESI = "/paylas/"', sw)
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("paylas")), "Yeni sipariş aç")
+        # uygulama kurulu değilse POST doğrudan gelir: bir şey kaydedilmez, yol gösterilir
+        self.assertContains(self.client.post(reverse("paylas"), {"fotograflar": [self._foto()]}), "Fotoğraf alınamadı")
+        self.client.force_login(self.bayi_hesap)
+        self.assertNotEqual(self.client.get(reverse("paylas")).status_code, 200)

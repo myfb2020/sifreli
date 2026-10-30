@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block baslik %}Fotoğraf paylaş{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:560px;margin:0 auto">
+  <h1 style="margin-top:0">📷 Paylaşılan fotoğraf</h1>
+  {% if dogrudan %}<div class="mesaj error">Fotoğraf alınamadı. Programı telefonda “Uygulamayı yükle” ile ana ekrana ekleyip bir kez açın, sonra yeniden paylaşın.</div>{% endif %}
+  <div id="fotolar" class="paylas-fotolar"></div>
+  <p id="yok" class="soluk" hidden>Paylaşılan fotoğraf bulunamadı. WhatsApp'ta fotoğrafa uzun basıp <b>Paylaş → Üretim Takip</b> deyin.</p>
+  <div id="secim" hidden>
+    <a class="btn buyuk" href="{% url 'siparis_yeni' %}?paylasim=1" style="width:100%;text-align:center;display:block">🆕 Yeni sipariş aç</a>
+    <h2>veya var olan siparişe ekle</h2>
+    <input type="search" id="ara" placeholder="Sipariş no ya da müşteri ara" style="margin-bottom:8px;width:100%;padding:10px;font:inherit;border:1px solid #d9cfc4;border-radius:8px">
+    <div id="liste">
+      {% for s in siparisler %}<button type="button" class="paylas-siparis" data-pk="{{ s.pk }}" data-ara="{{ s.siparis_no|lower }} {{ s.musteri.ad|lower }} {{ s.urun|lower }}"
+        data-adres="{% url 'siparis_foto_ekle' s.pk %}" data-detay="{% url 'siparis_detay' s.pk %}">
+        <b>{{ s.siparis_no }}</b> · {{ s.musteri }}<br><span class="soluk">{{ s.urun }} · {{ s.get_durum_display }}</span></button>
+      {% empty %}<p class="soluk">Açık sipariş yok.</p>{% endfor %}
+    </div>
+  </div>
+  <form id="csrf">{% csrf_token %}</form>
+</div>
+<style>
+  .paylas-fotolar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .paylas-fotolar img { height:120px; border-radius:8px; }
+  .paylas-siparis { display:block; width:100%; text-align:left; background:#fff; border:1px solid #e6ddd3; border-radius:10px; padding:10px; margin-bottom:6px; font:inherit; cursor:pointer; }
+  .paylas-siparis[hidden] { display:none; }
+</style>
+<script>
+(async function () {
+  const dosyalar = await paylasilanFotograflar();
+  if (!dosyalar.length) { document.getElementById("yok").hidden = false; return; }
+  const kap = document.getElementById("fotolar");
+  dosyalar.forEach((d) => { const i = document.createElement("img"); i.src = URL.createObjectURL(d); kap.appendChild(i); });
+  if (dosyalar.length > {{ en_cok }}) kap.insertAdjacentHTML("beforeend", '<p class="uyari">İlk {{ en_cok }} fotoğraf alınır.</p>');
+  document.getElementById("secim").hidden = false;
+  document.getElementById("ara").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLocaleLowerCase("tr");
+    document.querySelectorAll(".paylas-siparis").forEach((b) => { b.hidden = q && !b.dataset.ara.includes(q); });
+  });
+  document.querySelectorAll(".paylas-siparis").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm(`Fotoğraflar ${b.querySelector("b").textContent} siparişine eklensin mi?`)) return;
+    const veri = new FormData(document.getElementById("csrf"));
+    dosyalar.forEach((d) => veri.append("fotograflar", d));
+    b.disabled = true;
+    await fetch(b.dataset.adres, { method: "POST", body: veri, credentials: "same-origin" });
+    await caches.delete("paylasilan");
+    location.href = b.dataset.detay;
+  }));
+})();
+</script>
+{% endblock %}

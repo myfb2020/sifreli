@@ -35,7 +35,19 @@
   kodOnizle();
   // seçilen fotoğrafların küçük önizlemesi
   const foto = document.getElementById("id_fotograflar");
-  foto.addEventListener("change", () => {
+  foto.addEventListener("change", fotoOnizle);
+  // WhatsApp'tan "Paylaş" ile gelindiyse fotoğraflar kendiliğinden eklenir
+  if (new URLSearchParams(location.search).has("paylasim")) {
+    paylasilanFotograflar().then((dosyalar) => {
+      if (!dosyalar.length) return;
+      const dt = new DataTransfer();
+      dosyalar.forEach((d) => dt.items.add(d));
+      foto.files = dt.files;
+      fotoOnizle();
+      foto.closest("form").addEventListener("submit", () => caches.delete("paylasilan"));
+    });
+  }
+  function fotoOnizle() {
     let kap = foto.closest("p").querySelector(".foto-onizle");
     if (!kap) { kap = document.createElement("div"); kap.className = "foto-onizle"; kap.style.cssText = "display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"; foto.closest("p").appendChild(kap); }
     kap.innerHTML = "";
@@ -44,7 +56,7 @@
       i.style.cssText = "height:90px;border-radius:6px"; kap.appendChild(i);
     });
     if (foto.files.length > 3) kap.insertAdjacentHTML("beforeend", '<span class="uyari">En çok 3 fotoğraf seçin.</span>');
-  });
+  }
   if (desen.value) onizle(desen, desenler[desen.value]);
 })();
 </script>

@@ -135,6 +135,8 @@ Eski düzenler (artık bayiye gösterilmez, eski siparişler için duruyor): *di
 
 Ofis yeni siparişte (ya da sipariş sayfasında **📷 Fotoğraf ekle**) müşterinin gönderdiği fotoğrafları seçer (en çok 3). Program fotoğrafı 1600 px JPEG'e küçültür (~200 KB). Fotoğraf sipariş listesinde, sipariş sayfasında, iş sayfasında ve istasyon tabletlerinde görünür; dokununca tam ekran açılır, ✕ ya da geri tuşuyla kapanır. Sipariş sayfasındaki **⭐ Modellere ekle**, fotoğrafı "Müşteri modelleri" serisinde yeni katalog modeli yapar (MM-001…); sipariş modelsizse ona bağlanır. Bu modeller bayilerin Suni deri sayfasında "Müşteri modelleri" sekmesinde görünür ve olduğu gibi sipariş edilebilir. Bayiler müşteri fotoğraflarını göremez.
 
+**Android'den doğrudan:** program telefona "Uygulamayı yükle" ile kuruluysa WhatsApp'ta fotoğrafa uzun basıp **Paylaş → Üretim Takip** denir; açılan sayfada **Yeni sipariş aç** (fotoğraflar forma eklenmiş gelir) ya da listeden **var olan siparişe ekle** seçilir. iPhone desteklemez. Güncellemeden sonra Paylaş listesinde görünmezse uygulama telefondan kaldırılıp yeniden yüklenir.
+
 ## Stok: deri ve malzemeler
 
 - **Deri stoğu (Stok sayfası):** Her deri türünün toplam kalan kg ve m² miktarı üstte görünür. **Yönetim → Deri türleri**'nde **en az stok (kg)** girilirse, toplam stok bunun altına düşünce uyarı verilir.

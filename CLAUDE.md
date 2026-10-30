@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (113 test) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (114 test) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -74,7 +74,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - **Hâlâ eksik:** DXF desen dosyaları; nakış motifi yalnız Grek kare (başka motif dosyası gelirse eklenir).
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
-- Android "Paylaş → Bienna Fur" (PWA share target) ile WhatsApp fotoğrafını doğrudan yeni siparişe: önerildi, onay bekliyor. Fotoğraflarla disk dolar → ücretli paket önerisi.
+- Fotoğraflarla disk dolar → ücretli paket önerisi.
 - **Kağıtsız istasyon akışı (plan onaylandı, yazılmadı):** QR yalnız lazerde rulo kartından (borusuz rulo: lastik bantlı kart + iç uçta keçe tarafına yedek etiket); stok tasarımın kesim listesinden otomatik düşer, **fire %10** (sonra gerçek fireyle ayar). İstasyonlarda okutma yok: tablet listesinde halı resmi + SP no, Başla/Bitti. Rota: Lazer → (Nakış paralel, yalnız nakışlı parçalar) → Zig-zag (nakış bekleniyor işareti) → Biye/Lanfel. Lazerci büyük parçanın keçesine SP no yazar.
 - **Katalog modeli yapısı kurulamayanlar (yalnız 'olduğu gibi sipariş'):** çapraz/kavisli çizgi (IPS-434, 441, 443-447, 450, 464, 472, 474, 479, 480), köşe parçası (IPS-436…438, BNA-012, 022, 023, 024), dama (BNA-020), PCH-001/007, BNA-008 vb. İleride bu yapılar eklenebilir.
 - **Sıradaki (onaylı sıra):** 3) 45° gönye köşe 4) Grek karo şerit (karolar lazerle kesilir, aplike) 5) ovalde ışınsal çubuklar + uçlarda enine panel. Nakış: 7 kafa aynı motif; motif ≤40×60; uzun parçada 7'den sonra devamına 2–3 motif daha eklenebilir (tur = ⌈adet/7⌉).
@@ -89,7 +89,8 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
-- 2026-10-30: Sipariş fotoğrafı (ofis yükler, ≤3, küçültülür; listede, detayda, istasyon ekranında, dokununca tam ekran ✕), ⭐ Modellere ekle (MM-…, bayi görür). **Kullanıcıya gönderilen son zip bu.**
+- 2026-10-30: Android Paylaş → Üretim Takip (manifest share_target, sw.js POST /paylas/ → "paylasilan" önbelleği → paylas.html: yeni sipariş / var olan siparişe ekle; SURUM v5). **Kullanıcıya gönderilen son zip bu.**
+- 2026-10-30: Sipariş fotoğrafı (ofis yükler, ≤3, küçültülür; listede, detayda, istasyon ekranında, dokununca tam ekran ✕), ⭐ Modellere ekle (MM-…, bayi görür).
 - 2026-10-30: Suni deri = katalog lazer serileri (IPS/BNA/PCH/RNO) hazır model + olduğu gibi sipariş; madalyon; peluş/Bienca/Rona dokuları; DB015 Grek bant; nakış 14 motif, 4 lazer deseni gizlendi; menü "Suni deri"; atölye fotoğraflı P-hazırları kaldırıldı.
 - 2026-10-30: Nakış motif kataloğu (27 motif, gerçek ölçü, 'motif ölçüsü' kutusu kalktı; panel = motif + 4 cm, 1–3 motif), iplik rengi, gerçek ürün fotoğraflı hazırlar P-1…P-9 + P-10…12, kürk/deri sekmesinden suni deri kaldırıldı.
 - 2026-10-30: Bayi uyarıları tek satır rozet (dokununca açılır) + ilgili halka/adımda; teknik uyarı yalnız kesim listesinde; yer yoksa "+ halka" kapalı, genişlik sınırı. kurulum.sh: zip + pip önbelleği silinir, `--no-cache-dir`, son 2 sürüm, sürüm kopyasında katalog_tohum/doku yok (~1 MB). Sunucu ölçümü: surumler 43M, takip 34M, .cache 18M, zip 15M. 

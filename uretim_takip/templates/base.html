@@ -155,6 +155,19 @@
       .etiket { border:1px dashed #666; }
     }
   </style>
+<script>
+  // Android "Paylaş" ile gelen fotoğraflar (service worker "paylasilan" önbelleğine koyar)
+  async function paylasilanFotograflar() {
+    if (!("caches" in window)) return [];
+    const kap = await caches.open("paylasilan");
+    const istekler = (await kap.keys()).slice(0, 3);
+    return Promise.all(istekler.map(async (r, i) => {
+      const y = await kap.match(r);
+      const ad = decodeURIComponent(y.headers.get("X-Ad") || `foto${i}.jpg`);
+      return new File([await y.blob()], ad, { type: y.headers.get("Content-Type") || "image/jpeg" });
+    }));
+  }
+</script>
 </head>
 <body>
 {% if user.is_authenticated %}
