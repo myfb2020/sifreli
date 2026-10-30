@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bienna Fur Üretim Takip – Kullanım Rehberi</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+  :root { --ana:#7a4a2a; --acik:#fbf6f1; --cizgi:#e6ddd3; --yazi:#2b2522; --soluk:#6f655d; }
+  * { box-sizing:border-box; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; color:var(--yazi); font-size:11.5pt; line-height:1.45; margin:0; background:#fff; }
+  .bolum { page-break-after:always; break-after:page; }
+  .bolum:last-child { page-break-after:auto; break-after:auto; }
+  header.kapak { border-bottom:3px solid var(--ana); padding-bottom:8px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-end; }
+  header.kapak h1 { margin:0; font-size:22pt; color:var(--ana); }
+  header.kapak .alt { color:var(--soluk); font-size:10pt; }
+  .marka { font-weight:bold; letter-spacing:3px; color:#a8862f; font-size:10pt; }
+  h2 { color:var(--ana); font-size:14pt; margin:16px 0 6px; border-bottom:1px solid var(--cizgi); padding-bottom:3px; break-after:avoid; }
+  h3 { font-size:12pt; margin:12px 0 4px; break-after:avoid; }
+  p { margin:4px 0 8px; }
+  ol, ul { margin:4px 0 8px; padding-left:22px; }
+  li { margin:2px 0; }
+  .kutu { background:var(--acik); border:1px solid var(--cizgi); border-left:5px solid var(--ana); border-radius:6px; padding:8px 12px; margin:8px 0; break-inside:avoid; }
+  .uyari { border-left-color:#c0392b; background:#fdf0ee; }
+  .ipucu { border-left-color:#2f7a3a; background:#eff8f0; }
+  table { width:100%; border-collapse:collapse; margin:6px 0 10px; font-size:10.5pt; break-inside:avoid; }
+  th, td { border:1px solid var(--cizgi); padding:5px 7px; text-align:left; vertical-align:top; }
+  th { background:var(--acik); }
+  b.d { background:#efe6dc; border:1px solid #d9cfc4; border-radius:4px; padding:0 5px; font-weight:600; white-space:nowrap; }
+  .adres { font-family:"DejaVu Sans Mono", monospace; background:#f3efea; padding:1px 5px; border-radius:3px; }
+  .iki { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .buyuk-adim { counter-reset:a; list-style:none; padding:0; }
+  .buyuk-adim > li { counter-increment:a; position:relative; padding:8px 10px 8px 52px; margin:8px 0; border:1px solid var(--cizgi); border-radius:8px; break-inside:avoid; font-size:13pt; }
+  .buyuk-adim > li::before { content:counter(a); position:absolute; left:10px; top:8px; width:32px; height:32px; border-radius:50%; background:var(--ana); color:#fff; font-weight:bold; text-align:center; line-height:32px; font-size:15pt; }
+  .kucuk { font-size:9.5pt; color:var(--soluk); }
+  #istasyon { font-size:10pt; line-height:1.3; }
+  #istasyon header.kapak { margin-bottom:8px; }
+  #istasyon footer { margin-top:6px; }
+  #istasyon .kutu ul { margin:2px 0; }
+  #istasyon .kutu { padding:6px 10px; margin:6px 0; }
+  #istasyon th, #istasyon td { padding:3px 6px; }
+  #istasyon h2 { margin:10px 0 4px; }
+  #istasyon .buyuk-adim > li { font-size:11pt; padding:4px 8px 4px 42px; margin:4px 0; }
+  #istasyon .buyuk-adim > li::before { width:26px; height:26px; line-height:26px; font-size:13pt; top:5px; left:9px; }
+  #istasyon table { margin:4px 0 6px; }
+  footer { margin-top:14px; font-size:9pt; color:var(--soluk); border-top:1px solid var(--cizgi); padding-top:5px; }
+</style>
+</head>
+<body>
+
+<!-- ============================ BÜRO ============================ -->
+<section class="bolum" id="buro">
+<header class="kapak">
+  <div><div class="marka">BIENNA FUR</div><h1>Büro (Ofis) Rehberi</h1></div>
+  <div class="alt">Üretim Takip programı<br><span class="adres">uretim.pythonanywhere.com</span></div>
+</header>
+
+<p>Bu rehber siparişleri, stoğu ve bayi tasarımlarını yöneten büro çalışanı içindir. Program telefonda, tablette ve bilgisayarda aynı şekilde çalışır.</p>
+
+<h2>1. Giriş ve telefona kurma</h2>
+<ol>
+  <li>Tarayıcıda <span class="adres">uretim.pythonanywhere.com</span> adresini açın; size verilen kullanıcı adı ve şifreyle girin.</li>
+  <li><b>Android telefonda:</b> üstteki <b class="d">Uygulamayı yükle</b> düğmesine basın. Program ana ekranda simge olarak durur.</li>
+  <li><b>iPhone'da:</b> Safari'de <b class="d">Paylaş ⬆</b> → <b class="d">Ana Ekrana Ekle</b>.</li>
+</ol>
+
+<h2>2. Yeni sipariş girmek</h2>
+<p>Menüden <b class="d">Siparişler</b> → <b class="d">+ Yeni sipariş</b>.</p>
+<table>
+  <tr><th style="width:32%">Alan</th><th>Ne yazılır</th></tr>
+  <tr><td>Müşteri</td><td>Listeden seçin. Listede yoksa altındaki <b>yeni müşteri adı</b> kutusuna yazın; program kendisi ekler.</td></tr>
+  <tr><td>📷 Müşterinin gönderdiği fotoğraf(lar)</td><td>WhatsApp'tan gelen ürün fotoğrafları (en çok 3). İş bitene kadar her istasyonda görünür.</td></tr>
+  <tr><td>Katalog modeli</td><td>Katalogdaki kod, örn. <b>TOS-034</b>, <b>IPS-449</b>, <b>MM-001</b>. Yazınca resmi görünür.</td></tr>
+  <tr><td>Lazer deseni</td><td>Varsa DB kodu.</td></tr>
+  <tr><td>Halı türü</td><td>İşin hangi istasyonlardan geçeceğini belirler (Lazerli, Nakışlı, Peluş, Suni deri). Katalog modeli seçildiyse çoğu zaman kendiliğinden gelir.</td></tr>
+  <tr><td>Ürün açıklaması</td><td>Ölçü, renk, özel istek. Örn: <i>200×300 krem, altın biye</i>.</td></tr>
+  <tr><td>Adet, toplam m²</td><td>m² girilirse ilerleme m²'ye göre hesaplanır.</td></tr>
+  <tr><td>Teslim tarihi</td><td>Müşteriye söz verilen tarih. Geçince sipariş kırmızı görünür.</td></tr>
+</table>
+<p><b class="d">Kaydet</b>'e basınca sipariş numarası (SP-2026-…) verilir ve iş ilk istasyonun ekranına <b>"Yeni sipariş"</b> olarak düşer.</p>
+
+<h2>3. WhatsApp'tan gelen fotoğraf</h2>
+<div class="iki">
+  <div class="kutu ipucu"><b>Android – en kolay yol</b>
+    <ol>
+      <li>WhatsApp'ta fotoğrafa uzun basın → <b class="d">Paylaş ↗</b> → <b class="d">Üretim Takip</b>.</li>
+      <li><b class="d">🆕 Yeni sipariş aç</b>: fotoğraflar forma eklenmiş gelir; müşteri, ölçü ve tarihi yazın.</li>
+      <li>ya da listeden <b>var olan siparişi</b> seçin; fotoğraf ona eklenir.</li>
+    </ol>
+  </div>
+  <div class="kutu"><b>Her telefonda</b>
+    <ol>
+      <li>WhatsApp'ta fotoğrafı galeriye kaydedin (⋮ → Kaydet).</li>
+      <li>Sipariş formunda ya da sipariş sayfasında <b class="d">📷 Fotoğraf ekle</b> → galeriden seçin.</li>
+    </ol>
+  </div>
+</div>
+<p class="kucuk">Fotoğraflara dokununca tam ekran açılır, ✕ ya da geri tuşuyla kapanır. Yanlış fotoğraf 🗑 ile silinir.</p>
+<div class="kutu"><b>⭐ Modellere ekle:</b> sipariş sayfasında fotoğrafın altındaki düğme, fotoğrafı <b>"Müşteri modelleri"</b> serisine yeni katalog modeli yapar (MM-001, MM-002…). Aynı ürün tekrar istenince yeni siparişte kodunu yazmanız yeter; bayiler de bu modeli görüp sipariş edebilir.</div>
+
+<h2>4. Bayi tasarımlarını onaylamak</h2>
+<ol>
+  <li>Bayi tasarım gönderince menüde <b class="d">Siparişler</b> yanında sayı çıkar. <b>Onay bekleyen</b> sekmesine girin.</li>
+  <li>Siparişi açın: tasarımın resmi, ölçüsü ve bayinin notu görünür.</li>
+  <li><b>Halı türünü</b> ve <b>teslim tarihini</b> kontrol edip <b class="d">Onayla, üretime al</b> deyin. Uygun değilse <b class="d">Reddet</b> ile bayiye neden yazın.</li>
+  <li>Suni deri tasarımlarda <b class="d">✂️ Kesim listesi ve parçalar</b> sayfasında parça planı, rulo ihtiyacı, nakış adedi ve malzeme bazlı <b>lazer DXF</b> dosyası vardır.</li>
+</ol>
+<p class="kucuk">Onaylanmadan sipariş istasyonlara düşmez.</p>
+
+<h2>5. Sipariş takibi ve sevk</h2>
+<ul>
+  <li><b>Siparişler</b> sayfası: her sipariş bir kart; ilerleme çubuğu, kalan gün, gecikenler en üstte kırmızı.</li>
+  <li>Sipariş ilk iş başlayınca kendiliğinden <b>Üretimde</b>, bütün işler bitince <b>Tamamlandı</b> olur.</li>
+  <li>Mal gönderilince sipariş sayfasından <b class="d">Sevk edildi</b> işaretleyin.</li>
+  <li><b>Pano</b>: kim hangi işte, hangi istasyonda kaç iş bekliyor, süresi aşan işler, azalan stok.</li>
+</ul>
+
+<h2>6. Stok girişi ve etiket</h2>
+<ol>
+  <li>Mal gelince <b class="d">Stok</b> → <b class="d">+ Ana malzeme girişi</b>: tedarikçi, malzeme türü, renk/model, miktar (m², metretül ya da ayak).</li>
+  <li>Kaydedince lot numarası verilir (HD-2026-…). <b class="d">🏷 Etiket bas</b> ile QR etiketini yazdırın.</li>
+  <li><b>Rulo etiketi:</b> etiketi lastik bantla ruloya takılan bir karta yapıştırın; ikinci etiketi rulonun en iç ucuna, keçe tarafına yapıştırın. Kumaşın dış yüzüne yapıştırmayın.</li>
+</ol>
+<ul>
+  <li><b>Fason:</b> Stok → Fason → <b class="d">📤 Fasona gönder</b> (giden rulolar okutulur, stoktan düşer). Mal gelince <b class="d">Teslim al</b>: yeni lot açılır, fire görünür.</li>
+  <li><b>Malzemeler</b> (iplik, yapıştırıcı…): Stok → Malzemeler → <b class="d">📥 Gelen malzemeyi gir</b>.</li>
+  <li><b>Sayım farkı / fire:</b> lot ya da malzeme sayfasında <b class="d">Düzeltme</b>.</li>
+</ul>
+
+<h2>7. Raporlar</h2>
+<p><b class="d">Raporlar</b>: tarih aralığına göre personel, istasyon ve makine bazında iş, süre ve fire; istasyonlar arası bekleme; Excel'e aktarma.</p>
+
+<div class="kutu uyari"><b>Önemli:</b> Programı güncellemeden önce yönetici <b class="d">💾 Yedek</b> indirir. Program açılmazsa <b>acil durum kartına</b> bakın.</div>
+<footer>Bienna Fur · Üretim Takip · Büro rehberi</footer>
+</section>
+
+<!-- ============================ İSTASYON ============================ -->
+<section class="bolum" id="istasyon">
+<header class="kapak">
+  <div><div class="marka">BIENNA FUR</div><h1>İstasyon Rehberi</h1></div>
+  <div class="alt">Ustalar için · istasyonun yanına asın</div>
+</header>
+
+<div class="kutu ipucu"><b>Sabah tablet açılınca:</b> menüden <b class="d">🏭 İstasyon</b> (ya da Pano'daki <b class="d">🏭 İstasyon ekranım</b>) → kendi istasyonunuzu seçin. Ekranda bir kez <b class="d">🔔 Sesli uyarıyı aç</b>'a basın. Ekranı kapatmayın; kendisi 20 saniyede bir yenilenir.</div>
+
+<h2>Ekranda ne var?</h2>
+<table>
+  <tr><th style="width:34%">📥 Gelen işler</th><td>Size gelen, başlanmayı bekleyen işler. Yeni iş gelince <b>kırmızı bant</b> çıkar ve ses gelir.</td></tr>
+  <tr><th>🔧 Bu istasyonda çalışılan</th><td>Şu an sizde yapılan işler ve ne zamandan beri sürdüğü.</td></tr>
+  <tr><th>Resim</th><td>Siparişin fotoğrafı, katalog modeli ya da bayi tasarımı. <b>Dokunun, büyüsün</b>; ✕ ile kapatın.</td></tr>
+  <tr><th>Kırmızı satır</th><td>Süre aşıldı: iş çok bekledi ya da çok uzun sürüyor. Ofise haber verin.</td></tr>
+</table>
+
+<h2>İşe başlamak</h2>
+<ol class="buyuk-adim">
+  <li>Gelen işlerden işinizi bulun (resme ve sipariş numarasına bakın) → <b class="d">▶ Başlat</b>.<br><span class="kucuk">İlk istasyonda (örn. lazer) bu düğmenin adı <b>🆕 İşi başlat</b>'tır.</span></li>
+  <li><b>Adınızı</b> seçin, <b>PIN</b>'inizi girin.</li>
+  <li><b>Makineyi</b> seçin (örn. Lazer 1, Zig-zag 2).</li>
+  <li><b>Sadece ilk istasyonda:</b> kullandığınız rulonun kartındaki <b>QR'ı 📷 ile okutun</b> ve aldığınız m²'yi yazın.</li>
+  <li><b class="d">Başlat</b>'a basın. İş "Bu istasyonda çalışılan" listesine geçer.</li>
+</ol>
+
+<h2>İşi bitirmek</h2>
+<ol class="buyuk-adim">
+  <li>"Bu istasyonda çalışılan" listesinde işinizde <b class="d">■ Bitir</b>.</li>
+  <li>Adınız + PIN.</li>
+  <li>Çıkan <b>kg ve m²</b>'yi yazın (fark fire olarak kaydedilir).</li>
+  <li>Malzeme kullandıysanız (iplik, yapıştırıcı) seçin ya da 📷 ile etiketini okutun, miktarını yazın.</li>
+  <li><b class="d">Bitir</b>. İş kendiliğinden sıradaki istasyonun ekranına düşer.</li>
+</ol>
+
+<div class="kutu uyari"><b>Unutmayın:</b>
+  <ul>
+    <li>PIN'inizi kimseyle paylaşmayın; yapılan iş sizin adınıza yazılır.</li>
+    <li>Başka birinin işini <b>bitirmeyin</b>; başlayan bitirir.</li>
+    <li>Lazerci, büyük parçanın keçe tarafına <b>sipariş numarasını</b> yazar; parçalar istasyonlar arasında karışmaz.</li>
+    <li>Ekranda bir terslik görürseniz (yanlış iş, yanlış miktar) <b>ofise söyleyin</b>; kendiniz silmeye çalışmayın.</li>
+  </ul>
+</div>
+<footer>Bienna Fur · Üretim Takip · İstasyon rehberi</footer>
+</section>
+
+<!-- ============================ BAYİ ============================ -->
+<section class="bolum" id="bayi">
+<header class="kapak">
+  <div><div class="marka">BIENNA FUR</div><h1>Bayi Sipariş Rehberi</h1></div>
+  <div class="alt">Halınızı tasarlayın, sipariş verin, takip edin<br><span class="adres">uretim.pythonanywhere.com</span></div>
+</header>
+
+<p>Bienna Fur'dan size verilen kullanıcı adı ve şifreyle girin. Telefonunuza kurmak için Android'de <b class="d">Uygulamayı yükle</b>'ye, iPhone'da Safari'de <b class="d">Paylaş ⬆ → Ana Ekrana Ekle</b>'ye dokunun.</p>
+
+<table>
+  <tr><th style="width:30%">🧩 Suni deri</th><td>İpek Peluş, Bienca, Peluche, Rono katalog modelleri ve kendi tasarımınız.</td></tr>
+  <tr><th>🎨 Kürk / deri modelleri</th><td>Toskana ve diğer kürk/deri katalog modellerinden tasarım.</td></tr>
+  <tr><th>📦 Siparişlerim</th><td>Gönderdiğiniz siparişlerin durumu ve teslim tarihi.</td></tr>
+</table>
+
+<h2>1. Katalogdan model seçmek (Suni deri)</h2>
+<ol>
+  <li><b class="d">🧩 Suni deri</b> sayfasında üstteki sekmelerden seriyi seçin: <b>İpek Peluş · Bienca · Peluche · Rono · Müşteri modelleri</b>.</li>
+  <li>Bir modele dokunun. İki seçenek çıkar:
+    <ul>
+      <li><b class="d">🛒 Bu modeli olduğu gibi sipariş et</b> — katalogdaki halının aynısı. Yalnız <b>ölçü, adet</b> ve isterseniz not yazıp gönderirsiniz.</li>
+      <li><b class="d">✏️ Bu modelden başla, değiştir</b> — halı düzenleme ekranında açılır; renk, bant, desen ve ölçüyü değiştirebilirsiniz.</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>2. Halıyı değiştirmek (5 adım)</h2>
+<p>Ekranın üstünde halının resmi durur; her seçimde hemen değişir. <b>Resme dokunursanız büyür</b>, ✕ ile dönersiniz.</p>
+<table>
+  <tr><th style="width:22%">1 Şekil</th><td>Dikdörtgen ya da oval; en ve boy (cm). Oval + en = boy → yuvarlak halı.</td></tr>
+  <tr><th>2 Halkalar</th><td>Dışarıdan içeriye en çok 4 halka (<b>+ / −</b>). Her halka: <b>düz</b>, <b>lazer desenli</b> (desenini seçin) ya da <b>nakışlı</b> (motifini seçin); genişlik ve malzeme.</td></tr>
+  <tr><th>3 Orta</th><td>Orta zeminin malzemesi; ortaya <b>madalyon</b> (yuvarlak parça), <b>nakış paneli</b> ya da enine/boyuna <b>şerit</b>.</td></tr>
+  <tr><th>4 Kenar</th><td>Biye ya da lanfel ve rengi; nakış ipliğinin rengi.</td></tr>
+  <tr><th>5 Gönder</th><td>Adet, istediğiniz teslim tarihi, notunuz → <b class="d">📤 Siparişi gönder</b>.</td></tr>
+</table>
+<div class="iki">
+  <div class="kutu ipucu"><b>✓ Üretilebilir</b> yazısı tasarımın atölyede yapılabileceğini gösterir. <b>⚠ uyarı</b> çıkarsa dokunun; ne yapmanız gerektiği yazar (örn. "halıyı büyütün").</div>
+  <div class="kutu"><b>💡 Bana fikir ver</b> düğmesi, yazdığınız ölçüde 6 farklı öneri hazırlar; beğendiğinize dokunun.</div>
+</div>
+
+<h2>3. Kürk / deri modelleri</h2>
+<p>Katalogdaki bir halıdan başlayın; bant malzemesi, lazer deseni, kürk rengi ve ölçüyü değiştirip gönderin.</p>
+
+<h2>4. Siparişinizi takip etmek</h2>
+<ul>
+  <li>Gönderdiğiniz tasarım önce <b>"Onay bekliyor"</b> olur. Bienna Fur kontrol edip onaylayınca üretime girer ve teslim tarihi yazılır.</li>
+  <li><b class="d">📦 Siparişlerim</b>'de her siparişin durumunu ve üretimde hangi aşamada olduğunu görürsünüz.</li>
+  <li>Reddedilirse ya da Bienna Fur bir not yazarsa, siparişin altında <b>"Bienna Fur: …"</b> diye görünür.</li>
+  <li>Aynı halının benzerini istemek için <b class="d">Bu tasarımdan yenisini yap</b>.</li>
+</ul>
+<div class="kutu"><b>Not:</b> Ekrandaki resim gerçeğe yakın bir çizimdir; doku ve renk tonları gerçek malzemede biraz farklı görünebilir.</div>
+<footer>Bienna Fur · Bayi rehberi · Sorularınız için Bienna Fur ile iletişime geçin.</footer>
+</section>
+
+</body>
+</html>

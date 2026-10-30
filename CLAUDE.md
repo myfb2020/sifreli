@@ -48,7 +48,8 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
     ├─ /saglik/ (TAMAM / SORUN, 503) → UptimeRobot nöbetçi
     ├─ kurulum.sh: güncelleme öncesi yedek + migrate hatasında geri dönüş + sürüm arşivi ~/uretim_surumler
     ├─ geri_al.sh surum | veri | temizle ; manage.py yedekle [--onek gunluk]
-    └─ belgeler/acil_durum_karti.pdf (nöbetçi kurulumu + acil durum)
+    ├─ belgeler/acil_durum_karti.pdf (nöbetçi kurulumu + acil durum)
+    └─ belgeler/kullanim_rehberi.html → PDF: büro (3 s), istasyon (1 s, asılır), bayi (2 s); Playwright ile basılır
 ```
 
 ## Dal → dosyalar (`uretim_takip/uretim/`)
@@ -85,10 +86,11 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - Paraşüt otomatik veri çekme (API erişimi lazım). WhatsApp sipariş yapıştırma (örnek mesaj lazım).
 - Tek dokunuşla usta akışı (PIN her gün mü hatırlansın? cevap bekleniyor). Çevrimdışı kuyruk.
 - Raporlar: fire nedeni, geri çağırma, kapasite.
-- Kullanım kılavuzu (Claude Docs: https://claude.ai/artifact/BxoN64k1AxL1g9TQWnv4o8) fason, katalog, stüdyo, acil durum ile güncellenmedi.
+- Eski kullanım kılavuzu (Claude Docs: https://claude.ai/artifact/BxoN64k1AxL1g9TQWnv4o8) güncel değil; yerine `belgeler/kullanim_rehberi.html` (+ rehber_buro/istasyon/bayi.pdf) geçerli. Program değişince rehber de güncellenmeli.
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-10-30: Kullanıcı rehberi: büro / istasyon (tek sayfa) / bayi PDF'leri (`belgeler/`). Program kodu değişmedi.
 - 2026-10-30: Android Paylaş → Üretim Takip (manifest share_target, sw.js POST /paylas/ → "paylasilan" önbelleği → paylas.html: yeni sipariş / var olan siparişe ekle; SURUM v5). **Kullanıcıya gönderilen son zip bu.**
 - 2026-10-30: Sipariş fotoğrafı (ofis yükler, ≤3, küçültülür; listede, detayda, istasyon ekranında, dokununca tam ekran ✕), ⭐ Modellere ekle (MM-…, bayi görür).
 - 2026-10-30: Suni deri = katalog lazer serileri (IPS/BNA/PCH/RNO) hazır model + olduğu gibi sipariş; madalyon; peluş/Bienca/Rona dokuları; DB015 Grek bant; nakış 14 motif, 4 lazer deseni gizlendi; menü "Suni deri"; atölye fotoğraflı P-hazırları kaldırıldı.
