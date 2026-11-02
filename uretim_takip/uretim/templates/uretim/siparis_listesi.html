@@ -36,7 +36,7 @@
         <div class="soluk">Teslim {{ siparis.teslim_tarihi|date:"d.m.Y" }}</div>
       </div>
     </div>
-    <div class="soluk" style="margin:6px 0 10px">{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b> · {% endif %}{{ siparis.urun }}{% if siparis.adet > 1 %} · {{ siparis.adet }} adet{% endif %}</div>
+    <div class="soluk" style="margin:6px 0 10px">{% if siparis.acil %}<span class="rozet acil">⚡ ACİL</span> {% endif %}{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b> · {% endif %}{{ siparis.urun }}{% if siparis.olcu_metni %} · <b>{{ siparis.olcu_metni }}</b>{% endif %}{% if siparis.adet > 1 %} · {{ siparis.adet }} adet{% endif %}</div>
     {% with foto=siparis.fotograflar.all|first %}{% if foto %}<img class="sp-kucuk" src="{{ foto.resim.url }}" alt="Müşteri fotoğrafı" loading="lazy">
     {% elif siparis.tasarim %}<img class="sp-kucuk" src="{% url 'tasarim_resim' siparis.tasarim.pk %}?b=260" alt="Bayi tasarımı" loading="lazy">
     {% elif siparis.katalog_modeli and siparis.katalog_modeli.resim %}<img class="sp-kucuk" src="{{ siparis.katalog_modeli.resim.url }}" alt="{{ siparis.katalog_modeli.kod }}" loading="lazy">{% endif %}{% endwith %}

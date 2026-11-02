@@ -1,0 +1,7 @@
+{# Tek form alanı: etiket, kutu, yardım, hatalar. alan: form alanı #}
+{% if alan %}<p>
+  <label for="{{ alan.id_for_label }}">{{ alan.label }}</label>
+  {{ alan }}
+  {% if alan.help_text %}<span class="soluk" style="display:block;font-size:13px">{{ alan.help_text }}</span>{% endif %}
+  {% if alan.errors %}<ul class="errorlist">{% for e in alan.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</p>{% endif %}

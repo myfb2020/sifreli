@@ -470,7 +470,7 @@ class SiparisEkraniTesti(TemelVeri):
         i = self.siparis.ilerleme()
         self.assertEqual((i["yuzde"], i["lot_sayisi"], i["biten_lot"]), (45, 2, 1))
         self.assertIn(("Bitti", 1), i["dagilim"])
-        self.assertIn((self.asamalar[2].ad, 1), i["dagilim"])
+        self.assertIn((self.asamalar[2].ad + " – çalışılıyor", 1), i["dagilim"])
         self.siparis.toplam_m2 = None
         self.assertEqual(self.siparis.ilerleme()["yuzde"], 50)
 
@@ -550,7 +550,7 @@ class OndalikGirisTesti(TemelVeri):
         lot = self.yeni_lot(baslangic_kg=Decimal("47.50"))
         islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
         sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
-        self.assertContains(sayfa, 'value="47,50"')
+        self.assertContains(sayfa, "boş bırakılabilir")
         yanit = self.client.post(reverse("islem_bitir", args=[islem.pk]),
                                  {"personel": self.ahmet.pk, "pin": "1234", "cikis_kg": "47,50", "cikis_m2": "9,8"})
         self.assertRedirects(yanit, reverse("pano"))
@@ -671,6 +671,9 @@ class YeniIsAkisiTesti(TemelVeri):
 
     def test_ekranda_hatalar(self):
         self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
+        from .models import SistemAyari
+        SistemAyari.yukle()
+        SistemAyari.objects.update(stok_zorunlu=True)
         bos = self.client.post(reverse("yeni_is"), self.veri())
         self.assertContains(bos, "En az bir stok lotundan malzeme girin")
         yok = self.client.post(reverse("yeni_is"), self.veri(**{"kaynak-0-stok_no": "HD-1999-0001", "kaynak-0-m2": "1"}))
@@ -1068,10 +1071,14 @@ class StokBirimiVeBeklemeTesti(TemelVeri):
         self.assertEqual((h.m2, h.kg, h.giris_metni), (Decimal("92.90"), Decimal("0"), "1000 ayak (ft²)"))
 
     def test_metretul_girisi_en_ile_m2ye_cevrilir(self):
-        self.assertContains(self.stok_gir(giris_birimi="mtul", giris_miktari="50"), "rulonun enini")
+        self.assertContains(self.stok_gir(giris_birimi="mtul", giris_miktari="50"), "Enini (cm) yazın")
         self.stok_gir(giris_birimi="mtul", giris_miktari="50", en_cm="140")
         h = HamDeriGirisi.objects.latest("pk")
-        self.assertEqual((h.m2, h.giris_metni), (Decimal("70.00"), "50 metretül × 140 cm"))
+        self.assertEqual((h.m2, h.giris_metni), (Decimal("70.00"), "140 cm × 50 m"))
+        # Plaka: en × boy cm × adet
+        self.stok_gir(giris_birimi="plaka", giris_miktari="150", en_cm="100", adet="3")
+        h = HamDeriGirisi.objects.latest("pk")
+        self.assertEqual(h.m2, Decimal("4.50"))
 
     def test_istasyonlar_arasi_bekleme_ve_personel_istasyon(self):
         lazer, zigzag = Asama.objects.get(ad="Lazer kesim 1"), Asama.objects.get(ad="Zig-zag")
@@ -1285,6 +1292,7 @@ class GecisDonemiTesti(TemelVeri):
              "kaynak-TOTAL_FORMS": 1, "kaynak-INITIAL_FORMS": 0}
         # Kapalıyken eski stok alanı yok, iş açılmaz
         self.assertNotContains(self.client.get(reverse("yeni_is")), "Eski stoktan")
+        SistemAyari.objects.update(stok_zorunlu=True)
         self.assertContains(self.client.post(reverse("yeni_is"), v), "En az bir stok lotundan")
         # Aç
         self.client.post(reverse("gecis_modu_degistir"))
@@ -1959,3 +1967,129 @@ class SiparisFotografiTesti(TasarimStudyosuTesti):
         self.assertContains(self.client.post(reverse("paylas"), {"fotograflar": [self._foto()]}), "Fotoğraf alınamadı")
         self.client.force_login(self.bayi_hesap)
         self.assertNotEqual(self.client.get(reverse("paylas")).status_code, 200)
+
+
+class DenemeDuzeltmeleriTesti(TemelVeri):
+    """Atölye denemesinden gelen düzeltmeler: en×boy, PIN'siz kişisel hesap, isteğe bağlı stok, lazerde malzeme, acil."""
+
+    def setUp(self):
+        from .models import HesapAyari
+        self.lazer = Asama.objects.get(ad="Lazer kesim 1")
+        self.zigzag = Asama.objects.get(ad="Zig-zag")
+        self.telefon = get_user_model().objects.create_user("ahmet_tel", password="x")
+        HesapAyari.objects.create(kullanici=self.telefon, personel=self.ahmet, istasyon=self.lazer)
+        # Aynı çeşitten iki rulo: eski olan önce kullanılır
+        self.rulo1 = HamDeriGirisi.objects.create(tedarikci=self.ham.tedarikci, deri_turu=self.ham.deri_turu,
+                                                  tarih=timezone.localdate() - timedelta(days=5), kg=0, m2=Decimal("3"))
+        self.rulo2 = HamDeriGirisi.objects.create(tedarikci=self.ham.tedarikci, deri_turu=self.ham.deri_turu,
+                                                  kg=0, m2=Decimal("40"))
+
+    def test_siparis_en_boy_m2(self):
+        s = Siparis.objects.create(musteri=self.siparis.musteri, urun="Halı", en_cm=Decimal("160"), boy_cm=Decimal("230"),
+                                   adet=2, teslim_tarihi=timezone.localdate())
+        self.assertEqual((s.toplam_m2, s.olcu_metni, s.teslim_metni), (Decimal("7.36"), "160 × 230 cm", "bugün teslim"))
+        ofis = get_user_model().objects.create_superuser("ofis_eb", password="x")
+        self.client.force_login(ofis)
+        self.client.post(reverse("siparis_yeni"), {
+            "musteri": s.musteri.pk, "urun": "Peluş", "en_cm": "200", "adet": "1",
+            "teslim_tarihi": "2026-12-01"})
+        self.assertFalse(Siparis.objects.filter(urun="Peluş").exists())  # boy eksik
+
+    def test_olcu_eski_siparis_metninden_okunur(self):
+        import importlib
+        g = importlib.import_module("uretim.migrations.0027_deneme_duzeltmeleri")
+        self.assertEqual(g.OLCU.search("Toskana 160X230 krem").groups(), ("160", "230"))
+        self.assertEqual(g.OLCU.search("120 x 180,5").groups(), ("120", "180,5"))
+
+    def test_kisisel_hesap_pin_sormaz(self):
+        self.client.force_login(self.telefon)
+        v = {"siparis": self.siparis.pk, "asama": self.lazer.pk, "makine": self.makine(self.lazer),
+             "kaynak-TOTAL_FORMS": "1", "kaynak-INITIAL_FORMS": "0"}
+        sayfa = self.client.get(reverse("yeni_is"))
+        self.assertNotContains(sayfa, 'name="pin"')
+        self.assertContains(sayfa, "isteğe bağlı")
+        # stok okutmadan iş açılır, Ahmet'e yazılır
+        self.assertRedirects(self.client.post(reverse("yeni_is"), v), reverse("pano"))
+        islem = IslemKaydi.objects.latest("pk")
+        self.assertEqual(islem.personel, self.ahmet)
+        # bitirirken PIN yok; lazerde malzeme bloğu var
+        sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
+        self.assertNotContains(sayfa, 'name="pin"')
+        self.assertContains(sayfa, 'name="kesim_en"')
+        self.assertRedirects(self.client.post(reverse("islem_bitir", args=[islem.pk]), {}), reverse("pano"))
+        # ortak tablet hesabı hâlâ PIN sorar
+        self.client.force_login(get_user_model().objects.create_user("ortak", password="x"))
+        self.assertContains(self.client.get(reverse("yeni_is")), 'name="pin"')
+
+    def test_lazerde_kullanilan_malzeme_fifo_dusulur_fire_hesaplanir(self):
+        s = Siparis.objects.create(musteri=self.siparis.musteri, urun="Halı", en_cm=Decimal("100"), boy_cm=Decimal("200"),
+                                   teslim_tarihi=timezone.localdate())
+        islem = servisler.yeni_is_baslat(personel=self.ahmet, siparis=s, asama=self.lazer, kaynaklar=[])
+        self.assertTrue(servisler.ilk_adim_mi(islem))
+        self.client.force_login(self.telefon)
+        cesit = servisler.cesit_anahtari(self.rulo1)
+        yanit = self.client.post(reverse("islem_bitir", args=[islem.pk]),
+                                 {"cesit": cesit, "kesim_en": "140", "kesim_boy": "160"})
+        self.assertRedirects(yanit, reverse("pano"))
+        lot = islem.lot
+        lot.refresh_from_db()
+        # 2,24 m²: önce eski ruloda kalan, sonra yenisi
+        kaynaklar = {k.ham_deri_id: k.m2 for k in lot.kaynaklar.all()}
+        self.assertEqual(sum(kaynaklar.values()), Decimal("2.24"))
+        self.assertIn(self.rulo1.pk, kaynaklar)
+        islem.refresh_from_db()
+        self.assertEqual((islem.giris_m2, islem.cikis_m2), (Decimal("2.24"), Decimal("2.00")))
+        # sonraki istasyonda malzeme sorulmaz
+        i2 = servisler.islem_baslat(lot=lot, asama=self.zigzag, personel=self.ahmet)
+        self.assertFalse(servisler.ilk_adim_mi(i2))
+        self.assertNotContains(self.client.get(reverse("islem_bitir", args=[i2.pk])), 'name="kesim_en"')
+        lot.refresh_from_db()
+        self.assertIn("Zig-zag – çalışılıyor", lot.konum_metni)
+
+    def test_rulo_okutulunca_ondan_dusulur_yetmezse_hata(self):
+        islem = servisler.yeni_is_baslat(personel=self.ahmet, siparis=self.siparis, asama=self.lazer, kaynaklar=[])
+        self.client.force_login(self.telefon)
+        yanit = self.client.post(reverse("islem_bitir", args=[islem.pk]),
+                                 {"rulo_no": self.rulo2.lot_no, "kesim_en": "100", "kesim_boy": "100"})
+        self.assertRedirects(yanit, reverse("pano"))
+        self.assertEqual(self.rulo2.kalan_m2, Decimal("39"))
+        islem2 = servisler.yeni_is_baslat(personel=self.ahmet, siparis=self.siparis, asama=self.lazer, kaynaklar=[])
+        yanit = self.client.post(reverse("islem_bitir", args=[islem2.pk]),
+                                 {"rulo_no": self.rulo1.lot_no, "kesim_en": "200", "kesim_boy": "200"})
+        self.assertEqual(yanit.status_code, 200)
+        islem2.refresh_from_db()
+        self.assertIsNone(islem2.bitis)
+
+    def test_stok_zorunlu_dugmesi(self):
+        from .models import SistemAyari
+        yonetici = get_user_model().objects.create_superuser("y_sz", password="x")
+        self.client.force_login(yonetici)
+        self.client.post(reverse("stok_zorunlu_degistir"))
+        self.assertTrue(SistemAyari.yukle().stok_zorunlu)
+        islem = servisler.islem_baslat(lot=self.yeni_lot(), asama=self.lazer, personel=self.ahmet)
+        with self.assertRaises(ValidationError):
+            servisler.yeni_is_baslat(personel=self.ahmet, siparis=self.siparis, asama=self.lazer, kaynaklar=[])
+        # stoktan okutulmuş iş bitirilebilir
+        servisler.islem_bitir(islem=islem, personel=self.ahmet)
+        self.client.post(reverse("stok_zorunlu_degistir"))
+        self.assertFalse(SistemAyari.yukle().stok_zorunlu)
+
+    def test_acil_ve_teslim_sirasi(self):
+        bugun = timezone.localdate()
+        gec = Siparis.objects.create(musteri=self.siparis.musteri, urun="Geç", teslim_tarihi=bugun + timedelta(days=10),
+                                     notlar="Kenarı altın biye")
+        yakin = Siparis.objects.create(musteri=self.siparis.musteri, urun="Yakın", teslim_tarihi=bugun + timedelta(days=1))
+        for s in (gec, yakin):
+            servisler.yeni_is_baslat(personel=self.ahmet, siparis=s, asama=self.lazer, kaynaklar=[])
+        ofis = get_user_model().objects.create_superuser("ofis_ac", password="x")
+        self.client.force_login(ofis)
+        sira = lambda: [k.lot.siparis.urun for k in uyarilar.calisilanlar(self.lazer)]
+        self.assertEqual(sira(), ["Yakın", "Geç"])
+        self.client.post(reverse("siparis_acil", args=[gec.pk]))
+        gec.refresh_from_db()
+        self.assertTrue(gec.acil)
+        self.assertEqual(sira(), ["Geç", "Yakın"])
+        ekran = self.client.get(reverse("istasyon_parca", args=[self.lazer.pk]))
+        self.assertContains(ekran, "ACİL")
+        self.assertContains(ekran, "Kenarı altın biye")
+        self.assertContains(ekran, "1 gün kaldı")

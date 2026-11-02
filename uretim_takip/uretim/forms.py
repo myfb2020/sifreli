@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django import forms
 from django.core.exceptions import ValidationError
 
@@ -27,8 +29,19 @@ class PinliForm(forms.Form):
         widget=forms.PasswordInput(attrs={"inputmode": "numeric", "autocomplete": "off"}),
     )
 
+    def __init__(self, *args, personel=None, **kwargs):
+        """personel verilirse (kişisel telefon hesabı) ad ve PIN sorulmaz; iş o kişiye yazılır."""
+        super().__init__(*args, **kwargs)
+        self.sabit_personel = personel
+        if personel is not None:
+            del self.fields["personel"]
+            del self.fields["pin"]
+
     def clean(self):
         veri = super().clean()
+        if self.sabit_personel is not None:
+            veri["personel"] = self.sabit_personel
+            return veri
         personel, pin = veri.get("personel"), veri.get("pin")
         if personel and pin and not personel.pin_dogru_mu(pin):
             raise ValidationError("PIN hatalı.")
@@ -118,9 +131,53 @@ class IslemBaslatForm(PinliForm):
 
 
 class IslemBitirForm(PinliForm):
-    cikis_kg = ondalik_alan("Çıkış kg")
-    cikis_m2 = ondalik_alan("Çıkış m²")
+    """İşi bitirir. İlk istasyonda (lazer) kullanılan ana malzeme ve ölçüsü girilir; diğerlerinde yalnız Bitir."""
+
+    cesit = forms.ChoiceField(label="Kullanılan malzeme", required=False)
+    rulo_no = forms.CharField(label="veya rulonun etiketi", required=False, max_length=20,
+                              widget=forms.TextInput(attrs={"autocapitalize": "characters", "placeholder": "HD-…"}))
+    kesim_en = ondalik_alan("Kullanılan en (cm)", required=False)
+    kesim_boy = ondalik_alan("Kullanılan boy (cm)", required=False)
+    cikis_kg = ondalik_alan("Çıkan kg (isteğe bağlı)", required=False)
+    cikis_m2 = ondalik_alan("Çıkan m² (isteğe bağlı)", required=False)
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ilk_adim = ilk_adim
+        self.stok_zorunlu = ilk_adim and stok_zorunlu
+        if ilk_adim:
+            self.fields["cesit"].choices = [("", "— Malzeme seçin —")] + list(cesitler)
+            self.fields["kesim_en"].help_text = "Rulonun eni ya da kestiğiniz parçanın eni."
+            self.fields["kesim_boy"].help_text = "Bu iş için rulodan kullandığınız toplam boy."
+        else:
+            for alan in ("cesit", "rulo_no", "kesim_en", "kesim_boy"):
+                del self.fields[alan]
+
+    def clean(self):
+        veri = super().clean()
+        if not self.ilk_adim:
+            return veri
+        en, boy = veri.get("kesim_en"), veri.get("kesim_boy")
+        rulo_no = (veri.get("rulo_no") or "").strip().upper()
+        rulo = None
+        if rulo_no:
+            rulo = HamDeriGirisi.objects.filter(lot_no=rulo_no).first()
+            if rulo is None:
+                self.add_error("rulo_no", f"“{rulo_no}” numaralı stok lotu bulunamadı.")
+        secildi = bool(rulo_no or veri.get("cesit"))
+        if secildi or en or boy or self.stok_zorunlu:
+            if not secildi:
+                self.add_error("cesit", "Kullanılan malzemeyi seçin ya da rulonun etiketini okutun.")
+            if not en:
+                self.add_error("kesim_en", "Eni yazın.")
+            if not boy:
+                self.add_error("kesim_boy", "Boyu yazın.")
+        veri["kesim"] = None
+        if secildi and en and boy and not self.errors:
+            veri["kesim"] = {"m2": (en * boy / 10000).quantize(Decimal("0.01")), "rulo": rulo,
+                             "cesit": None if rulo else veri.get("cesit")}
+        return veri
 
 
 class TarihAraligiForm(forms.Form):
@@ -162,7 +219,8 @@ class SiparisForm(forms.ModelForm):
     musteri = forms.ModelChoiceField(
         queryset=Musteri.objects.all(), label="Müşteri", required=False, empty_label="— Müşteri seçin —"
     )
-    toplam_m2 = ondalik_alan("Toplam m²", required=False)
+    en_cm = ondalik_alan("En (cm)", required=False)
+    boy_cm = ondalik_alan("Boy (cm)", required=False)
     hali_turu = HaliTuruAlani(
         queryset=HaliTuru.objects.filter(aktif=True), label="Halı türü", empty_label="— Halı türü seçin —",
         help_text="İş bu türün istasyonlarından sırayla geçer.",
@@ -189,15 +247,16 @@ class SiparisForm(forms.ModelForm):
 
     class Meta:
         model = Siparis
-        fields = ["hali_turu", "urun", "deri_turu", "adet", "toplam_m2", "teslim_tarihi", "notlar", "lazer_deseni"]
+        fields = ["hali_turu", "urun", "deri_turu", "en_cm", "boy_cm", "adet", "teslim_tarihi", "notlar", "lazer_deseni",
+                  "acil"]
         widgets = {
             "teslim_tarihi": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
         }
         labels = {"notlar": "Not (isteğe bağlı)"}
 
-    field_order = ["musteri", "yeni_musteri", "fotograflar", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu", "adet",
-                   "toplam_m2", "teslim_tarihi", "notlar"]
+    field_order = ["musteri", "yeni_musteri", "fotograflar", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu",
+                   "en_cm", "boy_cm", "adet", "teslim_tarihi", "acil", "notlar"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -205,7 +264,10 @@ class SiparisForm(forms.ModelForm):
         # Halı türü kaydederken denetlenir: katalog serisinden de gelebilir.
         self.fields["hali_turu"].required = False
         self.fields["urun"].required = False
-        self.fields["urun"].help_text = "Ölçü, renk vb. Örn: 200x300 krem. Model seçildiyse boş bırakılabilir."
+        self.fields["urun"].help_text = "Renk, özel istek vb. Model ya da fotoğraf seçildiyse boş bırakılabilir."
+        self.fields["en_cm"].help_text = "Halının eni ve boyu; m² kendiliğinden hesaplanır."
+        self.fields["acil"].label = "⚡ Acil – istasyon ekranlarında en üstte görünür"
+        self.fields["notlar"].help_text = "İstasyonlarda görünür (ör. 'kenar altın biye', 'acele')."
 
     def clean_model_kodu(self):
         kod = (self.cleaned_data.get("model_kodu") or "").strip().upper().replace(".", "")
@@ -228,6 +290,8 @@ class SiparisForm(forms.ModelForm):
         veri = super().clean()
         if not (veri.get("yeni_musteri") or "").strip() and not veri.get("musteri"):
             self.add_error("musteri", "Bir müşteri seçin ya da yeni müşteri adı yazın.")
+        if bool(veri.get("en_cm")) != bool(veri.get("boy_cm")):
+            self.add_error("boy_cm" if veri.get("en_cm") else "en_cm", "Eni ve boyu birlikte yazın.")
         model = veri.get("model_kodu")
         if not veri.get("hali_turu") and model and model.seri.hali_turu and model.seri.hali_turu.aktif:
             veri["hali_turu"] = self.instance.hali_turu = model.seri.hali_turu
@@ -349,9 +413,9 @@ class StokGirisForm(forms.ModelForm):
         queryset=Tedarikci.objects.all(), label="Tedarikçi", required=False, empty_label="— Tedarikçi seçin —"
     )
     yeni_tedarikci = forms.CharField(label="veya yeni tedarikçi adı", required=False, max_length=120)
-    giris_birimi = forms.ChoiceField(label="Geliş birimi", choices=HamDeriGirisi.GIRIS_BIRIMLERI, initial="m2")
-    giris_miktari = ondalik_alan("Gelen miktar")
-    en_cm = ondalik_alan("Rulo eni (cm)", required=False)
+    giris_birimi = forms.ChoiceField(label="Nasıl geldi?", choices=HamDeriGirisi.GIRIS_BIRIMLERI, initial="mtul")
+    en_cm = ondalik_alan("En (cm)", required=False)
+    giris_miktari = ondalik_alan("Boy (metre)")
     kg = ondalik_alan("Kg (isteğe bağlı)", required=False)
 
     class Meta:
@@ -365,8 +429,8 @@ class StokGirisForm(forms.ModelForm):
         labels = {"notlar": "Not (isteğe bağlı)", "adet": "Adet / rulo (isteğe bağlı)", "renk": "Renk",
                   "model": "Model / desen", "deri_turu": "Malzeme türü"}
 
-    field_order = ["tedarikci", "yeni_tedarikci", "tarih", "deri_turu", "renk", "model", "kalite", "adet",
-                   "giris_birimi", "giris_miktari", "en_cm", "kg", "notlar"]
+    field_order = ["tedarikci", "yeni_tedarikci", "tarih", "deri_turu", "renk", "model", "kalite", "giris_birimi",
+                   "en_cm", "giris_miktari", "adet", "kg", "notlar"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -381,14 +445,14 @@ class StokGirisForm(forms.ModelForm):
         if not (veri.get("yeni_tedarikci") or "").strip() and not veri.get("tedarikci"):
             self.add_error("tedarikci", "Bir tedarikçi seçin ya da yeni tedarikçi adı yazın.")
         birim, miktar = veri.get("giris_birimi"), veri.get("giris_miktari")
-        if birim == "mtul" and not veri.get("en_cm"):
-            self.add_error("en_cm", "Metretül girişinde rulonun enini (cm) yazın; m² buna göre hesaplanır.")
-        if birim != "mtul":
+        if birim in ("mtul", "plaka") and not veri.get("en_cm"):
+            self.add_error("en_cm", "Enini (cm) yazın; m² buna göre hesaplanır.")
+        if birim not in ("mtul", "plaka"):
             veri["en_cm"] = None
         if veri.get("kg") is None:
             veri["kg"] = 0
-        # Stok her zaman m² tutulur; işe malzeme alırken de m² girilir.
-        self.instance.m2 = m2_hesapla(birim, miktar, veri.get("en_cm")) or 0
+        # Stok her zaman m² tutulur.
+        self.instance.m2 = m2_hesapla(birim, miktar, veri.get("en_cm"), veri.get("adet")) or 0
         return veri
 
     def save(self, commit=True):

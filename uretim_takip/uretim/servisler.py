@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, LotKaynagi, MalzemeHareketi, SistemAyari, UretimLotu,
+    DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, LotKaynagi, MalzemeHareketi, SistemAyari, UretimLotu, sayi_metni,
 )
 
 
@@ -40,12 +40,88 @@ def islem_baslat(*, lot, asama, personel, aciklama="", makine=None):
     return islem
 
 
+def ilk_adim_mi(islem):
+    """İşin ilk istasyonu mu (ör. lazer)? Ana malzemenin kullanımı burada girilir."""
+    return not islem.lot.islemler.exclude(pk=islem.pk).filter(baslangic__lte=islem.baslangic).exists()
+
+
+def cesit_anahtari(stok):
+    return f"{stok.deri_turu_id}|{stok.renk}|{stok.model}"
+
+
+def stoktaki_cesitler():
+    """Kalanı olan malzeme çeşitleri: [(anahtar, 'Suni deri · Beyaz · Rono – 42 m²'), ...] (FIFO seçimi için)."""
+    toplam, ad = {}, {}
+    for stok in HamDeriGirisi.objects.select_related("deri_turu").order_by("deri_turu__ad", "renk", "model"):
+        kalan = stok.kalan_m2
+        if kalan <= 0:
+            continue
+        k = cesit_anahtari(stok)
+        toplam[k] = toplam.get(k, Decimal(0)) + kalan
+        ad[k] = stok.cesit_metni
+    return [(k, f"{ad[k]} – stokta {sayi_metni(toplam[k].quantize(Decimal('0.01')))} m²") for k in ad]
+
+
+def malzeme_dus(*, lot, m2, rulo=None, cesit=None):
+    """Kullanılan ana malzemeyi stoktan düşer: rulo okutulduysa ondan, yoksa çeşidin en eski lotlarından (FIFO).
+
+    Düşülen miktarlar işin kaynaklarına (LotKaynagi) eklenir.
+    """
+    if m2 is None or m2 <= 0:
+        raise ValidationError("Kullanılan ölçüyü girin.")
+    if rulo is not None:
+        adaylar = [HamDeriGirisi.objects.select_for_update().get(pk=rulo.pk)]
+    elif cesit:
+        tur_id, renk, model = cesit.split("|", 2)
+        adaylar = list(HamDeriGirisi.objects.select_for_update()
+                       .filter(deri_turu_id=tur_id, renk=renk, model=model).order_by("tarih", "lot_no"))
+    else:
+        raise ValidationError("Kullanılan malzemeyi seçin ya da rulonun etiketini okutun.")
+    kalan_toplam = sum((s.kalan_m2 for s in adaylar), Decimal(0))
+    if m2 > kalan_toplam:
+        ad = adaylar[0].cesit_metni if adaylar else "Bu malzeme"
+        raise ValidationError(f"{ad}: stokta yalnızca {kalan_toplam} m² var, {m2} m² düşülemez.")
+    gerekli = m2
+    for stok in adaylar:
+        if gerekli <= 0:
+            break
+        al = min(gerekli, stok.kalan_m2)
+        if al <= 0:
+            continue
+        kaynak, yeni = LotKaynagi.objects.get_or_create(uretim_lotu=lot, ham_deri=stok,
+                                                        defaults={"kg": Decimal(0), "m2": al})
+        if not yeni:
+            kaynak.m2 += al
+            kaynak.save(update_fields=["m2"])
+        gerekli -= al
+
+
 @transaction.atomic
-def islem_bitir(*, islem, personel, cikis_kg, cikis_m2, aciklama="", malzemeler=()):
-    """Aşamayı bitirir. malzemeler: [(malzeme, miktar), ...] bu aşamada kullanılan sarf malzemeleri."""
-    islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama").get(pk=islem.pk)
+def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", malzemeler=(), kesim=None):
+    """Aşamayı bitirir. malzemeler: [(malzeme, miktar), ...] bu aşamada kullanılan sarf malzemeleri.
+
+    kesim: ilk istasyonda kullanılan ana malzeme {"m2", "rulo" ya da "cesit"}; stoktan düşülür, işin başlangıç m²'si
+    kullanılan miktar, çıkışı siparişin net m²'si olur (aradaki fark fire). Çıkış verilmezse giriş aynen geçer.
+    """
+    islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama", "lot__siparis").get(pk=islem.pk)
     if islem.bitis is not None:
         raise ValidationError("Bu işlem zaten bitirilmiş.")
+    if kesim is None and ilk_adim_mi(islem) and SistemAyari.yukle().stok_zorunlu and not islem.lot.kaynaklar.exists():
+        raise ValidationError("Kullanılan malzemeyi ve ölçüsünü girin (stok okutma zorunlu).")
+    if kesim is not None:
+        malzeme_dus(lot=islem.lot, m2=kesim["m2"], rulo=kesim.get("rulo"), cesit=kesim.get("cesit"))
+        lot = islem.lot
+        kullanilan = sum((k.m2 for k in lot.kaynaklar.all()), Decimal(0))
+        net = lot.siparis.tek_m2 if lot.siparis_id else None
+        if net and lot.siparis.lotlar.count() == 1:
+            net = net * (lot.siparis.adet or 1)
+        lot.baslangic_m2 = kullanilan
+        lot.save(update_fields=["baslangic_m2"])
+        islem.giris_m2 = kullanilan
+        if cikis_m2 is None:
+            cikis_m2 = min(net, kullanilan) if net else kullanilan
+    cikis_kg = islem.giris_kg if cikis_kg is None else cikis_kg
+    cikis_m2 = islem.giris_m2 if cikis_m2 is None else cikis_m2
     if cikis_kg < 0 or cikis_m2 < 0:
         raise ValidationError("Çıkış değerleri negatif olamaz.")
 
@@ -94,8 +170,8 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=N
             raise ValidationError("Geçiş dönemi kapalı: iş yalnızca etiketli stok lotlarından başlatılabilir.")
         if eski_kg <= 0 and eski_m2 <= 0:
             raise ValidationError("Eski stoktan aldığınız m² (ya da kg) miktarını girin.")
-    if not toplam and eski_tur is None:
-        raise ValidationError("En az bir stok lotundan malzeme girin.")
+    if not toplam and eski_tur is None and SistemAyari.yukle().stok_zorunlu:
+        raise ValidationError("En az bir stok lotundan malzeme girin (stok okutma zorunlu).")
     if siparis is not None and siparis.durum in ("sevk", "iptal"):
         raise ValidationError(f"{siparis} {siparis.get_durum_display().lower()}, bu siparişe iş açılamaz.")
 
@@ -110,10 +186,14 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=N
     if hatalar:
         raise ValidationError(hatalar)
 
+    baslangic_m2 = sum((m2 for _, _, m2 in toplam.values()), Decimal(0)) + eski_m2
+    if not toplam and eski_tur is None and siparis is not None:
+        # Stok okutulmadan açılan iş: siparişin net m²'si; kullanılan malzeme ilk istasyon bitince girilir.
+        baslangic_m2 = siparis.toplam_m2 or Decimal(0)
     lot = UretimLotu.objects.create(
         siparis=siparis,
         baslangic_kg=sum((kg for _, kg, _ in toplam.values()), Decimal(0)) + eski_kg,
-        baslangic_m2=sum((m2 for _, _, m2 in toplam.values()), Decimal(0)) + eski_m2,
+        baslangic_m2=baslangic_m2,
         eski_stok_turu=eski_tur,
     )
     LotKaynagi.objects.bulk_create(

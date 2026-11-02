@@ -249,6 +249,15 @@ Stok girişinde malın **geldiği birim** seçilir; stok her zaman **m²** tutul
 - **m²:** olduğu gibi
 - **metretül:** metre × rulo eni (cm) ÷ 100 (ör. 50 mt × 140 cm = 70 m²)
 - **ayak (ft²):** ayak × 0,0929 (ör. 1000 ayak = 92,9 m²)
+- **plaka / parça:** en × boy (cm) × adet ÷ 10 000
+
+### Atölye denemesi düzeltmeleri (2026-11)
+- **Sipariş:** en × boy (cm) × adet girilir, m² hesaplanır; eski kayıtlarda ürün metnindeki "160X230" okunup ölçü yazıldı. **⚡ Acil** düğmesi.
+- **İstasyon sırası:** ⚡ acil → teslimi en yakın; satırda ölçü, teslim ("2 gün kaldı / gecikti") ve sipariş notu.
+- **Kişisel telefon:** Hesaplar → "Bu hesap kimin?" seçilen hesapta ad/PIN sorulmaz; ortak tablet sorar.
+- **Lazer (ilk istasyon):** bitirirken malzeme (ya da rulo QR) + kullanılan en × boy → m² stoktan düşer (rulo okutulmadıysa en eski lottan, FIFO); işin net m²'si siparişten, fark fire. Diğer istasyonlar yalnız Başlat/Bitir.
+- **Stok okutma zorunlu** (Pano, yönetici): kapalıyken iş stok okutmadan açılır ve malzeme yazmadan biter.
+- İş yeri yazıyla: "Zig-zag bekliyor", "Biye – çalışılıyor (Ahmet, 2 sa)", "Bitti".
 
 ### Raporlar
 Personel, istasyon (aşama) ve makine bazında iş/fire/süre; **istasyonlar arası bekleme** (bir istasyonda biten işin sıradakinde başlanmasına kadar geçen ortalama ve en uzun süre) ve **kim hangi istasyonda çalıştı**. İş detayında her adımın önceki istasyondan sonra ne kadar beklediği görünür.

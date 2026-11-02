@@ -73,9 +73,10 @@
   <tr><td>Katalog modeli</td><td>Katalogdaki kod, örn. <b>TOS-034</b>, <b>IPS-449</b>, <b>MM-001</b>. Yazınca resmi görünür.</td></tr>
   <tr><td>Lazer deseni</td><td>Varsa DB kodu.</td></tr>
   <tr><td>Halı türü</td><td>İşin hangi istasyonlardan geçeceğini belirler (Lazerli, Nakışlı, Peluş, Suni deri). Katalog modeli seçildiyse çoğu zaman kendiliğinden gelir.</td></tr>
-  <tr><td>Ürün açıklaması</td><td>Ölçü, renk, özel istek. Örn: <i>200×300 krem, altın biye</i>.</td></tr>
-  <tr><td>Adet, toplam m²</td><td>m² girilirse ilerleme m²'ye göre hesaplanır.</td></tr>
-  <tr><td>Teslim tarihi</td><td>Müşteriye söz verilen tarih. Geçince sipariş kırmızı görünür.</td></tr>
+  <tr><td>Ürün açıklaması</td><td>Renk, özel istek. Örn: <i>krem, altın biye</i>.</td></tr>
+  <tr><td>En (cm), Boy (cm), Adet</td><td>Örn. <b>160 × 230</b>, 2 adet. m²'yi program hesaplar; istasyonlar ölçüyü ekranda görür.</td></tr>
+  <tr><td>Teslim tarihi</td><td>Müşteriye söz verilen tarih. İstasyonlarda "2 gün kaldı / gecikti" diye görünür; yakın olan üstte durur.</td></tr>
+  <tr><td>⚡ Acil · Not</td><td>Acil işaretli iş her istasyonda <b>en üstte</b> çıkar. Not (örn. <i>kenar altın biye</i>) istasyon ekranında görünür.</td></tr>
 </table>
 <p><b class="d">Kaydet</b>'e basınca sipariş numarası (SP-2026-…) verilir ve iş ilk istasyonun ekranına <b>"Yeni sipariş"</b> olarak düşer.</p>
 
@@ -111,13 +112,15 @@
 <ul>
   <li><b>Siparişler</b> sayfası: her sipariş bir kart; ilerleme çubuğu, kalan gün, gecikenler en üstte kırmızı.</li>
   <li>Sipariş ilk iş başlayınca kendiliğinden <b>Üretimde</b>, bütün işler bitince <b>Tamamlandı</b> olur.</li>
+  <li>Sonradan acil olursa sipariş sayfasında <b class="d">⚡ Acil yap</b> (geri almak: <b class="d">⚡ Acili kaldır</b>).</li>
+  <li>İşin nerede olduğu yazılı görünür: <i>"Zig-zag bekliyor"</i>, <i>"Biye – çalışılıyor (Ahmet, 2 sa)"</i>, <i>"Bitti"</i>.</li>
   <li>Mal gönderilince sipariş sayfasından <b class="d">Sevk edildi</b> işaretleyin.</li>
   <li><b>Pano</b>: kim hangi işte, hangi istasyonda kaç iş bekliyor, süresi aşan işler, azalan stok.</li>
 </ul>
 
 <h2>6. Stok girişi ve etiket</h2>
 <ol>
-  <li>Mal gelince <b class="d">Stok</b> → <b class="d">+ Ana malzeme girişi</b>: tedarikçi, malzeme türü, renk/model, miktar (m², metretül ya da ayak).</li>
+  <li>Mal gelince <b class="d">Stok</b> → <b class="d">+ Ana malzeme girişi</b>: tedarikçi, malzeme türü, renk/model. <b>Rulo:</b> en (cm) × boy (metre), örn. 140 cm × 30 m. <b>Plaka/parça:</b> en × boy (cm). m²'yi program hesaplar.</li>
   <li>Kaydedince lot numarası verilir (HD-2026-…). <b class="d">🏷 Etiket bas</b> ile QR etiketini yazdırın.</li>
   <li><b>Rulo etiketi:</b> etiketi lastik bantla ruloya takılan bir karta yapıştırın; ikinci etiketi rulonun en iç ucuna, keçe tarafına yapıştırın. Kumaşın dış yüzüne yapıştırmayın.</li>
 </ol>
@@ -125,7 +128,12 @@
   <li><b>Fason:</b> Stok → Fason → <b class="d">📤 Fasona gönder</b> (giden rulolar okutulur, stoktan düşer). Mal gelince <b class="d">Teslim al</b>: yeni lot açılır, fire görünür.</li>
   <li><b>Malzemeler</b> (iplik, yapıştırıcı…): Stok → Malzemeler → <b class="d">📥 Gelen malzemeyi gir</b>.</li>
   <li><b>Sayım farkı / fire:</b> lot ya da malzeme sayfasında <b class="d">Düzeltme</b>.</li>
+  <li>Lazerci işi bitirirken kullandığı malzemeyi ve en × boyunu yazar; m² stoktan <b>en eski rulodan başlayarak</b> düşer, fire kendiliğinden hesaplanır.</li>
+  <li>Pano'daki <b class="d">Stok okutma zorunlu</b> düğmesi şimdilik <b>kapalı</b>: lazer stok okutmadan ve malzeme yazmadan da işi açıp bitirebilir. Herkes alışınca yönetici açar.</li>
 </ul>
+
+<h2>Çalışan hesapları (yönetici)</h2>
+<p><b class="d">Hesaplar</b> → hesabı açın → tür <b>İstasyon tableti</b>. <b>"Bu hesap kimin?"</b> kutusundan çalışanı, <b>"Hangi istasyonda?"</b> kutusundan istasyonunu seçin. Kendi telefonunu kullanan çalışana artık <b>ad ve PIN sorulmaz</b>, iş onun adına yazılır. Kimin olduğu seçilmeyen ortak tablet ise ad ve PIN sormaya devam eder.</p>
 
 <h2>7. Raporlar</h2>
 <p><b class="d">Raporlar</b>: tarih aralığına göre personel, istasyon ve makine bazında iş, süre ve fire; istasyonlar arası bekleme; Excel'e aktarma.</p>
@@ -148,30 +156,28 @@
   <tr><th style="width:34%">📥 Gelen işler</th><td>Size gelen, başlanmayı bekleyen işler. Yeni iş gelince <b>kırmızı bant</b> çıkar ve ses gelir.</td></tr>
   <tr><th>🔧 Bu istasyonda çalışılan</th><td>Şu an sizde yapılan işler ve ne zamandan beri sürdüğü.</td></tr>
   <tr><th>Resim</th><td>Siparişin fotoğrafı, katalog modeli ya da bayi tasarımı. <b>Dokunun, büyüsün</b>; ✕ ile kapatın.</td></tr>
+  <tr><th>Sıra</th><td>Ölçü, teslim günü ve not yazar. <b>⚡ ACİL</b> işler en üstte, sonra teslimi yakın olanlar. Sıraya göre çalışın.</td></tr>
   <tr><th>Kırmızı satır</th><td>Süre aşıldı: iş çok bekledi ya da çok uzun sürüyor. Ofise haber verin.</td></tr>
 </table>
 
 <h2>İşe başlamak</h2>
 <ol class="buyuk-adim">
   <li>Gelen işlerden işinizi bulun (resme ve sipariş numarasına bakın) → <b class="d">▶ Başlat</b>.<br><span class="kucuk">İlk istasyonda (örn. lazer) bu düğmenin adı <b>🆕 İşi başlat</b>'tır.</span></li>
-  <li><b>Adınızı</b> seçin, <b>PIN</b>'inizi girin.</li>
-  <li><b>Makineyi</b> seçin (örn. Lazer 1, Zig-zag 2).</li>
-  <li><b>Sadece ilk istasyonda:</b> kullandığınız rulonun kartındaki <b>QR'ı 📷 ile okutun</b> ve aldığınız m²'yi yazın.</li>
+  <li><b>Makineyi</b> seçin (örn. Lazer 1, Zig-zag 2). <span class="kucuk">Kendi telefonunuzda ad ve PIN sorulmaz; ortak tablette adınızı seçip PIN'inizi girin.</span></li>
   <li><b class="d">Başlat</b>'a basın. İş "Bu istasyonda çalışılan" listesine geçer.</li>
 </ol>
 
 <h2>İşi bitirmek</h2>
 <ol class="buyuk-adim">
   <li>"Bu istasyonda çalışılan" listesinde işinizde <b class="d">■ Bitir</b>.</li>
-  <li>Adınız + PIN.</li>
-  <li>Çıkan <b>kg ve m²</b>'yi yazın (fark fire olarak kaydedilir).</li>
-  <li>Malzeme kullandıysanız (iplik, yapıştırıcı) seçin ya da 📷 ile etiketini okutun, miktarını yazın.</li>
+  <li><b>Sadece lazerde:</b> kullandığınız malzemeyi seçin (ya da rulo kartını 📷 okutun) ve kestiğiniz <b>toplam en × boyu (cm)</b> yazın. Program m²'yi stoktan düşer.</li>
+  <li>Diğer istasyonlarda bir şey yazmanız gerekmez. İplik, yapıştırıcı kullandıysanız seçip miktarını yazabilirsiniz.</li>
   <li><b class="d">Bitir</b>. İş kendiliğinden sıradaki istasyonun ekranına düşer.</li>
 </ol>
 
 <div class="kutu uyari"><b>Unutmayın:</b>
   <ul>
-    <li>PIN'inizi kimseyle paylaşmayın; yapılan iş sizin adınıza yazılır.</li>
+    <li>Telefonunuzu ve PIN'inizi kimseye vermeyin; yapılan iş sizin adınıza yazılır.</li>
     <li>Başka birinin işini <b>bitirmeyin</b>; başlayan bitirir.</li>
     <li>Lazerci, büyük parçanın keçe tarafına <b>sipariş numarasını</b> yazar; parçalar istasyonlar arasında karışmaz.</li>
     <li>Ekranda bir terslik görürseniz (yanlış iş, yanlış miktar) <b>ofise söyleyin</b>; kendiniz silmeye çalışmayın.</li>

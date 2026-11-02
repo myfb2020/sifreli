@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (114 test) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (121 test; `--parallel` bu ortamda çalışmaz) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -27,10 +27,11 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 │   ├─ Sipariş SP-…  (durum: onay → acik → uretimde → tamamlandi → sevk / iptal); **müşteri fotoğrafı** (`SiparisFotografi`, ≤3, 1600 px JPEG, `fotograf.py`; liste/detay/istasyon/iş; tam ekran `a.buyut` base.html; ⭐ Modellere ekle → seri "Müşteri modelleri" MM-001…, bayi Suni deri sayfasında olduğu gibi sipariş; bayi /medya/siparis/ göremez)
 │   ├─ Halı türü + rota: Lazerli, Nakışlı, Peluş, Suni deri  (aynı sira = alternatif istasyon)
 │   ├─ İstasyonlar: Lazer kesim 1/2, Nakış, Kaplama, Zig-zag, Biye, Lanfel, Kenar dikişi (+ makineler)
-│   ├─ İş IS-…: yeni iş (stok QR + PIN) → işlem başlat/bitir → sıradaki istasyon
+│   ├─ İş IS-…: yeni iş (stok QR isteğe bağlı; Pano'da "Stok okutma zorunlu" `SistemAyari.stok_zorunlu`) → başlat/bitir → sıradaki istasyon; ilk istasyonda (lazer) bitirirken malzeme + en×boy → stoktan FIFO düşer (`servisler.malzeme_dus`), fire = kullanılan − sipariş net m²; diğerleri yalnız Başlat/Bitir
+│   ├─ Sipariş en_cm×boy_cm×adet → toplam_m2; ⚡ acil; istasyon sırası acil → teslim (`uyarilar.oncelik`), satırda ölçü/teslim/not (`_is_bilgisi.html`); iş yeri yazıyla `UretimLotu.konum_metni`
 │   └─ İstasyon ekranı (20 sn yenilenir), bekleme/süre uyarıları, pano
 ├─ 2 Stok
-│   ├─ Ana malzeme lotu HD-… (QR etiket; birim m² / metretül / ayak)
+│   ├─ Ana malzeme lotu HD-… (QR etiket; rulo en cm × boy m / plaka en×boy cm × adet / m² / ayak)
 │   ├─ Malzeme türleri: deri, Keçe, Süet, Rona, Suni deri + bileşikler (3'lü lamine, Halı tabanı); renk/model
 │   ├─ Yardımcı malzeme MZ-… ; düzeltme (sayım/fire)
 │   ├─ Fason FS-…: gönder (stoktan düşer) → teslim al (yeni lot, renk/model üst katmandan) → fason firesi
@@ -41,7 +42,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 │   ├─ Hazırlar: TOS-034…LTS-006 (menü "Kürk / deri modelleri"); SD-1…SD-4 yalnız eski suni kayıtlar açılınca görünür
 │   ├─ **Suni deri** (menü adı; eski "Parçalı") /tasarim/parcali/: hazır modeller = katalog lazer serileri IPS/BNA/PCH/RNO (99 foto, seri sekmeleri; 76'sı `KATALOG_DEGER` ile düzenlenebilir), "olduğu gibi sipariş" (`aynen`+`katalog`, sipariş katalog modeline bağlı, resim = katalog fotoğrafı) ya da "bu modelden başla"; orta **madalyon** (düz/nakışlı, çerçeve); malzemeler peluş 8 renk/Bienca/Rona (numune fotoğrafından); DB015 Grek bant (çizildi); gizli desenler DB002/007/010/011; nakış 14 motif (`NAKIS_MOTIFLERI`, gerçek ölçü, maske `tasarim_varlik/nakis/`, marka logoları yok) + iplik rengi; hazırlar P-1…P-12 (P-1…9 gerçek ürün fotoğraflı `tasarim_varlik/hazir_foto/`); **halkalı** (dikdörtgen/oval, ≤4 halka düz/desenli/nakışlı + orta düz/nakış paneli/enine-boyuna şerit), 5 adımlı ekran + ✕'li büyük görünüm; eski düzenler (çerçeve, oval şerit, yuvarlak, ızgara…) yalnız eski kayıtlar için, `eskiden_cevir`; 💡 fikir ver; P-1…P-8; gerçek malzeme fotoğraf dokuları; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
 │   └─ Gönderim = "Onay bekliyor" sipariş → ofis sipariş sayfasından onay/ret; lazer DXF/SVG (hat + bantlar; DB deseni yalnız not)
-├─ 4 Hesaplar: Tablet (istasyona bağlı) / Ofis ("Ofis" grubu) / Yönetici / Bayi (yalnız stüdyo + kendi siparişleri)
+├─ 4 Hesaplar: Tablet (istasyona bağlı; "Bu hesap kimin?" `HesapAyari.personel` → ad/PIN sorulmaz, `hesap_personeli`) / Ofis ("Ofis" grubu) / Yönetici / Bayi (yalnız stüdyo + kendi siparişleri)
 ├─ 5 Raporlar: makine, personel-istasyon, bekleme, Excel çıktı; Excel'den aktarma; tablet giriş kaydı
 └─ 6 Altyapı / işletme
     ├─ PythonAnywhere ücretsiz (ayda bir "Run until 1 month"), ücretli pakete geçiş önerildi (~5 $/ay)
@@ -76,7 +77,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
 - Fotoğraflarla disk dolar → ücretli paket önerisi.
-- **Kağıtsız istasyon akışı (plan onaylandı, yazılmadı):** QR yalnız lazerde rulo kartından (borusuz rulo: lastik bantlı kart + iç uçta keçe tarafına yedek etiket); stok tasarımın kesim listesinden otomatik düşer, **fire %10** (sonra gerçek fireyle ayar). İstasyonlarda okutma yok: tablet listesinde halı resmi + SP no, Başla/Bitti. Rota: Lazer → (Nakış paralel, yalnız nakışlı parçalar) → Zig-zag (nakış bekleniyor işareti) → Biye/Lanfel. Lazerci büyük parçanın keçesine SP no yazar.
+- **Kağıtsız istasyon akışı (kısmen yazıldı 2026-11-02: okutma isteğe bağlı, lazerde en×boy stok düşümü, yalnız Başlat/Bitir; kalan: kesim listesinden otomatik düşüm %10 fire, nakış paralel rota):** QR yalnız lazerde rulo kartından (borusuz rulo: lastik bantlı kart + iç uçta keçe tarafına yedek etiket); stok tasarımın kesim listesinden otomatik düşer, **fire %10** (sonra gerçek fireyle ayar). İstasyonlarda okutma yok: tablet listesinde halı resmi + SP no, Başla/Bitti. Rota: Lazer → (Nakış paralel, yalnız nakışlı parçalar) → Zig-zag (nakış bekleniyor işareti) → Biye/Lanfel. Lazerci büyük parçanın keçesine SP no yazar.
 - **Katalog modeli yapısı kurulamayanlar (yalnız 'olduğu gibi sipariş'):** çapraz/kavisli çizgi (IPS-434, 441, 443-447, 450, 464, 472, 474, 479, 480), köşe parçası (IPS-436…438, BNA-012, 022, 023, 024), dama (BNA-020), PCH-001/007, BNA-008 vb. İleride bu yapılar eklenebilir.
 - **Sıradaki (onaylı sıra):** 3) 45° gönye köşe 4) Grek karo şerit (karolar lazerle kesilir, aplike) 5) ovalde ışınsal çubuklar + uçlarda enine panel. Nakış: 7 kafa aynı motif; motif ≤40×60; uzun parçada 7'den sonra devamına 2–3 motif daha eklenebilir (tur = ⌈adet/7⌉).
 - Ücretli pakete geçince: günlük yedek görevi (`yedekle --onek gunluk`), `uretim.biennafur.com` bağlama.
@@ -85,12 +86,13 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - Lazer makinesi IP entegrasyonu (IP + kontrol kartı modeli lazım).
 - **Paraşüt Excel'leri (2026-10-30, BEKLEMEDE – kullanıcı: önce atölyede deneme, sonra karar):** ürün listesi (5.438 kart, halı kartları eksi stok = satış; ~35.000 m²; Dana/Toskana m², Rono/Peluş adet önde; 160×230 en çok) ve tahsilatlar (1.680, 189 müşteri; 2024 ~304K$ → 2026 10 ay ~1,94M$; Özdallar %36, ilk 10 %60; 20 müşteri 6+ ay ödemesiz). Fikirler: yönetici paneli, Paraşüt'e fatura, müşteri takibi, maliyet/kâr. Dosyalar yalnız oturum yüklemesinde, kalıcı değil.
 - Paraşüt otomatik veri çekme (API erişimi lazım). WhatsApp sipariş yapıştırma (örnek mesaj lazım).
-- Tek dokunuşla usta akışı (PIN her gün mü hatırlansın? cevap bekleniyor). Çevrimdışı kuyruk.
+- Çevrimdışı kuyruk. (PIN: kişisel hesapta artık sorulmuyor — yazıldı.)
 - Raporlar: fire nedeni, geri çağırma, kapasite.
 - Eski kullanım kılavuzu (Claude Docs: https://claude.ai/artifact/BxoN64k1AxL1g9TQWnv4o8) güncel değil; yerine `belgeler/kullanim_rehberi.html` (+ rehber_buro/istasyon/bayi.pdf) geçerli. Program değişince rehber de güncellenmeli.
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-11-02: Atölye denemesi düzeltmeleri (migration 0027): sipariş en×boy + acil + istasyon önceliği/not/teslim; stok rulo/plaka en×boy; lazerde malzeme + en×boy → FIFO stok düşümü, fire; stok okutma isteğe bağlı (Pano düğmesi); kişisel hesapta PIN yok; iş yeri yazıyla. Rehber PDF'leri güncellendi. Kurulumdan sonra: Hesaplar'da her çalışana "Bu hesap kimin?" + istasyon.
 - 2026-10-30: Kullanıcı rehberi: büro / istasyon (tek sayfa) / bayi PDF'leri (`belgeler/`). Program kodu değişmedi.
 - 2026-10-30: Android Paylaş → Üretim Takip (manifest share_target, sw.js POST /paylas/ → "paylasilan" önbelleği → paylas.html: yeni sipariş / var olan siparişe ekle; SURUM v5). **Kullanıcıya gönderilen son zip bu.**
 - 2026-10-30: Sipariş fotoğrafı (ofis yükler, ≤3, küçültülür; listede, detayda, istasyon ekranında, dokununca tam ekran ✕), ⭐ Modellere ekle (MM-…, bayi görür).

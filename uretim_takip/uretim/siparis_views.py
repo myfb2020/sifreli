@@ -31,7 +31,7 @@ def siparis_listesi(request):
     sekme = request.GET.get("durum", "aktif")
     siparisler = _lotlu(Siparis.objects.all())
     if sekme == "aktif":
-        siparisler = siparisler.filter(durum__in=["acik", "uretimde"]).order_by("teslim_tarihi")
+        siparisler = siparisler.filter(durum__in=["acik", "uretimde"]).order_by("-acil", "teslim_tarihi")
     elif sekme in dict(Siparis.DURUM):
         siparisler = siparisler.filter(durum=sekme).order_by("-teslim_tarihi")
     else:
@@ -138,3 +138,15 @@ def siparis_foto_model(request, pk):
     messages.success(request, f"Fotoğraf katalog modeli {model.kod} olarak eklendi (seri: {model.seri}). "
                               "Artık yeni siparişte bu kod seçilebilir; bayiler de Suni deri sayfasında görür.")
     return redirect("siparis_detay", pk=foto.siparis_id)
+
+
+@require_POST
+@login_required
+@permission_required("uretim.change_siparis", raise_exception=True)
+def siparis_acil(request, pk):
+    siparis = get_object_or_404(Siparis, pk=pk)
+    siparis.acil = not siparis.acil
+    siparis.save(update_fields=["acil"])
+    messages.success(request, f"{siparis.siparis_no} " + ("⚡ acil olarak işaretlendi; istasyonlarda en üstte görünür."
+                                                           if siparis.acil else "artık acil değil."))
+    return redirect("siparis_detay", pk=siparis.pk)

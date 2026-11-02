@@ -306,14 +306,16 @@ def sayi_metni(sayi):
     return format(sayi.normalize(), "f").replace(".", ",")
 
 
-def m2_hesapla(birim, miktar, en_cm=None):
-    """Gelen miktarı m²'ye çevirir: m² olduğu gibi, metretül × en, ayak × 0,0929."""
+def m2_hesapla(birim, miktar, en_cm=None, adet=None):
+    """Gelen miktarı m²'ye çevirir: m² olduğu gibi; rulo: en (cm) × boy (m); plaka: en × boy (cm) × adet; ayak × 0,0929."""
     if miktar is None:
         return None
-    if birim == "mtul":
+    if birim in ("mtul", "plaka"):
         if not en_cm:
             return None
         sonuc = miktar * en_cm / 100
+        if birim == "plaka":
+            sonuc = sonuc / 100 * (adet or 1)
     elif birim == "ayak":
         sonuc = miktar * AYAK_M2
     else:
@@ -323,7 +325,8 @@ def m2_hesapla(birim, miktar, en_cm=None):
 
 class HamDeriGirisi(models.Model):
     KALITE = [("A", "A"), ("B", "B"), ("C", "C"), ("K", "Karışık")]
-    GIRIS_BIRIMLERI = [("m2", "m²"), ("mtul", "metretül"), ("ayak", "ayak (ft²)")]
+    GIRIS_BIRIMLERI = [("mtul", "Rulo: en (cm) × boy (metre)"), ("plaka", "Plaka / parça: en × boy (cm)"),
+                       ("m2", "m²"), ("ayak", "ayak (ft²)")]
 
     lot_no = models.CharField("stok lot no", max_length=20, unique=True, blank=True)
     tarih = models.DateField(default=timezone.localdate)
@@ -335,7 +338,7 @@ class HamDeriGirisi(models.Model):
     adet = models.PositiveIntegerField(null=True, blank=True)
     kg = models.DecimalField(max_digits=10, decimal_places=2, validators=pozitif)
     m2 = models.DecimalField("m²", max_digits=10, decimal_places=2, validators=pozitif)
-    giris_birimi = models.CharField("giriş birimi", max_length=4, choices=GIRIS_BIRIMLERI, default="m2")
+    giris_birimi = models.CharField("giriş birimi", max_length=5, choices=GIRIS_BIRIMLERI, default="mtul")
     giris_miktari = models.DecimalField("gelen miktar", max_digits=10, decimal_places=2, null=True, blank=True,
                                         validators=pozitif, help_text="Giriş biriminde gelen miktar.")
     en_cm = models.DecimalField("rulo eni (cm)", max_digits=7, decimal_places=1, null=True, blank=True,
@@ -365,10 +368,11 @@ class HamDeriGirisi(models.Model):
         """Ör. '120 ayak' ya da '50 metretül × 140 cm'. m² girişinde boş."""
         if self.giris_birimi == "m2" or self.giris_miktari is None:
             return ""
-        metin = f"{sayi_metni(self.giris_miktari)} {self.get_giris_birimi_display()}"
         if self.giris_birimi == "mtul" and self.en_cm:
-            metin += f" × {sayi_metni(self.en_cm)} cm"
-        return metin
+            return f"{sayi_metni(self.en_cm)} cm × {sayi_metni(self.giris_miktari)} m"
+        if self.giris_birimi == "plaka" and self.en_cm:
+            return f"{sayi_metni(self.en_cm)} × {sayi_metni(self.giris_miktari)} cm" + (f" × {self.adet}" if self.adet else "")
+        return f"{sayi_metni(self.giris_miktari)} {self.get_giris_birimi_display()}"
 
     @property
     def kullanilan_kg(self):
@@ -429,8 +433,12 @@ class Siparis(models.Model):
                                      verbose_name="lazer deseni")
     urun = models.CharField("ürün açıklaması", max_length=200, help_text="Örn: 200x300 krem kuzu patchwork halı")
     deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="deri türü")
+    en_cm = models.DecimalField("en (cm)", max_digits=7, decimal_places=1, null=True, blank=True, validators=pozitif)
+    boy_cm = models.DecimalField("boy (cm)", max_digits=7, decimal_places=1, null=True, blank=True, validators=pozitif)
     adet = models.PositiveIntegerField(default=1)
-    toplam_m2 = models.DecimalField("toplam m²", max_digits=10, decimal_places=2, null=True, blank=True)
+    toplam_m2 = models.DecimalField("toplam m²", max_digits=10, decimal_places=2, null=True, blank=True,
+                                    help_text="En ve boy girilince kendiliğinden hesaplanır.")
+    acil = models.BooleanField("⚡ acil", default=False, help_text="Acil siparişler istasyon ekranlarında en üstte durur.")
     teslim_tarihi = models.DateField("teslim tarihi")
     durum = models.CharField(max_length=12, choices=DURUM, default="acik")
     notlar = models.TextField(blank=True)
@@ -446,7 +454,33 @@ class Siparis(models.Model):
     def save(self, *args, **kwargs):
         if not self.siparis_no:
             self.siparis_no = sonraki_numara(Siparis, "siparis_no", "SP")
+        if self.en_cm and self.boy_cm:
+            self.toplam_m2 = (self.en_cm * self.boy_cm * (self.adet or 1) / 10000).quantize(Decimal("0.01"))
         super().save(*args, **kwargs)
+
+    @property
+    def olcu_metni(self):
+        """Ör. '160 × 230 cm'; ölçü girilmemişse boş."""
+        if not (self.en_cm and self.boy_cm):
+            return ""
+        return f"{sayi_metni(self.en_cm)} × {sayi_metni(self.boy_cm)} cm"
+
+    @property
+    def tek_m2(self):
+        """Bir adedin m²'si (fire hesabı için)."""
+        if self.en_cm and self.boy_cm:
+            return (self.en_cm * self.boy_cm / 10000).quantize(Decimal("0.01"))
+        if self.toplam_m2 and self.adet:
+            return (self.toplam_m2 / self.adet).quantize(Decimal("0.01"))
+        return None
+
+    @property
+    def teslim_metni(self):
+        """'bugün teslim', '3 gün kaldı', '2 gün gecikti'."""
+        gun = self.kalan_gun
+        if gun == 0:
+            return "bugün teslim"
+        return f"{gun} gün kaldı" if gun > 0 else f"{-gun} gün gecikti"
 
     def ilk_asamalar(self):
         return sonraki_asamalar(rota_adimlari(self.hali_turu_id), None)
@@ -486,9 +520,9 @@ class Siparis(models.Model):
             elif lot.son_asama is None:
                 etiket = "Başlamadı"
             elif lot.durum == "islemde":
-                etiket = lot.son_asama.ad
+                etiket = f"{lot.son_asama.ad} – çalışılıyor"
             else:
-                etiket = f"{lot.son_asama.ad} bitti"
+                etiket = f"{lot.siradaki_metni or lot.son_asama.ad} bekliyor"
             dagilim[etiket] = dagilim.get(etiket, 0) + 1
         return {
             "yuzde": yuzde,
@@ -594,6 +628,22 @@ class UretimLotu(models.Model):
     @property
     def siradaki_metni(self):
         return " / ".join(a.ad for a in self.siradaki_asamalar)
+
+    @property
+    def konum_metni(self):
+        """İşin şu an nerede olduğu: 'Zig-zag bekliyor', 'Biye – çalışılıyor (Ahmet, 2 sa)', 'Bitti'."""
+        if self.durum == "tamamlandi":
+            return "✓ Bitti"
+        if self.durum == "iptal":
+            return "İptal"
+        if self.durum == "islemde":
+            islem = self.acik_islem
+            if islem is not None:
+                from .uyarilar import sure_metni
+                return f"🔧 {islem.asama.ad} – çalışılıyor ({islem.personel}, {sure_metni(timezone.now() - islem.baslangic)})"
+            return f"🔧 {self.son_asama.ad if self.son_asama else ''} – çalışılıyor"
+        sirada = self.siradaki_metni
+        return f"⏳ {sirada} bekliyor" if sirada else "⏳ Bekliyor"
 
     @property
     def acik_islem(self):
@@ -888,6 +938,9 @@ class HesapAyari(models.Model):
 
     kullanici = models.OneToOneField("auth.User", on_delete=models.CASCADE, related_name="hesap_ayari")
     istasyon = models.ForeignKey(Asama, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="istasyon")
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name="hesaplar",
+                                 verbose_name="hesabın sahibi",
+                                 help_text="Kişisel telefon hesabı: işler bu kişiye yazılır, ad ve PIN sorulmaz.")
     musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, null=True, blank=True, related_name="bayi_hesaplari",
                                 verbose_name="bayi (müşteri)",
                                 help_text="Bayi hesabı: yalnızca tasarım stüdyosu ve kendi siparişleri.")
@@ -906,6 +959,14 @@ def hesap_istasyonu(kullanici):
         return None
     ayar = HesapAyari.objects.filter(kullanici=kullanici, istasyon__aktif=True).select_related("istasyon").first()
     return ayar.istasyon if ayar else None
+
+
+def hesap_personeli(kullanici):
+    """Kişisel hesabın sahibi olan (aktif) personel; ortak tablet ya da eşleşmemiş hesapsa None."""
+    if not getattr(kullanici, "is_authenticated", False):
+        return None
+    ayar = HesapAyari.objects.filter(kullanici=kullanici, personel__aktif=True).select_related("personel").first()
+    return ayar.personel if ayar else None
 
 
 def hesap_bayisi(kullanici):
@@ -959,6 +1020,11 @@ class SistemAyari(models.Model):
     gecis_modu = models.BooleanField(
         "geçiş dönemi", default=False,
         help_text="Açıkken yeni iş, stok etiketi olmadan 'eski stoktan' başlatılabilir; stoktan düşülmez.",
+    )
+    stok_zorunlu = models.BooleanField(
+        "stok okutma zorunlu", default=False,
+        help_text="Açıkken yeni iş stok etiketi okutmadan açılamaz ve ilk istasyonda kullanılan malzeme girilmeden "
+                  "bitirilemez. Kapalıyken ikisi de isteğe bağlıdır.",
     )
 
     class Meta:

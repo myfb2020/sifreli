@@ -61,3 +61,20 @@ def gecis_modu_degistir(request):
         messages.success(request, "Geçiş dönemi açıldı: işler etiketsiz eski stoktan da başlatılabilir."
                          if ayar.gecis_modu else "Geçiş dönemi kapatıldı: işler yalnızca etiketli stoktan başlatılır.")
     return redirect("pano")
+
+
+@sadece_yonetici
+def stok_zorunlu_degistir(request):
+    """Pano'daki düğme: yeni işte stok okutma ve ilk istasyonda malzeme girişi zorunlu / isteğe bağlı."""
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    from .models import SistemAyari
+
+    if request.method == "POST":
+        ayar = SistemAyari.yukle()
+        ayar.stok_zorunlu = not ayar.stok_zorunlu
+        ayar.save(update_fields=["stok_zorunlu"])
+        messages.success(request, "Stok okutma zorunlu: iş stok etiketiyle açılır, ilk istasyonda kullanılan malzeme girilir."
+                         if ayar.stok_zorunlu else "Stok okutma isteğe bağlı: iş yalnızca sipariş seçilerek açılabilir.")
+    return redirect("pano")

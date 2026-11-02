@@ -14,7 +14,7 @@ from django.contrib.auth.models import Group, Permission
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from .models import Asama, HesapAyari, Musteri, hesap_bayisi, hesap_istasyonu
+from .models import Asama, HesapAyari, Musteri, Personel, hesap_bayisi, hesap_istasyonu, hesap_personeli
 from .yedek import sadece_yonetici
 
 OFIS_GRUBU = "Ofis"
@@ -76,6 +76,11 @@ class HesapFormu(forms.Form):
         empty_label="— Seçilmedi (tablet istediği istasyonu açar) —",
         help_text="Seçilirse tablet açılınca doğrudan bu istasyonun ekranı gelir.",
     )
+    personel = forms.ModelChoiceField(
+        queryset=Personel.objects.filter(aktif=True), label="Bu hesap kimin? (kişisel telefon)", required=False,
+        empty_label="— Ortak tablet (ad ve PIN sorulur) —",
+        help_text="Ustanın kendi telefonundaki hesap: işler bu kişiye yazılır, başlatırken / bitirirken ad ve PIN sorulmaz.",
+    )
     bayi = forms.ModelChoiceField(
         queryset=Musteri.objects.all(), label="Hangi bayi?", required=False, empty_label="— Müşteri seçin —",
         help_text="Bayinin siparişleri bu müşteri adına açılır.",
@@ -129,7 +134,8 @@ class HesapFormu(forms.Form):
             yeni = (v.get("yeni_bayi") or "").strip()
             bayi = (Musteri.objects.filter(ad__iexact=yeni).first() or Musteri.objects.create(ad=yeni)) if yeni else v["bayi"]
         HesapAyari.objects.update_or_create(
-            kullanici=kullanici, defaults={"istasyon": v.get("istasyon") if tur == "tablet" else None, "musteri": bayi}
+            kullanici=kullanici, defaults={"istasyon": v.get("istasyon") if tur == "tablet" else None, "musteri": bayi,
+                                           "personel": v.get("personel") if tur == "tablet" else None}
         )
         return kullanici
 
@@ -137,7 +143,8 @@ class HesapFormu(forms.Form):
 @sadece_yonetici
 def hesap_listesi(request):
     hesaplar = get_user_model().objects.order_by("-is_superuser", "-is_staff", "username")
-    satirlar = [{"k": k, "tur": dict(TURLER)[hesap_turu(k)], "istasyon": hesap_istasyonu(k), "bayi": hesap_bayisi(k)}
+    satirlar = [{"k": k, "tur": dict(TURLER)[hesap_turu(k)], "istasyon": hesap_istasyonu(k), "bayi": hesap_bayisi(k),
+                 "personel": hesap_personeli(k)}
                  for k in hesaplar]
     return render(request, "uretim/hesap_listesi.html", {"satirlar": satirlar})
 
@@ -148,7 +155,8 @@ def hesap_formu(request, pk=None):
     baslangic = {"tur": "tablet", "aktif": True}
     if kullanici:
         baslangic = {"kullanici_adi": kullanici.username, "tur": hesap_turu(kullanici), "aktif": kullanici.is_active,
-                     "istasyon": hesap_istasyonu(kullanici), "bayi": hesap_bayisi(kullanici)}
+                     "istasyon": hesap_istasyonu(kullanici), "bayi": hesap_bayisi(kullanici),
+                     "personel": hesap_personeli(kullanici)}
     form = HesapFormu(request.POST or None, kullanici=kullanici, initial=baslangic)
     if request.method == "POST" and form.is_valid():
         k = form.kaydet(request.user)

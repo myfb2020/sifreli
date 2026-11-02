@@ -14,7 +14,7 @@
     <tr>
       <td><b>{{ s.k.username }}</b></td>
       <td>{{ s.tur }}</td>
-      <td>{% if s.bayi %}{{ s.bayi }}{% else %}{{ s.istasyon.ad|default:"–" }}{% endif %}</td>
+      <td>{% if s.bayi %}{{ s.bayi }}{% else %}{{ s.istasyon.ad|default:"–" }}{% if s.personel %}<br><span class="soluk">👤 {{ s.personel }}</span>{% endif %}{% endif %}</td>
       <td>{% if s.k.is_active %}<span class="rozet tamamlandi">Açık</span>{% else %}<span class="rozet iptal">Kapalı</span>{% endif %}</td>
       <td class="soluk">{{ s.k.last_login|date:"d.m.Y H:i"|default:"–" }}</td>
       <td><a class="btn kucuk ikincil" href="{% url 'hesap_duzenle' s.k.pk %}">Düzenle</a></td>

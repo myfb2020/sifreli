@@ -53,7 +53,8 @@
     <table>
       <tr><th>Müşteri</th><td><b>{{ siparis.musteri }}</b>{% if siparis.musteri.telefon %}<br><span class="soluk">{{ siparis.musteri.telefon }}</span>{% endif %}</td></tr>
       <tr><th>Halı türü</th><td>{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b><br><span class="soluk">{{ siparis.hali_turu.rota_metni }}</span>{% else %}–{% endif %}</td></tr>
-      <tr><th>Ürün</th><td>{{ siparis.urun }}</td></tr>
+      <tr><th>Ürün</th><td>{% if siparis.acil %}<span class="rozet acil">⚡ ACİL</span> {% endif %}{{ siparis.urun }}</td></tr>
+      {% if siparis.olcu_metni %}<tr><th>Ölçü</th><td><b>{{ siparis.olcu_metni }}</b></td></tr>{% endif %}
       {% if not siparis.tasarim %}{% if siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 fotosuz=1 %}</td></tr>{% endif %}{% endif %}
       <tr><th>📷 Fotoğraf</th><td>
         {% for f in siparis.fotograflar.all %}<div class="sp-foto">
@@ -85,6 +86,10 @@
       <form method="post" action="{% url 'siparis_durum' siparis.pk %}" onsubmit="return confirm('Sipariş sevk edildi olarak işaretlensin mi?')">
         {% csrf_token %}<button class="btn" name="durum" value="sevk">🚚 Sevk edildi</button></form>
       {% endif %}
+      {% if siparis.durum == "acik" or siparis.durum == "uretimde" or siparis.durum == "onay" %}
+      <form method="post" action="{% url 'siparis_acil' siparis.pk %}">
+        {% csrf_token %}<button class="btn {% if not siparis.acil %}ikincil{% endif %}">{% if siparis.acil %}⚡ Acili kaldır{% else %}⚡ Acil yap{% endif %}</button></form>
+      {% endif %}
       {% if siparis.durum == "acik" or siparis.durum == "uretimde" %}
       <form method="post" action="{% url 'siparis_durum' siparis.pk %}" onsubmit="return confirm('Sipariş iptal edilsin mi?')">
         {% csrf_token %}<button class="btn ikincil" name="durum" value="iptal">İptal et</button></form>
@@ -107,7 +112,7 @@
       <td><a href="{% url 'lot_detay' l.pk %}"><b>{{ l.lot_no }}</b></a></td>
       <td>{% for k in l.kaynaklar.all %}{{ k.ham_deri.lot_no }}{% if not forloop.last %}, {% endif %}{% endfor %}<br><span class="soluk">{% for k in l.kaynaklar.all %}{% ifchanged k.ham_deri.deri_turu %}{{ k.ham_deri.deri_turu }} {% endifchanged %}{% endfor %}</span></td>
       <td>{{ l.son_asama.ad|default:"Başlamadı" }}</td>
-      <td><span class="rozet {{ l.durum }}">{{ l.get_durum_display }}</span></td>
+      <td><span class="rozet {{ l.durum }}">{{ l.konum_metni }}</span></td>
       <td class="sayi">{{ l.baslangic_m2 }}</td><td class="sayi">{{ l.mevcut_m2 }}</td><td class="sayi">{{ l.mevcut_kg }}</td>
     </tr>
     {% empty %}

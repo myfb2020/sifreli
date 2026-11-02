@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from . import servisler, uyarilar
 from .views import geri_don
 from .forms import KaynakFormSet, StokGirisForm, YeniIsForm
-from .models import HamDeriGirisi, Malzeme, SistemAyari, UretimLotu
+from .models import HamDeriGirisi, Malzeme, SistemAyari, UretimLotu, hesap_personeli
 
 
 @login_required
@@ -28,8 +28,10 @@ def yeni_is(request):
     baslangic_satirlar = []
     if request.GET.get("stok"):
         baslangic_satirlar = [{"stok_no": request.GET["stok"].strip().upper()}]
-    gecis_modu = SistemAyari.yukle().gecis_modu
-    form = YeniIsForm(request.POST or None, initial={"siparis": request.GET.get("siparis")}, gecis_modu=gecis_modu)
+    ayar = SistemAyari.yukle()
+    gecis_modu = ayar.gecis_modu
+    form = YeniIsForm(request.POST or None, initial={"siparis": request.GET.get("siparis")}, gecis_modu=gecis_modu,
+                      personel=hesap_personeli(request.user))
     satirlar = KaynakFormSet(request.POST or None, initial=baslangic_satirlar, prefix="kaynak")
 
     if request.method == "POST" and form.is_valid() and satirlar.is_valid():
@@ -46,12 +48,11 @@ def yeni_is(request):
         except ValidationError as hata:
             form.add_error(None, hata)
         else:
-            messages.success(
-                request, f"{islem.personel} – {islem.lot} işi açıldı ({islem.lot.kaynak_listesi}), "
-                         f"“{islem.asama.ad}” başladı."
-            )
+            kaynak = f" ({islem.lot.kaynak_listesi})" if islem.lot.kaynak_listesi else ""
+            messages.success(request, f"{islem.personel} – {islem.lot} işi açıldı{kaynak}, “{islem.asama.ad}” başladı.")
             return geri_don(request, "pano")
-    return render(request, "uretim/yeni_is.html", {"form": form, "satirlar": satirlar, "gecis_modu": gecis_modu})
+    return render(request, "uretim/yeni_is.html", {"form": form, "satirlar": satirlar, "gecis_modu": gecis_modu,
+                                                   "stok_zorunlu": ayar.stok_zorunlu})
 
 
 def cesit_onerileri():

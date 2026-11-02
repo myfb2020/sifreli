@@ -1,7 +1,7 @@
 """İstasyon ekranları ve pano için: bekleyen işler, süre aşımları ve azalan stok."""
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db.models import Max, Sum
@@ -23,6 +23,12 @@ def sure_metni(sure):
     if saat:
         return f"{saat} sa {dakika} dk"
     return f"{dakika} dk"
+
+
+def oncelik(kalem):
+    """İstasyon listelerinin sırası: önce ⚡ acil, sonra teslim tarihi en yakın, sonra en uzun bekleyen."""
+    sp = kalem.siparis
+    return (not (sp and sp.acil), sp.teslim_tarihi if sp else date.max, -kalem.sure)
 
 
 @dataclass
@@ -60,11 +66,12 @@ def calisilanlar(asama=None):
                                                                   "lot__siparis__tasarim")
     if asama:
         qs = qs.filter(asama=asama)
-    return [
+    kalemler = [
         Kalem("calisilan", f"i{i.pk}", i.asama, simdi - i.baslangic, i.asama.azami_sure_saat, lot=i.lot, islem=i,
               siparis=i.lot.siparis)
-        for i in qs.order_by("baslangic")
+        for i in qs.prefetch_related("lot__siparis__fotograflar")
     ]
+    return sorted(kalemler, key=oncelik)
 
 
 def gelenler(asama=None):
@@ -97,7 +104,7 @@ def gelenler(asama=None):
         for hedef in hedefler(sp.hali_turu_id, None):
             sonuc.append(Kalem("siparis", f"s{sp.pk}", hedef, simdi - sp.olusturma, hedef.azami_bekleme_saat,
                                siparis=sp))
-    return sorted(sonuc, key=lambda k: (not k.gecikti, -k.sure))
+    return sorted(sonuc, key=oncelik)
 
 
 def gecikmeler():

@@ -13,7 +13,7 @@ from openpyxl.styles import Font
 
 from . import raporlar, servisler, uyarilar
 from .forms import IslemBaslatForm, IslemBitirForm, MalzemeKullanimFormSet, TarihAraligiForm
-from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Siparis, SistemAyari, UretimLotu
+from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Siparis, SistemAyari, UretimLotu, hesap_personeli
 
 
 def geri_don(request, varsayilan):
@@ -57,6 +57,7 @@ def pano(request):
         ).select_related("musteri"),
         "gecikmeler": uyarilar.gecikmeler(),
         "gecis_modu": SistemAyari.yukle().gecis_modu,
+        "stok_zorunlu": SistemAyari.yukle().stok_zorunlu,
         "azalan_stoklar": uyarilar.azalan_stoklar() if request.user.is_staff else [],
     }
     return render(request, "uretim/pano.html", baglam)
@@ -72,7 +73,7 @@ def islem_baslat(request):
             # Alternatif istasyonlar varsa (Biye / Lanfel) çalışan kendisi seçer.
             baslangic = {"lot": lot, "asama": sonrakiler[0] if len(sonrakiler) == 1 else None}
 
-    form = IslemBaslatForm(request.POST or None, initial=baslangic)
+    form = IslemBaslatForm(request.POST or None, initial=baslangic, personel=hesap_personeli(request.user))
     if request.method == "POST" and form.is_valid():
         v = form.cleaned_data
         try:
@@ -95,9 +96,11 @@ def islem_bitir(request, pk):
         messages.info(request, "Bu işlem zaten bitirilmiş.")
         return redirect("lot_detay", pk=islem.lot_id)
 
+    ilk_adim = servisler.ilk_adim_mi(islem)
     form = IslemBitirForm(
-        request.POST or None,
-        initial={"personel": islem.personel, "cikis_kg": islem.giris_kg, "cikis_m2": islem.giris_m2},
+        request.POST if request.method == "POST" else None, initial={"personel": islem.personel}, personel=hesap_personeli(request.user),
+        ilk_adim=ilk_adim, stok_zorunlu=SistemAyari.yukle().stok_zorunlu,
+        cesitler=servisler.stoktaki_cesitler() if ilk_adim else (),
     )
     # Malzeme bölümü gönderilmediyse (eski açık sayfa) malzeme kullanılmadı sayılır.
     malzeme_verisi = request.POST if "malzeme-TOTAL_FORMS" in request.POST else None
@@ -108,8 +111,8 @@ def islem_bitir(request, pk):
                       for m in malzemeler if malzeme_verisi is not None and m.cleaned_data.get("malzeme")]
         try:
             servisler.islem_bitir(
-                islem=islem, personel=v["personel"], cikis_kg=v["cikis_kg"], cikis_m2=v["cikis_m2"],
-                aciklama=v["aciklama"], malzemeler=kullanilan,
+                islem=islem, personel=v["personel"], cikis_kg=v.get("cikis_kg"), cikis_m2=v.get("cikis_m2"),
+                aciklama=v["aciklama"], malzemeler=kullanilan, kesim=v.get("kesim"),
             )
         except ValidationError as hata:
             form.add_error(None, hata)
@@ -118,7 +121,8 @@ def islem_bitir(request, pk):
             return geri_don(request, "pano")
     malzeme_kodlari = dict(Malzeme.objects.filter(aktif=True).values_list("kod", "pk"))
     return render(request, "uretim/islem_bitir.html",
-                  {"form": form, "islem": islem, "malzemeler": malzemeler, "malzeme_kodlari": malzeme_kodlari})
+                  {"form": form, "islem": islem, "malzemeler": malzemeler, "malzeme_kodlari": malzeme_kodlari,
+                   "ilk_adim": ilk_adim})
 
 
 @login_required

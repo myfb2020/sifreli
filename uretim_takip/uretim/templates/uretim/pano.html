@@ -123,5 +123,12 @@
     {% else %}<span class="rozet tamamlandi">KAPALI</span> İşler yalnızca etiketli stok lotlarından başlatılır.{% endif %}</span>
   <button class="btn kucuk {% if not gecis_modu %}ikincil{% endif %}" type="submit">{% if gecis_modu %}Kapat{% else %}Aç{% endif %}</button>
 </form>
+<form method="post" action="{% url 'stok_zorunlu_degistir' %}" class="kart" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+  {% csrf_token %}
+  <span style="margin-right:auto"><b>Stok okutma:</b>
+    {% if stok_zorunlu %}<span class="rozet islemde">ZORUNLU</span> İş stok etiketi okutularak açılır; ilk istasyonda kullanılan malzeme girilmeden bitirilemez.
+    {% else %}<span class="rozet tamamlandi">İSTEĞE BAĞLI</span> İş yalnızca sipariş seçilerek açılabilir; malzeme girilirse stoktan düşülür.{% endif %}</span>
+  <button class="btn kucuk ikincil" type="submit">{% if stok_zorunlu %}İsteğe bağlı yap{% else %}Zorunlu yap{% endif %}</button>
+</form>
 {% endif %}
 {% endblock %}

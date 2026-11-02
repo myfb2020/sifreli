@@ -2,7 +2,7 @@
 {% block baslik %}{{ lot.lot_no }}{% endblock %}
 {% block icerik %}
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-  <h1 style="margin:0;margin-right:auto">{{ lot.lot_no }} <span class="rozet {{ lot.durum }}">{{ lot.get_durum_display }}</span></h1>
+  <h1 style="margin:0;margin-right:auto">{{ lot.lot_no }} <span class="rozet {{ lot.durum }}">{{ lot.konum_metni }}</span></h1>
   {% if not user.is_staff or user.is_superuser %}{% if lot.acik_islem %}
     <a class="btn" href="{% url 'islem_bitir' lot.acik_islem.pk %}">■ Açık işlemi bitir</a>
   {% elif lot.durum == "bekliyor" %}

@@ -1,0 +1,7 @@
+{# İstasyon satırında siparişin özeti: acil, ölçü, teslim, not. s: sipariş #}
+{% if s %}<div class="is-bilgi">
+  {% if s.acil %}<span class="rozet acil">⚡ ACİL</span>{% endif %}
+  {% if s.olcu_metni %}<b class="is-olcu">{{ s.olcu_metni }}{% if s.adet > 1 %} × {{ s.adet }}{% endif %}</b>{% endif %}
+  <span class="is-teslim{% if s.kalan_gun < 0 %} gecikti{% elif s.kalan_gun <= 2 %} yakin{% endif %}">📅 {{ s.teslim_tarihi|date:"d.m" }} · {{ s.teslim_metni }}</span>
+  {% if s.notlar %}<div class="is-not">📝 {{ s.notlar|linebreaksbr }}</div>{% endif %}
+</div>{% endif %}

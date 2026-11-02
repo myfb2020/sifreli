@@ -5,14 +5,32 @@
 <div class="kart" style="max-width:560px;margin:0 auto">
   <h1>■ İşlem Bitir</h1>
   <table style="margin-bottom:16px">
-    <tr><th>İş</th><td><b>{{ islem.lot }}</b>{% if islem.lot.siparis %} · {{ islem.lot.siparis.musteri }}{% endif %}<br><span class="soluk">Stok: {{ islem.lot.kaynak_listesi }}</span></td></tr>
+    {% with s=islem.lot.siparis %}
+    <tr><th>İş</th><td><b>{{ islem.lot }}</b>{% if s %} · {{ s.siparis_no }} · {{ s.musteri }}{% endif %}
+      {% if islem.lot.kaynak_listesi %}<br><span class="soluk">Stok: {{ islem.lot.kaynak_listesi }}</span>{% endif %}</td></tr>
+    {% if s %}<tr><th>Ölçü</th><td><b>{{ s.olcu_metni|default:"–" }}</b>{% if s.adet > 1 %} × {{ s.adet }} adet{% endif %}{% if s.toplam_m2 %} · {{ s.toplam_m2|floatformat:"-2" }} m²{% endif %}</td></tr>{% endif %}
+    {% endwith %}
     <tr><th>Aşama</th><td>{{ islem.asama.ad }}</td></tr>
     <tr><th>Başlatan</th><td>{{ islem.personel }} – {{ islem.baslangic|date:"d.m.Y H:i" }}</td></tr>
-    <tr><th>Giriş</th><td>{{ islem.giris_kg }} kg / {{ islem.giris_m2 }} m²</td></tr>
   </table>
-  <p class="soluk">Bu aşamadan çıkan miktarı girin. Aradaki fark fire olarak kaydedilir.</p>
   <form method="post" class="dikey">
-    {% include "uretim/_form.html" %}
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
+    {% for alan in form %}{% if alan.name == "personel" or alan.name == "pin" %}{% include "uretim/_alan.html" %}{% endif %}{% endfor %}
+    {% if ilk_adim %}
+    <h2 style="margin-top:16px">Kullanılan malzeme {% if not form.stok_zorunlu %}<span class="soluk" style="font-weight:normal;font-size:14px">(isteğe bağlı)</span>{% endif %}</h2>
+    <p class="soluk">Bu iş için rulodan ne kadar kullandığınızı yazın; m²'si stoktan düşülür, fire kendiliğinden hesaplanır.</p>
+    {% include "uretim/_alan.html" with alan=form.cesit %}
+    <p><label for="{{ form.rulo_no.id_for_label }}">{{ form.rulo_no.label }}</label>
+      <span class="tara-grup">{{ form.rulo_no }}<button type="button" class="btn tara-dugme" id="rulo-tara" aria-label="Rulo etiketini okut">📷</button></span>
+      {% if form.rulo_no.errors %}<ul class="errorlist">{% for e in form.rulo_no.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</p>
+    <div class="iki-sutun-form">{% include "uretim/_alan.html" with alan=form.kesim_en %}{% include "uretim/_alan.html" with alan=form.kesim_boy %}</div>
+    <p id="kesim-m2" class="soluk"></p>
+    {% endif %}
+    {% include "uretim/_alan.html" with alan=form.aciklama %}
+    <details style="margin:8px 0"><summary class="soluk">Ayrıntı: çıkan kg / m² (deri, kürk için; boş bırakılabilir)</summary>
+      {% include "uretim/_alan.html" with alan=form.cikis_kg %}{% include "uretim/_alan.html" with alan=form.cikis_m2 %}
+    </details>
     <h2 style="margin-top:20px">Kullanılan malzemeler <span class="soluk" style="font-weight:normal;font-size:14px">(varsa)</span></h2>
     <p class="soluk">Bu aşamada kimyasal, iplik, astar vb. kullandıysanız seçip miktarını girin; stoktan düşülür.</p>
     {{ malzemeler.management_form }}
@@ -36,7 +54,17 @@
 {{ malzeme_kodlari|json_script:"malzeme-kodlari" }}
 <script src="{% static 'uretim/vendor/jsQR.js' %}"></script>
 <script src="{% static 'uretim/tarayici.js' %}"></script>
+<style>.iki-sutun-form { display:grid; grid-template-columns:1fr 1fr; gap:10px; }</style>
 <script>
+(function () {
+  // Kullanılan en × boy → m²
+  const en = document.getElementById("id_kesim_en"), boy = document.getElementById("id_kesim_boy");
+  const yaz = () => {
+    const e = parseFloat((en.value || "").replace(",", ".")), b = parseFloat((boy.value || "").replace(",", "."));
+    document.getElementById("kesim-m2").textContent = e > 0 && b > 0 ? `= ${(e * b / 10000).toFixed(2).replace(".", ",")} m² stoktan düşülecek` : "";
+  };
+  if (en && boy) { en.addEventListener("input", yaz); boy.addEventListener("input", yaz); yaz(); }
+})();
 (function () {
   // Malzeme etiketindeki QR okutulunca o satırdaki listeden malzeme seçilir.
   const kodlar = JSON.parse(document.getElementById("malzeme-kodlari").textContent);
@@ -44,6 +72,16 @@
   let tarayici = null;
   function kapat() { if (tarayici) tarayici.durdur(); tarayici = null; perde.hidden = true; }
   document.getElementById("tarama-kapat").addEventListener("click", kapat);
+  const ruloDugme = document.getElementById("rulo-tara");
+  if (ruloDugme) ruloDugme.addEventListener("click", () => {
+    perde.hidden = false;
+    document.getElementById("kamera-kap").hidden = false;
+    tarayici = QrTarayici.baslat({
+      video: document.getElementById("kamera"), durum: document.getElementById("tarama-durum"),
+      kap: document.getElementById("kamera-kap"),
+      onKod: (kod) => { document.getElementById("id_rulo_no").value = kod; kapat(); },
+    });
+  });
   document.querySelectorAll(".malzeme-tara").forEach((dugme) => dugme.addEventListener("click", () => {
     const secim = dugme.parentElement.querySelector("select");
     const durum = document.getElementById("tarama-durum");

@@ -4,7 +4,7 @@
 <div class="kart" style="max-width:560px;margin:0 auto">
   <p style="margin:0 0 8px"><a href="{% url 'siparis_listesi' %}">← Siparişler</a></p>
   <h1>+ Yeni Sipariş</h1>
-  <p class="soluk">Sipariş numarası otomatik verilir. Toplam m² girerseniz ilerleme m²'ye göre hesaplanır. Katalogdan model seçerseniz resmi istasyon ekranlarında da görünür.</p>
+  <p class="soluk">Sipariş numarası otomatik verilir. <b>En × boy</b> yazınca m² kendiliğinden hesaplanır. Not ve teslim tarihi istasyon ekranlarında görünür; acil işaretlenen sipariş en üstte durur.</p>
   <form method="post" class="dikey" enctype="multipart/form-data">
     {% include "uretim/_form.html" %}
     <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>
@@ -33,6 +33,15 @@
   kod.addEventListener("input", kodOnizle);
   desen.addEventListener("change", () => onizle(desen, desenler[desen.value]));
   kodOnizle();
+  // en × boy × adet → m²
+  const en = document.getElementById("id_en_cm"), boy = document.getElementById("id_boy_cm"), adet = document.getElementById("id_adet");
+  const m2 = document.createElement("div"); m2.className = "soluk"; adet.closest("p").appendChild(m2);
+  const sayi = (g) => parseFloat((g.value || "").replace(",", ".")) || 0;
+  const m2Yaz = () => {
+    const t = sayi(en) * sayi(boy) * (sayi(adet) || 1) / 10000;
+    m2.innerHTML = t ? `Toplam: <b>${t.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} m²</b>` : "";
+  };
+  [en, boy, adet].forEach((g) => g.addEventListener("input", m2Yaz)); m2Yaz();
   // seçilen fotoğrafların küçük önizlemesi
   const foto = document.getElementById("id_fotograflar");
   foto.addEventListener("change", fotoOnizle);
@@ -60,4 +69,11 @@
   if (desen.value) onizle(desen, desenler[desen.value]);
 })();
 </script>
+<style>
+  #id_acil { width:auto; transform:scale(1.4); margin:0 8px 0 4px; }
+  p:has(> #id_acil) { display:flex; flex-wrap:wrap; align-items:center; }
+  p:has(> #id_acil) > label { order:2; margin:0; flex:1; min-width:0; width:auto; }
+  p:has(> #id_acil) > #id_acil { order:1; }
+  p:has(> #id_acil) > :not(label):not(#id_acil) { order:3; flex-basis:100%; }
+</style>
 {% endblock %}
