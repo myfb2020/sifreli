@@ -92,6 +92,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-11-02: Suni deri: değiştirilemeyen katalog modelinde "Bu modelden başla" iPhone'da gizlenmiyordu → base.html'e genel `[hidden]{display:none!important}`; model seçilince önizlemede katalog fotoğrafı, açıklayıcı not.
 - 2026-11-02: Atölye denemesi düzeltmeleri (migration 0027): sipariş en×boy + acil + istasyon önceliği/not/teslim; stok rulo/plaka en×boy; lazerde malzeme + en×boy → FIFO stok düşümü, fire; stok okutma isteğe bağlı (Pano düğmesi); kişisel hesapta PIN yok; iş yeri yazıyla. Rehber PDF'leri güncellendi. Kurulumdan sonra: Hesaplar'da her çalışana "Bu hesap kimin?" + istasyon.
 - 2026-10-30: Kullanıcı rehberi: büro / istasyon (tek sayfa) / bayi PDF'leri (`belgeler/`). Program kodu değişmedi.
 - 2026-10-30: Android Paylaş → Üretim Takip (manifest share_target, sw.js POST /paylas/ → "paylasilan" önbelleği → paylas.html: yeni sipariş / var olan siparişe ekle; SURUM v5). **Kullanıcıya gönderilen son zip bu.**

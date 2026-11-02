@@ -48,7 +48,7 @@
         <b id="model-secim-kod"></b>
         <button type="button" class="btn" id="aynen-sec">🛒 Bu modeli olduğu gibi sipariş et</button>
         <button type="button" class="btn ikincil" id="basla-sec">✏️ Bu modelden başla, değiştir</button>
-        <span class="soluk" id="basla-yok" hidden>Bu modelin yapısı düzenleyicide henüz yok; olduğu gibi sipariş edilebilir.</span>
+        <span class="soluk" id="basla-yok" hidden>Bu modelde çapraz / kavisli çizgi ya da köşe parçası var; değişiklik yapılamaz, <b>fotoğraftaki gibi üretilir</b>.</span>
       </div>
       <div class="fikir-kap">
         <button type="button" class="btn" id="fikir-dugme">💡 Bana fikir ver</button>
@@ -384,7 +384,8 @@
   const buyuk = document.getElementById("buyuk"), buyukIc = document.getElementById("buyuk-ic");
   const buyukResim = document.getElementById("buyuk-resim");
   function ac() {
-    buyukResim.src = form.querySelector('[name="aynen"]').value ? katalogResmi() : resimAdresi + "?b=1400&" + sorgu();
+    buyukResim.src = (!secimKutusu.hidden && secilen) ? secilen.dataset.resim
+      : form.querySelector('[name="aynen"]').value ? katalogResmi() : resimAdresi + "?b=1400&" + sorgu();
     buyukIc.classList.remove("yakin");
     buyuk.hidden = false; document.body.style.overflow = "hidden";
     history.pushState({ buyuk: 1 }, "");
@@ -426,6 +427,8 @@
     document.getElementById("basla-sec").hidden = !d.dataset.duzenlenir;
     document.getElementById("basla-yok").hidden = !!d.dataset.duzenlenir;
     secimKutusu.hidden = false;
+    // seçilen modelin katalog fotoğrafı üstte görünsün (eski çizim yanıltmasın)
+    resim.classList.remove("bekle"); resim.src = d.dataset.resim;
   }));
   document.getElementById("aynen-sec").addEventListener("click", () => {
     if (hazirlar[secilen.dataset.kod]) uygula(hazirlar[secilen.dataset.kod], secilen.dataset.kod);
