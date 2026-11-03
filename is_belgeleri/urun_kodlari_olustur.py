@@ -34,9 +34,16 @@ def grup(k):
 KURK = [("Beyaz", "#efebe4"), ("Krem", "#e4d8c0"), ("Bej", "#cdb994"), ("Açık gri", "#b4b2ae"), ("Gri", "#8a8885"),
         ("Antrasit", "#4d4b49"), ("Vizon", "#8a7867"), ("Kahve", "#5e4636"), ("Taba", "#9a5e34"), ("Siyah", "#222120"),
         ("Doğal desenli (dana)", "#8b6e55"), ("Mavi", "#2d5fa8"), ("Lacivert", "#28304f"), ("Bordo", "#6b2430"), ("Çok renkli (patchwork)", "#7d6a5c")]
+ORNEK = Path(__file__).parent / "kartela_ornek"
+gercek = json.load(open(ORNEK / "liste.json"))
 kartela, sayac = [], {}
+for kod, ad, hx in gercek:   # atölyenin basılı kartelaları (2026-11-03)
+    kartela.append((kod, f"{'Bienca' if kod.startswith('BN') else 'Rono'} {ad}",
+                    "Bienca (kartela)" if kod.startswith("BN") else "Rono – üçlü lamine: süet + keçe + Rono (kartela)", hx))
 for k, ad, hx in ns["MALZEMELER"]:
+    if k.startswith(("bienca", "rona")) or k.endswith("keten"): continue  # yerine basılı kartela
     g, gad = grup(k); sayac[g] = sayac.get(g, 0) + 1
+    if g in ("BN", "RN"): continue
     kartela.append((f"{g}{sayac[g]:02d}", ad, gad, hx))
 for ad, hx in KURK:
     sayac["KR"] = sayac.get("KR", 0) + 1
@@ -44,7 +51,8 @@ for ad, hx in KURK:
 iplik = [(f"IP{i+1:02d}", f"{ad} iplik", "Nakış ipliği", hx) for i, (_, ad, hx) in enumerate(ns["IPLIKLER"])]
 
 def rgb(h): h = h.lstrip("#"); return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-SERI_GRUP = {"İpek Peluş": {"PL"}, "Peluche": {"PL"}, "Bienca": {"BN", "VR"}, "Rono": {"RN", "KT"}}
+SERI_GRUP = {"İpek Peluş": {"PL"}, "Peluche": {"PL"}, "Bienca": {"BN"}, "Rono": {"RN"}}
+KARTELA_SERI = {"Bienca", "Rono"}  # tek malzeme: renk no = kartela no
 def tahmin(resim, seri):
     im = Image.open(resim).convert("RGB"); w, h = im.size
     orta = im.crop((int(w*.35), int(h*.35), int(w*.65), int(h*.65))).resize((20, 20))
@@ -77,6 +85,7 @@ satirlar = [
  ("", False),
  ("MODEL KODU: halının şekli/deseni. Katalogdaki kod (TOS-034, IPS-449…). Müşteri fotoğrafından eklenen: MM-001…  Bayi/stüdyo tasarımı modele çevrilirse: BF-001…", False),
  ("RENK NO: aynı modelin renk seçeneği. 01 = katalog fotoğrafındaki renkler. Aynı model başka renklerde yapılınca alt satıra 02, 03… eklenir.", False),
+ ("BIENCA ve RONO halılar tek malzeme olduğu için RENK NO = KARTELA NO:  RNO-003-06 = koyu kahve Rono,  BNA-018-02 = eskitme kahve/krem Bienca. Bu iki seride renk no ve zemin birlikte değişir (zemini BN../RN.. seçince renk no'yu da aynı yapın).", False),
  ("Her renk seçeneğinde parça parça renk yazılır: Zemin, Bant/desen, Kenar (biye/lanfel), varsa nakış motifi ve iplik rengi. Renkler 'Renk kartelası' sayfasındaki listeden seçilir.", False),
  ("Lazer deseni (DB…) ve nakış motifi (61.01…) ürün kodu değildir; halının parçalarıdır, satırda ayrıca yazılır.", False),
  ("", False),
@@ -108,6 +117,8 @@ for m in kat["modeller"]:
     t = tahmin(yol, m["seri"]) if yol.exists() else None
     if t:
         c = ws.cell(r, 5, f"{t[0]} {t[1]}"); c.fill = TAHMIN
+        if m["seri"] in KARTELA_SERI:
+            c = ws.cell(r, 4, t[0][2:]); c.fill = TAHMIN
     for col in range(6, 11): ws.cell(r, col).fill = GIRDI
     ws.cell(r, 12).fill = GIRDI; ws.cell(r, 13).fill = GIRDI
     ws.cell(r, 11, f'=IF(C{r}="","",C{r}&"-"&D{r})').font = Font(name=F, bold=True)
@@ -123,15 +134,19 @@ ws.auto_filter.ref = f"A1:M{r-1}"
 
 # ---- 3 Renk kartelası
 wk = wb.create_sheet("Renk kartelası")
-baslik(wk, 1, ["Kod", "Renk / malzeme adı", "Grup", "Örnek", "Liste adı (seçimde görünen)", "Atölyedeki adı / tedarikçi kodu"], [8, 34, 26, 10, 40, 34])
+baslik(wk, 1, ["Kod", "Renk / malzeme adı", "Grup", "Örnek", "Liste adı (seçimde görünen)", "Atölyedeki adı / tedarikçi kodu"], [8, 34, 30, 18, 40, 34])
 tum = kartela + iplik
 for i, (kod, ad, g, hx) in enumerate(tum, 2):
     wk.cell(i, 1, kod); wk.cell(i, 2, ad); wk.cell(i, 3, g)
     wk.cell(i, 4).fill = PatternFill("solid", fgColor=hx.lstrip("#").upper())
+    if (ORNEK / f"{kod}.jpg").exists():
+        im = Image.open(ORNEK / f"{kod}.jpg"); im.thumbnail((120, 70)); q = TMP / f"ornek_{kod}.jpg"; im.save(q)
+        wk.add_image(XLImage(str(q)), f"D{i}"); wk.row_dimensions[i].height = 56
     wk.cell(i, 5, f'=A{i}&" "&B{i}'); wk.cell(i, 6).fill = GIRDI
     for col in range(1, 7):
         wk.cell(i, col).border = kenar
         if col != 4: wk.cell(i, col).font = Font(name=F)
+        wk.cell(i, col).alignment = Alignment(wrap_text=True, vertical="center")
 sonk = len(kartela) + 1
 for i in range(len(tum) + 2, len(tum) + 42):  # yeni renkler için boş satırlar
     wk.cell(i, 5, f'=IF(A{i}="","",A{i}&" "&B{i})'); wk.cell(i, 1).fill = GIRDI; wk.cell(i, 2).fill = GIRDI
