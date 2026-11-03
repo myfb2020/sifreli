@@ -85,6 +85,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - Yeni modeller: aplike Kufi düğüm, daire patchwork, Medusa/logo madalyonu.
 - Lazer makinesi IP entegrasyonu (IP + kontrol kartı modeli lazım).
 - **Paraşüt Excel'leri (2026-10-30, BEKLEMEDE – kullanıcı: önce atölyede deneme, sonra karar):** ürün listesi (5.438 kart, halı kartları eksi stok = satış; ~35.000 m²; Dana/Toskana m², Rono/Peluş adet önde; 160×230 en çok) ve tahsilatlar (1.680, 189 müşteri; 2024 ~304K$ → 2026 10 ay ~1,94M$; Özdallar %36, ilk 10 %60; 20 müşteri 6+ ay ödemesiz). Fikirler: yönetici paneli, Paraşüt'e fatura, müşteri takibi, maliyet/kâr. Dosyalar yalnız oturum yüklemesinde, kalıcı değil.
+- **Ürün kodlaması (2026-11-03):** kullanıcı Excel listesini dolduruyor; sonra programa: renk kartelası tablosu (stok + stüdyo ortak), model renk seçenekleri (01, 02…, parça renkleri + foto), sipariş/etiket/Paraşüt'te ürün kodu, BF-… stüdyo modelleri.
 - Paraşüt otomatik veri çekme (API erişimi lazım). WhatsApp sipariş yapıştırma (örnek mesaj lazım).
 - Çevrimdışı kuyruk. (PIN: kişisel hesapta artık sorulmuyor — yazıldı.)
 - Raporlar: fire nedeni, geri çağırma, kapasite.
@@ -92,6 +93,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-11-03: Ürün kod listesi taslağı (program dışı Excel) `is_belgeleri/Bienna_Fur_urun_kodlari.xlsx` (üretici: `urun_kodlari_olustur.py`): kod = MODEL-RENKNO(-ölçü); 192 model fotoğraflı, zemin rengi tahmini, renk kartelası (PL/BN/RN/KT/VR/KD/SD/MT/KR/IP kodları), lazer desenleri, nakış motifleri. Kullanıcı doldurunca programa aktarılacak (açık sorular: Paraşüt kod düzeni, ölçü koda girsin mi, eski siparişler).
 - 2026-11-02: Suni deri: değiştirilemeyen katalog modelinde "Bu modelden başla" iPhone'da gizlenmiyordu → base.html'e genel `[hidden]{display:none!important}`; model seçilince önizlemede katalog fotoğrafı, açıklayıcı not.
 - 2026-11-02: Atölye denemesi düzeltmeleri (migration 0027): sipariş en×boy + acil + istasyon önceliği/not/teslim; stok rulo/plaka en×boy; lazerde malzeme + en×boy → FIFO stok düşümü, fire; stok okutma isteğe bağlı (Pano düğmesi); kişisel hesapta PIN yok; iş yeri yazıyla. Rehber PDF'leri güncellendi. Kurulumdan sonra: Hesaplar'da her çalışana "Bu hesap kimin?" + istasyon.
 - 2026-10-30: Kullanıcı rehberi: büro / istasyon (tek sayfa) / bayi PDF'leri (`belgeler/`). Program kodu değişmedi.
