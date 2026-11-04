@@ -76,6 +76,13 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - **Hâlâ eksik:** DXF desen dosyaları; nakış motifi yalnız Grek kare (başka motif dosyası gelirse eklenir).
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
+- **EKSİKLER LİSTESİ (2026-11-04, kullanıcı: "şimdi yazma, not et, en son program yazacağız")** – yazmadan önce plan + onay:
+  1. İstasyonda personel işe not/açıklama girebilsin (başlatırken/bitirirken + iş sırasında; not ekranda ve sipariş/iş sayfasında görünsün).
+  2. Tek siparişte aynı model, farklı ölçü ve adetler (sipariş kalemleri: en×boy×adet satırları; her kalem ayrı iş/lot, m² toplamı).
+  3. Ofis siparişi düzenlerken fotoğraf ekle/değiştir (şu an düzenleme admin'de; sipariş düzenleme ekranı + foto).
+  4. Pano "Bugün kim ne yaptı" çıkış/fire m² yanlış görünebiliyor. Bulunan olası nedenler: (a) aynı halı her istasyonda yeniden sayılıyor (çıkış m² = istasyon sayısı × halı); (b) kişi = işi BAŞLATAN, bitiren değil (`raporlar.personel_ozeti`); (c) stok okutulmayan işte giriş = siparişin TOPLAM m²'si, siparişte birden çok iş varsa her işe tam toplam yazılıyor; (d) fire yalnız lazerde malzeme girilince anlamlı, diğer istasyonlarda 0. Öneri: panoda m² yerine iş sayısı + bitirilen halı m²'si (son istasyon), fire yalnız ilk istasyon.
+  5. Müşteri portalı: müşteri/bayi kendi siparişinin aşamasını canlı görsün (bayi 'Siparişlerim' güçlendirme: aşama çizgisi, konum_metni, tahmini teslim; rol bazlı yetki sıkılaştırma; belki giriş gerektirmeyen gizli takip bağlantısı).
+  6. Sevk edilmiş siparişlerin fotoğrafları ~6 ay sonra otomatik silinsin veya küçültülsün (disk).
 - Fotoğraflarla disk dolar → ücretli paket önerisi.
 - **Kağıtsız istasyon akışı (kısmen yazıldı 2026-11-02: okutma isteğe bağlı, lazerde en×boy stok düşümü, yalnız Başlat/Bitir; kalan: kesim listesinden otomatik düşüm %10 fire, nakış paralel rota):** QR yalnız lazerde rulo kartından (borusuz rulo: lastik bantlı kart + iç uçta keçe tarafına yedek etiket); stok tasarımın kesim listesinden otomatik düşer, **fire %10** (sonra gerçek fireyle ayar). İstasyonlarda okutma yok: tablet listesinde halı resmi + SP no, Başla/Bitti. Rota: Lazer → (Nakış paralel, yalnız nakışlı parçalar) → Zig-zag (nakış bekleniyor işareti) → Biye/Lanfel. Lazerci büyük parçanın keçesine SP no yazar.
 - **Katalog modeli yapısı kurulamayanlar (yalnız 'olduğu gibi sipariş'):** çapraz/kavisli çizgi (IPS-434, 441, 443-447, 450, 464, 472, 474, 479, 480), köşe parçası (IPS-436…438, BNA-012, 022, 023, 024), dama (BNA-020), PCH-001/007, BNA-008 vb. İleride bu yapılar eklenebilir.
