@@ -13,7 +13,7 @@
         {% else %}
           <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %}<br>
           <span class="soluk">{% if k.siparis %}{{ k.siparis.siparis_no }} · {{ k.siparis.urun }} · {% endif %}{% if k.lot.son_asama %}{{ k.lot.son_asama.ad }} bitti{% else %}başlamadı{% endif %}</span>
-          {% include "uretim/_is_bilgisi.html" with s=k.siparis %}
+          {% include "uretim/_is_bilgisi.html" with s=k.siparis l=k.lot %}
           {% if k.siparis %}{% include "uretim/_siparis_resim.html" with s=k.siparis %}{% endif %}
         {% endif %}
         <div class="ist-sure">⏳ {{ k.sure_metni }} bekliyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
@@ -39,13 +39,16 @@
       <div class="ist-bilgi">
         <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}{% if k.islem.makine %} · {{ k.islem.makine }}{% endif %}<br>
         {% if k.siparis %}<span class="soluk">{{ k.siparis.siparis_no }} · {{ k.siparis.urun }}</span>{% endif %}
-        {% include "uretim/_is_bilgisi.html" with s=k.siparis %}
+        {% include "uretim/_is_bilgisi.html" with s=k.siparis l=k.lot %}
         {% if k.siparis %}{% include "uretim/_siparis_resim.html" with s=k.siparis %}{% endif %}
         <div class="ist-sure">⏱ {{ k.sure_metni }} çalışılıyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
           {% if k.gecikti %}<b class="uyari"> · {{ k.asim_metni }} aşıldı</b>{% endif %}</div>
       </div>
       {% if not U.is_staff or U.is_superuser %}
-      <a class="btn" href="{% url 'islem_bitir' k.islem.pk %}?geri={{ ekran_adresi|urlencode }}">■ Bitir</a>
+      <div class="ist-dugmeler">
+        <a class="btn" href="{% url 'islem_bitir' k.islem.pk %}?geri={{ ekran_adresi|urlencode }}">■ Bitir</a>
+        <a class="btn ikincil kucuk" href="{% url 'is_notu' k.lot.pk %}?asama={{ k.asama.pk }}&amp;geri={{ ekran_adresi|urlencode }}">📝 Not</a>
+      </div>
       {% endif %}
     </div>
     {% empty %}

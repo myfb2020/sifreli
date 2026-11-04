@@ -441,6 +441,7 @@ class Siparis(models.Model):
     acil = models.BooleanField("⚡ acil", default=False, help_text="Acil siparişler istasyon ekranlarında en üstte durur.")
     teslim_tarihi = models.DateField("teslim tarihi")
     durum = models.CharField(max_length=12, choices=DURUM, default="acik")
+    sevk_tarihi = models.DateField("sevk tarihi", null=True, blank=True)
     notlar = models.TextField(blank=True)
 
     class Meta:
@@ -460,10 +461,28 @@ class Siparis(models.Model):
 
     @property
     def olcu_metni(self):
-        """Ör. '160 × 230 cm'; ölçü girilmemişse boş."""
+        """Ör. '160 × 230 cm'; birden çok ölçü satırı varsa '160 × 230 ×2 · 200 × 300'; ölçü yoksa boş."""
+        kalemler = list(self.kalemler.all()) if self.pk else []
+        if len(kalemler) > 1:
+            return " · ".join(k.olcu_metni(cm=False) for k in kalemler) + " cm"
         if not (self.en_cm and self.boy_cm):
             return ""
         return f"{sayi_metni(self.en_cm)} × {sayi_metni(self.boy_cm)} cm"
+
+    def kalemleri_yansit(self):
+        """Ölçü satırlarından siparişin özetini (en, boy, adet, toplam m²) günceller."""
+        kalemler = list(self.kalemler.all())
+        if not kalemler:
+            if self.en_cm or self.boy_cm:
+                self.en_cm = self.boy_cm = None
+                Siparis.objects.filter(pk=self.pk).update(en_cm=None, boy_cm=None)
+            return
+        self.adet = sum(k.adet for k in kalemler)
+        self.toplam_m2 = sum((k.m2 for k in kalemler), SIFIR)
+        tek = kalemler[0] if len(kalemler) == 1 else None
+        self.en_cm, self.boy_cm = (tek.en_cm, tek.boy_cm) if tek else (None, None)
+        Siparis.objects.filter(pk=self.pk).update(adet=self.adet, toplam_m2=self.toplam_m2, en_cm=self.en_cm,
+                                                  boy_cm=self.boy_cm)
 
     @property
     def tek_m2(self):
@@ -533,8 +552,37 @@ class Siparis(models.Model):
         }
 
 
-# --- Üretim -------------------------------------------------------------------
+class SiparisKalemi(models.Model):
+    """Siparişin bir ölçü satırı: aynı modelden en × boy × adet. Her satır için ayrı iş açılır."""
 
+    siparis = models.ForeignKey(Siparis, on_delete=models.CASCADE, related_name="kalemler", verbose_name="sipariş")
+    sira = models.PositiveIntegerField(default=1)
+    en_cm = models.DecimalField("en (cm)", max_digits=7, decimal_places=1, validators=pozitif)
+    boy_cm = models.DecimalField("boy (cm)", max_digits=7, decimal_places=1, validators=pozitif)
+    adet = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["sira", "pk"]
+        verbose_name = "ölçü satırı"
+        verbose_name_plural = "ölçü satırları"
+
+    def __str__(self):
+        return f"{self.siparis.siparis_no} – {self.olcu_metni()}"
+
+    @property
+    def tek_m2(self):
+        return (self.en_cm * self.boy_cm / 10000).quantize(Decimal("0.01"))
+
+    @property
+    def m2(self):
+        return (self.en_cm * self.boy_cm * self.adet / 10000).quantize(Decimal("0.01"))
+
+    def olcu_metni(self, cm=True):
+        metin = f"{sayi_metni(self.en_cm)} × {sayi_metni(self.boy_cm)}" + (" cm" if cm else "")
+        return metin + (f" ×{self.adet}" if self.adet > 1 else "")
+
+
+# --- Üretim -------------------------------------------------------------------
 
 
 class SiparisFotografi(models.Model):
@@ -544,6 +592,7 @@ class SiparisFotografi(models.Model):
     siparis = models.ForeignKey(Siparis, on_delete=models.CASCADE, related_name="fotograflar", verbose_name="sipariş")
     resim = models.FileField(upload_to="siparis/%Y/%m/", validators=[resim_dogrulayici])
     olusturma = models.DateTimeField("yüklenme", default=timezone.now, editable=False)
+    kucultuldu = models.BooleanField("arşiv için küçültüldü", default=False)
 
     class Meta:
         ordering = ["olusturma", "pk"]
@@ -565,6 +614,8 @@ class UretimLotu(models.Model):
     siparis = models.ForeignKey(
         Siparis, on_delete=models.SET_NULL, null=True, blank=True, related_name="lotlar", verbose_name="sipariş"
     )
+    kalem = models.ForeignKey(SiparisKalemi, on_delete=models.SET_NULL, null=True, blank=True, related_name="lotlar",
+                              verbose_name="ölçü satırı")
     olusturma = models.DateTimeField("oluşturma", default=timezone.now)
     baslangic_kg = models.DecimalField("başlangıç kg", max_digits=10, decimal_places=2, validators=pozitif)
     baslangic_m2 = models.DecimalField("başlangıç m²", max_digits=10, decimal_places=2, validators=pozitif)
@@ -650,6 +701,13 @@ class UretimLotu(models.Model):
         return self.islemler.filter(bitis__isnull=True).first()
 
     @property
+    def olcu_metni(self):
+        """Bu işin ölçüsü: ölçü satırından ('160 × 230 cm ×2'), yoksa siparişten."""
+        if self.kalem_id:
+            return self.kalem.olcu_metni()
+        return self.siparis.olcu_metni if self.siparis_id else ""
+
+    @property
     def toplam_fire_kg(self):
         return self.baslangic_kg - (self.mevcut_kg or SIFIR)
 
@@ -730,6 +788,31 @@ class IslemKaydi(models.Model):
     @property
     def sure(self):
         return (self.bitis or timezone.now()) - self.baslangic
+
+
+class IsNotu(models.Model):
+    """İstasyonda personelin işe düştüğü not (ör. 'kenarda leke vardı'); sonraki istasyonlar ve ofis görür."""
+
+    lot = models.ForeignKey(UretimLotu, on_delete=models.CASCADE, related_name="is_notlari", verbose_name="iş")
+    asama = models.ForeignKey(Asama, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="istasyon")
+    personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="yazan")
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="hesap")
+    metin = models.TextField("not")
+    zaman = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["zaman", "pk"]
+        verbose_name = "iş notu"
+        verbose_name_plural = "iş notları"
+
+    def __str__(self):
+        return f"{self.lot.lot_no}: {self.metin[:40]}"
+
+    @property
+    def yazan(self):
+        if self.personel_id:
+            return str(self.personel)
+        return self.kullanici.get_username() if self.kullanici_id else ""
 
 
 # --- Stok düzeltme ve malzemeler ----------------------------------------------
@@ -1026,6 +1109,7 @@ class SistemAyari(models.Model):
         help_text="Açıkken yeni iş stok etiketi okutmadan açılamaz ve ilk istasyonda kullanılan malzeme girilmeden "
                   "bitirilemez. Kapalıyken ikisi de isteğe bağlıdır.",
     )
+    son_foto_kucultme = models.DateField("son fotoğraf küçültme", null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name = "sistem ayarı"

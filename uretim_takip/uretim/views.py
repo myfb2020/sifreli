@@ -12,7 +12,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 
 from . import raporlar, servisler, uyarilar
-from .forms import IslemBaslatForm, IslemBitirForm, MalzemeKullanimFormSet, TarihAraligiForm
+from .forms import IslemBaslatForm, IslemBitirForm, IsNotuForm, MalzemeKullanimFormSet, TarihAraligiForm
 from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Siparis, SistemAyari, UretimLotu, hesap_personeli
 
 
@@ -37,6 +37,14 @@ def sadece_ofis(gorunum):
 @login_required
 def pano(request):
     bugun = timezone.localdate()
+    if request.user.has_perm("uretim.change_siparis"):
+        # Eski sevkiyatların fotoğrafları günde bir kez küçültülür (sunucuda yer açılır).
+        from . import fotograf
+
+        sonuc = fotograf.gunluk_arsiv_kucult()
+        if sonuc and sonuc[0]:
+            messages.info(request, f"🗜 Sevk edileli 6 ay olmuş siparişlerin {sonuc[0]} fotoğrafı küçültüldü "
+                                   f"({sonuc[1] / 1048576:.1f} MB yer açıldı).")
     # İstasyon ekranlarıyla aynı hesap: bekleyen = o istasyona gelen işler + yeni siparişler.
     gelen, calisilan = uyarilar.gelenler(), uyarilar.calisilanlar()
     asamalar = []
@@ -48,7 +56,7 @@ def pano(request):
     baglam = {
         "asamalar": asamalar,
         "acik_islemler": IslemKaydi.objects.filter(bitis__isnull=True).select_related("lot", "asama", "personel"),
-        "bugun_personel": raporlar.personel_ozeti(bugun, bugun),
+        "bugun_personel": raporlar.bugun_kim_ne_yapti(bugun),
         "geciken_siparisler": Siparis.objects.filter(
             durum__in=["acik", "uretimde"], teslim_tarihi__lt=bugun
         ).select_related("musteri"),
@@ -87,6 +95,22 @@ def islem_baslat(request):
             messages.success(request, f"{islem.personel} – {islem.lot} işinde “{islem.asama.ad}” başladı.")
             return geri_don(request, "pano")
     return render(request, "uretim/islem_baslat.html", {"form": form})
+
+
+@login_required
+def is_notu(request, pk):
+    """İstasyonda işe not: kişisel hesapta doğrudan, ortak tablette ad + PIN ile; ofis hesabında hesabın adıyla."""
+    lot = get_object_or_404(UretimLotu.objects.select_related("siparis", "kalem"), pk=pk)
+    asama = Asama.objects.filter(pk=request.GET.get("asama") or 0).first() or lot.son_asama
+    ofis = request.user.is_staff
+    form = IsNotuForm(request.POST or None, personel=hesap_personeli(request.user), ofis=ofis)
+    if request.method == "POST" and form.is_valid():
+        servisler.not_ekle(lot=lot, metin=form.cleaned_data["metin"], asama=asama,
+                           personel=form.cleaned_data.get("personel"), kullanici=request.user)
+        messages.success(request, f"{lot.lot_no} işine not eklendi.")
+        return geri_don(request, "pano")
+    return render(request, "uretim/is_notu.html", {"form": form, "lot": lot, "asama": asama,
+                                                   "notlar": lot.is_notlari.select_related("asama", "personel", "kullanici")})
 
 
 @login_required

@@ -2093,3 +2093,202 @@ class DenemeDuzeltmeleriTesti(TemelVeri):
         self.assertContains(ekran, "ACİL")
         self.assertContains(ekran, "Kenarı altın biye")
         self.assertContains(ekran, "1 gün kaldı")
+
+
+class BirinciGuncellemeTesti(TemelVeri):
+    """Ölçü satırları + otomatik iş, sipariş düzenleme, istasyon notu, pano özeti, arşiv fotoğraf küçültme."""
+
+    def setUp(self):
+        import tempfile
+
+        from django.test import override_settings
+
+        from .models import HesapAyari
+        self.medya = tempfile.TemporaryDirectory()
+        self.ayar = override_settings(MEDIA_ROOT=self.medya.name)
+        self.ayar.enable()
+        self.lazer = Asama.objects.get(ad="Lazer kesim 1")
+        self.ofis = get_user_model().objects.create_superuser("ofis_g1", password="x")
+        self.telefon = get_user_model().objects.create_user("ayse_tel", password="x")
+        HesapAyari.objects.create(kullanici=self.telefon, personel=self.ayse, istasyon=self.lazer)
+
+    def tearDown(self):
+        self.ayar.disable()
+        self.medya.cleanup()
+
+    def _foto(self):
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        t = io.BytesIO()
+        Image.new("RGB", (2400, 1600), (200, 180, 150)).save(t, "JPEG")
+        return SimpleUploadedFile("f.jpg", t.getvalue(), content_type="image/jpeg")
+
+    def _olculer(self, *satirlar, **ek):
+        v = {"olcu-TOTAL_FORMS": str(len(satirlar)), "olcu-INITIAL_FORMS": "0"}
+        for i, (kalem, en, boy, adet) in enumerate(satirlar):
+            v.update({f"olcu-{i}-kalem": kalem or "", f"olcu-{i}-en_cm": en, f"olcu-{i}-boy_cm": boy,
+                      f"olcu-{i}-adet": adet})
+        v.update(ek)
+        return v
+
+    def _yeni(self, *satirlar, **ek):
+        self.client.force_login(self.ofis)
+        veri = self._olculer(*satirlar, musteri=self.siparis.musteri.pk, urun="Peluş", teslim_tarihi="2026-12-20",
+                             hali_turu=HaliTuru.objects.get(ad="Suni deri halı").pk, **ek)
+        return self.client.post(reverse("siparis_yeni"), veri)
+
+    def test_cok_olculu_siparis_her_olcuye_is(self):
+        yanit = self._yeni((None, "160", "230", "2"), (None, "200", "300", ""), (None, "", "", ""))
+        sp = Siparis.objects.get(urun="Peluş")
+        self.assertRedirects(yanit, reverse("siparis_detay", args=[sp.pk]))
+        self.assertEqual([k.olcu_metni() for k in sp.kalemler.all()], ["160 × 230 cm ×2", "200 × 300 cm"])
+        self.assertEqual((sp.adet, sp.toplam_m2), (3, Decimal("13.36")))
+        self.assertEqual(sp.olcu_metni, "160 × 230 ×2 · 200 × 300 cm")
+        lotlar = list(sp.lotlar.order_by("kalem__sira"))
+        self.assertEqual([l.baslangic_m2 for l in lotlar], [Decimal("7.36"), Decimal("6.00")])
+        # iki iş de lazerin gelen işlerinde, kendi ölçüsüyle; "yeni sipariş" satırı yok
+        gelen = [k for k in uyarilar.gelenler(self.lazer) if k.siparis == sp]
+        self.assertEqual(sorted(k.tur for k in gelen), ["gelen", "gelen"])
+        self.client.force_login(self.telefon)
+        ekran = self.client.get(reverse("istasyon_parca", args=[self.lazer.pk]))
+        self.assertContains(ekran, "160 × 230 cm ×2")
+        # lazer bitirirken net m² o işin ölçüsünden
+        islem = servisler.islem_baslat(lot=lotlar[1], asama=self.lazer, personel=self.ayse)
+        servisler.islem_bitir(islem=islem, personel=self.ayse, kesim={"m2": Decimal("7"), "rulo": self.ham})
+        islem.refresh_from_db()
+        self.assertEqual((islem.giris_m2, islem.cikis_m2), (Decimal("7.00"), Decimal("6.00")))
+        # "Yeni iş" ekranından aynı sipariş seçilirse yeni iş açılmaz, bekleyen iş başlar
+        islem2 = servisler.yeni_is_baslat(personel=self.ayse, siparis=sp, asama=self.lazer, kaynaklar=[])
+        self.assertEqual(islem2.lot, lotlar[0])
+        self.assertEqual(sp.lotlar.count(), 2)
+
+    def test_siparis_duzenle_olcu_ve_fotograf(self):
+        self._yeni((None, "100", "150", "1"), (None, "80", "120", "2"), fotograflar=[self._foto(), self._foto()])
+        sp = Siparis.objects.get(urun="Peluş")
+        k1, k2 = sp.kalemler.all()
+        f1 = sp.fotograflar.first()
+        self.assertContains(self.client.get(reverse("siparis_detay", args=[sp.pk])), reverse("siparis_duzenle", args=[sp.pk]))
+        sayfa = self.client.get(reverse("siparis_duzenle", args=[sp.pk]))
+        self.assertContains(sayfa, 'value="100"')
+        veri = self._olculer((k1.pk, "120", "180", "1"), (k2.pk, "", "", ""), (None, "50", "50", "4"),
+                             musteri=sp.musteri.pk, urun="Peluş krem", teslim_tarihi="2026-12-20", foto_sil=[f1.pk],
+                             hali_turu=sp.hali_turu_id,
+                             fotograflar=[self._foto(), self._foto()])
+        y = self.client.post(reverse("siparis_duzenle", args=[sp.pk]), veri)
+        self.assertRedirects(y, reverse("siparis_detay", args=[sp.pk]))
+        sp.refresh_from_db()
+        self.assertEqual(sp.urun, "Peluş krem")
+        self.assertEqual([k.olcu_metni() for k in sp.kalemler.all()], ["120 × 180 cm", "50 × 50 cm ×4"])
+        self.assertEqual(sorted(l.baslangic_m2 for l in sp.lotlar.all()), [Decimal("1.00"), Decimal("2.16")])
+        self.assertEqual(sp.fotograflar.count(), 3)
+        self.assertFalse(sp.fotograflar.filter(pk=f1.pk).exists())
+        # başlamış işin satırı silinemez
+        k1 = sp.kalemler.first()
+        servisler.islem_baslat(lot=k1.lotlar.first(), asama=self.lazer, personel=self.ahmet)
+        k3 = sp.kalemler.last()
+        veri = self._olculer((k1.pk, "", "", ""), (k3.pk, "50", "50", "4"), musteri=sp.musteri.pk, urun="X",
+                             teslim_tarihi="2026-12-20", hali_turu=sp.hali_turu_id)
+        self.assertContains(self.client.post(reverse("siparis_duzenle", args=[sp.pk]), veri), "silinemez")
+        self.assertEqual(sp.kalemler.count(), 2)
+
+    def test_istasyon_notu(self):
+        lot = self.yeni_lot(siparis=self.siparis)
+        islem = servisler.islem_baslat(lot=lot, asama=self.lazer, personel=self.ayse)
+        self.client.force_login(self.telefon)
+        ekran = self.client.get(reverse("istasyon_parca", args=[self.lazer.pk]))
+        self.assertContains(ekran, reverse("is_notu", args=[lot.pk]))
+        sayfa = self.client.get(reverse("is_notu", args=[lot.pk]))
+        self.assertNotContains(sayfa, 'name="pin"')
+        self.client.post(reverse("is_notu", args=[lot.pk]) + f"?asama={self.lazer.pk}", {"metin": "Kenarda leke vardı"})
+        n = lot.is_notlari.get()
+        self.assertEqual((n.personel, n.asama, n.metin), (self.ayse, self.lazer, "Kenarda leke vardı"))
+        self.assertContains(self.client.get(reverse("istasyon_parca", args=[self.lazer.pk])), "Kenarda leke vardı")
+        # bitirirken yazılan açıklama da not olur; ofis sipariş sayfasında görür
+        servisler.islem_bitir(islem=islem, personel=self.ayse, aciklama="Biye rengi farklı")
+        self.client.force_login(self.ofis)
+        detay = self.client.get(reverse("siparis_detay", args=[self.siparis.pk]))
+        self.assertContains(detay, "Kenarda leke vardı")
+        self.assertContains(detay, "Biye rengi farklı")
+        # ortak tablet PIN ister
+        self.client.force_login(get_user_model().objects.create_user("ortak_t", password="x"))
+        self.assertContains(self.client.post(reverse("is_notu", args=[lot.pk]), {"metin": "x", "personel": self.ahmet.pk,
+                                                                                "pin": "0000"}), "PIN hatalı")
+
+    def test_pano_kim_ne_yapti(self):
+        zigzag = Asama.objects.get(ad="Zig-zag")
+        sp = Siparis.objects.create(musteri=self.siparis.musteri, urun="Halı", teslim_tarihi=timezone.localdate(),
+                                    hali_turu=HaliTuru.objects.get(ad__icontains="Suni"), en_cm=Decimal("200"),
+                                    boy_cm=Decimal("200"))
+        lot = UretimLotu.objects.create(siparis=sp, baslangic_kg=0, baslangic_m2=Decimal("4"))
+        rota = [a for a in sp.ilk_asamalar()]
+        i = servisler.islem_baslat(lot=lot, asama=rota[0], personel=self.ahmet)
+        servisler.islem_bitir(islem=i, personel=self.ayse, kesim={"m2": Decimal("5"), "rulo": self.ham})
+        lot.refresh_from_db()
+        while lot.durum != "tamamlandi":
+            sonraki = lot.siradaki_asama
+            i = servisler.islem_baslat(lot=lot, asama=sonraki, personel=self.ahmet)
+            servisler.islem_bitir(islem=i, personel=self.ahmet)
+            lot.refresh_from_db()
+        ozet = {s["personel__ad_soyad"]: s for s in raporlar.bugun_kim_ne_yapti(timezone.localdate())}
+        self.assertEqual(ozet["Ayşe"]["islem_sayisi"], 1)  # başlatan Ahmet ama bitiren Ayşe
+        self.assertEqual(ozet["Ayşe"]["fire_m2"], Decimal("1"))  # 5 kullanıldı, ölçü 4
+        self.assertEqual((ozet["Ahmet"]["biten_hali"], ozet["Ahmet"]["biten_m2"]), (1, Decimal("4")))
+        self.assertEqual(ozet["Ahmet"]["fire_m2"], 0)
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("pano")), "Biten halı m²")
+        self.assertIsNotNone(zigzag)
+
+    def test_eski_sevk_fotograflari_kucultulur(self):
+        from datetime import date
+
+        from . import fotograf
+        from .models import SiparisFotografi
+        self._yeni((None, "100", "100", "1"), fotograflar=[self._foto()])
+        sp = Siparis.objects.get(urun="Peluş")
+        foto = sp.fotograflar.get()
+        eski = foto.resim.size
+        Siparis.objects.filter(pk=sp.pk).update(durum="sevk", sevk_tarihi=timezone.localdate() - timedelta(days=100))
+        self.assertEqual(fotograf.arsiv_kucult()[0], 0)  # henüz 6 ay olmadı
+        Siparis.objects.filter(pk=sp.pk).update(sevk_tarihi=timezone.localdate() - timedelta(days=200))
+        adet, kazanc = fotograf.arsiv_kucult()
+        foto.refresh_from_db()
+        self.assertEqual(adet, 1)
+        self.assertTrue(foto.kucultuldu)
+        self.assertLess(foto.resim.size, eski)
+        from PIL import Image
+        with foto.resim.open("rb") as f:
+            self.assertEqual(max(Image.open(f).size), fotograf.ARSIV_KENAR)
+        self.assertEqual(fotograf.arsiv_kucult()[0], 0)
+        # pano günde bir kez çalıştırır
+        self.assertIsNotNone(fotograf.gunluk_arsiv_kucult())
+        self.assertIsNone(fotograf.gunluk_arsiv_kucult())
+        self.assertTrue(SiparisFotografi.objects.filter(pk=foto.pk).exists())
+        self.assertIsInstance(date.today(), date)
+
+    def test_sevk_tarihi_yazilir(self):
+        self.client.force_login(self.ofis)
+        self.client.post(reverse("siparis_durum", args=[self.siparis.pk]), {"durum": "sevk"})
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.sevk_tarihi, timezone.localdate())
+
+
+class OlcuGocuTesti(TemelVeri):
+    def test_eski_siparis_ve_isi_satira_baglanir(self):
+        import importlib
+
+        from django.apps import apps as gercek
+        g = importlib.import_module("uretim.migrations.0028_olcu_satirlari_is_notu")
+        eski = Siparis.objects.create(musteri=self.siparis.musteri, urun="Eski", teslim_tarihi=timezone.localdate(),
+                                      en_cm=Decimal("200"), boy_cm=Decimal("300"), durum="uretimde")
+        lot = self.yeni_lot(siparis=eski)
+        acik = Siparis.objects.create(musteri=self.siparis.musteri, urun="Açık", teslim_tarihi=timezone.localdate(),
+                                      en_cm=Decimal("100"), boy_cm=Decimal("100"), adet=2)
+        g.olculeri_satira_cevir(gercek, None)
+        lot.refresh_from_db()
+        self.assertEqual(lot.kalem, eski.kalemler.get())
+        self.assertEqual(acik.lotlar.get().baslangic_m2, Decimal("2.00"))
+        # eski sipariş düzenlenince ikinci iş açılmaz
+        servisler.siparis_islerini_ac(eski)
+        self.assertEqual(eski.lotlar.count(), 1)

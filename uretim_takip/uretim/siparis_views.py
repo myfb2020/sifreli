@@ -1,13 +1,16 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import fotograf
-from .forms import FotografForm, SiparisForm
+from . import fotograf, servisler
+from .forms import FotografForm, SiparisForm, olcu_formseti
 from .katalog_views import secim_verisi
-from .models import Siparis, SiparisFotografi, UretimLotu
+from .models import IsNotu, Siparis, SiparisFotografi, UretimLotu
 
 SEKMELER = [
     ("onay", "Onay bekleyen"),
@@ -21,7 +24,7 @@ SEKMELER = [
 
 def _lotlu(qs):
     return qs.select_related("musteri", "deri_turu", "hali_turu", "katalog_modeli__seri", "lazer_deseni", "tasarim").prefetch_related(
-        Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama")), "fotograflar"
+        Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama", "kalem")), "fotograflar", "kalemler"
     )
 
 
@@ -53,7 +56,7 @@ def siparis_listesi(request):
 @permission_required("uretim.view_siparis", raise_exception=True)
 def siparis_detay(request, pk):
     siparis = get_object_or_404(_lotlu(Siparis.objects.all()), pk=pk)
-    lotlar = siparis.lotlar.select_related("son_asama").prefetch_related("kaynaklar__ham_deri__deri_turu").order_by("lot_no")
+    lotlar = siparis.lotlar.select_related("son_asama", "kalem").prefetch_related("kaynaklar__ham_deri__deri_turu").order_by("lot_no")
     from .tasarim_views import onay_formu
 
     return render(request, "uretim/siparis_detay.html", {
@@ -62,26 +65,68 @@ def siparis_detay(request, pk):
         else None,
         "foto_formu": FotografForm() if request.user.has_perm("uretim.change_siparis") else None,
         "foto_yer": SiparisFotografi.EN_COK - len(siparis.fotograflar.all()),
+        "notlar": IsNotu.objects.filter(lot__siparis=siparis).select_related("lot", "asama", "personel", "kullanici"),
+        "duzenlenir": siparis.durum not in ("sevk", "iptal"),
     })
+
+
+def _siparis_kaydet(request, form, olculer, siparis=None):
+    """Formu, ölçü satırlarını ve fotoğrafları birlikte kaydeder; hata olursa form hatası olarak döner."""
+    try:
+        icerikler = [fotograf.kucult(d) for d in form.cleaned_data["fotograflar"]]
+    except fotograf.FotografHatasi as e:
+        form.add_error("fotograflar", str(e))
+        return None
+    try:
+        with transaction.atomic():
+            siparis = form.save()
+            if olculer.gonderildi:
+                servisler.kalemleri_kaydet(siparis, olculer.satirlar(siparis))
+            if siparis is not None:
+                silinecek = siparis.fotograflar.filter(pk__in=request.POST.getlist("foto_sil"))
+                for f in silinecek:
+                    f.resim.delete(save=False)
+                silinecek.delete()
+    except ValidationError as e:
+        form.add_error(None, " ".join(e.messages))
+        return None
+    for icerik in icerikler:
+        fotograf.kaydet(siparis, icerik)
+    return siparis, len(icerikler)
 
 
 @login_required
 @permission_required("uretim.add_siparis", raise_exception=True)
 def siparis_yeni(request):
     form = SiparisForm(request.POST or None, request.FILES or None, initial={"model_kodu": request.GET.get("model", "")})
-    if request.method == "POST" and form.is_valid():
-        try:
-            icerikler = [fotograf.kucult(d) for d in form.cleaned_data["fotograflar"]]
-        except fotograf.FotografHatasi as e:
-            form.add_error("fotograflar", str(e))
-        else:
-            siparis = form.save()
-            for icerik in icerikler:
-                fotograf.kaydet(siparis, icerik)
+    olculer = olcu_formseti(request.POST or None)
+    if request.method == "POST" and form.is_valid() and olculer.is_valid():
+        sonuc = _siparis_kaydet(request, form, olculer)
+        if sonuc:
+            siparis, n = sonuc
             messages.success(request, f"{siparis.siparis_no} numaralı sipariş kaydedildi"
-                                      + (f" ({len(icerikler)} fotoğraf)." if icerikler else "."))
+                                      + (f" ({n} fotoğraf)." if n else "."))
             return redirect("siparis_detay", pk=siparis.pk)
-    return render(request, "uretim/siparis_yeni.html", {"form": form, **secim_verisi()})
+    return render(request, "uretim/siparis_yeni.html", {"form": form, "olculer": olculer, **secim_verisi()})
+
+
+@login_required
+@permission_required("uretim.change_siparis", raise_exception=True)
+def siparis_duzenle(request, pk):
+    siparis = get_object_or_404(Siparis.objects.prefetch_related("fotograflar", "kalemler"), pk=pk)
+    if siparis.durum in ("sevk", "iptal"):
+        messages.error(request, f"{siparis.siparis_no} {siparis.get_durum_display().lower()}; düzenlenemez.")
+        return redirect("siparis_detay", pk=pk)
+    silinecek = set(request.POST.getlist("foto_sil"))
+    kalan = sum(1 for f in siparis.fotograflar.all() if str(f.pk) not in silinecek)
+    form = SiparisForm(request.POST or None, request.FILES or None, instance=siparis, foto_sayisi=kalan)
+    olculer = olcu_formseti(request.POST or None, siparis)
+    if request.method == "POST" and form.is_valid() and olculer.is_valid():
+        if _siparis_kaydet(request, form, olculer, siparis):
+            messages.success(request, f"{siparis.siparis_no} güncellendi.")
+            return redirect("siparis_detay", pk=siparis.pk)
+    return render(request, "uretim/siparis_yeni.html", {"form": form, "olculer": olculer, "siparis": siparis,
+                                                         **secim_verisi()})
 
 
 @require_POST
@@ -95,7 +140,8 @@ def siparis_durum(request, pk):
         messages.error(request, "Bu durum değişikliği yapılamaz.")
     else:
         siparis.durum = yeni
-        siparis.save(update_fields=["durum"])
+        siparis.sevk_tarihi = timezone.localdate() if yeni == "sevk" else None
+        siparis.save(update_fields=["durum", "sevk_tarihi"])
         messages.success(request, f"{siparis.siparis_no}: durum “{siparis.get_durum_display()}” olarak güncellendi.")
     return redirect("siparis_detay", pk=siparis.pk)
 

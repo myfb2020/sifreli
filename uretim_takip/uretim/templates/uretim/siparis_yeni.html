@@ -1,12 +1,43 @@
 {% extends "base.html" %}
-{% block baslik %}Yeni Sipariş{% endblock %}
+{% block baslik %}{% if siparis %}{{ siparis.siparis_no }} düzenle{% else %}Yeni Sipariş{% endif %}{% endblock %}
 {% block icerik %}
 <div class="kart" style="max-width:560px;margin:0 auto">
-  <p style="margin:0 0 8px"><a href="{% url 'siparis_listesi' %}">← Siparişler</a></p>
+  {% if siparis %}<p style="margin:0 0 8px"><a href="{% url 'siparis_detay' siparis.pk %}">← {{ siparis.siparis_no }}</a></p>
+  <h1>✏️ {{ siparis.siparis_no }} düzenle</h1>
+  {% else %}<p style="margin:0 0 8px"><a href="{% url 'siparis_listesi' %}">← Siparişler</a></p>
   <h1>+ Yeni Sipariş</h1>
-  <p class="soluk">Sipariş numarası otomatik verilir. <b>En × boy</b> yazınca m² kendiliğinden hesaplanır. Not ve teslim tarihi istasyon ekranlarında görünür; acil işaretlenen sipariş en üstte durur.</p>
+  <p class="soluk">Sipariş numarası otomatik verilir. Aynı modelden farklı ölçüler için <b>+ Ölçü ekle</b>; her ölçü satırı için ayrı iş açılır ve lazerin ekranına düşer. Not ve teslim tarihi istasyon ekranlarında görünür; acil sipariş en üstte durur.</p>{% endif %}
   <form method="post" class="dikey" enctype="multipart/form-data">
-    {% include "uretim/_form.html" %}
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
+    {% for alan in form %}
+    {% if alan.name == "teslim_tarihi" %}
+    <div class="olcu-blok">
+      <label>Ölçüler (cm)</label>
+      {{ olculer.management_form }}
+      {% if olculer.non_form_errors %}<div class="errorlist">{{ olculer.non_form_errors|join:" " }}</div>{% endif %}
+      <div class="olcu-baslik soluk"><span>En</span><span>Boy</span><span>Adet</span><span></span></div>
+      <div id="olcu-satirlari">
+      {% for f in olculer %}
+        <div class="olcu-satir">{{ f.kalem }}{{ f.en_cm }}{{ f.boy_cm }}{{ f.adet }}<button type="button" class="btn kucuk ikincil olcu-sil" aria-label="Satırı sil">✕</button>
+          {% for e in f.non_field_errors %}<div class="errorlist" style="grid-column:1/-1">{{ e }}</div>{% endfor %}</div>
+      {% endfor %}
+      </div>
+      <button type="button" class="btn kucuk ikincil" id="olcu-ekle">+ Ölçü ekle</button>
+      <div id="olcu-toplam" class="soluk"></div>
+      <span class="soluk">Adet boşsa 1 sayılır. Ölçü yazılmazsa iş lazerde "Yeni iş" ile açılır.</span>
+    </div>
+    {% endif %}
+    <p>
+      <label for="{{ alan.id_for_label }}">{{ alan.label }}</label>
+      {% if alan.name == "fotograflar" and siparis %}
+      <span class="eski-fotolar">{% for f in siparis.fotograflar.all %}<label class="eski-foto"><img src="{{ f.resim.url }}" alt=""><span><input type="checkbox" name="foto_sil" value="{{ f.pk }}"> Sil</span></label>{% empty %}<span class="soluk">Fotoğraf yok.</span>{% endfor %}</span>
+      {% endif %}
+      {{ alan }}
+      {% if alan.help_text %}<span class="soluk">{{ alan.help_text }}</span>{% endif %}
+      {% if alan.errors %}<ul class="errorlist">{% for e in alan.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </p>
+    {% endfor %}
     <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>
   </form>
 </div>
@@ -33,15 +64,39 @@
   kod.addEventListener("input", kodOnizle);
   desen.addEventListener("change", () => onizle(desen, desenler[desen.value]));
   kodOnizle();
-  // en × boy × adet → m²
-  const en = document.getElementById("id_en_cm"), boy = document.getElementById("id_boy_cm"), adet = document.getElementById("id_adet");
-  const m2 = document.createElement("div"); m2.className = "soluk"; adet.closest("p").appendChild(m2);
-  const sayi = (g) => parseFloat((g.value || "").replace(",", ".")) || 0;
-  const m2Yaz = () => {
-    const t = sayi(en) * sayi(boy) * (sayi(adet) || 1) / 10000;
-    m2.innerHTML = t ? `Toplam: <b>${t.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} m²</b>` : "";
-  };
-  [en, boy, adet].forEach((g) => g.addEventListener("input", m2Yaz)); m2Yaz();
+  // ölçü satırları: + Ölçü ekle / ✕ sil, toplam m²
+  const kap = document.getElementById("olcu-satirlari"), toplamForm = document.getElementById("id_olcu-TOTAL_FORMS");
+  const sayi = (g) => parseFloat(((g && g.value) || "").replace(",", ".")) || 0;
+  function toplamYaz() {
+    let t = 0, adet = 0;
+    kap.querySelectorAll(".olcu-satir").forEach((s) => {
+      if (s.hidden) return;
+      const [en, boy, ad] = ["en_cm", "boy_cm", "adet"].map((a) => s.querySelector(`[name$="-${a}"]`));
+      const n = sayi(ad) || 1;
+      if (sayi(en) && sayi(boy)) { t += sayi(en) * sayi(boy) * n / 10000; adet += n; }
+    });
+    document.getElementById("olcu-toplam").innerHTML = t ? `Toplam: <b>${adet} halı · ${t.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} m²</b>` : "";
+  }
+  document.getElementById("olcu-ekle").addEventListener("click", () => {
+    const i = Number(toplamForm.value), ilk = kap.querySelector(".olcu-satir");
+    const yeni = ilk.cloneNode(true);
+    yeni.hidden = false;
+    yeni.querySelectorAll("input").forEach((g) => {
+      g.name = g.name.replace(/olcu-\d+-/, `olcu-${i}-`); g.id = g.id.replace(/olcu-\d+-/, `olcu-${i}-`); g.value = "";
+    });
+    yeni.querySelectorAll(".errorlist").forEach((e) => e.remove());
+    kap.appendChild(yeni); toplamForm.value = i + 1;
+    yeni.querySelector('[name$="-en_cm"]').focus();
+  });
+  kap.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("olcu-sil")) return;
+    const satir = e.target.closest(".olcu-satir");
+    satir.querySelectorAll('input:not([type=hidden])').forEach((g) => g.value = "");
+    satir.querySelector('[name$="-kalem"]').value = "";
+    if (kap.querySelectorAll(".olcu-satir:not([hidden])").length > 1) satir.hidden = true;
+    toplamYaz();
+  });
+  kap.addEventListener("input", toplamYaz); toplamYaz();
   // seçilen fotoğrafların küçük önizlemesi
   const foto = document.getElementById("id_fotograflar");
   foto.addEventListener("change", fotoOnizle);
@@ -70,6 +125,15 @@
 })();
 </script>
 <style>
+  .olcu-blok { margin:0 0 14px; }
+  .olcu-blok > label { display:block; font-weight:600; margin-bottom:4px; }
+  .olcu-baslik, .olcu-satir { display:grid; grid-template-columns:1fr 1fr 70px 40px; gap:6px; align-items:center; }
+  .olcu-satir { margin-bottom:6px; }
+  .olcu-satir input { width:100%; min-width:0; }
+  .eski-fotolar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .eski-foto { display:flex; flex-direction:column; align-items:center; font-weight:normal !important; }
+  .eski-foto img { height:90px; border-radius:6px; }
+  .eski-foto input { width:auto; }
   #id_acil { width:auto; transform:scale(1.4); margin:0 8px 0 4px; }
   p:has(> #id_acil) { display:flex; flex-wrap:wrap; align-items:center; }
   p:has(> #id_acil) > label { order:2; margin:0; flex:1; min-width:0; width:auto; }

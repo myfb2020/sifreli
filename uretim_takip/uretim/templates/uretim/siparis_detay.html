@@ -4,7 +4,7 @@
 <p style="margin:0 0 8px"><a href="{% url 'siparis_listesi' %}">← Siparişler</a></p>
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
   <h1 style="margin:0;margin-right:auto">{{ siparis.siparis_no }} <span class="rozet {% if siparis.durum == 'uretimde' %}islemde{% elif siparis.durum == 'acik' or siparis.durum == 'onay' %}bekliyor{% elif siparis.durum == 'sevk' %}tamamlandi{% else %}{{ siparis.durum }}{% endif %}">{{ siparis.get_durum_display }}</span></h1>
-  {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_siparis_change' siparis.pk %}">Düzenle</a>{% endif %}
+  {% if perms.uretim.change_siparis and duzenlenir %}<a class="btn ikincil" href="{% url 'siparis_duzenle' siparis.pk %}">✏️ Düzenle</a>{% endif %}
 </div>
 
 {% if siparis.tasarim %}
@@ -54,7 +54,7 @@
       <tr><th>Müşteri</th><td><b>{{ siparis.musteri }}</b>{% if siparis.musteri.telefon %}<br><span class="soluk">{{ siparis.musteri.telefon }}</span>{% endif %}</td></tr>
       <tr><th>Halı türü</th><td>{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b><br><span class="soluk">{{ siparis.hali_turu.rota_metni }}</span>{% else %}–{% endif %}</td></tr>
       <tr><th>Ürün</th><td>{% if siparis.acil %}<span class="rozet acil">⚡ ACİL</span> {% endif %}{{ siparis.urun }}</td></tr>
-      {% if siparis.olcu_metni %}<tr><th>Ölçü</th><td><b>{{ siparis.olcu_metni }}</b></td></tr>{% endif %}
+      {% if siparis.olcu_metni and siparis.kalemler.all|length < 2 %}<tr><th>Ölçü</th><td><b>{{ siparis.olcu_metni }}</b></td></tr>{% endif %}
       {% if not siparis.tasarim %}{% if siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 fotosuz=1 %}</td></tr>{% endif %}{% endif %}
       <tr><th>📷 Fotoğraf</th><td>
         {% for f in siparis.fotograflar.all %}<div class="sp-foto">
@@ -69,6 +69,7 @@
         </form>{% endif %}
       </td></tr>
       <tr><th>Deri türü</th><td>{{ siparis.deri_turu|default:"–" }}</td></tr>
+      {% if siparis.kalemler.all|length > 1 %}<tr><th>Ölçüler</th><td>{% for k in siparis.kalemler.all %}{{ k.olcu_metni }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td></tr>{% endif %}
       <tr><th>Adet / m²</th><td>{{ siparis.adet }} adet{% if siparis.toplam_m2 %} · {{ siparis.toplam_m2|floatformat:"-2" }} m²{% endif %}</td></tr>
       <tr><th>Sipariş tarihi</th><td>{{ siparis.tarih|date:"d.m.Y" }}</td></tr>
       <tr><th>Teslim tarihi</th><td>{{ siparis.teslim_tarihi|date:"d.m.Y" }}
@@ -106,18 +107,25 @@
 <div class="kart tablo-kap">
   <h2>İşler ({{ lotlar|length }})</h2>
   <table>
-    <tr><th>İş</th><th>Stok lotları</th><th>Son aşama</th><th>Durum</th><th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th></tr>
+    <tr><th>İş</th><th>Ölçü</th><th>Stok lotları</th><th>Son aşama</th><th>Durum</th><th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th></tr>
     {% for l in lotlar %}
     <tr>
       <td><a href="{% url 'lot_detay' l.pk %}"><b>{{ l.lot_no }}</b></a></td>
+      <td>{{ l.olcu_metni|default:"–" }}</td>
       <td>{% for k in l.kaynaklar.all %}{{ k.ham_deri.lot_no }}{% if not forloop.last %}, {% endif %}{% endfor %}<br><span class="soluk">{% for k in l.kaynaklar.all %}{% ifchanged k.ham_deri.deri_turu %}{{ k.ham_deri.deri_turu }} {% endifchanged %}{% endfor %}</span></td>
       <td>{{ l.son_asama.ad|default:"Başlamadı" }}</td>
       <td><span class="rozet {{ l.durum }}">{{ l.konum_metni }}</span></td>
       <td class="sayi">{{ l.baslangic_m2 }}</td><td class="sayi">{{ l.mevcut_m2 }}</td><td class="sayi">{{ l.mevcut_kg }}</td>
     </tr>
     {% empty %}
-    <tr><td colspan="7" class="soluk">Bu sipariş için henüz iş başlamadı. Çalışanlar “İşlem Başlat → Yeni iş” ekranında bu siparişi seçip stoktan malzeme alarak işe başlar.</td></tr>
+    <tr><td colspan="8" class="soluk">Bu sipariş için henüz iş başlamadı. Çalışanlar “İşlem Başlat → Yeni iş” ekranında bu siparişi seçip stoktan malzeme alarak işe başlar.</td></tr>
     {% endfor %}
   </table>
 </div>
+{% if notlar %}
+<div class="kart">
+  <h2>📝 İstasyon notları</h2>
+  {% for n in notlar %}{% include "uretim/_is_notu.html" with goster_is=1 %}{% endfor %}
+</div>
+{% endif %}
 {% endblock %}

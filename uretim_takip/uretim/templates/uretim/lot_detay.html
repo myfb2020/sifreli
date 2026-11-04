@@ -24,6 +24,7 @@
       <tr><th>Sipariş</th><td>{% if lot.siparis %}{% if perms.uretim.view_siparis %}<a href="{% url 'siparis_detay' lot.siparis.pk %}">{{ lot.siparis.siparis_no }}</a>{% else %}{{ lot.siparis.siparis_no }}{% endif %} – {{ lot.siparis.musteri }}<br>
         <span class="soluk">{{ lot.siparis.urun }} · teslim {{ lot.siparis.teslim_tarihi|date:"d.m.Y" }}</span>
         {% include "uretim/_siparis_resim.html" with s=lot.siparis boy=120 %}{% else %}–{% endif %}</td></tr>
+      {% if lot.olcu_metni %}<tr><th>Ölçü</th><td><b>{{ lot.olcu_metni }}</b></td></tr>{% endif %}
     </table>
   </div>
   <div class="kart">
@@ -60,5 +61,10 @@
     <tr><td colspan="9" class="soluk">Bu işte henüz işlem yapılmadı.</td></tr>
     {% endfor %}
   </table>
+</div>
+<div class="kart">
+  <h2 style="display:flex;justify-content:space-between;align-items:center">📝 Notlar
+    {% if lot.durum != "iptal" %}<a class="btn kucuk ikincil" href="{% url 'is_notu' lot.pk %}?geri={{ request.path|urlencode }}">+ Not ekle</a>{% endif %}</h2>
+  {% for n in lot.is_notlari.all %}{% include "uretim/_is_notu.html" %}{% empty %}<p class="soluk">Not yok.</p>{% endfor %}
 </div>
 {% endblock %}

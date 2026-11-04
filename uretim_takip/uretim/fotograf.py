@@ -9,6 +9,8 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from .models import KatalogModeli, KatalogSerisi, SiparisFotografi
 
 UZUN_KENAR = 1600  # px; telefonda büyütünce yeterince net, dosya ~200 KB
+ARSIV_KENAR = 600  # px; sevk edileli ARSIV_GUN gün olmuş siparişin fotoğrafı bu boya indirilir (~40 KB)
+ARSIV_GUN = 182
 MUSTERI_SERISI = "Müşteri modelleri"
 MUSTERI_ONEKI = "MM"
 
@@ -64,3 +66,50 @@ def modele_ekle(foto):
         siparis.katalog_modeli = model
         siparis.save(update_fields=["katalog_modeli"])
     return model
+
+
+def arsiv_kucult(bugun=None):
+    """Sevk edileli ~6 ay olmuş siparişlerin fotoğraflarını küçültür (silmez). (adet, kazanılan bayt) döner."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    bugun = bugun or timezone.localdate()
+    adet = kazanc = 0
+    for foto in SiparisFotografi.objects.filter(kucultuldu=False, siparis__durum="sevk",
+                                                siparis__sevk_tarihi__lte=bugun - timedelta(days=ARSIV_GUN)):
+        try:
+            eski = foto.resim.size
+            with foto.resim.open("rb") as f:
+                resim = Image.open(f)
+                resim.load()
+            resim = resim.convert("RGB")
+            resim.thumbnail((ARSIV_KENAR, ARSIV_KENAR), Image.LANCZOS)
+            tampon = io.BytesIO()
+            resim.save(tampon, "JPEG", quality=70, optimize=True)
+            ad = foto.resim.name
+            foto.resim.delete(save=False)
+            foto.resim.save(ad.rsplit("/", 1)[-1], ContentFile(tampon.getvalue()), save=False)
+        except (OSError, UnidentifiedImageError, ValueError):
+            foto.kucultuldu = True  # dosya yok/bozuk: bir daha denenmez
+            foto.save(update_fields=["kucultuldu"])
+            continue
+        foto.kucultuldu = True
+        foto.save(update_fields=["resim", "kucultuldu"])
+        adet += 1
+        kazanc += max(eski - foto.resim.size, 0)
+    return adet, kazanc
+
+
+def gunluk_arsiv_kucult():
+    """Günde en çok bir kez çalışır (pano açılınca). Bugün çalıştıysa None, yoksa (adet, bayt)."""
+    from django.utils import timezone
+
+    from .models import SistemAyari
+
+    bugun = timezone.localdate()
+    ayar = SistemAyari.yukle()
+    if ayar.son_foto_kucultme == bugun:
+        return None
+    SistemAyari.objects.filter(pk=ayar.pk).update(son_foto_kucultme=bugun)
+    return arsiv_kucult(bugun)

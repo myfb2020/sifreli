@@ -4,6 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from .models import (
+    sayi_metni,
     NEDENLER, Asama, DeriTuru, HaliTuru, HamDeriGirisi, KatalogModeli, LazerDeseni, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
     m2_hesapla, pin_dogrulayici,
 )
@@ -46,6 +47,27 @@ class PinliForm(forms.Form):
         if personel and pin and not personel.pin_dogru_mu(pin):
             raise ValidationError("PIN hatalı.")
         return veri
+
+
+class IsNotuForm(PinliForm):
+    metin = forms.CharField(label="Not", max_length=1000, widget=forms.Textarea(attrs={"rows": 3, "autofocus": True}),
+                            help_text="Ör. 'kenarda leke vardı', 'biye rengi farklı geldi'. Sonraki istasyonlar ve ofis görür.")
+
+    def __init__(self, *args, ofis=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if ofis and "personel" in self.fields:  # ofis / yönetici hesabı: PIN sorulmaz, hesabın adı yazılır
+            del self.fields["personel"]
+            del self.fields["pin"]
+            self.ofis = True
+        else:
+            self.ofis = False
+
+    def clean(self):
+        if self.ofis:
+            veri = forms.Form.clean(self)
+            veri["personel"] = None
+            return veri
+        return super().clean()
 
 
 class MakineSecimi(forms.Select):
@@ -219,8 +241,6 @@ class SiparisForm(forms.ModelForm):
     musteri = forms.ModelChoiceField(
         queryset=Musteri.objects.all(), label="Müşteri", required=False, empty_label="— Müşteri seçin —"
     )
-    en_cm = ondalik_alan("En (cm)", required=False)
-    boy_cm = ondalik_alan("Boy (cm)", required=False)
     hali_turu = HaliTuruAlani(
         queryset=HaliTuru.objects.filter(aktif=True), label="Halı türü", empty_label="— Halı türü seçin —",
         help_text="İş bu türün istasyonlarından sırayla geçer.",
@@ -247,8 +267,7 @@ class SiparisForm(forms.ModelForm):
 
     class Meta:
         model = Siparis
-        fields = ["hali_turu", "urun", "deri_turu", "en_cm", "boy_cm", "adet", "teslim_tarihi", "notlar", "lazer_deseni",
-                  "acil"]
+        fields = ["hali_turu", "urun", "deri_turu", "teslim_tarihi", "notlar", "lazer_deseni", "acil"]
         widgets = {
             "teslim_tarihi": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
@@ -256,16 +275,21 @@ class SiparisForm(forms.ModelForm):
         labels = {"notlar": "Not (isteğe bağlı)"}
 
     field_order = ["musteri", "yeni_musteri", "fotograflar", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu",
-                   "en_cm", "boy_cm", "adet", "teslim_tarihi", "acil", "notlar"]
+                   "teslim_tarihi", "acil", "notlar"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, foto_sayisi=0, **kwargs):
         super().__init__(*args, **kwargs)
+        self.foto_sayisi = foto_sayisi  # düzenlemede: kalacak eski fotoğraf sayısı
+        if self.instance.pk:
+            self.fields["musteri"].initial = self.instance.musteri_id
+            if self.instance.katalog_modeli_id:
+                self.fields["model_kodu"].initial = self.instance.katalog_modeli.kod
+            self.fields["fotograflar"].label = "📷 Fotoğraf ekle"
         self.fields["deri_turu"].empty_label = "— (isteğe bağlı) —"
         # Halı türü kaydederken denetlenir: katalog serisinden de gelebilir.
         self.fields["hali_turu"].required = False
         self.fields["urun"].required = False
         self.fields["urun"].help_text = "Renk, özel istek vb. Model ya da fotoğraf seçildiyse boş bırakılabilir."
-        self.fields["en_cm"].help_text = "Halının eni ve boyu; m² kendiliğinden hesaplanır."
         self.fields["acil"].label = "⚡ Acil – istasyon ekranlarında en üstte görünür"
         self.fields["notlar"].help_text = "İstasyonlarda görünür (ör. 'kenar altın biye', 'acele')."
 
@@ -282,23 +306,23 @@ class SiparisForm(forms.ModelForm):
         from .models import SiparisFotografi
 
         fotolar = self.cleaned_data.get("fotograflar") or []
-        if len(fotolar) > SiparisFotografi.EN_COK:
-            raise forms.ValidationError(f"En çok {SiparisFotografi.EN_COK} fotoğraf seçin.")
+        yer = SiparisFotografi.EN_COK - self.foto_sayisi
+        if len(fotolar) > yer:
+            raise forms.ValidationError(f"En çok {SiparisFotografi.EN_COK} fotoğraf olabilir"
+                                        + (f"; {yer} yer kaldı." if self.foto_sayisi else "."))
         return fotolar
 
     def clean(self):
         veri = super().clean()
         if not (veri.get("yeni_musteri") or "").strip() and not veri.get("musteri"):
             self.add_error("musteri", "Bir müşteri seçin ya da yeni müşteri adı yazın.")
-        if bool(veri.get("en_cm")) != bool(veri.get("boy_cm")):
-            self.add_error("boy_cm" if veri.get("en_cm") else "en_cm", "Eni ve boyu birlikte yazın.")
         model = veri.get("model_kodu")
         if not veri.get("hali_turu") and model and model.seri.hali_turu and model.seri.hali_turu.aktif:
             veri["hali_turu"] = self.instance.hali_turu = model.seri.hali_turu
         if not veri.get("hali_turu") and HaliTuru.objects.filter(aktif=True).exists() and "hali_turu" not in self.errors:
             self.add_error("hali_turu", "Halı türünü seçin.")
         if not (veri.get("urun") or "").strip():
-            if veri.get("fotograflar") and "urun" not in self.errors:
+            if (veri.get("fotograflar") or self.foto_sayisi) and "urun" not in self.errors:
                 veri["urun"] = self.instance.urun = "Müşteri fotoğrafındaki ürün"
             elif model:
                 veri["urun"] = self.instance.urun = f"{model.kod} {model.seri}"
@@ -315,6 +339,58 @@ class SiparisForm(forms.ModelForm):
         self.instance.musteri = musteri
         self.instance.katalog_modeli = self.cleaned_data.get("model_kodu")
         return super().save(commit)
+
+
+class OlcuSatiriForm(forms.Form):
+    """Siparişin bir ölçü satırı: en × boy × adet (cm)."""
+
+    kalem = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    en_cm = ondalik_alan("En (cm)", required=False)
+    boy_cm = ondalik_alan("Boy (cm)", required=False)
+    adet = forms.IntegerField(label="Adet", min_value=1, required=False,
+                              widget=forms.NumberInput(attrs={"inputmode": "numeric", "min": 1}))
+
+    def clean(self):
+        veri = super().clean()
+        en, boy = veri.get("en_cm"), veri.get("boy_cm")
+        if en or boy:  # ikisi de boşsa satır silinmiş sayılır
+            if not en or not boy:
+                raise ValidationError("Eni ve boyu birlikte yazın.")
+            if en <= 0 or boy <= 0:
+                raise ValidationError("En ve boy sıfırdan büyük olmalı.")
+        return veri
+
+    @property
+    def dolu(self):
+        v = getattr(self, "cleaned_data", {}) or {}
+        return bool(v.get("en_cm") and v.get("boy_cm"))
+
+
+class OlcuFormSetTemeli(forms.BaseFormSet):
+    def satirlar(self, siparis=None):
+        """[(kalem ya da None, en, boy, adet), ...] — boş satırlar atlanır."""
+        eldekiler = {k.pk: k for k in siparis.kalemler.all()} if siparis and siparis.pk else {}
+        sonuc = []
+        for f in self.forms:
+            if f.dolu:
+                v = f.cleaned_data
+                sonuc.append((eldekiler.get(v.get("kalem")), v["en_cm"], v["boy_cm"], v.get("adet") or 1))
+        return sonuc
+
+
+OlcuFormSet = forms.formset_factory(OlcuSatiriForm, formset=OlcuFormSetTemeli, extra=1, max_num=20)
+
+
+def olcu_formseti(veri=None, siparis=None):
+    """Ölçü satırları. Satır alanları gönderilmemişse (eski açık sayfa) satır yok sayılır ve var olanlara dokunulmaz."""
+    initial = [{"kalem": k.pk, "en_cm": sayi_metni(k.en_cm), "boy_cm": sayi_metni(k.boy_cm), "adet": k.adet}
+               for k in siparis.kalemler.all()] if siparis and siparis.pk else []
+    gonderildi = veri is None or "olcu-TOTAL_FORMS" in veri
+    if not gonderildi:
+        veri = {"olcu-TOTAL_FORMS": "0", "olcu-INITIAL_FORMS": "0"}
+    fs = OlcuFormSet(veri, prefix="olcu", initial=initial if gonderildi else [])
+    fs.gonderildi = gonderildi
+    return fs
 
 
 class YeniIsForm(PinliForm):

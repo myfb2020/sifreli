@@ -48,6 +48,31 @@ def personel_ozeti(baslangic, bitis):
     return _ozet(tamamlanan_islemler(baslangic, bitis), "personel__ad_soyad")
 
 
+def bugun_kim_ne_yapti(gun):
+    """Pano özeti: kişi = işlemi BİTİREN; iş sayısı; biten halı m²'si yalnız işin son istasyonunda sayılır
+    (aynı halı her istasyonda yeniden sayılmaz); fire yalnız ilk istasyonda (lazer) giriş − çıkış."""
+    islemler = list(tamamlanan_islemler(gun, gun).select_related("bitiren", "personel", "lot"))
+    lot_ids = {i.lot_id for i in islemler}
+    son_bitis, ilk_islem = {}, {}
+    for lot_id, pk, bas, bit in IslemKaydi.objects.filter(lot_id__in=lot_ids).values_list("lot_id", "pk", "baslangic", "bitis"):
+        if bit and (lot_id not in son_bitis or bit > son_bitis[lot_id][0]):
+            son_bitis[lot_id] = (bit, pk)
+        if lot_id not in ilk_islem or bas < ilk_islem[lot_id][0]:
+            ilk_islem[lot_id] = (bas, pk)
+    satirlar = {}
+    for i in islemler:
+        kisi = i.bitiren or i.personel
+        s = satirlar.setdefault(kisi.pk, {"personel__ad_soyad": kisi.ad_soyad, "islem_sayisi": 0, "biten_m2": 0,
+                                          "biten_hali": 0, "fire_m2": 0})
+        s["islem_sayisi"] += 1
+        if i.lot.durum == "tamamlandi" and son_bitis.get(i.lot_id, (None, None))[1] == i.pk:
+            s["biten_hali"] += 1
+            s["biten_m2"] += i.cikis_m2 or 0
+        if ilk_islem.get(i.lot_id, (None, None))[1] == i.pk and i.cikis_m2 is not None:
+            s["fire_m2"] += max(i.giris_m2 - i.cikis_m2, 0)
+    return sorted(satirlar.values(), key=lambda s: s["personel__ad_soyad"])
+
+
 def asama_ozeti(baslangic, bitis):
     return _ozet(tamamlanan_islemler(baslangic, bitis), "asama__sira", "asama__ad")
 

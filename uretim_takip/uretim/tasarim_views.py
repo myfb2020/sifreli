@@ -19,10 +19,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import hali_gorsel, parcali, parcali_gorsel
+from . import hali_gorsel, parcali, parcali_gorsel, servisler
 from . import tasarim_cizim as cizim
 from .forms import HaliTuruAlani
-from .models import HaliTuru, KatalogModeli, LazerDeseni, Siparis, Tasarim, UretimLotu
+from .models import HaliTuru, KatalogModeli, LazerDeseni, Siparis, SiparisKalemi, Tasarim, UretimLotu
 
 
 def _desen_kodlari():
@@ -293,5 +293,13 @@ def siparis_onay(request, pk):
         tasarim.durum = "onaylandi"
         tasarim.ofis_notu = form.cleaned_data["ofis_notu"]
         tasarim.save(update_fields=["durum", "ofis_notu"])
+        if not siparis.kalemler.exists():
+            veri = tasarim.veri or {}
+            en = veri.get("cap") if veri.get("duzen") == "yuvarlak" else veri.get("en")
+            boy = veri.get("cap") if veri.get("duzen") == "yuvarlak" else veri.get("boy")
+            if en and boy:
+                SiparisKalemi.objects.create(siparis=siparis, en_cm=Decimal(str(en)), boy_cm=Decimal(str(boy)),
+                                             adet=siparis.adet or 1)
+    servisler.siparis_islerini_ac(siparis)
     messages.success(request, f"{siparis.siparis_no} onaylandı; iş istasyon ekranlarına düştü.")
     return redirect("siparis_detay", pk=siparis.pk)

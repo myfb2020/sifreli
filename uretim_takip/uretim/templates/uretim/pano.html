@@ -84,12 +84,14 @@
     <h2>Bugün kim ne yaptı?</h2>
     {% if bugun_personel %}
     <table>
-      <tr><th>Personel</th><th class="sayi">İşlem</th><th class="sayi">Çıkış m²</th><th class="sayi">Fire m²</th></tr>
+      <tr><th>Personel</th><th class="sayi">Bitirdiği iş</th><th class="sayi">Biten halı m²</th><th class="sayi">Lazer firesi m²</th></tr>
       {% for s in bugun_personel %}
       <tr><td>{{ s.personel__ad_soyad }}</td><td class="sayi">{{ s.islem_sayisi }}</td>
-          <td class="sayi">{{ s.cikis_m2 }}</td><td class="sayi">{{ s.fire_m2 }}</td></tr>
+          <td class="sayi">{% if s.biten_hali %}{{ s.biten_m2|floatformat:"-2" }} <span class="soluk">({{ s.biten_hali }})</span>{% else %}–{% endif %}</td>
+          <td class="sayi">{% if s.fire_m2 %}{{ s.fire_m2|floatformat:"-2" }}{% else %}–{% endif %}</td></tr>
       {% endfor %}
     </table>
+    <p class="soluk" style="font-size:13px">Biten halı yalnız son istasyonu bitirene yazılır; fire yalnız lazerde (kullanılan − halının m²'si).</p>
     {% else %}<p class="soluk">Bugün henüz tamamlanan işlem yok.</p>{% endif %}
   </div>
 

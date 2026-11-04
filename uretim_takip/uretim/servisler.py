@@ -7,8 +7,60 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, LotKaynagi, MalzemeHareketi, SistemAyari, UretimLotu, sayi_metni,
+    DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, MalzemeHareketi, SistemAyari, SiparisKalemi,
+    UretimLotu, sayi_metni,
 )
+
+
+# --- Sipariş ölçü satırları ve otomatik işler -------------------------------------
+
+
+@transaction.atomic
+def kalemleri_kaydet(siparis, satirlar):
+    """Siparişin ölçü satırlarını verilen listeye eşitler: [(kalem ya da None, en, boy, adet), ...].
+
+    Başlamış işi olan satır silinemez (ValidationError); ölçüsü değişen, henüz başlamamış işin m²'si güncellenir.
+    """
+    eldekiler = {k.pk: k for k in siparis.kalemler.all()}
+    tutulan = {k.pk for k, *_ in satirlar if k is not None}
+    for pk, kalem in eldekiler.items():
+        if pk in tutulan:
+            continue
+        if kalem.lotlar.filter(islemler__isnull=False).exists():
+            raise ValidationError(f"{kalem.olcu_metni()} satırının işi başlamış; bu satır silinemez.")
+        kalem.lotlar.all().delete()
+        kalem.delete()
+    for sira, (kalem, en, boy, adet) in enumerate(satirlar, 1):
+        if kalem is None:
+            kalem = SiparisKalemi(siparis=siparis)
+        degisti = (kalem.en_cm, kalem.boy_cm, kalem.adet) != (en, boy, adet)
+        kalem.sira, kalem.en_cm, kalem.boy_cm, kalem.adet = sira, en, boy, adet
+        kalem.save()
+        if degisti:
+            kalem.lotlar.filter(islemler__isnull=True).update(baslangic_m2=kalem.m2, mevcut_m2=kalem.m2)
+    siparis.kalemleri_yansit()
+    siparis_islerini_ac(siparis)
+
+
+def siparis_islerini_ac(siparis):
+    """Açık / üretimdeki siparişin işi olmayan her ölçü satırı için iş açar (ilk istasyona 'gelen iş' düşer)."""
+    if siparis.durum not in ("acik", "uretimde"):
+        return []
+    if not siparis.kalemler.exists() and siparis.en_cm and siparis.boy_cm and not siparis.lotlar.exists():
+        # Tasarım stüdyosundan gelen, ölçüsü siparişte yazılı sipariş: tek satıra çevrilir.
+        SiparisKalemi.objects.create(siparis=siparis, en_cm=siparis.en_cm, boy_cm=siparis.boy_cm, adet=siparis.adet or 1)
+    acilan = []
+    for kalem in siparis.kalemler.filter(lotlar__isnull=True):
+        acilan.append(UretimLotu.objects.create(siparis=siparis, kalem=kalem, baslangic_kg=Decimal(0),
+                                                baslangic_m2=kalem.m2))
+    return acilan
+
+
+def not_ekle(*, lot, metin, asama=None, personel=None, kullanici=None):
+    metin = (metin or "").strip()
+    if not metin:
+        raise ValidationError("Notu yazın.")
+    return IsNotu.objects.create(lot=lot, metin=metin[:1000], asama=asama, personel=personel, kullanici=kullanici)
 
 
 @transaction.atomic
@@ -33,6 +85,8 @@ def islem_baslat(*, lot, asama, personel, aciklama="", makine=None):
     lot.durum = "islemde"
     lot.son_asama = asama
     lot.save(update_fields=["durum", "son_asama"])
+    if aciklama and aciklama.strip():
+        not_ekle(lot=lot, metin=aciklama, asama=asama, personel=personel)
 
     if lot.siparis and lot.siparis.durum == "acik":
         lot.siparis.durum = "uretimde"
@@ -112,9 +166,12 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
         malzeme_dus(lot=islem.lot, m2=kesim["m2"], rulo=kesim.get("rulo"), cesit=kesim.get("cesit"))
         lot = islem.lot
         kullanilan = sum((k.m2 for k in lot.kaynaklar.all()), Decimal(0))
-        net = lot.siparis.tek_m2 if lot.siparis_id else None
-        if net and lot.siparis.lotlar.count() == 1:
-            net = net * (lot.siparis.adet or 1)
+        if lot.kalem_id:
+            net = lot.kalem.m2
+        else:
+            net = lot.siparis.tek_m2 if lot.siparis_id else None
+            if net and lot.siparis.lotlar.count() == 1:
+                net = net * (lot.siparis.adet or 1)
         lot.baslangic_m2 = kullanilan
         lot.save(update_fields=["baslangic_m2"])
         islem.giris_m2 = kullanilan
@@ -132,6 +189,8 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
     if aciklama:
         islem.aciklama = f"{islem.aciklama}\n{aciklama}".strip()
     islem.save()
+    if aciklama and aciklama.strip():
+        not_ekle(lot=islem.lot, metin=aciklama, asama=islem.asama, personel=personel)
 
     for malzeme, miktar in malzemeler:
         if miktar and miktar > 0:
@@ -186,10 +245,26 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=N
     if hatalar:
         raise ValidationError(hatalar)
 
+    bekleyen = (siparis.lotlar.filter(durum="bekliyor", islemler__isnull=True).order_by("kalem__sira", "pk").first()
+                if siparis is not None else None)
+    if bekleyen is not None:
+        # Siparişin ölçü satırı için iş zaten açılmış (henüz başlamamış): yeni iş açılmaz, o iş başlatılır.
+        if toplam or eski_tur is not None:
+            bekleyen.baslangic_kg = sum((kg for _, kg, _ in toplam.values()), Decimal(0)) + eski_kg
+            bekleyen.baslangic_m2 = sum((m2 for _, _, m2 in toplam.values()), Decimal(0)) + eski_m2
+            bekleyen.mevcut_kg, bekleyen.mevcut_m2 = bekleyen.baslangic_kg, bekleyen.baslangic_m2
+            bekleyen.eski_stok_turu = eski_tur
+            bekleyen.save()
+            LotKaynagi.objects.bulk_create(
+                LotKaynagi(uretim_lotu=bekleyen, ham_deri=kilitli[pk], kg=kg, m2=m2) for pk, (_, kg, m2) in toplam.items()
+            )
+        return islem_baslat(lot=bekleyen, asama=asama, personel=personel, aciklama=aciklama, makine=makine)
+
     baslangic_m2 = sum((m2 for _, _, m2 in toplam.values()), Decimal(0)) + eski_m2
     if not toplam and eski_tur is None and siparis is not None:
-        # Stok okutulmadan açılan iş: siparişin net m²'si; kullanılan malzeme ilk istasyon bitince girilir.
-        baslangic_m2 = siparis.toplam_m2 or Decimal(0)
+        # Stok okutulmadan açılan iş: siparişin net m²'si (siparişin ilk işiyse); kullanılan malzeme ilk istasyon
+        # bitince girilir. Aynı siparişe ikinci iş açılırsa toplam yeniden yazılmaz (pano iki kez saymasın).
+        baslangic_m2 = Decimal(0) if siparis.lotlar.exists() else (siparis.toplam_m2 or Decimal(0))
     lot = UretimLotu.objects.create(
         siparis=siparis,
         baslangic_kg=sum((kg for _, kg, _ in toplam.values()), Decimal(0)) + eski_kg,

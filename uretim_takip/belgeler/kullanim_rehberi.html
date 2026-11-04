@@ -74,7 +74,7 @@
   <tr><td>Lazer deseni</td><td>Varsa DB kodu.</td></tr>
   <tr><td>Halı türü</td><td>İşin hangi istasyonlardan geçeceğini belirler (Lazerli, Nakışlı, Peluş, Suni deri). Katalog modeli seçildiyse çoğu zaman kendiliğinden gelir.</td></tr>
   <tr><td>Ürün açıklaması</td><td>Renk, özel istek. Örn: <i>krem, altın biye</i>.</td></tr>
-  <tr><td>En (cm), Boy (cm), Adet</td><td>Örn. <b>160 × 230</b>, 2 adet. m²'yi program hesaplar; istasyonlar ölçüyü ekranda görür.</td></tr>
+  <tr><td>Ölçüler: En, Boy, Adet</td><td>Örn. <b>160 × 230</b>, 2 adet. Aynı modelden başka ölçü için <b class="d">+ Ölçü ekle</b>. Her ölçü satırı için iş kendiliğinden açılır ve lazerin ekranına düşer; m²'yi program hesaplar.</td></tr>
   <tr><td>Teslim tarihi</td><td>Müşteriye söz verilen tarih. İstasyonlarda "2 gün kaldı / gecikti" diye görünür; yakın olan üstte durur.</td></tr>
   <tr><td>⚡ Acil · Not</td><td>Acil işaretli iş her istasyonda <b>en üstte</b> çıkar. Not (örn. <i>kenar altın biye</i>) istasyon ekranında görünür.</td></tr>
 </table>
@@ -112,10 +112,12 @@
 <ul>
   <li><b>Siparişler</b> sayfası: her sipariş bir kart; ilerleme çubuğu, kalan gün, gecikenler en üstte kırmızı.</li>
   <li>Sipariş ilk iş başlayınca kendiliğinden <b>Üretimde</b>, bütün işler bitince <b>Tamamlandı</b> olur.</li>
+  <li>Değişiklik için sipariş sayfasında <b class="d">✏️ Düzenle</b>: ölçü satırı, tarih, not; fotoğraf ekle / sil. Başlamış işin ölçü satırı silinemez.</li>
   <li>Sonradan acil olursa sipariş sayfasında <b class="d">⚡ Acil yap</b> (geri almak: <b class="d">⚡ Acili kaldır</b>).</li>
   <li>İşin nerede olduğu yazılı görünür: <i>"Zig-zag bekliyor"</i>, <i>"Biye – çalışılıyor (Ahmet, 2 sa)"</i>, <i>"Bitti"</i>.</li>
   <li>Mal gönderilince sipariş sayfasından <b class="d">Sevk edildi</b> işaretleyin.</li>
-  <li><b>Pano</b>: kim hangi işte, hangi istasyonda kaç iş bekliyor, süresi aşan işler, azalan stok.</li>
+  <li><b>Pano</b>: kim hangi işte, hangi istasyonda kaç iş bekliyor, süresi aşan işler, azalan stok. "Bugün kim ne yaptı": bitirdiği iş sayısı, biten halı m²'si (son istasyonda sayılır), lazer firesi.</li>
+  <li>Ustaların yazdığı <b>📝 notlar</b> sipariş sayfasının altında görünür. Sevk edileli 6 ay olan siparişlerin fotoğrafları kendiliğinden küçültülür (silinmez).</li>
 </ul>
 
 <h2>6. Stok girişi ve etiket</h2>
@@ -154,7 +156,7 @@
 <h2>Ekranda ne var?</h2>
 <table>
   <tr><th style="width:34%">📥 Gelen işler</th><td>Size gelen, başlanmayı bekleyen işler. Yeni iş gelince <b>kırmızı bant</b> çıkar ve ses gelir.</td></tr>
-  <tr><th>🔧 Bu istasyonda çalışılan</th><td>Şu an sizde yapılan işler ve ne zamandan beri sürdüğü.</td></tr>
+  <tr><th>🔧 Bu istasyonda çalışılan</th><td>Şu an sizde yapılan işler. Bir sorun görürseniz <b class="d">📝 Not</b> ile yazın; sonraki istasyonlar ve ofis görür.</td></tr>
   <tr><th>Resim</th><td>Siparişin fotoğrafı, katalog modeli ya da bayi tasarımı. <b>Dokunun, büyüsün</b>; ✕ ile kapatın.</td></tr>
   <tr><th>Sıra</th><td>Ölçü, teslim günü ve not yazar. <b>⚡ ACİL</b> işler en üstte, sonra teslimi yakın olanlar. Sıraya göre çalışın.</td></tr>
   <tr><th>Kırmızı satır</th><td>Süre aşıldı: iş çok bekledi ya da çok uzun sürüyor. Ofise haber verin.</td></tr>
