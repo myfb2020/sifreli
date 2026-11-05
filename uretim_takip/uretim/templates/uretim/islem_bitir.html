@@ -28,9 +28,12 @@
     <p id="kesim-m2" class="soluk"></p>
     {% endif %}
     {% include "uretim/_alan.html" with alan=form.aciklama %}
-    <details style="margin:8px 0"><summary class="soluk">Ayrıntı: çıkan kg / m² (deri, kürk için; boş bırakılabilir)</summary>
-      {% include "uretim/_alan.html" with alan=form.cikis_kg %}{% include "uretim/_alan.html" with alan=form.cikis_m2 %}
-    </details>
+    {% if form.fire_m2 %}
+    <h2 style="margin-top:16px">Lazer çıkışı <span class="soluk" style="font-weight:normal;font-size:14px">(isteğe bağlı)</span></h2>
+    {% if islem.giris_en_cm %}<p class="soluk">Giren parça: {{ islem.giris_en_cm|floatformat:"-1" }} × {{ islem.giris_boy_cm|floatformat:"-1" }} cm</p>{% endif %}
+    <div class="iki-sutun-form">{% include "uretim/_alan.html" with alan=form.cikis_en %}{% include "uretim/_alan.html" with alan=form.cikis_boy %}</div>
+    {% include "uretim/_alan.html" with alan=form.fire_m2 %}
+    {% endif %}
     <h2 style="margin-top:20px">Kullanılan malzemeler <span class="soluk" style="font-weight:normal;font-size:14px">(varsa)</span></h2>
     <p class="soluk">Bu aşamada kimyasal, iplik, astar vb. kullandıysanız seçip miktarını girin; stoktan düşülür.</p>
     {{ malzemeler.management_form }}

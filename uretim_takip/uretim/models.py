@@ -51,6 +51,11 @@ class Asama(models.Model):
     def __str__(self):
         return self.ad
 
+    @property
+    def lazer_mi(self):
+        """Lazer kesim istasyonu mu? (fire ve giren/çıkan ölçü yalnız lazerde sorulur)"""
+        return "lazer" in self.ad.lower()
+
     def sonraki(self):
         return Asama.objects.filter(aktif=True, sira__gt=self.sira).first()
 
@@ -752,6 +757,10 @@ class IslemKaydi(models.Model):
     giris_m2 = models.DecimalField("giriş m²", max_digits=10, decimal_places=2, validators=pozitif)
     cikis_kg = models.DecimalField("çıkış kg", max_digits=10, decimal_places=2, null=True, blank=True, validators=pozitif)
     cikis_m2 = models.DecimalField("çıkış m²", max_digits=10, decimal_places=2, null=True, blank=True, validators=pozitif)
+    giris_en_cm = models.DecimalField("giren en (cm)", max_digits=7, decimal_places=1, null=True, blank=True)
+    giris_boy_cm = models.DecimalField("giren boy (cm)", max_digits=7, decimal_places=1, null=True, blank=True)
+    cikis_en_cm = models.DecimalField("çıkan en (cm)", max_digits=7, decimal_places=1, null=True, blank=True)
+    cikis_boy_cm = models.DecimalField("çıkan boy (cm)", max_digits=7, decimal_places=1, null=True, blank=True)
     aciklama = models.TextField("açıklama", blank=True)
 
     class Meta:

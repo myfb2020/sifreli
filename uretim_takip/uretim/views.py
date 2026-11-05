@@ -46,24 +46,31 @@ def pano(request):
             messages.info(request, f"🗜 Sevk edileli 6 ay olmuş siparişlerin {sonuc[0]} fotoğrafı küçültüldü "
                                    f"({sonuc[1] / 1048576:.1f} MB yer açıldı).")
     # İstasyon ekranlarıyla aynı hesap: bekleyen = o istasyona gelen işler + yeni siparişler.
-    gelen, calisilan = uyarilar.gelenler(), uyarilar.calisilanlar()
+    # İstasyon hesabı (tablet / kişisel telefon) yalnız kendi istasyonunu görür; ofis ve yönetici hepsini.
+    istasyon = servisler.kendi_istasyonu(request.user)
+    gelen, calisilan = uyarilar.gelenler(istasyon), uyarilar.calisilanlar(istasyon)
+    acik = IslemKaydi.objects.filter(bitis__isnull=True).select_related("lot", "asama", "personel")
+    asama_qs = Asama.objects.filter(aktif=True).order_by("sira")
+    if istasyon is not None:
+        acik, asama_qs = acik.filter(asama=istasyon), asama_qs.filter(pk=istasyon.pk)
     asamalar = []
-    for asama in Asama.objects.filter(aktif=True).order_by("sira"):
+    for asama in asama_qs:
         g = [k for k in gelen if k.asama.pk == asama.pk]
         c = [k for k in calisilan if k.asama.pk == asama.pk]
         asamalar.append({"asama": asama, "bekleyen": len(g), "islemde": len(c),
                          "geciken": sum(1 for k in g + c if k.gecikti)})
     baglam = {
         "asamalar": asamalar,
-        "acik_islemler": IslemKaydi.objects.filter(bitis__isnull=True).select_related("lot", "asama", "personel"),
-        "bugun_personel": raporlar.bugun_kim_ne_yapti(bugun),
+        "acik_islemler": acik,
+        "istasyon": istasyon,
+        "bugun_personel": raporlar.bugun_kim_ne_yapti(bugun, istasyon),
         "geciken_siparisler": Siparis.objects.filter(
             durum__in=["acik", "uretimde"], teslim_tarihi__lt=bugun
         ).select_related("musteri"),
         "yaklasan_siparisler": Siparis.objects.filter(
             durum__in=["acik", "uretimde"], teslim_tarihi__gte=bugun, teslim_tarihi__lte=bugun + timedelta(days=7)
         ).select_related("musteri"),
-        "gecikmeler": uyarilar.gecikmeler(),
+        "gecikmeler": [k for k in gelen + calisilan if k.gecikti] if istasyon else uyarilar.gecikmeler(),
         "gecis_modu": SistemAyari.yukle().gecis_modu,
         "stok_zorunlu": SistemAyari.yukle().stok_zorunlu,
         "azalan_stoklar": uyarilar.azalan_stoklar() if request.user.is_staff else [],
@@ -78,8 +85,10 @@ def islem_baslat(request):
         lot = UretimLotu.objects.filter(pk=request.GET["lot"]).first()
         if lot:
             sonrakiler = lot.siradaki_asamalar
-            # Alternatif istasyonlar varsa (Biye / Lanfel) çalışan kendisi seçer.
-            baslangic = {"lot": lot, "asama": sonrakiler[0] if len(sonrakiler) == 1 else None}
+            # Alternatif istasyonlar varsa (Biye / Lanfel) çalışan kendisi seçer; istasyon hesabında kendi istasyonu.
+            kendi = servisler.kendi_istasyonu(request.user)
+            secili = kendi if kendi in sonrakiler else (sonrakiler[0] if len(sonrakiler) == 1 else None)
+            baslangic = {"lot": lot, "asama": secili}
 
     form = IslemBaslatForm(request.POST or None, initial=baslangic, personel=hesap_personeli(request.user))
     if request.method == "POST" and form.is_valid():
@@ -87,14 +96,15 @@ def islem_baslat(request):
         try:
             islem = servisler.islem_baslat(
                 lot=v["lot"], asama=v["asama"], personel=v["personel"], aciklama=v["aciklama"],
-                makine=v.get("makine"),
+                makine=v.get("makine"), giris_olcu=v.get("giris_olcu"),
             )
         except ValidationError as hata:
             form.add_error(None, hata)
         else:
             messages.success(request, f"{islem.personel} – {islem.lot} işinde “{islem.asama.ad}” başladı.")
             return geri_don(request, "pano")
-    return render(request, "uretim/islem_baslat.html", {"form": form})
+    return render(request, "uretim/islem_baslat.html", {
+        "form": form, "lazerler": [a.pk for a in Asama.objects.filter(aktif=True) if a.lazer_mi]})
 
 
 @login_required
@@ -124,7 +134,7 @@ def islem_bitir(request, pk):
     form = IslemBitirForm(
         request.POST if request.method == "POST" else None, initial={"personel": islem.personel}, personel=hesap_personeli(request.user),
         ilk_adim=ilk_adim, stok_zorunlu=SistemAyari.yukle().stok_zorunlu,
-        cesitler=servisler.stoktaki_cesitler() if ilk_adim else (),
+        cesitler=servisler.stoktaki_cesitler() if ilk_adim else (), lazer=islem.asama.lazer_mi,
     )
     # Malzeme bölümü gönderilmediyse (eski açık sayfa) malzeme kullanılmadı sayılır.
     malzeme_verisi = request.POST if "malzeme-TOTAL_FORMS" in request.POST else None
@@ -135,8 +145,8 @@ def islem_bitir(request, pk):
                       for m in malzemeler if malzeme_verisi is not None and m.cleaned_data.get("malzeme")]
         try:
             servisler.islem_bitir(
-                islem=islem, personel=v["personel"], cikis_kg=v.get("cikis_kg"), cikis_m2=v.get("cikis_m2"),
-                aciklama=v["aciklama"], malzemeler=kullanilan, kesim=v.get("kesim"),
+                islem=islem, personel=v["personel"], aciklama=v["aciklama"], malzemeler=kullanilan, kesim=v.get("kesim"),
+                cikis_olcu=v.get("cikis_olcu"), fire_m2=v.get("fire_m2"),
             )
         except ValidationError as hata:
             form.add_error(None, hata)
@@ -157,6 +167,11 @@ def lot_listesi(request):
         lotlar = lotlar.exclude(durum__in=["tamamlandi", "iptal"])
     elif durum in dict(UretimLotu.DURUM):
         lotlar = lotlar.filter(durum=durum)
+    istasyon = servisler.kendi_istasyonu(request.user)
+    if istasyon is not None:
+        # İstasyon hesabı: yalnız bu istasyona gelen, burada çalışılan ya da burada işlem görmüş işler.
+        burada = {k.lot.pk for k in uyarilar.gelenler(istasyon) + uyarilar.calisilanlar(istasyon) if k.lot}
+        lotlar = lotlar.filter(Q(pk__in=burada) | Q(islemler__asama=istasyon))
     ara = request.GET.get("ara", "").strip()
     if ara:
         lotlar = lotlar.filter(
@@ -164,7 +179,7 @@ def lot_listesi(request):
         )
     return render(
         request, "uretim/lot_listesi.html",
-        {"lotlar": lotlar.distinct()[:300], "durum": durum, "ara": ara, "durumlar": UretimLotu.DURUM},
+        {"lotlar": lotlar.distinct()[:300], "durum": durum, "ara": ara, "durumlar": UretimLotu.DURUM, "istasyon": istasyon},
     )
 
 

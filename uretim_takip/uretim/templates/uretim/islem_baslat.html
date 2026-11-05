@@ -9,4 +9,14 @@
     <button class="btn buyuk" type="submit" style="width:100%">Başlat</button>
   </form>
 </div>
+<script>
+(function () {
+  // Giren parça ölçüsü yalnız lazer istasyonlarında görünür (isteğe bağlı).
+  const lazerler = {{ lazerler|safe }};
+  const asama = document.getElementById("id_asama");
+  const kutular = ["id_giris_en", "id_giris_boy"].map((id) => document.getElementById(id)).filter(Boolean).map((g) => g.closest("p"));
+  function goster() { kutular.forEach((k) => { k.hidden = !lazerler.includes(Number(asama.value)); }); }
+  if (asama) { asama.addEventListener("change", goster); goster(); }
+})();
+</script>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block baslik %}İşler{% endblock %}
 {% block icerik %}
-<h1>İşler</h1>
+<h1>İşler{% if istasyon %} <span class="soluk" style="font-size:16px;font-weight:normal">· {{ istasyon.ad }}</span>{% endif %}</h1>
 <form class="filtre" method="get">
   <select name="durum">
     <option value="aktif" {% if durum == "aktif" %}selected{% endif %}>Aktif (bitmemiş)</option>

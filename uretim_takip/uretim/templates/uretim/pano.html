@@ -45,10 +45,10 @@
 {% endif %}
 
 <div class="kart">
-  <h2>Şu an çalışılan işler ({{ acik_islemler|length }})</h2>
+  <h2>{% if istasyon %}{{ istasyon.ad }}: şu an çalışılan işler{% else %}Şu an çalışılan işler{% endif %} ({{ acik_islemler|length }})</h2>
   {% if acik_islemler %}
   <div class="tablo-kap"><table>
-    <tr><th></th><th>Personel</th><th>İş</th><th>Aşama</th><th>Başlangıç</th><th class="sayi">Giriş kg</th><th class="sayi">Giriş m²</th></tr>
+    <tr><th></th><th>Personel</th><th>İş</th><th>Aşama</th><th>Başlangıç</th></tr>
     {% for i in acik_islemler %}
     <tr>
       <td>{% if not user.is_staff or user.is_superuser %}<a class="btn kucuk" href="{% url 'islem_bitir' i.pk %}">■ Bitir</a>{% endif %}</td>
@@ -56,8 +56,6 @@
       <td><a href="{% url 'lot_detay' i.lot_id %}">{{ i.lot }}</a></td>
       <td>{{ i.asama.ad }}</td>
       <td>{{ i.baslangic|date:"d.m H:i" }} <span class="soluk">({{ i.baslangic|timesince }})</span></td>
-      <td class="sayi">{{ i.giris_kg }}</td>
-      <td class="sayi">{{ i.giris_m2 }}</td>
     </tr>
     {% endfor %}
   </table></div>
@@ -65,7 +63,7 @@
 </div>
 
 <div class="kart">
-  <h2>İstasyonlar</h2>
+  <h2>{% if istasyon %}İstasyonum{% else %}İstasyonlar{% endif %}</h2>
   <div class="asama-seridi">
     {% for a in asamalar %}
     <a class="asama-kutu{% if a.geciken %} gecikmis{% endif %}" href="{% url 'istasyon_ekrani' a.asama.pk %}">

@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (128 test; `--parallel` bu ortamda çalışmaz) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (130 test; `--parallel` bu ortamda çalışmaz) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -88,7 +88,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
   8. Bayi sipariş gönderince ofise bildirim (kullanıcı: evet): menü rozeti (var) + ofis ekranı açıkken ses/üst bant + telefona anlık bildirim (PWA web push; Android kurulu/kurulmamış, iPhone yalnız ana ekrana ekliyse iOS 16.4+). PythonAnywhere ücretsizde dışarı bağlantı beyaz listeli → push servisine (FCM/Apple) erişim denenmeli; olmazsa yedek: e-posta veya Telegram botu.
   10. **Nakış/Kaplama etiketi (2026-11-05):** rotalar: Nakışlı = Nakış → Lazer → Zig-zag → Biye/Lanfel; Peluş = Kaplama → Lazer → …. Sonraki istasyonlarda işin yanında '(Nakışlı)' / '(Kaplamalı)' yazsın. Malzeme + en×boy ilk istasyonda (Nakış/Kaplama) KALSIN (kullanıcı 2026-11-05).
   11. **İade / tamir / düzeltme takibi (2026-11-05 karar: yalnız ofis açar; bayi GÖRMEZ; hata kimin = personel (+istasyon) kaydedilir; iade stoğa girmez, yalnız kayıt):** biten/sevk siparişte '↩ Tamir / iade aç' → neden (iade, tamir, düzeltme, garanti), açıklama, foto, hangi halı; seçilen istasyonlardan geçen tamir işi (🔧 TAMİR rozeti), sipariş 'Tamirde'; hata kaynağı istasyon (isteğe bağlı); rapor: tamir sayısı/neden/istasyon.
-  12. **İstasyon kendi işini görsün (2026-11-05):** tablet/kişisel hesapta Pano'da 'Şu an çalışılan işler' ve istasyon kutuları yalnız kendi istasyonu (ofis/yönetici hepsini görür).
+  **12–14 YAZILDI (2026-11-05).** 12. **İstasyon kendi işini görsün (2026-11-05):** tablet/kişisel hesapta Pano'da 'Şu an çalışılan işler' ve istasyon kutuları yalnız kendi istasyonu (ofis/yönetici hepsini görür).
   13. **Lazerde fire + en×boy (2026-11-05):** fire kutusu yalnız lazerde, isteğe bağlı, açık görünür; lazerde başlarken ve bitirirken en×boy isteğe bağlı. Diğer istasyonlarda 'Ayrıntı kg/m²' kalkacak (deri/kürk kg?) – plan sunuldu.
   14. **Menü:** 'İşler' 'QR Okut'un yanına.
   9. ~~"Sunni deri" yazımı~~ – kullanıcı 2026-11-04 sunucuda kendisi düzeltti, iş kalmadı.
@@ -110,6 +110,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-11-05: Atölye düzeltmeleri (migration 0030): istasyon hesabı (`servisler.kendi_istasyonu`, staff değil + bağlı istasyon) Pano/İşler/istasyon ekranında yalnız kendi istasyonu, başka istasyon ekranı → kendi ekranına yönlenir; lazerde (`Asama.lazer_mi`) başlarken giren en×boy, bitirirken çıkan en×boy + fire m² (isteğe bağlı, IslemKaydi giris/cikis_en/boy_cm); diğer istasyonlarda kg/m² kutusu kalktı; menüde İşler QR Okut'un yanında; başlatta kendi istasyonu seçili gelir.
 - 2026-11-04: 1. güncelleme (migration 0028–0029): sipariş ölçü satırları + her satıra otomatik iş, sipariş düzenleme ekranı (foto ekle/sil), istasyon 📝 notu, pano 'kim ne yaptı' düzeltmesi, sevk tarihi + 6 ay sonra foto küçültme. Rehber PDF'leri güncellendi. Kullanıcı kararları: iki güncelleme; ölçü başına iş otomatik; foto silme değil küçültme; kartelalar 2. güncellemede.
 - 2026-11-03: Kullanıcının basılı kartelaları Excel'e işlendi: Bienca BN01–BN04 (varak/eskitme), Rono RN01–RN08 (üçlü lamine süet+keçe+Rono; basılı kartelada 02/04/05 numarasızdı, önerildi). Programdaki 'keten görünümlü' = Rono (kullanıcı onayı) → programa aktarırken keten malzemeleri Rono 8 renkle değiştirilecek. Bienca/Rono tek malzeme: renk no = kartela no (RNO-003-06). Örnek kesitler `is_belgeleri/kartela_ornek/`.
 - 2026-11-03: Ürün kod listesi taslağı (program dışı Excel) `is_belgeleri/Bienna_Fur_urun_kodlari.xlsx` (üretici: `urun_kodlari_olustur.py`): kod = MODEL-RENKNO(-ölçü); 192 model fotoğraflı, zemin rengi tahmini, renk kartelası (PL/BN/RN/KT/VR/KD/SD/MT/KR/IP kodları), lazer desenleri, nakış motifleri. Kullanıcı doldurunca programa aktarılacak (açık sorular: Paraşüt kod düzeni, ölçü koda girsin mi, eski siparişler).

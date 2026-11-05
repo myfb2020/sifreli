@@ -536,26 +536,29 @@ class SiparisEkraniTesti(TemelVeri):
 
 
 class OndalikGirisTesti(TemelVeri):
-    def test_islem_bitirken_virgul_ve_nokta_kabul_edilir(self):
+    def test_lazerde_cikis_olcusu_virgul_ve_nokta_kabul_edilir(self):
         from .forms import IslemBitirForm
 
-        for kg, m2, beklenen in [("47,5", "9,25", Decimal("9.25")), ("47.5", "9.25", Decimal("9.25"))]:
-            f = IslemBitirForm({"personel": self.ahmet.pk, "pin": "1234", "cikis_kg": kg, "cikis_m2": m2})
+        for en, beklenen in [("120,5", (Decimal("120.5"), Decimal("200"))), ("120.5", (Decimal("120.5"), Decimal("200")))]:
+            f = IslemBitirForm({"personel": self.ahmet.pk, "pin": "1234", "cikis_en": en, "cikis_boy": "200"}, lazer=True)
             self.assertTrue(f.is_valid(), f.errors)
-            self.assertEqual(f.cleaned_data["cikis_m2"], beklenen)
-        self.assertFalse(IslemBitirForm({"personel": self.ahmet.pk, "pin": "1234", "cikis_kg": "-1", "cikis_m2": "1"}).is_valid())
+            self.assertEqual(f.cleaned_data["cikis_olcu"], beklenen)
+        self.assertFalse(IslemBitirForm({"personel": self.ahmet.pk, "pin": "1234", "cikis_en": "-1", "cikis_boy": "1"},
+                                        lazer=True).is_valid())
+        self.assertFalse(IslemBitirForm({"personel": self.ahmet.pk, "pin": "1234", "cikis_en": "100"}, lazer=True).is_valid())
 
-    def test_bitir_ekrani_virgullu_baslangic_degerini_geri_alir(self):
+    def test_lazer_disinda_olcu_ve_kg_sorulmaz(self):
+        zigzag = Asama.objects.get(ad="Zig-zag")
         self.client.force_login(get_user_model().objects.create_user("tablet", password="x"))
         lot = self.yeni_lot(baslangic_kg=Decimal("47.50"))
-        islem = servisler.islem_baslat(lot=lot, asama=self.asamalar[0], personel=self.ahmet)
+        islem = servisler.islem_baslat(lot=lot, asama=zigzag, personel=self.ahmet)
         sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
-        self.assertContains(sayfa, "boş bırakılabilir")
-        yanit = self.client.post(reverse("islem_bitir", args=[islem.pk]),
-                                 {"personel": self.ahmet.pk, "pin": "1234", "cikis_kg": "47,50", "cikis_m2": "9,8"})
+        self.assertNotContains(sayfa, 'name="cikis_kg"')
+        self.assertNotContains(sayfa, 'name="fire_m2"')
+        yanit = self.client.post(reverse("islem_bitir", args=[islem.pk]), {"personel": self.ahmet.pk, "pin": "1234"})
         self.assertRedirects(yanit, reverse("pano"))
         islem.refresh_from_db()
-        self.assertEqual(islem.cikis_m2, Decimal("9.80"))
+        self.assertEqual((islem.cikis_kg, islem.cikis_m2), (Decimal("47.50"), Decimal("10.00")))
 
 
 class SiparisDurumuTesti(TemelVeri):
@@ -1248,8 +1251,11 @@ class HesapIstasyonuTesti(TestCase):
         self.assertRedirects(yanit, reverse("istasyon_ekrani", args=[lazer2.pk]))
         pano = self.client.get(reverse("pano"))
         self.assertContains(pano, "Lazer kesim 2 ekranı")
-        # İstasyon listesi açık kalır, üstte kendi istasyonunun kısayolu
-        self.assertContains(self.client.get(reverse("istasyon_secimi")), "Lazer kesim 2 ekranını aç")
+        # İstasyonu belli hesap başka istasyon seçemez, kendi ekranına gider
+        self.assertRedirects(self.client.get(reverse("istasyon_secimi")), reverse("istasyon_ekrani", args=[lazer2.pk]))
+        lazer1 = Asama.objects.get(ad="Lazer kesim 1")
+        self.assertRedirects(self.client.get(reverse("istasyon_ekrani", args=[lazer1.pk])),
+                             reverse("istasyon_ekrani", args=[lazer2.pk]))
 
 
 class MalzemeEtiketiYanlisYerdeTesti(TemelVeri):
@@ -2292,3 +2298,58 @@ class OlcuGocuTesti(TemelVeri):
         # eski sipariş düzenlenince ikinci iş açılmaz
         servisler.siparis_islerini_ac(eski)
         self.assertEqual(eski.lotlar.count(), 1)
+
+
+
+class IstasyonKendiIsiTesti(TemelVeri):
+    """İstasyon hesabı yalnız kendi istasyonunu görür; lazerde giren/çıkan ölçü ve fire isteğe bağlı."""
+
+    def setUp(self):
+        from .models import HesapAyari
+        self.lazer = Asama.objects.get(ad="Lazer kesim 1")
+        self.zigzag = Asama.objects.get(ad="Zig-zag")
+        self.tel = get_user_model().objects.create_user("ali_tel", password="x")
+        HesapAyari.objects.create(kullanici=self.tel, personel=self.ahmet, istasyon=self.lazer)
+        self.l1, self.l2 = self.yeni_lot(siparis=self.siparis), self.yeni_lot(siparis=self.siparis)
+        servisler.islem_baslat(lot=self.l1, asama=self.lazer, personel=self.ahmet)
+        servisler.islem_baslat(lot=self.l2, asama=self.zigzag, personel=self.ayse)
+
+    def test_pano_ve_isler_yalniz_kendi_istasyonu(self):
+        self.client.force_login(self.tel)
+        pano = self.client.get(reverse("pano"))
+        self.assertContains(pano, self.l1.lot_no)
+        self.assertNotContains(pano, self.l2.lot_no)
+        self.assertNotContains(pano, reverse("istasyon_ekrani", args=[self.zigzag.pk]))
+        isler = self.client.get(reverse("lot_listesi"))
+        self.assertContains(isler, self.l1.lot_no)
+        self.assertNotContains(isler, self.l2.lot_no)
+        # yönetici her şeyi görür
+        self.client.force_login(get_user_model().objects.create_superuser("y_ki", password="x"))
+        pano = self.client.get(reverse("pano"))
+        self.assertContains(pano, self.l1.lot_no)
+        self.assertContains(pano, self.l2.lot_no)
+        self.assertContains(self.client.get(reverse("lot_listesi")), self.l2.lot_no)
+
+    def test_lazerde_giren_cikan_olcu_ve_fire(self):
+        lot = self.yeni_lot(siparis=self.siparis)
+        self.client.force_login(self.tel)
+        yanit = self.client.post(reverse("islem_baslat"), {"lot": lot.pk, "asama": self.lazer.pk,
+                                                           "makine": self.makine(self.lazer),
+                                                           "giris_en": "140", "giris_boy": "250"})
+        self.assertRedirects(yanit, reverse("pano"))
+        islem = IslemKaydi.objects.get(lot=lot)
+        self.assertEqual((islem.giris_m2, islem.giris_en_cm), (Decimal("3.50"), Decimal("140")))
+        sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
+        self.assertContains(sayfa, 'name="fire_m2"')
+        self.assertContains(sayfa, "140 × 250 cm")
+        self.client.post(reverse("islem_bitir", args=[islem.pk]), {"cikis_en": "120", "cikis_boy": "250"})
+        islem.refresh_from_db()
+        self.assertEqual((islem.cikis_m2, islem.fire_m2), (Decimal("3.00"), Decimal("0.50")))
+        # yalnız fire yazılırsa çıkış = giriş − fire
+        lot2 = self.yeni_lot(siparis=self.siparis)
+        i2 = servisler.islem_baslat(lot=lot2, asama=self.lazer, personel=self.ahmet)
+        self.client.post(reverse("islem_bitir", args=[i2.pk]), {"fire_m2": "1,5"})
+        i2.refresh_from_db()
+        self.assertEqual((i2.giris_m2, i2.cikis_m2), (Decimal("10.00"), Decimal("8.50")))
+        # hiçbir şey yazılmazsa giriş aynen geçer; lazer dışı istasyonda ölçü alanı yok
+        self.assertNotContains(self.client.get(reverse("islem_baslat") + f"?lot={lot2.pk}"), "Lazer çıkışı")

@@ -142,13 +142,26 @@ class IslemBaslatForm(PinliForm):
         queryset=Asama.objects.filter(aktif=True), label="Aşama", empty_label="— Aşama seçin —"
     )
     makine = makine_alani()
+    giris_en = ondalik_alan("Giren parça en (cm)", required=False)
+    giris_boy = ondalik_alan("Giren parça boy (cm)", required=False)
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
-    field_order = ["personel", "pin", "lot", "asama", "makine", "aciklama"]
+    field_order = ["personel", "pin", "lot", "asama", "makine", "giris_en", "giris_boy", "aciklama"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["giris_en"].help_text = "Yalnız lazerde, isteğe bağlı."
 
     def clean(self):
         veri = super().clean()
         makine_kontrol(self, veri)
+        en, boy = veri.get("giris_en"), veri.get("giris_boy")
+        asama = veri.get("asama")
+        if asama is None or not asama.lazer_mi:
+            en = boy = None
+        elif bool(en) != bool(boy):
+            self.add_error("giris_boy" if en else "giris_en", "Eni ve boyu birlikte yazın (ya da ikisini de boş bırakın).")
+        veri["giris_olcu"] = (en, boy) if en and boy else None
         return veri
 
 
@@ -160,13 +173,20 @@ class IslemBitirForm(PinliForm):
                               widget=forms.TextInput(attrs={"autocapitalize": "characters", "placeholder": "HD-…"}))
     kesim_en = ondalik_alan("Kullanılan en (cm)", required=False)
     kesim_boy = ondalik_alan("Kullanılan boy (cm)", required=False)
-    cikis_kg = ondalik_alan("Çıkan kg (isteğe bağlı)", required=False)
-    cikis_m2 = ondalik_alan("Çıkan m² (isteğe bağlı)", required=False)
+    cikis_en = ondalik_alan("Çıkan en (cm)", required=False)
+    cikis_boy = ondalik_alan("Çıkan boy (cm)", required=False)
+    fire_m2 = ondalik_alan("Fire (m²)", required=False)
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
-    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), **kwargs):
+    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), lazer=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.ilk_adim = ilk_adim
+        self.lazer = lazer
+        if lazer:
+            self.fields["fire_m2"].help_text = "İsteğe bağlı. Boş bırakılırsa giren ve çıkan ölçüden hesaplanır."
+        else:
+            for alan in ("cikis_en", "cikis_boy", "fire_m2"):
+                del self.fields[alan]
         self.stok_zorunlu = ilk_adim and stok_zorunlu
         if ilk_adim:
             self.fields["cesit"].choices = [("", "— Malzeme seçin —")] + list(cesitler)
@@ -178,6 +198,13 @@ class IslemBitirForm(PinliForm):
 
     def clean(self):
         veri = super().clean()
+        veri["cikis_olcu"] = None
+        if self.lazer:
+            cen, cboy = veri.get("cikis_en"), veri.get("cikis_boy")
+            if bool(cen) != bool(cboy):
+                self.add_error("cikis_boy" if cen else "cikis_en", "Eni ve boyu birlikte yazın (ya da ikisini de boş bırakın).")
+            elif cen and cboy:
+                veri["cikis_olcu"] = (cen, cboy)
         if not self.ilk_adim:
             return veri
         en, boy = veri.get("kesim_en"), veri.get("kesim_boy")

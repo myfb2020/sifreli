@@ -196,12 +196,13 @@
   {% if not user.is_staff or user.is_superuser %}
   <a href="{% if hesap_istasyonu %}{% url 'istasyon_ekrani' hesap_istasyonu.pk %}{% else %}{% url 'istasyon_secimi' %}{% endif %}">🏭 {{ hesap_istasyonu.ad|default:"İstasyon" }}</a>
   <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
+  <a href="{% url 'lot_listesi' %}">İşler</a>
   <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
   {% endif %}
   {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}{% if onay_bekleyen %}?durum=onay{% endif %}">Siparişler{% if onay_bekleyen %} <span class="rozet bekliyor" title="Onay bekleyen bayi tasarımı">{{ onay_bekleyen }}</span>{% endif %}</a>{% endif %}
   <a href="{% url 'stok_listesi' %}">Stok</a>
   <a href="{% url 'katalog' %}">Katalog</a>
-  <a href="{% url 'lot_listesi' %}">İşler</a>
+  {% if user.is_staff and not user.is_superuser %}<a href="{% url 'lot_listesi' %}">İşler</a>{% endif %}
   {% if user.is_staff %}<a href="{% url 'rapor' %}">Raporlar</a>
   <a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
   {% if user.is_superuser %}<a href="{% url 'hesap_listesi' %}">👥 Hesaplar</a>

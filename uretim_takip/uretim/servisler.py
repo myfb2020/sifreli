@@ -64,7 +64,8 @@ def not_ekle(*, lot, metin, asama=None, personel=None, kullanici=None):
 
 
 @transaction.atomic
-def islem_baslat(*, lot, asama, personel, aciklama="", makine=None):
+def islem_baslat(*, lot, asama, personel, aciklama="", makine=None, giris_olcu=None):
+    """giris_olcu: (en, boy) cm — lazerde isteğe bağlı giren parça ölçüsü; girilirse işlemin giriş m²'si olur."""
     lot = UretimLotu.objects.select_for_update().get(pk=lot.pk)
     if lot.durum in ("tamamlandi", "iptal"):
         raise ValidationError(f"{lot} işi {lot.get_durum_display().lower()}, işlem başlatılamaz.")
@@ -79,7 +80,9 @@ def islem_baslat(*, lot, asama, personel, aciklama="", makine=None):
         makine=makine,
         personel=personel,
         giris_kg=lot.mevcut_kg,
-        giris_m2=lot.mevcut_m2,
+        giris_m2=(giris_olcu[0] * giris_olcu[1] / 10000).quantize(Decimal("0.01")) if giris_olcu else lot.mevcut_m2,
+        giris_en_cm=giris_olcu[0] if giris_olcu else None,
+        giris_boy_cm=giris_olcu[1] if giris_olcu else None,
         aciklama=aciklama,
     )
     lot.durum = "islemde"
@@ -151,7 +154,8 @@ def malzeme_dus(*, lot, m2, rulo=None, cesit=None):
 
 
 @transaction.atomic
-def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", malzemeler=(), kesim=None):
+def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", malzemeler=(), kesim=None, cikis_olcu=None,
+                fire_m2=None):
     """Aşamayı bitirir. malzemeler: [(malzeme, miktar), ...] bu aşamada kullanılan sarf malzemeleri.
 
     kesim: ilk istasyonda kullanılan ana malzeme {"m2", "rulo" ya da "cesit"}; stoktan düşülür, işin başlangıç m²'si
@@ -177,6 +181,14 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
         islem.giris_m2 = kullanilan
         if cikis_m2 is None:
             cikis_m2 = min(net, kullanilan) if net else kullanilan
+    if cikis_olcu:  # lazerde çıkan ölçü (isteğe bağlı)
+        islem.cikis_en_cm, islem.cikis_boy_cm = cikis_olcu
+        cikis_m2 = (cikis_olcu[0] * cikis_olcu[1] / 10000).quantize(Decimal("0.01"))
+    if fire_m2 is not None:  # lazerde elle yazılan fire (isteğe bağlı)
+        if cikis_olcu:
+            islem.giris_m2 = cikis_m2 + fire_m2
+        else:
+            cikis_m2 = max(islem.giris_m2 - fire_m2, Decimal(0))
     cikis_kg = islem.giris_kg if cikis_kg is None else cikis_kg
     cikis_m2 = islem.giris_m2 if cikis_m2 is None else cikis_m2
     if cikis_kg < 0 or cikis_m2 < 0:
@@ -275,6 +287,15 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=N
         LotKaynagi(uretim_lotu=lot, ham_deri=kilitli[pk], kg=kg, m2=m2) for pk, (_, kg, m2) in toplam.items()
     )
     return islem_baslat(lot=lot, asama=asama, personel=personel, aciklama=aciklama, makine=makine)
+
+
+def kendi_istasyonu(kullanici):
+    """İstasyon hesabının (tablet / kişisel telefon) bağlı istasyonu; ofis ve yönetici için None (her şeyi görür)."""
+    from .models import hesap_istasyonu
+
+    if getattr(kullanici, "is_staff", False):
+        return None
+    return hesap_istasyonu(kullanici)
 
 
 # --- Stok hareketleri ---------------------------------------------------------

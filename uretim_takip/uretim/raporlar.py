@@ -48,10 +48,11 @@ def personel_ozeti(baslangic, bitis):
     return _ozet(tamamlanan_islemler(baslangic, bitis), "personel__ad_soyad")
 
 
-def bugun_kim_ne_yapti(gun):
+def bugun_kim_ne_yapti(gun, asama=None):
     """Pano özeti: kişi = işlemi BİTİREN; iş sayısı; biten halı m²'si yalnız işin son istasyonunda sayılır
     (aynı halı her istasyonda yeniden sayılmaz); fire yalnız ilk istasyonda (lazer) giriş − çıkış."""
-    islemler = list(tamamlanan_islemler(gun, gun).select_related("bitiren", "personel", "lot"))
+    qs = tamamlanan_islemler(gun, gun).select_related("bitiren", "personel", "lot")
+    islemler = list(qs.filter(asama=asama) if asama is not None else qs)
     lot_ids = {i.lot_id for i in islemler}
     son_bitis, ilk_islem = {}, {}
     for lot_id, pk, bas, bit in IslemKaydi.objects.filter(lot_id__in=lot_ids).values_list("lot_id", "pk", "baslangic", "bitis"):
