@@ -1251,11 +1251,10 @@ class HesapIstasyonuTesti(TestCase):
         self.assertRedirects(yanit, reverse("istasyon_ekrani", args=[lazer2.pk]))
         pano = self.client.get(reverse("pano"))
         self.assertContains(pano, "Lazer kesim 2 ekranı")
-        # İstasyonu belli hesap başka istasyon seçemez, kendi ekranına gider
-        self.assertRedirects(self.client.get(reverse("istasyon_secimi")), reverse("istasyon_ekrani", args=[lazer2.pk]))
+        # İstasyon listesi açık kalır (bir kişi birden çok istasyonda çalışabilir), üstte kendi istasyonunun kısayolu
+        self.assertContains(self.client.get(reverse("istasyon_secimi")), "Lazer kesim 2 ekranını aç")
         lazer1 = Asama.objects.get(ad="Lazer kesim 1")
-        self.assertRedirects(self.client.get(reverse("istasyon_ekrani", args=[lazer1.pk])),
-                             reverse("istasyon_ekrani", args=[lazer2.pk]))
+        self.assertEqual(self.client.get(reverse("istasyon_ekrani", args=[lazer1.pk])).status_code, 200)
 
 
 class MalzemeEtiketiYanlisYerdeTesti(TemelVeri):
