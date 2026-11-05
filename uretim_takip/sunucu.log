@@ -1,0 +1,116 @@
+Watching for file changes with StatReloader
+Performing system checks...
+
+System check identified no issues (0 silenced).
+November 05, 2026 - 17:54:44
+Django version 5.2.18, using settings 'fabrika.settings'
+Starting development server at http://127.0.0.1:8011/
+Quit the server with CONTROL-C.
+
+WARNING: This is a development server. Do not use it in a production setting. Use a production WSGI or ASGI server instead.
+For more information on production servers see: https://docs.djangoproject.com/en/5.2/howto/deployment/
+[05/Nov/2026 17:54:47] "GET /giris/ HTTP/1.1" 200 17688
+[05/Nov/2026 17:54:47] "GET /static/uretim/marka/logo.png HTTP/1.1" 200 79802
+[05/Nov/2026 17:54:47] "GET /sw.js HTTP/1.1" 200 3092
+[05/Nov/2026 17:54:47] "GET /cevrimdisi/ HTTP/1.1" 200 17038
+[05/Nov/2026 17:54:47] "GET /static/uretim/tarayici.js HTTP/1.1" 200 5097
+[05/Nov/2026 17:54:47] "GET /static/uretim/vendor/jsQR.js HTTP/1.1" 200 256948
+[05/Nov/2026 17:54:47] "GET /static/uretim/ikon/ikon-192.png HTTP/1.1" 200 30571
+[05/Nov/2026 17:54:48] "POST /giris/ HTTP/1.1" 302 0
+[05/Nov/2026 17:54:48] "GET /bayi/ HTTP/1.1" 200 22558
+[05/Nov/2026 17:54:48] "GET /medya/katalog/model/RNO-010.jpg HTTP/1.1" 200 242821
+[05/Nov/2026 17:54:48] "GET /medya/katalog/model/RNO-003.jpg HTTP/1.1" 200 67520
+[05/Nov/2026 17:54:48] "GET /tasarim/7/resim.jpg HTTP/1.1" 200 46966
+[05/Nov/2026 17:54:48] "GET /tasarim/3/resim.jpg HTTP/1.1" 200 148964
+[05/Nov/2026 17:54:49] "GET /tasarim/6/resim.jpg HTTP/1.1" 200 99351
+[05/Nov/2026 17:54:49] "GET /tasarim/4/resim.jpg HTTP/1.1" 200 71582
+[05/Nov/2026 17:54:49] "GET /tasarim/5/resim.jpg HTTP/1.1" 200 134118
+[05/Nov/2026 17:54:50] "GET /bayi/siparis/?tur=suni HTTP/1.1" 200 219327
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-004.jpg HTTP/1.1" 200 103212
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-006.jpg HTTP/1.1" 200 86361
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-001.jpg HTTP/1.1" 200 70062
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-002.jpg HTTP/1.1" 200 73174
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-003.jpg HTTP/1.1" 200 66524
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-005.jpg HTTP/1.1" 200 91548
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-008.jpg HTTP/1.1" 200 76424
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-007.jpg HTTP/1.1" 200 74993
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-009.jpg HTTP/1.1" 200 75324
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/RN01.jpg HTTP/1.1" 200 40035
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/RN02.jpg HTTP/1.1" 200 50299
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/RN03.jpg HTTP/1.1" 200 31511
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/RN04.jpg HTTP/1.1" 200 38998
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/RN05.jpg HTTP/1.1" 200 42500
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/RN06.jpg HTTP/1.1" 200 41399
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-010.jpg HTTP/1.1" 200 59639
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-011.jpg HTTP/1.1" 200 51980
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-012.jpg HTTP/1.1" 200 46010
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-014.jpg HTTP/1.1" 200 58372
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-013.jpg HTTP/1.1" 200 55983
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-015.jpg HTTP/1.1" 200 49943
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/RN07.jpg HTTP/1.1" 200 21372
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/BN01.jpg HTTP/1.1" 200 43683
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/BN02.jpg HTTP/1.1" 200 48068
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/BN03.jpg HTTP/1.1" 200 37725
+[05/Nov/2026 17:54:50] "GET /static/uretim/kartela/BN04.jpg HTTP/1.1" 200 34016
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-016.jpg HTTP/1.1" 200 92898
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-017.jpg HTTP/1.1" 200 65242
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-018.jpg HTTP/1.1" 200 71257
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-019.jpg HTTP/1.1" 200 79781
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-020.jpg HTTP/1.1" 200 62197
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-021.jpg HTTP/1.1" 200 49695
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-022.jpg HTTP/1.1" 200 46966
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-023.jpg HTTP/1.1" 200 75614
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-025.jpg HTTP/1.1" 200 53235
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-024.jpg HTTP/1.1" 200 86978
+[05/Nov/2026 17:54:50] "GET /medya/katalog/model/BNA-026.jpg HTTP/1.1" 200 76079
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB001.jpg HTTP/1.1" 200 14958
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB003.jpg HTTP/1.1" 200 14584
+[05/Nov/2026 17:54:50] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN02&desen=RN01&orta=RN07&desen_kodu=&w=o HTTP/1.1" 200 70660
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB004.jpg HTTP/1.1" 200 14553
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB008.jpg HTTP/1.1" 200 12864
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB006.jpg HTTP/1.1" 200 16015
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB005.jpg HTTP/1.1" 200 14734
+[05/Nov/2026 17:54:50] "GET /sw.js HTTP/1.1" 200 3092
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB009.jpg HTTP/1.1" 200 12821
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB012.jpg HTTP/1.1" 200 9940
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB014.jpg HTTP/1.1" 200 9704
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB013.jpg HTTP/1.1" 200 14607
+[05/Nov/2026 17:54:50] "GET /tasarim/desen/DB015.jpg HTTP/1.1" 200 10382
+[05/Nov/2026 17:54:50] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN02&desen=RN01&orta=RN07&desen_kodu=&w=k HTTP/1.1" 200 23680
+[05/Nov/2026 17:54:51] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN05&desen=GUMUS&orta=RN03&w=k HTTP/1.1" 200 24039
+[05/Nov/2026 17:54:51] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN01&desen=ALTIN&orta=RN07&w=k HTTP/1.1" 200 25312
+[05/Nov/2026 17:54:51] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN05&desen=RN07&orta=RN06&w=k HTTP/1.1" 200 23140
+[05/Nov/2026 17:54:51] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN03&desen=BN04&orta=RN07&w=k HTTP/1.1" 200 21383
+[05/Nov/2026 17:54:51] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN02&desen=BN01&orta=RN01&w=k HTTP/1.1" 200 19880
+[05/Nov/2026 17:54:51] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN01&desen=RN03&orta=RN02&w=k HTTP/1.1" 200 22945
+[05/Nov/2026 17:54:52] "GET /bayi/foto-model/BNA-003.jpg?kenar=RN02&desen=ALTIN&orta=BN04&desen_kodu=DB015&w=o HTTP/1.1" 200 95951
+[05/Nov/2026 17:54:52] "GET /sw.js HTTP/1.1" 200 3092
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-004.jpg HTTP/1.1" 200 62798
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-001.jpg HTTP/1.1" 200 70360
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-005.jpg HTTP/1.1" 200 58175
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-002.jpg HTTP/1.1" 200 62352
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-006.jpg HTTP/1.1" 200 166475
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-008.jpg HTTP/1.1" 200 192998
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-007.jpg HTTP/1.1" 200 139524
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-009.jpg HTTP/1.1" 200 166943
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-012.jpg HTTP/1.1" 200 285008
+[05/Nov/2026 17:54:56] "GET /medya/katalog/model/RNO-011.jpg HTTP/1.1" 200 260837
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/61.01.png HTTP/1.1" 200 23933
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/57.01.png HTTP/1.1" 200 15374
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/56.01.png HTTP/1.1" 200 16462
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/60.05.png HTTP/1.1" 200 7619
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/60.01.png HTTP/1.1" 200 7673
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN03&serit=RN07&iplik=bej&motif=&w=o HTTP/1.1" 200 39338
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/61.03.png HTTP/1.1" 200 6747
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/68.01.png HTTP/1.1" 200 5908
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/76.03.png HTTP/1.1" 200 11807
+[05/Nov/2026 17:54:56] "GET /tasarim/parcali/motif/65.01.png HTTP/1.1" 200 3843
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN03&serit=RN07&iplik=bej&motif=&w=k HTTP/1.1" 200 9849
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN06&serit=RN05&iplik=bej&w=k HTTP/1.1" 200 8390
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN03&serit=RN06&iplik=kahve&w=k HTTP/1.1" 200 10063
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN07&serit=RN04&iplik=kahve&w=k HTTP/1.1" 200 10185
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN01&serit=RN04&iplik=kahve&w=k HTTP/1.1" 200 9474
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN07&serit=RN01&iplik=kahve&w=k HTTP/1.1" 200 10184
+[05/Nov/2026 17:54:56] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN02&serit=RN07&iplik=kahve&w=k HTTP/1.1" 200 8977
+[05/Nov/2026 17:54:57] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN03&serit=RN07&iplik=bej&motif=76.03&w=o HTTP/1.1" 200 36577
+[05/Nov/2026 17:54:57] "GET /bayi/foto-model/RNO-006.jpg?zemin=RN03&serit=RN07&iplik=kahve&motif=76.03&w=o HTTP/1.1" 200 39922

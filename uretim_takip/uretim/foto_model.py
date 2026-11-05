@@ -15,13 +15,14 @@ from functools import lru_cache
 from pathlib import Path
 
 from django.conf import settings
-from PIL import Image, ImageChops, ImageFilter, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageStat
 
 from . import parcali
 
 KLASOR = Path(__file__).resolve().parent / "tasarim_varlik" / "foto_model"
 DOKU = Path(__file__).resolve().parent / "tasarim_varlik" / "doku"
-ONBELLEK_SINIR = 600  # önbellekte en çok bu kadar boyanmış resim kalır
+ONBELLEK_SINIR = 600
+SURUM = 3  # boyama yöntemi değişince önbellek yenilensin  # önbellekte en çok bu kadar boyanmış resim kalır
 
 # bölge türleri: hangi renkler seçilebilir
 MALZEME, DESEN, IPLIK = "malzeme", "desen", "iplik"
@@ -55,6 +56,18 @@ MODELLER = {
         ("zemin", "Zemin ve ara bant", MALZEME, "RN02", "zemin"),
         ("bant", "İki bant", MALZEME, "RN04", "vurgu")]},
 }
+# Katalogdaki Rono / Bienca fotoğrafları (bölge haritası is_belgeleri/foto_model_maske.py düzeninde, yarı otomatik):
+# fotoğraf katalog_tohum/model'den okunur; "sira" haritadaki bölge numaraları (1 dış kenar, 2 desenli bant, 3 orta).
+KATALOG = Path(__file__).resolve().parent / "katalog_tohum" / "model"
+for _kod, _m in json.loads((KLASOR / "katalog.json").read_text(encoding="utf-8")).items():
+    MODELLER.setdefault(_kod, {"ad": "", "px_cm": _m["px_cm"], "kaynak": "katalog", "sira": _m["sira"],
+                               "bolgeler": [tuple(b) for b in _m["bolgeler"]]})
+# Lazer deseni değiştirilebilen dikdörtgen çerçeveli modeller (bant bölgesi) ve nakış motifi değiştirilebilenler
+DESEN_DEGISIR = {k: "desen" for k in (
+    "BNA-001", "BNA-002", "BNA-003", "BNA-004", "BNA-005", "BNA-006", "BNA-007", "BNA-008", "BNA-009", "BNA-011",
+    "BNA-013", "BNA-014", "BNA-018", "BNA-019", "BNA-026", "RNO-001", "RNO-003", "RNO-004", "RNO-005")}
+DESEN_DEGISIR.update({"RNO-009": "desen"})
+NAKIS_DEGISIR = {"RNO-006": ("serit", "iplik")}  # (şerit bölgesi, iplik bölgesi)
 # fotoğrafta desenli (eskitme/varak) olan bölgeler: başka renge geçince fotoğrafın deseni değil kartelanın dokusu görünür
 DESENLI_ASIL = {"BN01", "BN02", "BN03", "BN04"}
 
@@ -93,7 +106,18 @@ def secim_temizle(kod, veri):
     for b in bolgeler(kod):
         deger = str((veri or {}).get(b["anahtar"], "")).strip()
         sonuc[b["anahtar"]] = deger if deger in secenekler(b["tur"]) else b["varsayilan"]
+    if kod in DESEN_DEGISIR:
+        deger = str((veri or {}).get("desen_kodu", "")).strip()
+        sonuc["desen_kodu"] = deger if deger in lazer_desenleri() else ""
+    if kod in NAKIS_DEGISIR:
+        deger = str((veri or {}).get("motif", "")).strip()
+        sonuc["motif"] = deger if deger in parcali.MOTIF else ""
     return sonuc
+
+
+def lazer_desenleri():
+    from . import hali_gorsel
+    return [k for k in sorted(hali_gorsel.desen_bilgisi()) if k not in parcali.GIZLI_DESENLER]
 
 
 def renk_adi(tur, deger):
@@ -110,6 +134,10 @@ def metin(kod, secim):
     for b in bolgeler(kod):
         deger = secim[b["anahtar"]]
         parcalar.append(f"{b['ad']}: {IPLIK_RENK[deger][0] if b['tur'] == IPLIK else deger}")
+    if secim.get("desen_kodu"):
+        parcalar.append(f"Lazer deseni: {secim['desen_kodu']}")
+    if secim.get("motif"):
+        parcalar.append(f"Nakış: {secim['motif']} {parcali.MOTIF[secim['motif']]['ad']}")
     return " · ".join(parcalar)
 
 
@@ -118,7 +146,8 @@ def metin(kod, secim):
 
 @lru_cache(maxsize=16)
 def _kaynak(kod, genislik):
-    foto = Image.open(KLASOR / f"{kod}.jpg").convert("RGB")
+    klasor = KATALOG if MODELLER[kod].get("kaynak") == "katalog" else KLASOR
+    foto = Image.open(klasor / f"{kod}.jpg").convert("RGB")
     harita = Image.open(KLASOR / f"{kod}.png").convert("L")
     if genislik and genislik < foto.width:
         boy = round(foto.height * genislik / foto.width)
@@ -137,10 +166,15 @@ def _doku(anahtar, px_cm, boyut):
     doku = Image.open(yol).convert("RGB")
     en = max(16, round(olcek.get(anahtar, 12) * px_cm))
     doku = doku.resize((en, max(16, round(doku.height * en / doku.width))), Image.LANCZOS)
+    from PIL import ImageOps
+    # aynalayarak döşenir: karo dikişleri görünmez
+    ikili = Image.new("RGB", (doku.width * 2, doku.height * 2))
+    ikili.paste(doku, (0, 0)); ikili.paste(ImageOps.mirror(doku), (doku.width, 0))
+    ikili.paste(ImageOps.flip(doku), (0, doku.height)); ikili.paste(ImageOps.flip(ImageOps.mirror(doku)), (doku.width, doku.height))
     tuval = Image.new("RGB", boyut)
-    for y in range(0, boyut[1], doku.height):
-        for x in range(0, boyut[0], doku.width):
-            tuval.paste(doku, (x, y))
+    for y in range(0, boyut[1], ikili.height):
+        for x in range(0, boyut[0], ikili.width):
+            tuval.paste(ikili, (x, y))
     return tuval
 
 
@@ -209,11 +243,18 @@ def boya(kod, secim, genislik=None):
     foto, harita, gri = _kaynak(kod, genislik)
     asil_en = _kaynak(kod, None)[0].width
     px_cm = model["px_cm"] * foto.width / asil_en
-    yumusak_gri = gri.filter(ImageFilter.GaussianBlur(max(2, foto.width / 90)))
+    yumusak_gri = gri.filter(ImageFilter.GaussianBlur(max(3, foto.width / 25)))  # yalnız ışık, desen değil
     sonuc = foto.copy()
-    for sira, b in enumerate(bolgeler(kod), 1):
+    siralar = model.get("sira") or range(1, len(model["bolgeler"]) + 1)
+    numara = {b["anahtar"]: s for s, b in zip(siralar, bolgeler(kod))}
+    atla = set()
+    if secim.get("desen_kodu") and kod in DESEN_DEGISIR:
+        atla |= _desen_degistir(sonuc, harita, gri, kod, secim, numara)
+    if secim.get("motif") and kod in NAKIS_DEGISIR:
+        atla |= _motif_degistir(sonuc, harita, gri, kod, secim, numara)
+    for sira, b in zip(siralar, bolgeler(kod)):
         deger = secim.get(b["anahtar"], b["varsayilan"])
-        if deger == b["varsayilan"]:
+        if deger == b["varsayilan"] or b["anahtar"] in atla:
             continue  # fotoğraftaki gibi
         maske = harita.point(lambda v, s=sira: 255 if v == s else 0)
         if not maske.getbbox():
@@ -255,8 +296,96 @@ def boya(kod, secim, genislik=None):
     return sonuc
 
 
+def _secilen_renk(kod, b, secim, foto, maske):
+    deger = secim.get(b["anahtar"], b["varsayilan"])
+    if deger == b["varsayilan"]:
+        return tuple(round(c) for c in ImageStat.Stat(foto, maske).mean)
+    if b["tur"] == IPLIK:
+        return _hex(IPLIK_RENK[deger][1])
+    return _hex(KARTELA[deger][2])
+
+
+def _isik(gri, maske, boyut):
+    """Fotoğraftaki genel ışık (desensiz): 128 = ortalama."""
+    yum = gri.filter(ImageFilter.GaussianBlur(max(3, boyut[0] / 25)))
+    ort = max(8.0, ImageStat.Stat(yum, maske).mean[0])
+    return yum.point(_lut(lambda v: 128 * _carpan(v, ort, 0.7, 1.3)))
+
+
+def _kutu(maske):
+    return maske.getbbox() or (0, 0, 1, 1)
+
+
+def _desen_degistir(sonuc, harita, gri, kod, secim, numara):
+    """Dikdörtgen çerçevedeki lazer desenini başka bir DB deseniyle değiştirir (bant rengi korunur ya da seçilen)."""
+    from . import hali_gorsel
+    anahtar_ = DESEN_DEGISIR[kod]
+    s_bant, s_orta = numara.get(anahtar_), numara.get("orta")
+    if not s_bant or not s_orta:
+        return set()
+    bant = harita.point(lambda v: 255 if v == s_bant else 0)
+    orta = harita.point(lambda v: 255 if v == s_orta else 0)
+    dis = _kutu(bant.filter(ImageFilter.MaxFilter(5)))
+    ic = _kutu(orta)
+    genislik = max(6, round(((ic[0] - dis[0]) + (dis[2] - ic[2]) + (ic[1] - dis[1]) + (dis[3] - ic[3])) / 4))
+    W, H = dis[2] - dis[0], dis[3] - dis[1]
+    delik = hali_gorsel._kenar_desen_maskesi(secim["desen_kodu"], (W, H), genislik)
+    bolge = Image.new("L", sonuc.size, 0)
+    ImageDraw.Draw(bolge).rectangle(dis, fill=255)
+    ImageDraw.Draw(bolge).rectangle((dis[0] + genislik, dis[1] + genislik, dis[2] - genislik, dis[3] - genislik), fill=0)
+    bolge = ImageChops.multiply(bolge, harita.point(lambda v: 255 if v != s_orta else 0))
+    delik_tam = Image.new("L", sonuc.size, 0)
+    delik_tam.paste(delik, (dis[0], dis[1]))
+    b = next(x for x in bolgeler(kod) if x["anahtar"] == anahtar_)
+    renk = _secilen_renk(kod, b, secim, sonuc, bant)
+    isik = _isik(gri, bolge, sonuc.size)
+    malzeme = _carp(Image.new("RGB", sonuc.size, renk), isik)
+    if secim.get(b["anahtar"], b["varsayilan"]) in METALLER or b["varsayilan"] in METALLER:
+        malzeme = _carp(malzeme, gri.point(_lut(lambda v: 128 * _carpan(v, 128, 0.25, 1.3))))
+    # delikten görünen: fotoğraftaki deliklerin (bant içi dokunulmaz pikseller) ortalama rengi
+    eski_delik = ImageChops.multiply(bolge, harita.point(lambda v: 255 if v == 0 else 0))
+    delik_renk = tuple(round(c * 0.9) for c in ImageStat.Stat(sonuc, eski_delik).mean) if eski_delik.getbbox() else (35, 32, 30)
+    delik_katman = _carp(Image.new("RGB", sonuc.size, delik_renk), isik)
+    bant_katman = Image.composite(delik_katman, malzeme, delik_tam.filter(ImageFilter.GaussianBlur(0.5)))
+    sonuc.paste(bant_katman, mask=bolge.filter(ImageFilter.GaussianBlur(0.6)))
+    return {anahtar_}
+
+
+def _motif_degistir(sonuc, harita, gri, kod, secim, numara):
+    """Nakış şeridindeki motifi başka bir motifle değiştirir (şerit ve iplik renkleri seçilen ya da fotoğraftaki)."""
+    from . import parcali_gorsel
+    a_serit, a_iplik = NAKIS_DEGISIR[kod]
+    s_serit, s_iplik = numara[a_serit], numara[a_iplik]
+    serit = harita.point(lambda v: 255 if v in (s_serit, s_iplik) else 0)
+    kutu = _kutu(serit)
+    bl = {b["anahtar"]: b for b in bolgeler(kod)}
+    zemin_renk = _secilen_renk(kod, bl[a_serit], secim, sonuc, harita.point(lambda v: 255 if v == s_serit else 0))
+    iplik_renk = _secilen_renk(kod, bl[a_iplik], secim, sonuc, harita.point(lambda v: 255 if v == s_iplik else 0))
+    isik = _isik(gri, serit, sonuc.size)
+    katman = _carp(Image.new("RGB", sonuc.size, zemin_renk), isik)
+    motif = parcali_gorsel.nakis_maskesi(secim["motif"])
+    h = round((kutu[3] - kutu[1]) * 0.82)
+    w = max(1, round(motif.width * h / motif.height))
+    if w > (kutu[2] - kutu[0]) * 0.9:
+        w = round((kutu[2] - kutu[0]) * 0.9); h = max(1, round(motif.height * w / motif.width))
+    motif = motif.resize((w, h), Image.LANCZOS)
+    aralik = max(4, round(h * 0.18))
+    adet = max(1, ((kutu[2] - kutu[0]) - aralik) // (w + aralik))
+    bas = kutu[0] + ((kutu[2] - kutu[0]) - adet * w - (adet - 1) * aralik) // 2
+    motifler = Image.new("L", sonuc.size, 0)
+    for i in range(adet):
+        motifler.paste(motif, (bas + i * (w + aralik), kutu[1] + ((kutu[3] - kutu[1]) - h) // 2))
+    iplik = _carp(Image.new("RGB", sonuc.size, iplik_renk), isik)
+    # iplik kabartması: motif kenarında hafif gölge
+    golge = motifler.filter(ImageFilter.GaussianBlur(1.2)).point(lambda v: 255 - v // 4)
+    katman = _carp(katman, golge.point(lambda v: v // 2))
+    katman = Image.composite(iplik, katman, motifler)
+    sonuc.paste(katman, mask=serit.filter(ImageFilter.GaussianBlur(0.6)))
+    return {a_serit, a_iplik}
+
+
 def anahtar(kod, secim, genislik):
-    ozet = hashlib.sha1(json.dumps([kod, sorted(secim.items()), genislik]).encode()).hexdigest()[:16]
+    ozet = hashlib.sha1(json.dumps([kod, sorted(secim.items()), genislik, SURUM]).encode()).hexdigest()[:16]
     return f"{kod}_{ozet}_{genislik or 0}.jpg"
 
 
@@ -291,23 +420,44 @@ TAKIMLAR = [
 ACIK = {"RN03", "RN07", "RN01", "BN01", "BN04", "ALTIN", "GUMUS"}
 
 
+def _parlaklik(kod):
+    r, g, b = _hex(KARTELA[kod][2])
+    return 0.3 * r + 0.59 * g + 0.11 * b
+
+
+def _aileden(kod, aile):
+    """Takımdaki rengi istenen kartela ailesinde (RN / BN) en yakın parlaklıktaki renge çevirir."""
+    if kod in METALLER or kod.startswith(aile):
+        return kod
+    adaylar = [k for k in KARTELA if k.startswith(aile)]
+    return min(adaylar, key=lambda k: abs(_parlaklik(k) - _parlaklik(kod)))
+
+
+# Lazer desenli bantlar fikirde açık / metalik renk alır (koyuda delikler kaybolur)
+DESEN_FIKIR = ["GUMUS", "ALTIN", "BN01", "RN07", "BN04", "RN03", "BN03", "GUMUS"]
+
+
 def fikirler(kod, adet=6):
-    """Modelin yapısı aynı, kartela renkleri farklı 6 takım (fotoğraftakine benzeyenler atlanır)."""
+    """Modelin yapısı aynı, kartela renkleri farklı 6 takım (fotoğraftakine benzeyenler atlanır).
+    Fotoğrafta Bienca olan zemin Bienca'da, Rono olan Rono'da kalır."""
     bl = bolgeler(kod)
     asil = secim_temizle(kod, {})
     sonuc = []
-    for zemin, vurgu, ikinci in TAKIMLAR:
+    for sira, (zemin, vurgu, ikinci) in enumerate(TAKIMLAR):
         secim = {}
         for b in bl:
             secenek = secenekler(b["tur"])
             if b["rol"] == "iplik":
                 secim[b["anahtar"]] = "kahve" if zemin in ACIK or vurgu in ACIK else "bej"
                 continue
-            istenen = {"zemin": zemin, "vurgu": vurgu, "ikinci": ikinci, "metal": vurgu}[b["rol"]]
-            if istenen not in secenek:
-                istenen = "ALTIN" if b["rol"] == "metal" else ikinci
-            if b["rol"] == "metal" and istenen not in METALLER:
-                istenen = METALLER[len(sonuc) % 2]
+            if b["rol"] in ("metal",) or (b["rol"] == "vurgu" and b["tur"] == DESEN):
+                istenen = DESEN_FIKIR[sira % len(DESEN_FIKIR)]
+                if b["rol"] == "metal" and istenen not in METALLER:
+                    istenen = METALLER[sira % 2]
+            else:
+                istenen = {"zemin": zemin, "vurgu": vurgu, "ikinci": ikinci}[b["rol"]]
+                if b["varsayilan"] not in METALLER:
+                    istenen = _aileden(istenen, b["varsayilan"][:2])
             secim[b["anahtar"]] = istenen if istenen in secenek else b["varsayilan"]
         if secim != asil and secim not in sonuc:
             sonuc.append(secim)
@@ -317,6 +467,8 @@ def fikirler(kod, adet=6):
 
 
 def istemci_verisi(resim_adresleri):
+    from django.urls import reverse
+
     """Bayi ekranı için: model → bölgeler, seçenekler (resim/renk), fikirler."""
     veri = {}
     for kod, model in MODELLER.items():
@@ -332,5 +484,14 @@ def istemci_verisi(resim_adresleri):
                     sec.append({"k": deger, "ad": f"{deger} {KARTELA[deger][1]}", "resim": resim_adresleri.get(deger, ""),
                                 "hex": KARTELA[deger][2]})
             bl.append({"anahtar": b["anahtar"], "ad": b["ad"], "varsayilan": b["varsayilan"], "secenekler": sec})
-        veri[kod] = {"ad": model["ad"], "bolgeler": bl, "fikirler": fikirler(kod)}
+        ek = []
+        if kod in DESEN_DEGISIR:
+            ek.append({"anahtar": "desen_kodu", "ad": "Lazer deseni", "varsayilan": "", "secenekler":
+                       [{"k": "", "ad": "Fotoğraftaki"}] + [{"k": d, "ad": d, "resim": reverse("tasarim_desen_onizleme", args=[d])}
+                                                             for d in lazer_desenleri()]})
+        if kod in NAKIS_DEGISIR:
+            ek.append({"anahtar": "motif", "ad": "Nakış motifi", "varsayilan": "", "secenekler":
+                       [{"k": "", "ad": "Fotoğraftaki"}] + [{"k": m, "ad": parcali.MOTIF[m]["ad"],
+                                                              "resim": reverse("parcali_motif", args=[m])} for m in parcali.MOTIF]})
+        veri[kod] = {"ad": model["ad"], "bolgeler": bl + ek, "fikirler": fikirler(kod)}
     return veri

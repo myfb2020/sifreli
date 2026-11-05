@@ -2425,15 +2425,14 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.assertContains(sayfa, 'data-kod="RNO-001"')
         self.assertContains(sayfa, "RN06")
         self.assertNotContains(self.client.get(reverse("bayi_ana")), reverse("parcali_studyo"))
-        # Rono: kartela rengi zorunlu
-        self.assertContains(self.client.post(reverse("bayi_siparis"), self._olcu(("160", "230", "2"), model="RNO-001")),
-                            "Kartelanın renklerinden")
+        # Rono: fotoğraflı model, renkler bölge bölge (kartela)
         yanit = self.client.post(reverse("bayi_siparis"), self._olcu(("160", "230", "2"), ("80", "150", ""),
-                                                                     model="RNO-001", renk="RN06", notlar="Acele"))
+                                                                     model="RNO-001", bolgeler='{"orta": "RN06"}',
+                                                                     notlar="Acele"))
         self.assertRedirects(yanit, reverse("bayi_ana"))
         sp = Siparis.objects.get(musteri=bayi, katalog_modeli__kod="RNO-001")
-        self.assertEqual((sp.durum, sp.renk, sp.kalemler.count(), sp.lotlar.count()),
-                         ("onay", Renk.objects.get(kod="RN06"), 2, 0))
+        self.assertEqual((sp.durum, sp.renk, sp.kalemler.count(), sp.lotlar.count()), ("onay", None, 2, 0))
+        self.assertIn("Orta: RN06", sp.renk_notu)
         self.assertContains(self.client.get(reverse("bayi_ana")), "Onay bekliyor")
         # Peluş: renk yazılır
         self.assertContains(self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-449")),
@@ -2630,7 +2629,7 @@ class FotoModelTesti(TasarimStudyosuTesti):
         for kod in foto_model.MODELLER:
             asil = foto_model.secim_temizle(kod, {})
             fikirler = foto_model.fikirler(kod)
-            self.assertEqual(len(fikirler), 6)
+            self.assertGreaterEqual(len(fikirler), 6 if foto_model.MODELLER[kod].get("kaynak") != "katalog" else 2)
             self.assertNotIn(asil, fikirler)
             resim = foto_model.boya(kod, fikirler[0], 200)
             self.assertEqual(resim.width, 200)
@@ -2646,6 +2645,23 @@ class FotoModelTesti(TasarimStudyosuTesti):
         b = foto_model.jpeg("RNO-012", foto_model.secim_temizle("RNO-012", {"bant": "RN06"}), 260)
         self.assertNotEqual(a, b)
         self.assertEqual(b, foto_model.jpeg("RNO-012", foto_model.secim_temizle("RNO-012", {"bant": "RN06"}), 260))
+
+    def test_katalog_fotograflari_desen_ve_motif(self):
+        from . import foto_model
+        katalog = [k for k, m in foto_model.MODELLER.items() if m.get("kaynak") == "katalog"]
+        self.assertEqual(len(katalog), 31)
+        for kod in ("BNA-004", "BNA-010", "RNO-002", "BNA-017"):
+            self.assertEqual(foto_model.boya(kod, foto_model.fikirler(kod)[0], 120).width, 120)
+        # lazer deseni ve nakış motifi değişir; geçersiz kod fotoğraftakine döner
+        secim = foto_model.secim_temizle("BNA-003", {"desen_kodu": "DB015", "desen": "ALTIN"})
+        self.assertEqual(secim["desen_kodu"], "DB015")
+        self.assertEqual(foto_model.secim_temizle("BNA-003", {"desen_kodu": "DB002"})["desen_kodu"], "")  # gizli desen
+        self.assertNotEqual(foto_model.jpeg("BNA-003", secim, 260),
+                            foto_model.jpeg("BNA-003", foto_model.secim_temizle("BNA-003", {"desen": "ALTIN"}), 260))
+        m = foto_model.secim_temizle("RNO-006", {"motif": "76.03", "iplik": "kahve"})
+        self.assertIn("Nakış: 76.03", foto_model.metin("RNO-006", m))
+        self.assertEqual(foto_model.secim_temizle("RNO-006", {"motif": "73.01"})["motif"], "")  # silinen motif
+        self.assertEqual(foto_model.boya("RNO-006", m, 200).width, 200)
 
     def test_bayi_fotografli_siparis(self):
         from .models import Musteri

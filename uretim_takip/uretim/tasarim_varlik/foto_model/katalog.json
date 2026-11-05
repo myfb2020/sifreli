@@ -1,0 +1,866 @@
+{
+"BNA-001": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.494,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN02",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN01",
+"zemin"
+]
+]
+},
+"BNA-002": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.556,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN02",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN07",
+"zemin"
+]
+]
+},
+"BNA-003": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.487,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN02",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN07",
+"zemin"
+]
+]
+},
+"BNA-004": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.562,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN02",
+"zemin"
+]
+]
+},
+"BNA-005": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.556,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN02",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN03",
+"zemin"
+]
+]
+},
+"BNA-006": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.562,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN03",
+"zemin"
+]
+]
+},
+"BNA-007": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.525,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN03",
+"zemin"
+]
+]
+},
+"BNA-008": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.575,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN02",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN03",
+"zemin"
+]
+]
+},
+"BNA-009": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.544,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN02",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN07",
+"zemin"
+]
+]
+},
+"BNA-010": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.581,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN05",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN04",
+"zemin"
+]
+]
+},
+"BNA-011": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.494,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"GUMUS",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN04",
+"zemin"
+]
+]
+},
+"BNA-012": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.569,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"GUMUS",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN04",
+"zemin"
+]
+]
+},
+"BNA-013": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.531,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN06",
+"zemin"
+]
+]
+},
+"BNA-014": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.556,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"BN03",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN04",
+"zemin"
+]
+]
+},
+"BNA-015": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.487,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN07",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN02",
+"zemin"
+]
+]
+},
+"BNA-016": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.562,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN01",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN02",
+"zemin"
+]
+]
+},
+"BNA-017": {
+"kaynak": "katalog",
+"sira": [
+3
+],
+"px_cm": 2.487,
+"bolgeler": [
+[
+"orta",
+"Halı",
+"malzeme",
+"BN03",
+"zemin"
+]
+]
+},
+"BNA-018": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.594,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"BN02",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN01",
+"zemin"
+]
+]
+},
+"BNA-019": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.55,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN05",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN07",
+"zemin"
+]
+]
+},
+"BNA-020": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.562,
+"bolgeler": [
+[
+"desen",
+"Desenli paneller",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Zemin",
+"malzeme",
+"BN03",
+"zemin"
+]
+]
+},
+"BNA-021": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.487,
+"bolgeler": [
+[
+"desen",
+"Desenli şerit",
+"desen",
+"ALTIN",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN04",
+"zemin"
+]
+]
+},
+"BNA-022": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.525,
+"bolgeler": [
+[
+"desen",
+"Köşe desenleri",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN01",
+"zemin"
+]
+]
+},
+"BNA-023": {
+"kaynak": "katalog",
+"sira": [
+3
+],
+"px_cm": 2.487,
+"bolgeler": [
+[
+"orta",
+"Halı",
+"malzeme",
+"BN03",
+"zemin"
+]
+]
+},
+"BNA-024": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.406,
+"bolgeler": [
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"BN01",
+"zemin"
+]
+]
+},
+"BNA-025": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.5,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN04",
+"ikinci"
+],
+[
+"desen",
+"Altın çizgiler",
+"desen",
+"ALTIN",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN04",
+"zemin"
+]
+]
+},
+"BNA-026": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.688,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"BN03",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN07",
+"zemin"
+]
+]
+},
+"RNO-001": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.569,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN01",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"GUMUS",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN02",
+"zemin"
+]
+]
+},
+"RNO-002": {
+"kaynak": "katalog",
+"sira": [
+2,
+3
+],
+"px_cm": 2.562,
+"bolgeler": [
+[
+"desen",
+"Şerit",
+"desen",
+"BN03",
+"vurgu"
+],
+[
+"orta",
+"Zemin",
+"malzeme",
+"RN01",
+"zemin"
+]
+]
+},
+"RNO-003": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.65,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"ALTIN",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN01",
+"zemin"
+]
+]
+},
+"RNO-004": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.575,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"ALTIN",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN07",
+"zemin"
+]
+]
+},
+"RNO-005": {
+"kaynak": "katalog",
+"sira": [
+1,
+2,
+3
+],
+"px_cm": 2.706,
+"bolgeler": [
+[
+"kenar",
+"Dış kenar",
+"desen",
+"RN03",
+"ikinci"
+],
+[
+"desen",
+"Lazer desenli bant",
+"desen",
+"RN01",
+"vurgu"
+],
+[
+"orta",
+"Orta",
+"malzeme",
+"RN07",
+"zemin"
+]
+]
+}
+}

@@ -65,7 +65,7 @@
     document.querySelectorAll("#foto-bolgeler [data-secilen]").forEach((e) => {
       const b = FOTO[fotoKod].bolgeler.find((x) => x.anahtar === e.dataset.secilen);
       const s = b.secenekler.find((x) => x.k === fotoSecim[b.anahtar]);
-      e.textContent = s ? s.ad + (s.k === b.varsayilan ? " (fotoğraftaki)" : "") : "";
+      e.textContent = s ? s.ad + (s.k === b.varsayilan && s.k ? " (fotoğraftaki)" : "") : "";
     });
   }
   function fotoKur(kod, secim) {
@@ -78,7 +78,10 @@
       const iz = d.querySelector(".cip-izgara");
       b.secenekler.forEach((s) => {
         const c = document.createElement("button"); c.type = "button"; c.className = "cip"; c.dataset.bolge = b.anahtar; c.dataset.k = s.k; c.title = s.ad;
-        c.innerHTML = (s.resim ? `<img src="${s.resim}" alt="" loading="lazy">` : `<i style="background:${s.hex}"></i>`) + `<span>${s.k.length === 4 ? s.k : s.ad}</span>`;
+        const ozel = b.anahtar === "desen_kodu" || b.anahtar === "motif";
+        if (ozel) c.classList.add("cip-desen");
+        c.innerHTML = (s.resim ? `<img src="${s.resim}" alt="" loading="lazy">` : (s.hex ? `<i style="background:${s.hex}"></i>` : "")) +
+          `<span>${ozel || s.k.length !== 4 ? s.ad : s.k}</span>`;
         c.addEventListener("click", () => { fotoSecim[b.anahtar] = s.k; fotoCiz(); });
         iz.appendChild(c);
       });
@@ -89,7 +92,7 @@
     [asil, ...m.fikirler].forEach((f, i) => {
       const b = document.createElement("button"); b.type = "button"; b.className = "fikir";
       b.innerHTML = `<img src="${adres(kod, f, "k")}" alt="" loading="lazy"><span>${i ? "Fikir " + i : "Fotoğraftaki"}</span>`;
-      b.addEventListener("click", () => { fotoSecim = { ...f }; fotoCiz(); document.getElementById("foto-resim").scrollIntoView({ behavior: "smooth", block: "center" }); });
+      b.addEventListener("click", () => { fotoSecim = { ...fotoSecim, ...f }; fotoCiz(); document.getElementById("foto-resim").scrollIntoView({ behavior: "smooth", block: "center" }); });
       fk.appendChild(b);
     });
     fotoCiz();
@@ -181,6 +184,8 @@
   .cip-izgara { display:flex; flex-wrap:wrap; gap:6px; }
   .cip { border:2px solid #eee3d8; background:#fff; border-radius:24px; padding:3px 10px 3px 3px; display:flex; align-items:center; gap:6px; font-size:13px; }
   .cip img, .cip i { width:30px; height:30px; border-radius:50%; object-fit:cover; display:block; box-shadow:inset 0 0 0 1px rgba(0,0,0,.1); }
+  .cip-desen { border-radius:10px; padding:3px 8px 3px 3px; }
+  .cip-desen img { width:44px; height:44px; border-radius:6px; background:#fff; object-fit:contain; }
   .cip.secili { border-color:var(--ana); box-shadow:0 0 0 2px var(--ana); }
   .fikir-baslik { margin:6px 0 0; font-size:16px; }
   .fikir-izgara { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:8px; }
