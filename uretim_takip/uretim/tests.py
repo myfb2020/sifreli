@@ -1320,21 +1320,21 @@ class FasonTesti(TemelVeri):
         from .hesaplar import ofis_grubu
         from .models import FasonIsi
 
-        tur = {ad: DeriTuru.objects.get(ad=ad) for ad in ("Keçe", "Süet", "Rona")}
-        lamine = DeriTuru.objects.get(ad="3'lü lamine (Keçe+Süet+Rona)")
+        tur = {ad: DeriTuru.objects.get(ad=ad) for ad in ("Keçe", "Süet", "Rono")}
+        lamine = DeriTuru.objects.get(ad="3'lü lamine (Keçe+Süet+Rono)")
         fasoncu = Tedarikci.objects.create(ad="Presçi")
         lotlar = {ad: HamDeriGirisi.objects.create(tedarikci=self.ham.tedarikci, deri_turu=t, kg=0, m2=Decimal("50"),
-                                                   renk="Bej" if ad == "Rona" else "Gri",
-                                                   model="Mermer" if ad == "Rona" else "")
+                                                   renk="Bej" if ad == "Rono" else "Gri",
+                                                   model="Mermer" if ad == "Rono" else "")
                   for ad, t in tur.items()}
         ofis = get_user_model().objects.create_user("ofis", password="x", is_staff=True)
         ofis.groups.add(ofis_grubu())
         self.client.force_login(ofis)
 
         v = {"fasoncu": fasoncu.pk, "hedef_tur": lamine.pk, "kaynak-TOTAL_FORMS": 3, "kaynak-INITIAL_FORMS": 0}
-        for i, ad in enumerate(("Keçe", "Süet", "Rona")):
+        for i, ad in enumerate(("Keçe", "Süet", "Rono")):
             v[f"kaynak-{i}-stok_no"] = lotlar[ad].lot_no
-            v[f"kaynak-{i}-m2"] = "10" if ad != "Rona" else "12"
+            v[f"kaynak-{i}-m2"] = "10" if ad != "Rono" else "12"
         # Stokta olandan fazlası gönderilemez
         fazla = dict(v, **{"kaynak-0-m2": "60"})
         self.assertContains(self.client.post(reverse("fason_gonder"), fazla), "stokta")
@@ -1346,7 +1346,7 @@ class FasonTesti(TemelVeri):
         self.assertEqual(fason.katman_m2, Decimal("10.67"))
         self.assertContains(self.client.get(reverse("fason_listesi")), fason.no)
 
-        # Teslim al: renk/model rona katmanından gelir
+        # Teslim al: renk/model rono katmanından gelir
         sayfa = self.client.get(reverse("fason_detay", args=[fason.pk]))
         self.assertContains(sayfa, 'value="Bej"')
         yanit = self.client.post(reverse("fason_detay", args=[fason.pk]), {"m2": "10", "renk": "Bej", "model": "Mermer"})
@@ -1358,7 +1358,7 @@ class FasonTesti(TemelVeri):
         self.assertEqual(fason.fire_m2, Decimal("0.67"))
         detay = self.client.get(reverse("stok_detay", args=[yeni.pk]))
         self.assertContains(detay, fason.no)
-        self.assertContains(detay, lotlar["Rona"].lot_no)
+        self.assertContains(detay, lotlar["Rono"].lot_no)
         # İkinci kez teslim alınamaz
         with self.assertRaises(ValidationError):
             servisler.fason_teslim_al(fason=fason, m2=Decimal("1"))
@@ -2353,3 +2353,196 @@ class IstasyonKendiIsiTesti(TemelVeri):
         self.assertEqual((i2.giris_m2, i2.cikis_m2), (Decimal("10.00"), Decimal("8.50")))
         # hiçbir şey yazılmazsa giriş aynen geçer; lazer dışı istasyonda ölçü alanı yok
         self.assertNotContains(self.client.get(reverse("islem_baslat") + f"?lot={lot2.pk}"), "Lazer çıkışı")
+
+
+class IkinciGuncellemeTesti(TasarimStudyosuTesti):
+    """Kartela, basit sipariş, bayi görünümü, Bayiler + davet, bildirim, tamir, Nakışlı etiketi."""
+
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def _olcu(self, *satirlar, **ek):
+        v = {"olcu-TOTAL_FORMS": str(len(satirlar)), "olcu-INITIAL_FORMS": "0"}
+        for i, (en, boy, adet) in enumerate(satirlar):
+            v.update({f"olcu-{i}-en_cm": en, f"olcu-{i}-boy_cm": boy, f"olcu-{i}-adet": adet})
+        v.update(ek)
+        return v
+
+    def test_kartela_ve_rono_adi(self):
+        from .models import KatalogSerisi, Renk
+        self.assertEqual(Renk.objects.filter(grup="rono").count(), 7)
+        self.assertEqual(Renk.objects.filter(grup="bienca").count(), 4)
+        self.assertEqual(KatalogSerisi.objects.get(ad="Rono").kartela, "rono")
+        self.assertTrue(DeriTuru.objects.filter(ad="Rono").exists())
+        self.assertFalse(DeriTuru.objects.filter(ad="Rona").exists())
+        from . import parcali
+        self.assertEqual(parcali.MALZEME_AD["kahve_keten"], "Rono RN06 Koyu kahve")
+        self.assertEqual(parcali._sec("siyah_keten", parcali.MALZEMELER, "x"), "antrasit_keten")
+
+    def test_bayi_basit_siparis_ve_gorunum(self):
+        from .models import Musteri, Renk
+        bayi = Musteri.objects.get(ad="Ankara Bayi")
+        bayi.studyo_acik = False
+        bayi.save()
+        self.client.force_login(self.bayi_hesap)
+        self.assertRedirects(self.client.get(reverse("parcali_studyo")), reverse("bayi_siparis"))
+        sayfa = self.client.get(reverse("bayi_siparis"))
+        self.assertContains(sayfa, 'data-kod="RNO-001"')
+        self.assertContains(sayfa, "RN06")
+        self.assertNotContains(self.client.get(reverse("bayi_ana")), reverse("parcali_studyo"))
+        # Rono: kartela rengi zorunlu
+        self.assertContains(self.client.post(reverse("bayi_siparis"), self._olcu(("160", "230", "2"), model="RNO-001")),
+                            "Kartelanın renklerinden")
+        yanit = self.client.post(reverse("bayi_siparis"), self._olcu(("160", "230", "2"), ("80", "150", ""),
+                                                                     model="RNO-001", renk="RN06", notlar="Acele"))
+        self.assertRedirects(yanit, reverse("bayi_ana"))
+        sp = Siparis.objects.get(musteri=bayi, katalog_modeli__kod="RNO-001")
+        self.assertEqual((sp.durum, sp.renk, sp.kalemler.count(), sp.lotlar.count()),
+                         ("onay", Renk.objects.get(kod="RN06"), 2, 0))
+        self.assertContains(self.client.get(reverse("bayi_ana")), "Onay bekliyor")
+        # Peluş: renk yazılır
+        self.assertContains(self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-449")),
+                            "Rengi yazın")
+        self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-449", renk_notu="Krem"))
+        self.assertTrue(Siparis.objects.filter(musteri=bayi, renk_notu="Krem").exists())
+        # ofis onaylar → her ölçüye iş; bayi istasyonu "Üretimde" olarak görür, "bekliyor" görmez
+        self.client.force_login(self.yonetici)
+        self.client.post(reverse("siparis_onay", args=[sp.pk]), {"islem": "onayla", "onay-hali_turu": HaliTuru.objects.get(ad="Suni deri halı").pk,
+                                                                 "onay-teslim_tarihi": "2026-12-20"})
+        sp.refresh_from_db()
+        self.assertEqual(sp.lotlar.count(), 2)
+        lot = sp.lotlar.first()
+        servisler.islem_baslat(lot=lot, asama=lot.siradaki_asama, personel=self.ahmet)
+        # ofisin girdiği sipariş de bayide görünür
+        Siparis.objects.create(musteri=bayi, urun="WhatsApp siparişi", teslim_tarihi=timezone.localdate())
+        self.client.force_login(self.bayi_hesap)
+        ana = self.client.get(reverse("bayi_ana")).content.decode()
+        self.assertIn("Üretimde · Lazer kesim", ana)
+        self.assertIn("WhatsApp siparişi", ana)
+        self.assertNotIn("bekliyor</span>", ana.replace("Onay bekliyor</span>", ""))
+        self.assertNotIn("çalışılıyor", ana)
+        self.assertNotIn(str(self.ahmet), ana)
+
+    def test_bayiler_sayfasi_ve_davet(self):
+        from .models import BayiDavet, Musteri
+        self.client.force_login(self.ofis)
+        yanit = self.client.post(reverse("bayi_listesi"), {"ad": "İzmir Bayi", "telefon": "0532 111 22 33"})
+        davet = BayiDavet.objects.latest("pk")
+        self.assertRedirects(yanit, f"{reverse('bayi_listesi')}?davet={davet.pk}")
+        sayfa = self.client.get(yanit.url)
+        self.assertContains(sayfa, "wa.me/905321112233")
+        self.assertContains(sayfa, reverse("davet_ac", args=[davet.anahtar]))
+        k = davet.kullanici
+        self.assertEqual((k.username, k.has_usable_password(), Musteri.objects.get(ad="İzmir Bayi").studyo_acik),
+                         ("izmir-bayi", False, False))
+        # ofis hesabı kapatamaz
+        m = Musteri.objects.get(ad="İzmir Bayi")
+        self.assertEqual(self.client.post(reverse("bayi_hesap", args=[m.pk])).status_code, 403)
+        # bayi bağlantıyı açar, şifresini koyar, girer
+        self.client.logout()
+        adres = reverse("davet_ac", args=[davet.anahtar])
+        self.assertContains(self.client.get(adres), "izmir-bayi")
+        yanit = self.client.post(adres, {"new_password1": "Hali-2026x", "new_password2": "Hali-2026x"})
+        self.assertRedirects(yanit, reverse("bayi_ana"))
+        k.refresh_from_db()
+        self.assertTrue(k.check_password("Hali-2026x"))
+        self.client.logout()
+        self.assertEqual(self.client.get(adres).status_code, 410)  # tek kullanımlık
+        # süresi dolan bağlantı
+        self.client.force_login(self.ofis)
+        self.client.post(reverse("bayi_davet", args=[m.pk]))
+        eski = BayiDavet.objects.latest("pk")
+        BayiDavet.objects.filter(pk=eski.pk).update(son_gecerlilik=timezone.now() - timedelta(minutes=1))
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("davet_ac", args=[eski.anahtar])).status_code, 410)
+
+    def test_bildirim_sifreleme_ve_gonderim(self):
+        import base64
+        from unittest import mock
+
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+        from . import bildirim
+        from .models import BildirimAboneligi
+        # tarayıcı tarafı anahtarları
+        ua = ec.generate_private_key(ec.SECP256R1())
+        ua_acik = ua.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+        auth = b"0123456789abcdef"
+        b64 = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+        govde = bildirim.sifrele(b'{"x":1}', b64(ua_acik), b64(auth))
+        tuz, idlen = govde[:16], govde[20]
+        sunucu_acik = govde[21:21 + idlen]
+        ortak = ua.exchange(ec.ECDH(), ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), sunucu_acik))
+        h = lambda s, k, i, n: HKDF(algorithm=hashes.SHA256(), length=n, salt=s, info=i).derive(k)
+        ikm = h(auth, ortak, b"WebPush: info\x00" + ua_acik + sunucu_acik, 32)
+        acik = AESGCM(h(tuz, ikm, b"Content-Encoding: aes128gcm\x00", 16)).decrypt(
+            h(tuz, ikm, b"Content-Encoding: nonce\x00", 12), govde[21 + idlen:], None)
+        self.assertEqual(acik, b'{"x":1}\x02')
+        # abonelik kaydı + yeni bayi siparişinde gönderim
+        self.client.force_login(self.ofis)
+        self.client.post(reverse("bildirim_abone"), data={"endpoint": "https://fcm.googleapis.com/fcm/send/abc",
+                                                          "keys": {"p256dh": b64(ua_acik), "auth": b64(auth)}},
+                         content_type="application/json")
+        self.assertEqual(BildirimAboneligi.objects.count(), 1)
+        self.assertContains(self.client.get(reverse("pano")), "bildirim_durum".replace("_", "/")[:0] + "/bildirim/durum/")
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value = None
+            self.client.force_login(self.bayi_hesap)
+            self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="RNO-002", renk="RN01"))
+        istek = urlopen.call_args[0][0]
+        self.assertEqual(istek.full_url, "https://fcm.googleapis.com/fcm/send/abc")
+        self.assertTrue(istek.headers["Authorization"].startswith("vapid t="))
+        self.client.force_login(self.ofis)
+        durum = self.client.get(reverse("bildirim_durum")).json()
+        self.assertEqual(durum["sayi"], Siparis.objects.filter(durum="onay").count())
+        self.assertIn("RNO-002", durum["metin"])
+
+    def test_tamir_iade(self):
+        biye = Asama.objects.get(ad="Biye")
+        lot = self.yeni_lot(siparis=self.siparis)
+        UretimLotu.objects.filter(pk=lot.pk).update(durum="tamamlandi")
+        Siparis.objects.filter(pk=self.siparis.pk).update(durum="sevk", musteri=self.bayi_hesap.hesap_ayari.musteri)
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("siparis_detay", args=[self.siparis.pk])), reverse("tamir_ac", args=[self.siparis.pk]))
+        yanit = self.client.post(reverse("tamir_ac", args=[self.siparis.pk]), {
+            "neden": "tamir", "kaynak_lot": lot.pk, "aciklama": "Biye söküldü", "istasyonlar": [biye.pk],
+            "hata_asama": biye.pk, "hata_personel": self.ayse.pk})
+        self.assertRedirects(yanit, reverse("siparis_detay", args=[self.siparis.pk]))
+        self.siparis.refresh_from_db()
+        self.assertEqual(self.siparis.durum, "tamirde")
+        tamir = self.siparis.tamirler.get()
+        # Biye ekranına TAMİR olarak düşer
+        gelen = [k for k in uyarilar.gelenler(biye) if k.lot == tamir.lot]
+        self.assertEqual(len(gelen), 1)
+        self.client.force_login(self.yonetici)
+        self.assertContains(self.client.get(reverse("istasyon_parca", args=[biye.pk])), "TAMİR")
+        # bayi görmez: hâlâ "Sevk edildi"
+        self.client.force_login(self.bayi_hesap)
+        ana = self.client.get(reverse("bayi_ana"))
+        self.assertContains(ana, "Sevk edildi")
+        self.assertNotContains(ana, "Tamir")
+        # tamir bitince sipariş eski durumuna döner; stok değişmez
+        kalan = self.ham.kalan_m2
+        i = servisler.islem_baslat(lot=tamir.lot, asama=biye, personel=self.ahmet)
+        servisler.islem_bitir(islem=i, personel=self.ahmet)
+        self.siparis.refresh_from_db()
+        tamir.refresh_from_db()
+        self.assertEqual((self.siparis.durum, tamir.bitis is not None, self.ham.kalan_m2), ("sevk", True, kalan))
+        ozet = raporlar.tamir_ozeti(timezone.localdate(), timezone.localdate())
+        self.assertEqual((ozet["toplam"], ozet["istasyon"], ozet["personel"]), (1, [("Biye", 1)], [("Ayşe", 1)]))
+
+    def test_nakisli_etiketi(self):
+        nakisli = HaliTuru.objects.get(ad="Nakışlı halı")
+        sp = Siparis.objects.create(musteri=self.siparis.musteri, urun="N", hali_turu=nakisli, teslim_tarihi=timezone.localdate())
+        lot = self.yeni_lot(siparis=sp)
+        nakis = Asama.objects.get(ad="Nakış")
+        i = servisler.islem_baslat(lot=lot, asama=nakis, personel=self.ahmet)
+        servisler.islem_bitir(islem=i, personel=self.ahmet)
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        k = [k for k in uyarilar.gelenler(lazer) if k.lot == lot][0]
+        self.assertEqual(k.on_islem, "Nakışlı")
+        self.client.force_login(self.yonetici)
+        self.assertContains(self.client.get(reverse("istasyon_parca", args=[lazer.pk])), "(Nakışlı)")

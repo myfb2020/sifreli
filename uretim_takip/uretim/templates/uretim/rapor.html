@@ -12,6 +12,16 @@
 {% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors.0 }}</div>{% endif %}
 <p class="soluk">{{ bas|date:"d.m.Y" }} – {{ son|date:"d.m.Y" }} arasında <b>tamamlanan</b> işlemler. İş, başlatan personelin hanesine yazılır.</p>
 
+<div class="kart">
+  <h2>🔧 Tamir / iade ({{ tamir.toplam }})</h2>
+  {% if tamir.toplam %}
+  <div class="izgara">
+    <div><b>Neden</b>{% for ad, n in tamir.neden %}<div>{{ ad }}: {{ n }}</div>{% endfor %}</div>
+    <div><b>Hata hangi istasyonda</b>{% for ad, n in tamir.istasyon %}<div>{{ ad }}: {{ n }}</div>{% endfor %}</div>
+    <div><b>Hata kimin</b>{% for ad, n in tamir.personel %}<div>{{ ad }}: {{ n }}</div>{% endfor %}</div>
+  </div>
+  {% else %}<p class="soluk">Bu tarih aralığında tamir / iade yok.</p>{% endif %}
+</div>
 <div class="kart tablo-kap">
   <h2>Personel performansı</h2>
   <table>

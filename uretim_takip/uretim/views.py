@@ -220,7 +220,7 @@ def rapor(request):
     return render(
         request, "uretim/rapor.html",
         {"form": form, "personel": personel, "asama": asama, "makine": makine, "bas": bas, "son": son,
-         "personel_istasyon": personel_istasyon, "bekleme": bekleme},
+         "personel_istasyon": personel_istasyon, "bekleme": bekleme, "tamir": raporlar.tamir_ozeti(bas, son)},
     )
 
 

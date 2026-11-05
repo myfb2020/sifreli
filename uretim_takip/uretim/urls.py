@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import aktarim_views, parcali_views, saglik, fason_views, katalog_views, tasarim_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
+from . import aktarim_views, bayi_views, parcali_views, saglik, fason_views, katalog_views, tasarim_views, hesaplar, istasyon_views, malzeme_views, pwa, qr, siparis_views, stok_views, temizlik, views, yedek
 
 urlpatterns = [
     path("", views.pano, name="pano"),
@@ -19,7 +19,15 @@ urlpatterns = [
     path("stok/<int:pk>/", stok_views.stok_detay, name="stok_detay"),
     path("stok/bilgi/<str:lot_no>/", stok_views.stok_bilgi, name="stok_bilgi"),
     path("stok/<int:pk>/duzelt/", malzeme_views.deri_duzelt, name="deri_duzelt"),
-    path("bayi/", tasarim_views.bayi_ana, name="bayi_ana"),
+    path("bayi/", bayi_views.bayi_ana, name="bayi_ana"),
+    path("bayi/siparis/", bayi_views.bayi_siparis, name="bayi_siparis"),
+    path("davet/<str:anahtar>/", bayi_views.davet_ac, name="davet_ac"),
+    path("bayiler/", bayi_views.bayi_listesi, name="bayi_listesi"),
+    path("bayiler/<int:pk>/davet/", bayi_views.bayi_davet, name="bayi_davet"),
+    path("bayiler/<int:pk>/studyo/", bayi_views.bayi_studyo, name="bayi_studyo"),
+    path("bayiler/<int:pk>/hesap/", bayi_views.bayi_hesap, name="bayi_hesap"),
+    path("bildirim/durum/", bayi_views.bildirim_durum, name="bildirim_durum"),
+    path("bildirim/abone/", bayi_views.bildirim_abone, name="bildirim_abone"),
     path("tasarim/", tasarim_views.studyo, name="tasarim_studyo"),
     path("tasarim/parcali/", parcali_views.studyo, name="parcali_studyo"),
     path("tasarim/parcali/fikir/", parcali_views.fikir, name="parcali_fikir"),
@@ -55,6 +63,7 @@ urlpatterns = [
     path("siparisler/<int:pk>/durum/", siparis_views.siparis_durum, name="siparis_durum"),
     path("siparisler/<int:pk>/acil/", siparis_views.siparis_acil, name="siparis_acil"),
     path("siparisler/<int:pk>/duzenle/", siparis_views.siparis_duzenle, name="siparis_duzenle"),
+    path("siparisler/<int:pk>/tamir/", siparis_views.tamir_ac, name="tamir_ac"),
     path("siparisler/<int:pk>/fotograf/", siparis_views.siparis_foto_ekle, name="siparis_foto_ekle"),
     path("siparis-fotografi/<int:pk>/sil/", siparis_views.siparis_foto_sil, name="siparis_foto_sil"),
     path("siparis-fotografi/<int:pk>/model/", siparis_views.siparis_foto_model, name="siparis_foto_model"),

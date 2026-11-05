@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block baslik %}Tamir / iade{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:600px;margin:0 auto">
+  <p style="margin:0 0 8px"><a href="{% url 'siparis_detay' siparis.pk %}">← {{ siparis.siparis_no }}</a></p>
+  <h1>↩ Tamir / iade aç</h1>
+  <p class="soluk"><b>{{ siparis.siparis_no }}</b> · {{ siparis.musteri }} · {{ siparis.urun }}<br>
+    Tamir işi seçtiğiniz istasyonlardan sırayla geçer, ekranlarda 🔧 TAMİR olarak görünür. <b>Bayi bunu görmez</b>; stoğa giriş yapılmaz.</p>
+  <form method="post" class="dikey" enctype="multipart/form-data">
+    {% include "uretim/_form.html" %}
+    <button class="btn buyuk" type="submit" style="width:100%">Kaydet ve tamir işini aç</button>
+  </form>
+</div>
+<style>
+  #id_istasyonlar { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  #id_istasyonlar label { font-weight:normal; display:flex; gap:6px; align-items:center; }
+  #id_istasyonlar input { width:auto; }
+</style>
+{% endblock %}

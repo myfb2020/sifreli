@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block baslik %}Sipariş ver{% endblock %}
+{% block icerik %}
+<h1>🛒 Sipariş ver</h1>
+<form method="post" class="dikey bayi-siparis">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
+  {{ form.model }}{{ form.renk }}
+  <div class="kart">
+    <h2>1. Model seçin</h2>
+    <div class="seri-sekme">{% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}</div>
+    {% for x in seriler %}<div class="model-izgara" data-seri-izgara="{{ x.seri.pk }}"{% if not forloop.first %} hidden{% endif %}>
+      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}" data-kartela="{{ x.seri.kartela }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{{ m.kod }}</span></button>{% endfor %}
+    </div>{% endfor %}
+    <p id="secilen-model" class="soluk">Henüz model seçilmedi.</p>
+  </div>
+  <div class="kart">
+    <h2>2. Renk</h2>
+    <p id="renk-once" class="soluk">Önce model seçin.</p>
+    {% for grup, renkler in kartelalar.items %}<div class="renk-izgara" data-kartela="{{ grup }}" hidden>
+      {% for r in renkler %}<button type="button" class="renk-kart" data-kod="{{ r.kod }}"><img src="{{ r.resim_adresi }}" alt="" loading="lazy"><span><b>{{ r.kod }}</b> {{ r.ad }}</span></button>{% endfor %}
+    </div>{% endfor %}
+    <div id="renk-yaz" hidden>{% include "uretim/_alan.html" with alan=form.renk_notu %}</div>
+  </div>
+  <div class="kart">
+    <h2>3. Ölçüler (cm)</h2>
+    {{ olculer.management_form }}
+    <div class="olcu-baslik soluk"><span>En</span><span>Boy</span><span>Adet</span><span></span></div>
+    <div id="olcu-satirlari">{% for f in olculer %}<div class="olcu-satir">{{ f.kalem }}{{ f.en_cm }}{{ f.boy_cm }}{{ f.adet }}<button type="button" class="btn kucuk ikincil olcu-sil" aria-label="Satırı sil">✕</button>{% for e in f.non_field_errors %}<div class="errorlist" style="grid-column:1/-1">{{ e }}</div>{% endfor %}</div>{% endfor %}</div>
+    <button type="button" class="btn kucuk ikincil" id="olcu-ekle">+ Ölçü ekle</button>
+    <div id="olcu-toplam" class="soluk"></div>
+  </div>
+  <div class="kart">
+    <h2>4. Teslim ve not</h2>
+    {% include "uretim/_alan.html" with alan=form.teslim %}
+    {% include "uretim/_alan.html" with alan=form.notlar %}
+    <button class="btn buyuk" type="submit" style="width:100%">📤 Siparişi gönder</button>
+    <p class="soluk">Siparişiniz Bienna Fur'a "Onay bekliyor" olarak gider; onaylanınca üretime alınır ve teslim tarihi yazılır.</p>
+  </div>
+</form>
+<script>
+(function () {
+  const modelAlan = document.getElementById("id_model"), renkAlan = document.getElementById("id_renk");
+  document.querySelectorAll(".seri-sekme button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".seri-sekme button").forEach((x) => x.classList.toggle("etkin", x === b));
+    document.querySelectorAll("[data-seri-izgara]").forEach((g) => { g.hidden = g.dataset.seriIzgara !== b.dataset.seri; });
+  }));
+  function modelSec(k) {
+    document.querySelectorAll(".model-kart").forEach((x) => x.classList.toggle("secili", x === k));
+    modelAlan.value = k.dataset.kod;
+    document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>`;
+    const kartela = k.dataset.kartela;
+    document.getElementById("renk-once").hidden = true;
+    document.querySelectorAll(".renk-izgara").forEach((g) => { g.hidden = g.dataset.kartela !== kartela; });
+    document.getElementById("renk-yaz").hidden = !!kartela;
+    if (!kartela) renkAlan.value = "";
+  }
+  document.querySelectorAll(".model-kart").forEach((k) => k.addEventListener("click", () => modelSec(k)));
+  document.querySelectorAll(".renk-kart").forEach((k) => k.addEventListener("click", () => {
+    document.querySelectorAll(".renk-kart").forEach((x) => x.classList.toggle("secili", x === k));
+    renkAlan.value = k.dataset.kod;
+  }));
+  if (modelAlan.value) {
+    const k = document.querySelector(`.model-kart[data-kod="${modelAlan.value}"]`);
+    if (k) {
+      document.querySelector(`.seri-sekme button[data-seri="${k.closest("[data-seri-izgara]").dataset.seriIzgara}"]`).click();
+      modelSec(k);
+      const r = renkAlan.value && document.querySelector(`.renk-kart[data-kod="${renkAlan.value}"]`);
+      if (r) r.classList.add("secili");
+    }
+  }
+  // ölçü satırları
+  const kap = document.getElementById("olcu-satirlari"), toplamForm = document.getElementById("id_olcu-TOTAL_FORMS");
+  const sayi = (g) => parseFloat(((g && g.value) || "").replace(",", ".")) || 0;
+  function toplamYaz() {
+    let t = 0, adet = 0;
+    kap.querySelectorAll(".olcu-satir").forEach((s) => {
+      if (s.hidden) return;
+      const [en, boy, ad] = ["en_cm", "boy_cm", "adet"].map((a) => s.querySelector(`[name$="-${a}"]`));
+      const n = sayi(ad) || 1;
+      if (sayi(en) && sayi(boy)) { t += sayi(en) * sayi(boy) * n / 10000; adet += n; }
+    });
+    document.getElementById("olcu-toplam").innerHTML = t ? `Toplam: <b>${adet} halı · ${t.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} m²</b>` : "";
+  }
+  document.getElementById("olcu-ekle").addEventListener("click", () => {
+    const i = Number(toplamForm.value), yeni = kap.querySelector(".olcu-satir").cloneNode(true);
+    yeni.hidden = false;
+    yeni.querySelectorAll("input").forEach((g) => { g.name = g.name.replace(/olcu-\d+-/, `olcu-${i}-`); g.id = g.id.replace(/olcu-\d+-/, `olcu-${i}-`); g.value = ""; });
+    yeni.querySelectorAll(".errorlist").forEach((e) => e.remove());
+    kap.appendChild(yeni); toplamForm.value = i + 1;
+  });
+  kap.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("olcu-sil")) return;
+    const satir = e.target.closest(".olcu-satir");
+    satir.querySelectorAll("input:not([type=hidden])").forEach((g) => g.value = "");
+    if (kap.querySelectorAll(".olcu-satir:not([hidden])").length > 1) satir.hidden = true;
+    toplamYaz();
+  });
+  kap.addEventListener("input", toplamYaz); toplamYaz();
+})();
+</script>
+<style>
+  .seri-sekme { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .seri-sekme button { border:1px solid var(--cizgi, #ddd); background:#fff; border-radius:20px; padding:6px 12px; }
+  .seri-sekme button.etkin { background:var(--ana); color:#fff; border-color:var(--ana); }
+  .model-izgara, .renk-izgara { display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:8px; }
+  .model-kart, .renk-kart { border:2px solid #eee3d8; border-radius:10px; background:#fff; padding:4px; display:flex; flex-direction:column; gap:4px; align-items:center; font-size:13px; }
+  .model-kart img { width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:6px; }
+  .renk-kart img { width:100%; aspect-ratio:2/1; object-fit:cover; border-radius:6px; }
+  .model-kart.secili, .renk-kart.secili { border-color:var(--ana); box-shadow:0 0 0 2px var(--ana); }
+  .olcu-baslik, .olcu-satir { display:grid; grid-template-columns:1fr 1fr 70px 40px; gap:6px; align-items:center; }
+  .olcu-satir { margin-bottom:6px; } .olcu-satir input { width:100%; min-width:0; }
+</style>
+{% endblock %}

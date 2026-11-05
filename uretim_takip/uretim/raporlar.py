@@ -133,3 +133,20 @@ def bekleme_ozeti(baslangic, bitis):
             "ortalama": sum(sureler, timedelta(0)) / len(sureler), "en_uzun": max(sureler),
         })
     return sonuc
+
+
+def tamir_ozeti(baslangic, bitis):
+    """Tarih aralığında açılan tamir / iade kayıtları: neden, istasyon ve personele göre sayılar."""
+    from collections import Counter
+
+    from .models import TamirKaydi
+
+    bas, son = _aralik(baslangic, bitis)
+    kayitlar = list(TamirKaydi.objects.filter(tarih__gte=bas, tarih__lt=son).select_related("hata_asama", "hata_personel"))
+    nedenler = dict(TamirKaydi.NEDENLER)
+    return {
+        "toplam": len(kayitlar),
+        "neden": Counter(nedenler.get(k.neden, k.neden) for k in kayitlar).most_common(),
+        "istasyon": Counter(k.hata_asama.ad if k.hata_asama else "Bilinmiyor" for k in kayitlar).most_common(),
+        "personel": Counter(str(k.hata_personel) if k.hata_personel else "Bilinmiyor" for k in kayitlar).most_common(),
+    }

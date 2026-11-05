@@ -36,12 +36,12 @@ EN_COK_HALKA = 4
 
 # Renk aileleri: açıktan koyuya. Izgara / şerit / elmas parçaları bu sırayla boyanır.
 AILELER = [
-    ("krem_kahve", "Krem → kahve", ["beyaz_keten", "krem_keten", "bej_keten", "vizon_keten", "kahve_keten"]),
-    ("gri_antrasit", "Beyaz → antrasit", ["beyaz_keten", "acik_gri_keten", "gri_keten", "antrasit_keten", "siyah_keten"]),
-    ("siyah_altin", "Siyah – altın", ["siyah_keten", "varak_altin", "siyah_simli", "altin_ayna"]),
+    ("krem_kahve", "Krem → kahve", ["beyaz_keten", "krem_keten", "acik_gri_keten", "vizon_keten", "kahve_keten"]),
+    ("gri_antrasit", "Beyaz → antrasit", ["beyaz_keten", "acik_gri_keten", "gri_keten", "antrasit_keten"]),
+    ("siyah_altin", "Siyah – altın", ["antrasit_keten", "varak_altin", "siyah_simli", "altin_ayna"]),
     ("gri_gumus", "Gri – gümüş", ["acik_gri_keten", "varak_gumus", "gri_keten", "gumus_sim"]),
     ("toprak_bakir", "Toprak – bakır", ["krem_keten", "bakir_varak", "vizon_keten", "kahve_keten"]),
-    ("kontrast", "Siyah – beyaz", ["beyaz_keten", "siyah_keten"]),
+    ("kontrast", "Siyah – beyaz", ["beyaz_keten", "antrasit_keten"]),
 ]
 AILE = {k: m for k, _, m in AILELER}
 DIZILIMLER = [("gecis", "Merkezden kenara geçiş"), ("dama", "Dama (sırayla)"), ("karisik", "Karışık")]
@@ -59,17 +59,14 @@ MALZEMELER = [
     ("pelus_siyah", "Siyah peluş", "#262424"),
     ("bienca_krem", "Bienca krem (gümüş-siyah varak)", "#d8d2c8"),
     ("bienca_gri", "Bienca gri (gümüş varak)", "#9c9a96"),
-    ("rona_kahve_simli", "Rona kahve simli", "#4a4038"),
-    # keten görünümlü suni deriler (atölye fotoğrafları; adlar geçici)
-    ("beyaz_keten", "Kırık beyaz keten", "#e6e2d8"),
-    ("krem_keten", "Krem keten", "#d9d0bd"),
-    ("bej_keten", "Kum beji keten", "#cdbd9f"),
-    ("acik_gri_keten", "Açık gri keten", "#a9a7a2"),
-    ("gri_keten", "Gri keten", "#8e8c88"),
-    ("vizon_keten", "Vizon keten", "#8a8075"),
-    ("kahve_keten", "Kahve keten", "#6b5d4c"),
-    ("antrasit_keten", "Antrasit keten", "#55524e"),
-    ("siyah_keten", "Siyah keten", "#2b2a29"),
+    # Rono (üçlü lamine: süet + keçe + Rono) – müşteri kartelası RN01–RN07 (2026-11-05). Anahtarlar eski kayıtlar için aynı.
+    ("acik_gri_keten", "Rono RN01 Gri / vizon", "#b2a092"),
+    ("gri_keten", "Rono RN02 Koyu gri / gümüş", "#676260"),
+    ("krem_keten", "Rono RN03 Krem / bej", "#dbbfa5"),
+    ("antrasit_keten", "Rono RN04 Antrasit / siyah", "#2b2a2c"),
+    ("vizon_keten", "Rono RN05 Vizon / sütlü kahve", "#92755c"),
+    ("kahve_keten", "Rono RN06 Koyu kahve", "#4c3329"),
+    ("beyaz_keten", "Rono RN07 Ekru / beyaz", "#e6dace"),
     # varaklı / simli / metalik
     ("varak_altin", "Beyaz-altın varak", "#e9dcbc"),
     ("varak_gumus", "Beyaz-gümüş varak", "#cfd0d1"),
@@ -87,8 +84,12 @@ MALZEMELER = [
     ("altin", "Altın (düz metalik)", "#d6b26a"),
     ("gumus", "Gümüş (düz metalik)", "#c2c5c9"),
 ]
+# Kartelada olmayan eski malzemeler: eski kayıtlar açılınca en yakın Rono rengine çevrilir.
+ESKI_MALZEME = {"bej_keten": "krem_keten", "siyah_keten": "antrasit_keten", "rona_kahve_simli": "kahve_keten"}
 MALZEME_AD = {k: a for k, a, _ in MALZEMELER}
 MALZEME_HEX = {k: h for k, _, h in MALZEMELER}
+for _eski, _yeni in ESKI_MALZEME.items():
+    MALZEME_AD[_eski], MALZEME_HEX[_eski] = MALZEME_AD[_yeni], MALZEME_HEX[_yeni]
 ALTLAR = [("yok", "Boş (altı yok)"), ("siyah", "Siyah"), ("kahve", "Kahve"), ("krem", "Krem"), ("altin_sim", "Altın sim"),
           ("gumus_sim", "Gümüş sim"), ("siyah_rugan", "Siyah rugan")]
 NAKISLAR = [("yok", "Nakış yok"), ("grek_kare", "Grek kare (altın iplik)"), ("grek_kare_gumus", "Grek kare (gümüş iplik)")]
@@ -274,7 +275,7 @@ KATALOG_DEGER = {
     "PCH-016": _k("pelus_beyaz", ("desenli", 12, A, "DB013"), madalyon="pelus_krem"),
     # Rono
     "RNO-001": _k("pelus_gri", ("desenli", 12, GU, "DB001")),
-    "RNO-002": _serit("pelus_gri", ("duz", 4, GU, ""), "desenli", "boyuna", 1, 24, "rona_kahve_simli", "DB006"),
+    "RNO-002": _serit("pelus_gri", ("duz", 4, GU, ""), "desenli", "boyuna", 1, 24, "kahve_keten", "DB006"),
     "RNO-003": _k("pelus_gri", ("desenli", 14, A, "DB004")),
     "RNO-004": _k("pelus_krem", ("duz", 3, A, ""), ("desenli", 10, "bienca_gri", "DB001")),
     "RNO-005": _k("pelus_krem", ("duz", 16, "pelus_krem", ""), ("desenli", 8, "bienca_gri", "DB013")),
@@ -297,6 +298,7 @@ def _sayi(deger, varsayilan, alt, ust):
 
 
 def _sec(deger, secenekler, varsayilan):
+    deger = ESKI_MALZEME.get(deger, deger)
     anahtarlar = [s[0] for s in secenekler]
     return deger if deger in anahtarlar else varsayilan
 

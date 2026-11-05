@@ -45,4 +45,23 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(caches.match(istek).then((kayitli) => kayitli || fetch(istek)));
   }
 });
+
+// Telefona anlık bildirim (bayi siparişi): sunucudan gelen şifreli içerik tarayıcıda çözülmüş olarak gelir.
+self.addEventListener("push", (e) => {
+  let veri = { baslik: "Bienna Fur", metin: "", adres: "/" };
+  try { veri = Object.assign(veri, e.data ? e.data.json() : {}); } catch (hata) {}
+  e.waitUntil(self.registration.showNotification(veri.baslik, {
+    body: veri.metin, icon: "/static/uretim/ikon/ikon-192.png", badge: "/static/uretim/ikon/ikon-192.png",
+    data: { adres: veri.adres }, tag: "bayi-siparis", renotify: true,
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const adres = (e.notification.data && e.notification.data.adres) || "/";
+  e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((pencereler) => {
+    for (const p of pencereler) { if ("focus" in p) { p.navigate(adres); return p.focus(); } }
+    return clients.openWindow(adres);
+  }));
+});
 {% endautoescape %}

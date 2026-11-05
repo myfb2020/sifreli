@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, MalzemeHareketi, SistemAyari, SiparisKalemi,
+    TamirKaydi, DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, MalzemeHareketi, SistemAyari, SiparisKalemi,
     UretimLotu, sayi_metni,
 )
 
@@ -216,6 +216,10 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
     lot.save(update_fields=["mevcut_kg", "mevcut_m2", "durum"])
 
     siparis = lot.siparis
+    if lot.tur == "tamir":
+        if lot.durum == "tamamlandi":
+            tamir_bitti(lot)
+        return islem
     if siparis and lot.durum == "tamamlandi":
         if not siparis.lotlar.exclude(durum__in=["tamamlandi", "iptal"]).exists():
             siparis.durum = "tamamlandi"
@@ -289,6 +293,48 @@ def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=N
     return islem_baslat(lot=lot, asama=asama, personel=personel, aciklama=aciklama, makine=makine)
 
 
+@transaction.atomic
+def tamir_ac(*, siparis, istasyonlar, neden, kaynak_lot=None, aciklama="", foto=None, hata_asama=None, hata_personel=None,
+             kullanici=None):
+    """Biten / sevk edilen siparişe tamir işi açar: seçilen istasyonlardan geçer, bitince sipariş eski durumuna döner.
+    Bayi görmez; stoğa giriş yapılmaz."""
+    if siparis.durum not in ("tamamlandi", "sevk", "tamirde"):
+        raise ValidationError("Tamir / iade yalnız biten ya da sevk edilen siparişe açılır.")
+    istasyonlar = list(istasyonlar)
+    if not istasyonlar:
+        raise ValidationError("Tamirin geçeceği en az bir istasyon seçin.")
+    m2 = (kaynak_lot.mevcut_m2 if kaynak_lot else None) or (siparis.tek_m2 or Decimal(0))
+    lot = UretimLotu.objects.create(siparis=siparis, kalem=kaynak_lot.kalem if kaynak_lot else None, tur="tamir",
+                                    baslangic_kg=Decimal(0), baslangic_m2=m2)
+    kayit = TamirKaydi(siparis=siparis, kaynak_lot=kaynak_lot, lot=lot, neden=neden, aciklama=aciklama,
+                       hata_asama=hata_asama, hata_personel=hata_personel, kullanici=kullanici,
+                       onceki_durum=siparis.durum if siparis.durum != "tamirde" else
+                       (siparis.tamirler.order_by("tarih").first().onceki_durum if siparis.tamirler.exists() else "sevk"))
+    if foto is not None:
+        from django.core.files.base import ContentFile
+        kayit.foto.save(f"{siparis.siparis_no}-tamir.jpg", ContentFile(foto), save=False)
+    kayit.save()
+    kayit.istasyonlar.set(istasyonlar)
+    if aciklama:
+        not_ekle(lot=lot, metin=f"🔧 {kayit.get_neden_display()}: {aciklama}", kullanici=kullanici)
+    siparis.durum = "tamirde"
+    siparis.save(update_fields=["durum"])
+    return kayit
+
+
+def tamir_bitti(lot):
+    kayit = TamirKaydi.objects.filter(lot=lot).select_related("siparis").first()
+    if kayit is None:
+        return
+    kayit.bitis = timezone.now()
+    kayit.save(update_fields=["bitis"])
+    siparis = kayit.siparis
+    acik = siparis.lotlar.filter(tur="tamir").exclude(durum__in=["tamamlandi", "iptal"]).exists()
+    if not acik and siparis.durum == "tamirde":
+        siparis.durum = kayit.onceki_durum or "sevk"
+        siparis.save(update_fields=["durum"])
+
+
 def kendi_istasyonu(kullanici):
     """İstasyon hesabının (tablet / kişisel telefon) bağlı istasyonu; ofis ve yönetici için None (her şeyi görür)."""
     from .models import hesap_istasyonu
@@ -348,7 +394,7 @@ def deri_duzelt(*, ham_deri, neden, kg, m2, kullanici=None, aciklama=""):
 
 # --- Fason (pres / lamine) ----------------------------------------------------
 
-UST_KATMANLAR = ("rona", "suni deri")  # Birleşik malzemenin rengi ve modeli bu katmandan gelir.
+UST_KATMANLAR = ("rono", "rona", "suni deri")  # Birleşik malzemenin rengi ve modeli bu katmandan gelir.
 
 
 def _toplam_kaynak(kaynaklar):
@@ -391,7 +437,7 @@ def fasona_gonder(*, fasoncu, hedef_tur, kaynaklar, kullanici=None, notlar=""):
 
 
 def ust_katman(fason):
-    """Gönderilenler arasında rengi/modeli belirleyen üst katman lotu (rona ya da suni deri); yoksa renkli ilk lot."""
+    """Gönderilenler arasında rengi/modeli belirleyen üst katman lotu (rono ya da suni deri); yoksa renkli ilk lot."""
     lotlar = [lot for lot, _, _ in fason.gidenler()]
     for lot in lotlar:
         if lot.deri_turu.ad.lower() in UST_KATMANLAR:

@@ -45,6 +45,23 @@ class Kalem:
     siparis: Siparis | None = None
 
     @property
+    def on_islem(self):
+        """Lazer ve sonrasında: iş önce Nakış'tan geçtiyse 'Nakışlı', Kaplama'dan geçtiyse 'Kaplamalı'."""
+        if self.lot is None or self.lot.tur == "tamir":
+            return ""
+        rota = self.lot.rota()
+        mevcut = next((sira for sira, a in rota if a.pk == self.asama.pk), None)
+        if mevcut is None:
+            return ""
+        for sira, a in rota:
+            ad = a.ad.lower()
+            if sira < mevcut and ad.startswith("nakış"):
+                return "Nakışlı"
+            if sira < mevcut and ad.startswith("kaplama"):
+                return "Kaplamalı"
+        return ""
+
+    @property
     def gecikti(self):
         return self.sinir_saat is not None and _saat(self.sure) > self.sinir_saat
 
@@ -99,7 +116,10 @@ def gelenler(asama=None):
     )
     for lot in lotlar:
         bekleme = simdi - (lot.son_bitis or lot.olusturma)
-        for hedef in hedefler(lot.siparis.hali_turu_id if lot.siparis else None, lot.son_asama):
+        if lot.tur == "tamir":  # tamir işi ofisin seçtiği istasyonlardan geçer
+            tamir_hedefleri = [h for h in lot.asama_sonrasi(lot.son_asama) if asama is None or h.pk == asama.pk]
+        for hedef in (tamir_hedefleri if lot.tur == "tamir" else
+                      hedefler(lot.siparis.hali_turu_id if lot.siparis else None, lot.son_asama)):
             sonuc.append(Kalem("gelen", f"l{lot.pk}-{lot.son_asama_id}", hedef, bekleme, hedef.azami_bekleme_saat,
                                lot=lot, siparis=lot.siparis))
 

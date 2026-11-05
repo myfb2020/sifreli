@@ -95,6 +95,9 @@
       <form method="post" action="{% url 'siparis_durum' siparis.pk %}" onsubmit="return confirm('Sipariş iptal edilsin mi?')">
         {% csrf_token %}<button class="btn ikincil" name="durum" value="iptal">İptal et</button></form>
       {% endif %}
+      {% if siparis.durum == "sevk" or siparis.durum == "tamamlandi" or siparis.durum == "tamirde" %}
+      <a class="btn ikincil" href="{% url 'tamir_ac' siparis.pk %}">↩ Tamir / iade aç</a>
+      {% endif %}
       {% if siparis.durum == "sevk" %}
       <form method="post" action="{% url 'siparis_durum' siparis.pk %}">
         {% csrf_token %}<button class="btn ikincil" name="durum" value="uretimde">Sevkiyatı geri al</button></form>
@@ -122,6 +125,18 @@
     {% endfor %}
   </table>
 </div>
+{% if siparis.tamirler.all %}
+<div class="kart">
+  <h2>🔧 Tamir / iade</h2>
+  {% for t in siparis.tamirler.all %}<div class="is-notu"><b>{{ t.no }}</b> · {{ t.get_neden_display }} · {{ t.tarih|date:"d.m.Y" }}
+    {% if t.bitis %}<span class="rozet tamamlandi">Bitti {{ t.bitis|date:"d.m" }}</span>{% elif t.lot %}<span class="rozet islemde">{{ t.lot.konum_metni }}</span>{% endif %}<br>
+    <span class="soluk">{% for a in t.istasyonlar.all %}{{ a.ad }}{% if not forloop.last %} → {% endif %}{% endfor %}
+    {% if t.hata_asama or t.hata_personel %} · hata: {{ t.hata_asama|default:"" }}{% if t.hata_personel %} / {{ t.hata_personel }}{% endif %}{% endif %}
+    {% if t.kaynak_lot %} · {{ t.kaynak_lot.lot_no }}{% endif %}</span>
+    {% if t.aciklama %}<br>{{ t.aciklama|linebreaksbr }}{% endif %}
+    {% if t.foto %}<br><a href="{{ t.foto.url }}" class="buyut"><img src="{{ t.foto.url }}" alt="" style="height:90px;border-radius:6px;margin-top:4px"></a>{% endif %}</div>{% endfor %}
+</div>
+{% endif %}
 {% if notlar %}
 <div class="kart">
   <h2>📝 İstasyon notları</h2>

@@ -11,7 +11,7 @@
           {% include "uretim/_is_bilgisi.html" with s=k.siparis %}
           {% include "uretim/_siparis_resim.html" with s=k.siparis %}
         {% else %}
-          <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %}<br>
+          {% if k.lot.tur == "tamir" %}<span class="rozet acil">🔧 TAMİR</span> {% endif %}<b>{{ k.lot.lot_no }}</b>{% if k.on_islem %} <span class="rozet bekliyor">({{ k.on_islem }})</span>{% endif %}{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %}<br>
           <span class="soluk">{% if k.siparis %}{{ k.siparis.siparis_no }} · {{ k.siparis.urun }} · {% endif %}{% if k.lot.son_asama %}{{ k.lot.son_asama.ad }} bitti{% else %}başlamadı{% endif %}</span>
           {% include "uretim/_is_bilgisi.html" with s=k.siparis l=k.lot %}
           {% if k.siparis %}{% include "uretim/_siparis_resim.html" with s=k.siparis %}{% endif %}
@@ -37,7 +37,7 @@
     {% for k in calisilan %}
     <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}">
       <div class="ist-bilgi">
-        <b>{{ k.lot.lot_no }}</b>{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}{% if k.islem.makine %} · {{ k.islem.makine }}{% endif %}<br>
+        {% if k.lot.tur == "tamir" %}<span class="rozet acil">🔧 TAMİR</span> {% endif %}<b>{{ k.lot.lot_no }}</b>{% if k.on_islem %} <span class="rozet bekliyor">({{ k.on_islem }})</span>{% endif %}{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}{% if k.islem.makine %} · {{ k.islem.makine }}{% endif %}<br>
         {% if k.siparis %}<span class="soluk">{{ k.siparis.siparis_no }} · {{ k.siparis.urun }}</span>{% endif %}
         {% include "uretim/_is_bilgisi.html" with s=k.siparis l=k.lot %}
         {% if k.siparis %}{% include "uretim/_siparis_resim.html" with s=k.siparis %}{% endif %}

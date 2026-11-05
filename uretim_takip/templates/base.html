@@ -61,6 +61,7 @@
     .is-bilgi { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; margin:4px 0; font-size:15px; }
     .is-olcu { font-size:17px; }
     .is-teslim.yakin { color:#9a6400; font-weight:600; }
+    .is-renk { font-weight:600; }
     .is-teslim.gecikti { color:var(--kirmizi); font-weight:700; }
     .is-not { flex-basis:100%; background:#fff8e1; border-left:3px solid #e0a800; padding:4px 8px; border-radius:4px; font-size:14px; }
     .uyari { color:var(--kirmizi); font-weight:600; }
@@ -187,8 +188,9 @@
     <span class="marka-alt">{% if bayi %}{{ bayi }}{% else %}Üretim Takip{% endif %}</span></a>
   <nav class="menu">
   {% if bayi %}
-  <a href="{% url 'parcali_studyo' %}">🧩 Suni deri</a>
-  <a href="{% url 'tasarim_studyo' %}">🎨 Kürk / deri modelleri</a>
+  <a href="{% url 'bayi_siparis' %}">🛒 Sipariş ver</a>
+  {% if bayi.studyo_acik %}<a href="{% url 'parcali_studyo' %}">🧩 Suni deri</a>
+  <a href="{% url 'tasarim_studyo' %}">🎨 Kürk / deri modelleri</a>{% endif %}
   <a href="{% url 'bayi_ana' %}">📦 Siparişlerim</a>
   {% else %}
   <a href="{% url 'pano' %}">Pano</a>
@@ -200,6 +202,7 @@
   <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
   {% endif %}
   {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}{% if onay_bekleyen %}?durum=onay{% endif %}">Siparişler{% if onay_bekleyen %} <span class="rozet bekliyor" title="Onay bekleyen bayi tasarımı">{{ onay_bekleyen }}</span>{% endif %}</a>{% endif %}
+  {% if user.is_staff %}<a href="{% url 'bayi_listesi' %}">🤝 Bayiler</a>{% endif %}
   <a href="{% url 'stok_listesi' %}">Stok</a>
   <a href="{% url 'katalog' %}">Katalog</a>
   {% if user.is_staff and not user.is_superuser %}<a href="{% url 'lot_listesi' %}">İşler</a>{% endif %}
@@ -279,7 +282,58 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !kap.hidden) history.back(); });
   })();
 </script>
+{% if user.is_staff %}
+<div id="yeni-siparis-bandi" class="yeni-siparis-bandi" hidden><a href="#"></a><button type="button" aria-label="Kapat">✕</button></div>
+<script>
+  // Ofis: bayi sipariş gönderince ses + üst bant (sayfa açıkken her dakika bakılır); 🔔 düğmesi telefona bildirim açar.
+  (function () {
+    const bant = document.getElementById("yeni-siparis-bandi");
+    let son = null;
+    try { son = Number(localStorage.getItem("son-bayi-siparisi")) || null; } catch (e) {}
+    function ses() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [0, 0.25].forEach((t) => { const o = ctx.createOscillator(); const g = ctx.createGain(); o.frequency.value = 880;
+          o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.25, ctx.currentTime + t);
+          o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.18); });
+      } catch (e) {}
+    }
+    async function bak() {
+      try {
+        const j = await (await fetch("{% url 'bildirim_durum' %}", { credentials: "same-origin" })).json();
+        if (son !== null && j.son && j.son > son) {
+          bant.querySelector("a").textContent = "🆕 Yeni bayi siparişi: " + j.metin;
+          bant.querySelector("a").href = j.adres; bant.hidden = false; ses();
+        }
+        son = j.son || 0;
+        try { localStorage.setItem("son-bayi-siparisi", String(son)); } catch (e) {}
+      } catch (e) {}
+    }
+    bant.querySelector("button").addEventListener("click", () => { bant.hidden = true; });
+    bak(); setInterval(bak, 60000);
+    window.bildirimleriAc = async function (dugme) {
+      const anahtar = "{{ bildirim_anahtari }}";
+      if (!anahtar || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+        alert("Bu telefonda bildirim açılamıyor. iPhone'da önce Safari → Paylaş → Ana Ekrana Ekle ile kurun, sonra oradan açın.");
+        return;
+      }
+      if (await Notification.requestPermission() !== "granted") { alert("Bildirim izni verilmedi."); return; }
+      const ham = atob(anahtar.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - anahtar.length % 4) % 4));
+      const kayit = await navigator.serviceWorker.ready;
+      const abonelik = await kayit.pushManager.subscribe({ userVisibleOnly: true,
+        applicationServerKey: Uint8Array.from(ham, (c) => c.charCodeAt(0)) });
+      const yanit = await fetch("{% url 'bildirim_abone' %}", { method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" }, body: JSON.stringify(abonelik) });
+      if (yanit.ok) { if (dugme) { dugme.textContent = "🔔 Bildirimler açık"; dugme.disabled = true; } }
+      else alert("Bildirim kaydedilemedi.");
+    };
+  })();
+</script>
+{% endif %}
 <style>
+  .yeni-siparis-bandi { position:fixed; top:0; left:0; right:0; z-index:150; background:#2f7a3a; color:#fff; display:flex; gap:10px; align-items:center; padding:12px 16px; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+  .yeni-siparis-bandi a { color:#fff; font-weight:600; flex:1; }
+  .yeni-siparis-bandi button { background:transparent; color:#fff; border:0; font-size:22px; }
   #resim-buyuk { position:fixed; inset:0; z-index:200; background:rgba(15,13,12,.95); display:flex; align-items:center; justify-content:center; }
   #resim-buyuk[hidden] { display:none; }
   #resim-buyuk img { max-width:96vw; max-height:92vh; object-fit:contain; touch-action:pinch-zoom; }

@@ -294,7 +294,7 @@ class SiparisForm(forms.ModelForm):
 
     class Meta:
         model = Siparis
-        fields = ["hali_turu", "urun", "deri_turu", "teslim_tarihi", "notlar", "lazer_deseni", "acil"]
+        fields = ["hali_turu", "urun", "deri_turu", "renk", "renk_notu", "teslim_tarihi", "notlar", "lazer_deseni", "acil"]
         widgets = {
             "teslim_tarihi": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
@@ -302,7 +302,7 @@ class SiparisForm(forms.ModelForm):
         labels = {"notlar": "Not (isteğe bağlı)"}
 
     field_order = ["musteri", "yeni_musteri", "fotograflar", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu",
-                   "teslim_tarihi", "acil", "notlar"]
+                   "renk", "renk_notu", "teslim_tarihi", "acil", "notlar"]
 
     def __init__(self, *args, foto_sayisi=0, **kwargs):
         super().__init__(*args, **kwargs)
@@ -313,6 +313,9 @@ class SiparisForm(forms.ModelForm):
                 self.fields["model_kodu"].initial = self.instance.katalog_modeli.kod
             self.fields["fotograflar"].label = "📷 Fotoğraf ekle"
         self.fields["deri_turu"].empty_label = "— (isteğe bağlı) —"
+        self.fields["renk"].empty_label = "— Kartela rengi (Rono / Bienca, isteğe bağlı) —"
+        self.fields["renk"].queryset = self.fields["renk"].queryset.filter(aktif=True)
+        self.fields["renk_notu"].label = "veya renk (yazın)"
         # Halı türü kaydederken denetlenir: katalog serisinden de gelebilir.
         self.fields["hali_turu"].required = False
         self.fields["urun"].required = False
@@ -596,7 +599,7 @@ class FasonTeslimForm(forms.Form):
     kg = ondalik_alan("Gelen kg (isteğe bağlı)", required=False)
     adet = forms.IntegerField(label="Adet / rulo (isteğe bağlı)", required=False, min_value=0)
     renk = forms.CharField(label="Renk", required=False, max_length=60,
-                           help_text="Üst katmandan (rona / suni deri) geldi; farklıysa düzeltin.")
+                           help_text="Üst katmandan (rono / suni deri) geldi; farklıysa düzeltin.")
     model = forms.CharField(label="Model / desen", required=False, max_length=60)
     notlar = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
@@ -649,3 +652,28 @@ class DeriDuzeltmeForm(forms.Form):
     kg = ondalik_alan("kg", required=False)
     m2 = ondalik_alan("m²", required=False)
     aciklama = forms.CharField(label="Açıklama (isteğe bağlı)", required=False, max_length=200)
+
+
+class TamirForm(forms.Form):
+    """Biten / sevk edilen siparişte iade, tamir, düzeltme (yalnız ofis; bayi görmez)."""
+
+    neden = forms.ChoiceField(label="Neden", choices=[("", "— Seçin —")] + [
+        ("iade", "Müşteri iadesi"), ("tamir", "Tamir"), ("duzeltme", "Düzeltme"), ("garanti", "Garanti")])
+    kaynak_lot = forms.ModelChoiceField(queryset=UretimLotu.objects.none(), label="Hangi halı", required=False,
+                                        empty_label="— Siparişin tamamı / bilinmiyor —")
+    aciklama = forms.CharField(label="Açıklama", required=False, max_length=1000,
+                               widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Ör. biye söküldü, köşe kalkmış"}))
+    foto = forms.FileField(label="📷 Fotoğraf (isteğe bağlı)", required=False,
+                           widget=forms.ClearableFileInput(attrs={"accept": "image/*"}))
+    istasyonlar = forms.ModelMultipleChoiceField(queryset=Asama.objects.filter(aktif=True).order_by("sira"),
+                                                 label="Hangi istasyonlardan geçecek", widget=forms.CheckboxSelectMultiple)
+    hata_asama = forms.ModelChoiceField(queryset=Asama.objects.filter(aktif=True).order_by("sira"), required=False,
+                                        label="Hata hangi istasyonda oldu", empty_label="— Bilinmiyor —")
+    hata_personel = forms.ModelChoiceField(queryset=Personel.objects.filter(aktif=True), required=False,
+                                           label="Hata kimin", empty_label="— Bilinmiyor —")
+
+    def __init__(self, *args, siparis=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if siparis is not None:
+            self.fields["kaynak_lot"].queryset = siparis.lotlar.filter(tur="uretim").select_related("kalem")
+            self.fields["kaynak_lot"].label_from_instance = lambda l: f"{l.lot_no} · {l.olcu_metni or '–'}"

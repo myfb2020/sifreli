@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block baslik %}Bayiler{% endblock %}
+{% block icerik %}
+<h1>🤝 Bayiler</h1>
+{% if davet %}
+<div class="kart davet-kart">
+  <h2>🔗 {{ davet.musteri }} – davet bağlantısı</h2>
+  <p class="soluk">Bağlantı 7 gün geçerli ve tek kullanımlık. Bayi açınca kendi şifresini belirler.</p>
+  <input type="text" id="davet-adres" value="{{ davet.adres }}" readonly>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+    <a class="btn" href="{{ davet.whatsapp }}" target="_blank" rel="noopener">📲 WhatsApp'ta gönder</a>
+    <button type="button" class="btn ikincil" id="davet-kopyala">📋 Kopyala</button>
+  </div>
+</div>
+{% endif %}
+<div class="kart">
+  <h2>Bayi listesi</h2>
+  {% for r in satirlar %}
+  <div class="bayi-sira">
+    <div style="min-width:0">
+      <b>{{ r.m.ad }}</b>{% if r.m.telefon %} <span class="soluk">· {{ r.m.telefon }}</span>{% endif %}<br>
+      <span class="soluk">
+        {% if not r.k.is_active %}<span class="rozet iptal">Hesap kapalı</span>
+        {% elif r.k.has_usable_password %}✓ Giriş yaptı{% if r.k.last_login %} · son giriş {{ r.k.last_login|date:"d.m.Y H:i" }}{% endif %}
+        {% elif r.davet and r.davet.gecerli %}⏳ Davet gönderildi, henüz açılmadı{% else %}Davet bağlantısı yok / süresi doldu{% endif %}
+        · {{ r.m.bekleyen }} onay bekleyen · {{ r.m.aktif }} devam eden · stüdyo {% if r.m.studyo_acik %}açık{% else %}kapalı{% endif %}
+      </span>
+    </div>
+    <div class="bayi-dugmeler">
+      {% if r.k.is_active %}<form method="post" action="{% url 'bayi_davet' r.m.pk %}">{% csrf_token %}<button class="btn kucuk">🔗 Davet bağlantısı</button></form>{% endif %}
+      <form method="post" action="{% url 'bayi_studyo' r.m.pk %}">{% csrf_token %}<button class="btn kucuk ikincil">{% if r.m.studyo_acik %}Stüdyoyu kapat{% else %}Stüdyoyu aç{% endif %}</button></form>
+      {% if user.is_superuser %}<form method="post" action="{% url 'bayi_hesap' r.m.pk %}" onsubmit="return confirm('Emin misiniz?')">{% csrf_token %}<button class="btn kucuk ikincil">{% if r.k.is_active %}Hesabı kapat{% else %}Hesabı aç{% endif %}</button></form>{% endif %}
+    </div>
+  </div>
+  {% empty %}<p class="soluk">Henüz bayi hesabı yok.</p>{% endfor %}
+</div>
+<div class="kart" style="max-width:560px">
+  <h2>+ Yeni bayi</h2>
+  <form method="post" class="dikey">
+    {% include "uretim/_form.html" %}
+    <button class="btn buyuk" type="submit" style="width:100%">Hesabı aç ve davet bağlantısı oluştur</button>
+  </form>
+</div>
+<div class="kart" style="max-width:560px">
+  <h2>🔔 Telefonuma bildirim</h2>
+  <p class="soluk">Bayi sipariş gönderince bu telefona bildirim gelsin. iPhone'da program önce "Ana Ekrana Ekle" ile kurulmuş olmalı.</p>
+  <button type="button" class="btn" onclick="bildirimleriAc(this)">🔔 Bildirimleri aç</button>
+</div>
+<script>
+  (function () {
+    const d = document.getElementById("davet-kopyala");
+    if (d) d.addEventListener("click", async () => {
+      const g = document.getElementById("davet-adres");
+      try { await navigator.clipboard.writeText(g.value); } catch (e) { g.select(); document.execCommand("copy"); }
+      d.textContent = "✓ Kopyalandı";
+    });
+  })();
+</script>
+<style>
+  .bayi-sira { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px 0; border-top:1px solid #eee3d8; flex-wrap:wrap; }
+  .bayi-dugmeler { display:flex; gap:6px; flex-wrap:wrap; } .bayi-dugmeler form { margin:0; }
+  .davet-kart { border-left:5px solid #2f7a3a; }
+  #davet-adres { width:100%; }
+  #id_studyo_acik { width:auto; }
+</style>
+{% endblock %}

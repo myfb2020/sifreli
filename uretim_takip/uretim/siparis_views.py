@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import fotograf, servisler
-from .forms import FotografForm, SiparisForm, olcu_formseti
+from .forms import FotografForm, SiparisForm, TamirForm, olcu_formseti
 from .katalog_views import secim_verisi
 from .models import IsNotu, Siparis, SiparisFotografi, UretimLotu
 
@@ -34,7 +34,7 @@ def siparis_listesi(request):
     sekme = request.GET.get("durum", "aktif")
     siparisler = _lotlu(Siparis.objects.all())
     if sekme == "aktif":
-        siparisler = siparisler.filter(durum__in=["acik", "uretimde"]).order_by("-acil", "teslim_tarihi")
+        siparisler = siparisler.filter(durum__in=["acik", "uretimde", "tamirde"]).order_by("-acil", "teslim_tarihi")
     elif sekme in dict(Siparis.DURUM):
         siparisler = siparisler.filter(durum=sekme).order_by("-teslim_tarihi")
     else:
@@ -196,3 +196,29 @@ def siparis_acil(request, pk):
     messages.success(request, f"{siparis.siparis_no} " + ("⚡ acil olarak işaretlendi; istasyonlarda en üstte görünür."
                                                            if siparis.acil else "artık acil değil."))
     return redirect("siparis_detay", pk=siparis.pk)
+
+
+@login_required
+@permission_required("uretim.change_siparis", raise_exception=True)
+def tamir_ac(request, pk):
+    """İade / tamir / düzeltme kaydı ve tamir işi (yalnız ofis; bayi görmez; stoğa giriş yok)."""
+    siparis = get_object_or_404(Siparis, pk=pk)
+    if siparis.durum not in ("tamamlandi", "sevk", "tamirde"):
+        messages.error(request, "Tamir / iade yalnız biten ya da sevk edilen siparişe açılır.")
+        return redirect("siparis_detay", pk=pk)
+    form = TamirForm(request.POST or None, request.FILES or None, siparis=siparis)
+    if request.method == "POST" and form.is_valid():
+        v = form.cleaned_data
+        try:
+            foto = fotograf.kucult(v["foto"]) if v.get("foto") else None
+            kayit = servisler.tamir_ac(siparis=siparis, istasyonlar=v["istasyonlar"], neden=v["neden"],
+                                       kaynak_lot=v.get("kaynak_lot"), aciklama=v.get("aciklama", ""), foto=foto,
+                                       hata_asama=v.get("hata_asama"), hata_personel=v.get("hata_personel"),
+                                       kullanici=request.user)
+        except (fotograf.FotografHatasi, ValidationError) as e:
+            form.add_error(None, str(e) if isinstance(e, fotograf.FotografHatasi) else " ".join(e.messages))
+        else:
+            messages.success(request, f"{kayit.no} açıldı; tamir işi {kayit.istasyonlar.order_by('sira').first().ad} "
+                                      "ekranına düştü. Bayi bunu görmez.")
+            return redirect("siparis_detay", pk=pk)
+    return render(request, "uretim/tamir_ac.html", {"form": form, "siparis": siparis})

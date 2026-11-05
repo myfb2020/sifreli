@@ -358,7 +358,7 @@ SAYFALAR = [
         Sutun("Lot No", False, "Boş bırakılırsa sistem numara verir (HD-2026-0001). Eski numaralarınızı yazarsanız onlar kullanılır.", "HD-2026-0001"),
         Sutun("Tarih", False, "Giriş tarihi (boşsa bugün)", "01.10.2026"),
         Sutun("Tedarikçi", True, "", "Anadolu Deri Ltd."),
-        Sutun("Deri Türü", True, "Malzeme türü: Keçe, Süet, Rona, Suni deri, Kuzu…", "Süet", ("Malzeme Türü",)),
+        Sutun("Deri Türü", True, "Malzeme türü: Keçe, Süet, Rono, Suni deri, Kuzu…", "Süet", ("Malzeme Türü",)),
         Sutun("Kalite", False, "A / B / C / Karışık", "A"),
         Sutun("Adet", False, "Deri adedi", "200"),
         Sutun("Kg", False, "Toplam ağırlık (isteğe bağlı)", "640"),

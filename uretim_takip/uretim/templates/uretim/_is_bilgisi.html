@@ -3,6 +3,7 @@
   {% if s.acil %}<span class="rozet acil">⚡ ACİL</span>{% endif %}
   {% if l and l.kalem_id %}<b class="is-olcu">{{ l.olcu_metni }}</b>
   {% elif s.olcu_metni %}<b class="is-olcu">{{ s.olcu_metni }}{% if s.adet > 1 and not s.kalemler.all|length > 1 %} × {{ s.adet }}{% endif %}</b>{% endif %}
+  {% if s.renk_metni %}<span class="is-renk">🎨 {{ s.renk_metni }}</span>{% endif %}
   {% if s %}<span class="is-teslim{% if s.kalan_gun < 0 %} gecikti{% elif s.kalan_gun <= 2 %} yakin{% endif %}">📅 {{ s.teslim_tarihi|date:"d.m" }} · {{ s.teslim_metni }}</span>{% endif %}
   {% if s.notlar %}<div class="is-not">📝 {{ s.notlar|linebreaksbr }}</div>{% endif %}
   {% if l %}{% for n in l.is_notlari.all %}<div class="is-not istasyon-notu">💬 <span class="soluk">{% if n.asama %}{{ n.asama.ad }}{% endif %}{% if n.yazan %} · {{ n.yazan }}{% endif %}:</span> {{ n.metin|linebreaksbr }}</div>{% endfor %}{% endif %}

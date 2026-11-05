@@ -31,6 +31,11 @@ def tasarim(request):
     kullanici = getattr(request, "user", None)
     if not getattr(kullanici, "is_staff", False):
         return {}
+    from . import bildirim
     from .models import Siparis
 
-    return {"onay_bekleyen": Siparis.objects.filter(durum="onay").count()}
+    try:
+        anahtar = bildirim.acik_anahtar()
+    except Exception:  # bildirim anahtarı üretilemezse sayfa yine açılır
+        anahtar = ""
+    return {"onay_bekleyen": Siparis.objects.filter(durum="onay").count(), "bildirim_anahtari": anahtar}

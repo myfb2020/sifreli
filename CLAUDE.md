@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (130 test; `--parallel` bu ortamda çalışmaz) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (136 test; `--parallel` bu ortamda çalışmaz) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -42,6 +42,8 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 │   ├─ Hazırlar: TOS-034…LTS-006 (menü "Kürk / deri modelleri"); SD-1…SD-4 yalnız eski suni kayıtlar açılınca görünür
 │   ├─ **Suni deri** (menü adı; eski "Parçalı") /tasarim/parcali/: hazır modeller = katalog lazer serileri IPS/BNA/PCH/RNO (99 foto, seri sekmeleri; 76'sı `KATALOG_DEGER` ile düzenlenebilir), "olduğu gibi sipariş" (`aynen`+`katalog`, sipariş katalog modeline bağlı, resim = katalog fotoğrafı) ya da "bu modelden başla"; orta **madalyon** (düz/nakışlı, çerçeve); malzemeler peluş 8 renk/Bienca/Rona (numune fotoğrafından); DB015 Grek bant (çizildi); gizli desenler DB002/007/010/011; nakış 14 motif (`NAKIS_MOTIFLERI`, gerçek ölçü, maske `tasarim_varlik/nakis/`, marka logoları yok) + iplik rengi; hazırlar P-1…P-12 (P-1…9 gerçek ürün fotoğraflı `tasarim_varlik/hazir_foto/`); **halkalı** (dikdörtgen/oval, ≤4 halka düz/desenli/nakışlı + orta düz/nakış paneli/enine-boyuna şerit), 5 adımlı ekran + ✕'li büyük görünüm; eski düzenler (çerçeve, oval şerit, yuvarlak, ızgara…) yalnız eski kayıtlar için, `eskiden_cevir`; 💡 fikir ver; P-1…P-8; gerçek malzeme fotoğraf dokuları; parça bölme, rulo, nakış 7 kafa, kesim listesi + malzeme bazlı DXF
 │   └─ Gönderim = "Onay bekliyor" sipariş → ofis sipariş sayfasından onay/ret; lazer DXF/SVG (hat + bantlar; DB deseni yalnız not)
+├─ **Bayi (2. güncelleme):** `bayi_views.py`: Siparişlerim tüm siparişler tek satır `Siparis.bayi_durumu` ('Üretimde · istasyon', bekliyor/personel/gecikme/tamir yok); 🛒 Sipariş ver (katalog + kartela `Renk` RN01–07/BN01–04 `KatalogSerisi.kartela`, kartelasız seride renk yazılır, ölçü satırları → 'onay'); `Musteri.studyo_acik` (kapalıysa stüdyo sayfaları → sipariş ver, `bayi_siniri.STUDYO`); ofis 🤝 Bayiler (+ yeni bayi, `BayiDavet` 7 gün tek kullanım `/davet/<anahtar>/`, wa.me, stüdyo aç/kapa, hesap kapat yalnız yönetici); bildirim: ofis sayfası her dk `/bildirim/durum/` → ses + bant; telefona web push `bildirim.py` (yalnız cryptography, RFC8291+VAPID, anahtar SistemAyari, sw.js push), `/bildirim/abone/`
+├─ **Tamir/iade:** `TamirKaydi` TM-…, `servisler.tamir_ac/tamir_bitti`, `UretimLotu.tur='tamir'` + `rota()` ofisin seçtiği istasyonlar, sipariş 'tamirde' (bayi önceki durumu görür), 🔧 TAMİR rozeti, rapor `raporlar.tamir_ozeti`; istasyonda '(Nakışlı)/(Kaplamalı)' `Kalem.on_islem`; Rona → Rono (0031), stüdyoda keten = Rono RN01–07 (`parcali.ESKI_MALZEME`)
 ├─ 4 Hesaplar: Tablet (istasyona bağlı; "Bu hesap kimin?" `HesapAyari.personel` → ad/PIN sorulmaz, `hesap_personeli`) / Ofis ("Ofis" grubu) / Yönetici / Bayi (yalnız stüdyo + kendi siparişleri)
 ├─ 5 Raporlar: makine, personel-istasyon, bekleme, Excel çıktı; Excel'den aktarma; tablet giriş kaydı
 └─ 6 Altyapı / işletme
@@ -77,7 +79,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 
 ## Bekleyenler (kullanıcı onayı / bilgi gerekli)
 - **EKSİKLER LİSTESİ (2026-11-04, kullanıcı: "şimdi yazma, not et, en son program yazacağız")** – yazmadan önce plan + onay:
-  **1–4 ve 6 YAZILDI (2026-11-04, 1. güncelleme). Sıradaki: 2. güncelleme = 5, 7, 8 + kartelalar (Rono 7, Bienca 4; basit modda renk seçimi).**
+  **HEPSİ YAZILDI: 1–4, 6 (2026-11-04), 12–14 (2026-11-05), 5, 7, 8, 10, 11 + kartelalar (2026-11-05, 2. güncelleme).** Açık kalan: seri→halı türü bağlantısı (Rono/Bienca/IPS/PCH serilerinde halı türü boş; bayi siparişinde ofis onayda seçiyor), stüdyodaki Bienca dokuları hâlâ 2 eski doku (kartela BN01–04 değil).
   1. İstasyonda personel işe not/açıklama girebilsin (başlatırken/bitirirken + iş sırasında; not ekranda ve sipariş/iş sayfasında görünsün).
   2. Tek siparişte aynı model, farklı ölçü ve adetler (sipariş kalemleri: en×boy×adet satırları; her kalem ayrı iş/lot, m² toplamı).
   3. Ofis siparişi düzenlerken fotoğraf ekle/değiştir (şu an düzenleme admin'de; sipariş düzenleme ekranı + foto).
@@ -111,6 +113,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-11-05: 2. güncelleme (migration 0031, requirements + cryptography, SW v6): kartela, Bayiler + davet + WhatsApp, basit mod, bayi tek satır görünüm, ofis bildirimi (ses/bant + web push), tamir/iade + rapor, Nakışlı/Kaplamalı etiketi, Rona→Rono. Rehberler güncellendi.
 - 2026-11-05: Atölye düzeltmeleri (migration 0030): istasyon hesabı (`servisler.kendi_istasyonu`, staff değil + bağlı istasyon) Pano/İşler/istasyon ekranında yalnız kendi istasyonu, başka istasyon ekranı → kendi ekranına yönlenir; lazerde (`Asama.lazer_mi`) başlarken giren en×boy, bitirirken çıkan en×boy + fire m² (isteğe bağlı, IslemKaydi giris/cikis_en/boy_cm); diğer istasyonlarda kg/m² kutusu kalktı; menüde İşler QR Okut'un yanında; başlatta kendi istasyonu seçili gelir.
 - 2026-11-04: 1. güncelleme (migration 0028–0029): sipariş ölçü satırları + her satıra otomatik iş, sipariş düzenleme ekranı (foto ekle/sil), istasyon 📝 notu, pano 'kim ne yaptı' düzeltmesi, sevk tarihi + 6 ay sonra foto küçültme. Rehber PDF'leri güncellendi. Kullanıcı kararları: iki güncelleme; ölçü başına iş otomatik; foto silme değil küçültme; kartelalar 2. güncellemede.
 - 2026-11-03: Kullanıcının basılı kartelaları Excel'e işlendi: Bienca BN01–BN04 (varak/eskitme), Rono RN01–RN08 (üçlü lamine süet+keçe+Rono; basılı kartelada 02/04/05 numarasızdı, önerildi). Programdaki 'keten görünümlü' = Rono (kullanıcı onayı) → programa aktarırken keten malzemeleri Rono 8 renkle değiştirilecek. Bienca/Rono tek malzeme: renk no = kartela no (RNO-003-06). Örnek kesitler `is_belgeleri/kartela_ornek/`.

@@ -3,3 +3,4 @@ openpyxl==3.1.5
 segno==1.6.6
 whitenoise==6.9.0
 pillow==11.3.0
+cryptography>=42,<51

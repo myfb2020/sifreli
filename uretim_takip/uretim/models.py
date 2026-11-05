@@ -212,6 +212,8 @@ class Musteri(models.Model):
     ad = models.CharField(max_length=120, unique=True)
     telefon = models.CharField(max_length=30, blank=True)
     notlar = models.TextField(blank=True)
+    studyo_acik = models.BooleanField("tasarım stüdyosu açık", default=True,
+                                      help_text="Bayi hesabı: kapalıysa yalnız katalog, kartela, sipariş ver ve siparişlerim.")
 
     class Meta:
         ordering = ["ad"]
@@ -223,7 +225,7 @@ class Musteri(models.Model):
 
 
 class DeriTuru(models.Model):
-    """Ana malzeme türü: Deri çeşitleri, Keçe, Süet, Rona, Suni deri… ve fasonda birleştirilen malzemeler."""
+    """Ana malzeme türü: Deri çeşitleri, Keçe, Süet, Rono, Suni deri… ve fasonda birleştirilen malzemeler."""
 
     ad = models.CharField(max_length=60, unique=True)
     bilesik = models.BooleanField(
@@ -260,6 +262,8 @@ class KatalogSerisi(models.Model):
         HaliTuru, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="halı türü",
         help_text="Bu seriden sipariş açılınca halı türü (istasyon sırası) kendiliğinden seçilir.",
     )
+    kartela = models.CharField("renk kartelası", max_length=10, blank=True, choices=[("rono", "Rono"), ("bienca", "Bienca")],
+                               help_text="Bayi bu seriden sipariş verirken renk bu kartelasından seçilir; boşsa renk yazılır.")
 
     class Meta:
         ordering = ["sira", "ad"]
@@ -268,6 +272,34 @@ class KatalogSerisi(models.Model):
 
     def __str__(self):
         return self.ad
+
+
+class Renk(models.Model):
+    """Müşteriye sunulan renk / desen kartelası (Rono RN01…, Bienca BN01…)."""
+
+    GRUPLAR = [("rono", "Rono"), ("bienca", "Bienca")]
+    kod = models.CharField(max_length=10, unique=True, help_text="Ör. RN06")
+    ad = models.CharField(max_length=60)
+    grup = models.CharField("kartela", max_length=10, choices=GRUPLAR)
+    resim = models.FileField(upload_to="kartela/", blank=True, validators=[resim_dogrulayici],
+                             help_text="Boşsa programla gelen numune fotoğrafı gösterilir.")
+    sira = models.PositiveIntegerField(default=0)
+    aktif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["grup", "sira", "kod"]
+        verbose_name = "kartela rengi"
+        verbose_name_plural = "kartela renkleri"
+
+    def __str__(self):
+        return f"{self.kod} {self.ad}"
+
+    @property
+    def resim_adresi(self):
+        if self.resim:
+            return self.resim.url
+        from django.templatetags.static import static
+        return static(f"uretim/kartela/{self.kod}.jpg")
 
 
 class KatalogModeli(models.Model):
@@ -421,6 +453,7 @@ class Siparis(models.Model):
         ("uretimde", "Üretimde"),
         ("tamamlandi", "Tamamlandı"),
         ("sevk", "Sevk edildi"),
+        ("tamirde", "Tamirde"),
         ("iptal", "İptal"),
     ]
 
@@ -438,6 +471,8 @@ class Siparis(models.Model):
                                      verbose_name="lazer deseni")
     urun = models.CharField("ürün açıklaması", max_length=200, help_text="Örn: 200x300 krem kuzu patchwork halı")
     deri_turu = models.ForeignKey(DeriTuru, on_delete=models.PROTECT, null=True, blank=True, verbose_name="deri türü")
+    renk = models.ForeignKey(Renk, on_delete=models.PROTECT, null=True, blank=True, verbose_name="renk (kartela)")
+    renk_notu = models.CharField("renk", max_length=100, blank=True, help_text="Kartelası olmayan seride yazılan renk.")
     en_cm = models.DecimalField("en (cm)", max_digits=7, decimal_places=1, null=True, blank=True, validators=pozitif)
     boy_cm = models.DecimalField("boy (cm)", max_digits=7, decimal_places=1, null=True, blank=True, validators=pozitif)
     adet = models.PositiveIntegerField(default=1)
@@ -463,6 +498,10 @@ class Siparis(models.Model):
         if self.en_cm and self.boy_cm:
             self.toplam_m2 = (self.en_cm * self.boy_cm * (self.adet or 1) / 10000).quantize(Decimal("0.01"))
         super().save(*args, **kwargs)
+
+    @property
+    def renk_metni(self):
+        return str(self.renk) if self.renk_id else self.renk_notu
 
     @property
     def olcu_metni(self):
@@ -521,13 +560,40 @@ class Siparis(models.Model):
     def gecikme_gun(self):
         return max(0, -self.kalan_gun)
 
+    def bayi_durumu(self):
+        """Bayinin gördüğü sade durum: istasyon adı olur ama 'bekliyor / çalışılıyor', personel, gecikme ve tamir olmaz.
+
+        {"etiket": "Üretimde", "istasyonlar": ["Zig-zag"], "hazir": 1, "toplam": 3}
+        """
+        durum = self.durum
+        if durum == "tamirde":  # bayi tamiri görmez: tamirden önceki durum
+            kayit = self.tamirler.order_by("-tarih").first()
+            durum = (kayit.onceki_durum if kayit else "") or "sevk"
+        lotlar = [l for l in self.lotlar.all() if l.durum != "iptal" and l.tur != "tamir"]
+        hazir = sum(1 for l in lotlar if l.durum == "tamamlandi")
+        toplam = len(lotlar)
+        etiketler = {"onay": "Onay bekliyor", "acik": "Sipariş alındı", "uretimde": "Üretimde", "tamamlandi": "Hazır",
+                     "sevk": "Sevk edildi", "iptal": "İptal"}
+        istasyonlar = []
+        if durum == "uretimde":
+            for l in lotlar:
+                if l.durum == "islemde" and l.son_asama:
+                    ad = l.son_asama.ad
+                elif l.durum == "bekliyor":
+                    ad = l.siradaki_asama.ad if l.siradaki_asama else ""
+                else:
+                    continue
+                if ad and ad not in istasyonlar:
+                    istasyonlar.append(ad)
+        return {"etiket": etiketler.get(durum, ""), "kod": durum, "istasyonlar": istasyonlar, "hazir": hazir, "toplam": toplam}
+
     def ilerleme(self):
         """Siparişin üretim durumu: tamamlanma yüzdesi ve lotların aşamalara dağılımı.
 
         Toplam m² girilmişse yüzde, biten lotların m²'sine göre; girilmemişse biten lot sayısına göre
         hesaplanır. İptal edilen lotlar sayılmaz.
         """
-        lotlar = [lot for lot in self.lotlar.all() if lot.durum != "iptal"]
+        lotlar = [lot for lot in self.lotlar.all() if lot.durum != "iptal" and lot.tur != "tamir"]
         biten = [lot for lot in lotlar if lot.durum == "tamamlandi"]
         uretilen_m2 = sum((lot.mevcut_m2 or SIFIR for lot in biten), SIFIR)
         if self.toplam_m2:
@@ -621,6 +687,8 @@ class UretimLotu(models.Model):
     )
     kalem = models.ForeignKey(SiparisKalemi, on_delete=models.SET_NULL, null=True, blank=True, related_name="lotlar",
                               verbose_name="ölçü satırı")
+    tur = models.CharField("iş türü", max_length=8, choices=[("uretim", "Üretim"), ("tamir", "Tamir / iade")],
+                           default="uretim")
     olusturma = models.DateTimeField("oluşturma", default=timezone.now)
     baslangic_kg = models.DecimalField("başlangıç kg", max_digits=10, decimal_places=2, validators=pozitif)
     baslangic_m2 = models.DecimalField("başlangıç m²", max_digits=10, decimal_places=2, validators=pozitif)
@@ -653,8 +721,8 @@ class UretimLotu(models.Model):
         if self.mevcut_m2 is None:
             self.mevcut_m2 = self.baslangic_m2
         super().save(*args, **kwargs)
-        # Tamamlanmış bir siparişe bitmemiş lot eklenirse sipariş yeniden üretime döner.
-        if self.siparis_id and self.durum not in ("tamamlandi", "iptal"):
+        # Tamamlanmış bir siparişe bitmemiş lot eklenirse sipariş yeniden üretime döner (tamir işi hariç).
+        if self.siparis_id and self.durum not in ("tamamlandi", "iptal") and self.tur != "tamir":
             Siparis.objects.filter(pk=self.siparis_id, durum="tamamlandi").update(durum="uretimde")
 
     @property
@@ -665,10 +733,17 @@ class UretimLotu(models.Model):
             parcalar.append(f"Eski stok ({self.eski_stok_turu})")
         return ", ".join(parcalar)
 
+    def rota(self):
+        """İşin istasyon sırası: tamir işinde ofisin seçtikleri, yoksa halı türünün rotası."""
+        if self.tur == "tamir":
+            kayit = TamirKaydi.objects.filter(lot=self).first()
+            if kayit is not None:
+                return [(i, a) for i, a in enumerate(kayit.istasyonlar.order_by("sira"), 1)]
+        return rota_adimlari(self.siparis.hali_turu_id if self.siparis_id else None)
+
     def asama_sonrasi(self, asama):
         """Bu iş için verilen istasyondan sonra gelecek istasyon(lar); boş liste: iş biter."""
-        hali_turu_id = self.siparis.hali_turu_id if self.siparis_id else None
-        return sonraki_asamalar(rota_adimlari(hali_turu_id), asama)
+        return sonraki_asamalar(self.rota(), asama)
 
     @property
     def siradaki_asamalar(self):
@@ -836,7 +911,7 @@ NEDENLER = [
 
 
 class FasonIsi(models.Model):
-    """Fasoncuya preslenmeye giden malzemeler (ör. Keçe + Süet + Rona → 3'lü lamine).
+    """Fasoncuya preslenmeye giden malzemeler (ör. Keçe + Süet + Rono → 3'lü lamine).
 
     Gönderilen miktarlar stoktan "fasona gönderildi" düzeltmesiyle düşer; teslim alınınca yeni bir stok lotu açılır.
     """
@@ -1106,6 +1181,76 @@ class Tasarim(models.Model):
         return tasarim_ozet(self.veri)
 
 
+class TamirKaydi(models.Model):
+    """Biten / sevk edilen siparişte iade, tamir, düzeltme. Yalnız ofis açar; bayi görmez; stoğa giriş yok."""
+
+    NEDENLER = [("iade", "Müşteri iadesi"), ("tamir", "Tamir"), ("duzeltme", "Düzeltme"), ("garanti", "Garanti")]
+    no = models.CharField("tamir no", max_length=20, unique=True, blank=True)
+    siparis = models.ForeignKey(Siparis, on_delete=models.CASCADE, related_name="tamirler", verbose_name="sipariş")
+    kaynak_lot = models.ForeignKey(UretimLotu, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+                                   verbose_name="hangi halı (iş)")
+    lot = models.OneToOneField(UretimLotu, on_delete=models.SET_NULL, null=True, blank=True, related_name="tamir_kaydi",
+                               verbose_name="tamir işi")
+    neden = models.CharField(max_length=10, choices=NEDENLER)
+    aciklama = models.TextField("açıklama", blank=True)
+    foto = models.FileField("fotoğraf", upload_to="tamir/%Y/%m/", blank=True, validators=[resim_dogrulayici])
+    istasyonlar = models.ManyToManyField(Asama, related_name="tamirler", verbose_name="geçeceği istasyonlar")
+    hata_asama = models.ForeignKey(Asama, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+                                   verbose_name="hata hangi istasyonda")
+    hata_personel = models.ForeignKey(Personel, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+                                      verbose_name="hata kimin")
+    onceki_durum = models.CharField(max_length=12, blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="açan")
+    tarih = models.DateTimeField(default=timezone.now)
+    bitis = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-tarih"]
+        verbose_name = "tamir / iade"
+        verbose_name_plural = "tamir / iade kayıtları"
+
+    def __str__(self):
+        return f"{self.no} – {self.siparis.siparis_no}"
+
+    def save(self, *args, **kwargs):
+        if not self.no:
+            self.no = sonraki_numara(TamirKaydi, "no", "TM")
+        super().save(*args, **kwargs)
+
+
+class BayiDavet(models.Model):
+    """Bayiye WhatsApp'tan gönderilen tek kullanımlık giriş bağlantısı; bayi açınca kendi şifresini koyar."""
+
+    kullanici = models.ForeignKey("auth.User", on_delete=models.CASCADE, related_name="davetler")
+    anahtar = models.CharField(max_length=64, unique=True)
+    olusturma = models.DateTimeField(default=timezone.now)
+    son_gecerlilik = models.DateTimeField()
+    kullanildi = models.DateTimeField(null=True, blank=True)
+    olusturan = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    class Meta:
+        verbose_name = "bayi daveti"
+        verbose_name_plural = "bayi davetleri"
+
+    @property
+    def gecerli(self):
+        return self.kullanildi is None and self.son_gecerlilik > timezone.now()
+
+
+class BildirimAboneligi(models.Model):
+    """Telefona anlık bildirim (web push) için tarayıcı aboneliği."""
+
+    kullanici = models.ForeignKey("auth.User", on_delete=models.CASCADE, related_name="bildirim_abonelikleri")
+    endpoint = models.URLField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    olusturma = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "bildirim aboneliği"
+        verbose_name_plural = "bildirim abonelikleri"
+
+
 class SistemAyari(models.Model):
     """Tek satırlık genel ayarlar (yönetici değiştirir)."""
 
@@ -1119,6 +1264,8 @@ class SistemAyari(models.Model):
                   "bitirilemez. Kapalıyken ikisi de isteğe bağlıdır.",
     )
     son_foto_kucultme = models.DateField("son fotoğraf küçültme", null=True, blank=True, editable=False)
+    vapid_ozel = models.TextField(blank=True, editable=False)
+    vapid_acik = models.CharField(max_length=200, blank=True, editable=False)
 
     class Meta:
         verbose_name = "sistem ayarı"

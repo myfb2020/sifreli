@@ -104,8 +104,11 @@ def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""
         lazer_deseni=LazerDeseni.objects.filter(kod=desen_kodu).first() if desen_kodu else None, notlar=notlar,
         katalog_modeli=KatalogModeli.objects.filter(kod=katalog).first() if katalog else None,
     )
-    return Tasarim.objects.create(musteri=bayi, kullanici=kullanici, veri=veri, adet=adet, istenen_tarih=istenen_tarih,
-                                  notlar=notlar, siparis=siparis)
+    tasarim = Tasarim.objects.create(musteri=bayi, kullanici=kullanici, veri=veri, adet=adet, istenen_tarih=istenen_tarih,
+                                     notlar=notlar, siparis=siparis)
+    from . import bildirim
+    bildirim.yeni_bayi_siparisi(siparis)
+    return tasarim
 
 
 @login_required
@@ -227,18 +230,6 @@ def lazer_dosyasi(request, pk, tur):
     yanit = HttpResponse(icerik, content_type=mime)
     yanit["Content-Disposition"] = f'attachment; filename="{tasarim.siparis.siparis_no if tasarim.siparis else tasarim.no}.{tur}"'
     return yanit
-
-
-@login_required
-def bayi_ana(request):
-    bayi = _bayi_gerekli(request)
-    tasarimlar = (
-        Tasarim.objects.filter(musteri=bayi)
-        .select_related("siparis")
-        .prefetch_related(Prefetch("siparis__lotlar", queryset=UretimLotu.objects.select_related("son_asama")))
-    )
-    satirlar = [(t, t.siparis.ilerleme() if t.siparis else None) for t in tasarimlar[:100]]
-    return render(request, "uretim/bayi_ana.html", {"satirlar": satirlar})
 
 
 # --- Ofis: sipariş sayfasından onay / ret ---------------------------------------

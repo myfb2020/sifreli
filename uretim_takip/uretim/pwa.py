@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Siparis, SiparisFotografi
 
 # Önbellek sürümü: statik dosyalar değişince artırın, telefonlar yenisini indirir.
-SURUM = "v5"
+SURUM = "v6"
 
 
 def manifest(request):

@@ -5,7 +5,8 @@ from django.shortcuts import redirect
 from .models import hesap_bayisi
 
 IZINLI = ("/bayi/", "/tasarim/", "/medya/", "/cikis/", "/giris/", "/static/", "/manifest.webmanifest", "/sw.js",
-          "/cevrimdisi/", "/saglik/")
+          "/cevrimdisi/", "/saglik/", "/davet/")
+STUDYO = ("/tasarim/", "/tasarim/parcali/")  # stüdyosu kapalı bayi bu sayfaları açamaz
 
 
 class BayiSiniri:
@@ -19,6 +20,8 @@ class BayiSiniri:
             request.bayi = bayi
             if bayi is not None and not request.path.startswith(IZINLI):
                 return redirect("bayi_ana")
+            if bayi is not None and not bayi.studyo_acik and request.path in STUDYO:
+                return redirect("bayi_siparis")
         else:
             request.bayi = None
         return self.get_response(request)

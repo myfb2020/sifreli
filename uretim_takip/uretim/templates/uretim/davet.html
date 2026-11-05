@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block baslik %}Bienna Fur – hoş geldiniz{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:460px;margin:20px auto">
+  {% if gecersiz %}
+  <h1>Bağlantı geçersiz</h1>
+  <p>Bu davet bağlantısının süresi dolmuş ya da daha önce kullanılmış. Bienna Fur'dan yeni bağlantı isteyin.</p>
+  {% else %}
+  <h1>Hoş geldiniz</h1>
+  <p><b>{{ davet.kullanici.hesap_ayari.musteri }}</b> sipariş ekranınız hazır. Kendinize bir şifre belirleyin; bu telefon sizi hatırlayacak.</p>
+  <p class="soluk">Kullanıcı adınız: <b>{{ davet.kullanici.username }}</b> (başka telefondan girerken gerekir).</p>
+  <form method="post" class="dikey">
+    {% include "uretim/_form.html" %}
+    <button class="btn buyuk" type="submit" style="width:100%">Kaydet ve gir</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

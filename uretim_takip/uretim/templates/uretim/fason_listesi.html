@@ -6,7 +6,7 @@
   {% if perms.uretim.add_fasonisi %}<a class="btn" href="{% url 'fason_gonder' %}">📤 Fasona gönder</a>{% endif %}
 </div>
 {% include "uretim/_stok_sekmeleri.html" %}
-<p class="soluk">Keçe, süet, rona / suni deri gibi malzemeleri preslenmeye gönderdiğinizde buraya kaydedin. Gönderilen miktarlar stoktan düşer; mal geri gelince <b>Teslim al</b> ile yeni stok lotu açılır.</p>
+<p class="soluk">Keçe, süet, rono / suni deri gibi malzemeleri preslenmeye gönderdiğinizde buraya kaydedin. Gönderilen miktarlar stoktan düşer; mal geri gelince <b>Teslim al</b> ile yeni stok lotu açılır.</p>
 
 <div class="sekmeler alt-sekme">
   <a class="sekme{% if durum == 'fasonda' %} secili{% endif %}" href="?durum=fasonda">Fasonda</a>
