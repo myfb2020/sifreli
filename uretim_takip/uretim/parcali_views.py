@@ -37,6 +37,18 @@ def hesap(v):
     }
 
 
+def _grup(k):
+    """Malzemenin kartela grubu: 'RNO', 'BNA', ince çizgi için 'metal' ya da '' (yalnız serbest tasarımda)."""
+    for on, liste in parcali.KARTELA_MALZEMELERI.items():
+        if k in liste:
+            return on
+    return "metal" if k in parcali.METALIK else ""
+
+
+def _gruplu_malzemeler():
+    return [(k, ad, hex_, _grup(k)) for k, ad, hex_ in parcali.MALZEMELER]
+
+
 def bayi_hesap(v):
     """Bayi ekranı için yalnız gerekenler: özet, teknik olmayan uyarılar (yeriyle), halkalara kalan yer."""
     return {"ozet": parcali.ozet(v),
@@ -72,11 +84,11 @@ def studyo(request):
                  "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"],
                  "ad_malzeme": f"h{i}_malzeme", "ad_desen": f"h{i}_desen", "ad_nakis": f"h{i}_nakis"} for i in range(1, parcali.EN_COK_HALKA + 1)]
     return render(request, "uretim/tasarim_parcali.html", {
-        "form": form, "v": veri, "h": bayi_hesap(veri), "halkalar": halkalar, "malzemeler": parcali.MALZEMELER,
+        "form": form, "v": veri, "h": bayi_hesap(veri), "halkalar": halkalar, "malzemeler": _gruplu_malzemeler(),
         "sekiller": parcali.SEKILLER, "halka_turleri": parcali.HALKA_TURLERI, "orta_turleri": parcali.ORTA_TURLERI,
         "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "nakis_motifleri": motifler,
         "iplikler": parcali.IPLIKLER,
-        "kenarlar": parcali.KENARLAR, "kenar_renkleri": parcali.KENAR_RENKLERI, "desenler": desenler,
+        "kenarlar": parcali.KENARLAR, "kenar_renkleri": [(k, ad, _grup(k)) for k, ad in parcali.kenar_secenekleri()], "desenler": desenler,
         "seriler": seriler, "madalyonlar": parcali.MADALYONLAR, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "en_cok_halka": parcali.EN_COK_HALKA,
     })
 
@@ -97,10 +109,15 @@ def fikir(request):
     except (KeyError, ValueError):
         olcu = None
     sonuc = []
-    for v in parcali.fikirler(6, None, _desen_kodlari() - parcali.GIZLI_DESENLER, olcu):
+    for v in parcali.fikirler(6, None, _desen_kodlari() - parcali.GIZLI_DESENLER, olcu,
+                              katalog=str(request.GET.get("katalog", "")).upper(), seri=request.GET.get("seri", "")):
         orta = dict(parcali.ORTA_TURLERI)[v["orta"]].lower()
-        sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()},
-                      "baslik": f"{dict(parcali.SEKILLER)[v['sekil']]} · {v['halka_sayisi']} halka · orta {orta}"})
+        if parcali.seri_kartelasi(v.get("katalog")):
+            baslik = (f"{v['katalog']} · zemin {parcali.MALZEME_AD[v['zemin']].split(' ', 2)[1]}"
+                      f" · kenar {parcali.KENAR_AD[v['kenar_renk']].split(' ', 2)[1]}")
+        else:
+            baslik = f"{dict(parcali.SEKILLER)[v['sekil']]} · {v['halka_sayisi']} halka · orta {orta}"
+        sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()}, "baslik": baslik})
     return JsonResponse(sonuc, safe=False)
 
 

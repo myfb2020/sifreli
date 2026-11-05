@@ -2545,3 +2545,56 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.assertEqual(k.on_islem, "Nakışlı")
         self.client.force_login(self.yonetici)
         self.assertContains(self.client.get(reverse("istasyon_parca", args=[lazer.pk])), "(Nakışlı)")
+
+
+class KartelaStudyoTesti(TasarimStudyosuTesti):
+    """Rono / Bienca modelleri yalnız kendi kartelasıyla (+ ince çizgi metalik) değiştirilir; fikir ver modeli korur."""
+
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def test_hazir_modeller_kartelada(self):
+        from . import parcali
+        for kod in parcali.HAZIR:
+            on = parcali.seri_kartelasi(kod)
+            if not on:
+                continue
+            v = parcali.hazir_degerler(kod)
+            izinli = set(parcali.kartela_secenekleri(on))
+            for alan in parcali.MALZEME_ALANLARI:
+                self.assertIn(v[alan], izinli, f"{kod} {alan}")
+            self.assertIn(v["kenar_renk"], parcali.KARTELA_MALZEMELERI[on], kod)
+        # kartelalı modelde dışarıdan gelen yanlış malzeme düzeltilir; serbest tasarımda dokunulmaz
+        v = parcali.temizle({"duzen": "halkali", "katalog": "BNA-005", "zemin": "pelus_taba", "halka_sayisi": 1,
+                             "h1_malzeme": "gumus", "kenar_renk": "siyah"})
+        self.assertEqual((v["zemin"], v["h1_malzeme"]), ("bienca_bn02", "gumus"))
+        self.assertIn(v["kenar_renk"], parcali.KARTELA_MALZEMELERI["BNA"])
+        v = parcali.temizle({"duzen": "halkali", "zemin": "pelus_taba", "kenar_renk": "siyah"})
+        self.assertEqual((v["zemin"], v["kenar_renk"]), ("pelus_taba", "siyah"))
+
+    def test_fikir_secili_modeli_korur(self):
+        from . import parcali
+        taban = parcali.hazir_degerler("RNO-004")
+        self.client.force_login(self.bayi_hesap)
+        liste = self.client.get(reverse("parcali_fikir"), {"en": "160", "boy": "230", "katalog": "RNO-004"}).json()
+        self.assertEqual(len(liste), 6)
+        renkler = set()
+        for f in liste:
+            v = f["v"]
+            self.assertEqual((v["katalog"], v["halka_sayisi"], v["h1_tur"], v["h2_desen"]),
+                             ("RNO-004", taban["halka_sayisi"], taban["h1_tur"], taban["h2_desen"]))
+            self.assertIn(v["zemin"], parcali.KARTELA_MALZEMELERI["RNO"])
+            self.assertIn(v["h1_malzeme"], ("altin", "gumus"))  # ince çizgi metalik kalır
+            renkler.add(v["zemin"])
+            self.assertTrue(f["baslik"].startswith("RNO-004"))
+        self.assertGreater(len(renkler), 2)
+        # model seçmeden Bienca sekmesindeyken: serbest ama Bienca kartelası
+        liste = self.client.get(reverse("parcali_fikir"), {"seri": "BNA"}).json()
+        self.assertTrue(all(f["v"]["zemin"] in parcali.KARTELA_MALZEMELERI["BNA"] for f in liste))
+        # önizleme: Bienca dokusu ve kartela renginden kenar çizilir
+        v = parcali.hazir_degerler("BNA-005")
+        self.assertEqual(self.client.get(reverse("parcali_onizleme_resmi"), {**v, "b": 300}).status_code, 200)
+        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "RNO-004"})
+        self.assertContains(sayfa, 'data-grup="RNO"')
+        self.assertContains(sayfa, "Bienca BN01 Gümüş &amp; altın varak")
+        self.assertContains(self.client.get(reverse("bayi_siparis")), "Renklerini değiştir")

@@ -10,7 +10,7 @@
     <h2>1. Model seçin</h2>
     <div class="seri-sekme">{% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}</div>
     {% for x in seriler %}<div class="model-izgara" data-seri-izgara="{{ x.seri.pk }}"{% if not forloop.first %} hidden{% endif %}>
-      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}" data-kartela="{{ x.seri.kartela }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{{ m.kod }}</span></button>{% endfor %}
+      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}" data-kartela="{{ x.seri.kartela }}"{% if studyo and m.kod in duzenlenir %} data-duzenlenir="1"{% endif %}><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{{ m.kod }}</span></button>{% endfor %}
     </div>{% endfor %}
     <p id="secilen-model" class="soluk">Henüz model seçilmedi.</p>
   </div>
@@ -48,7 +48,8 @@
   function modelSec(k) {
     document.querySelectorAll(".model-kart").forEach((x) => x.classList.toggle("secili", x === k));
     modelAlan.value = k.dataset.kod;
-    document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>`;
+    document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>` + (k.dataset.duzenlenir ?
+      ` · <a href="{% url 'parcali_studyo' %}?hazir=${encodeURIComponent(k.dataset.kod)}">✏️ Renklerini değiştir</a>` : "");
     const kartela = k.dataset.kartela;
     document.getElementById("renk-once").hidden = true;
     document.querySelectorAll(".renk-izgara").forEach((g) => { g.hidden = g.dataset.kartela !== kartela; });

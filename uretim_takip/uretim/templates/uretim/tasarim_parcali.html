@@ -140,7 +140,7 @@
       <h2>4. Kenar</h2>
       <div class="secim-izgara">{% for k, ad in kenarlar %}<label class="secim buyuk-secim"><input type="radio" name="kenar" value="{{ k }}"{% if v.kenar == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
       <label class="alt-baslik">Kenar rengi</label>
-      <div class="secim-izgara">{% for k, ad in kenar_renkleri %}<label class="secim"><input type="radio" name="kenar_renk" value="{{ k }}"{% if v.kenar_renk == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
+      <div class="secim-izgara">{% for k, ad, grup in kenar_renkleri %}<label class="secim kenar-renk" data-grup="{{ grup }}"><input type="radio" name="kenar_renk" value="{{ k }}"{% if v.kenar_renk == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
       <label class="alt-baslik">Nakış ipliği rengi <small class="soluk">(nakışlı parça varsa)</small></label>
       <div class="secim-izgara">{% for k, ad, hex in iplikler %}<label class="secim"><input type="radio" name="iplik" value="{{ k }}"{% if v.iplik == k %} checked{% endif %}><span><i class="iplik-renk" style="background:{{ hex }}"></i>{{ ad }}</span></label>{% endfor %}</div>
     </section>
@@ -323,7 +323,31 @@
     new FormData(form).forEach((d, ad) => { if (!siparisAlanlari.includes(ad)) v.set(ad, d); });
     return v.toString();
   }
+  // Rono / Bienca modelinde yalnız o serinin kartelası (+ ince çizgi için metalik); kenar rengi kartelaya bağlı
+  function kartelaFiltre() {
+    const on = (form.querySelector('[name="katalog"]').value || "").slice(0, 3);
+    const kartelali = on === "RNO" || on === "BNA";
+    document.querySelectorAll(".mal-izgara").forEach((izgara) => {
+      let secili = null, ilk = null;
+      izgara.querySelectorAll("label.mal").forEach((l) => {
+        const g = l.dataset.grup;
+        l.hidden = kartelali && g !== on && g !== "metal";
+        if (!l.hidden && !ilk) ilk = l;
+        if (l.querySelector("input").checked) secili = l;
+      });
+      if (secili && secili.hidden && ilk) ilk.querySelector("input").checked = true;
+    });
+    let kSecili = null, kIlk = null;
+    document.querySelectorAll("label.kenar-renk").forEach((l) => {
+      const g = l.dataset.grup;
+      l.hidden = kartelali ? g !== on : (g === "RNO" || g === "BNA");
+      if (!l.hidden && !kIlk) kIlk = l;
+      if (l.querySelector("input").checked) kSecili = l;
+    });
+    if (kSecili && kSecili.hidden && kIlk) kIlk.querySelector("input").checked = true;
+  }
   async function guncelle() {
+    kartelaFiltre();
     const benim = ++sira, q = sorgu();
     const aynen = form.querySelector('[name="aynen"]').value;
     document.getElementById("aynen-not").hidden = !aynen;
@@ -450,8 +474,12 @@
   document.getElementById("fikir-dugme").addEventListener("click", async () => {
     const kap = document.getElementById("fikirler");
     kap.innerHTML = '<span class="soluk">Fikirler hazırlanıyor…</span>';
-    const q = new URLSearchParams({ en: deger("en"), boy: deger("boy") });
+    // seçili model (Rono / Bienca) varsa öneriler onun üzerinden: yapı aynı, renkler kartelada değişir
+    const katalog = (secilen && !secimKutusu.hidden) ? secilen.dataset.kod : form.querySelector('[name="katalog"]').value;
+    const seri = (document.querySelector(".seri-sekme button.etkin") || {}).dataset?.seri || "";
+    const q = new URLSearchParams({ en: deger("en"), boy: deger("boy"), katalog: katalog || "", seri });
     const liste = await (await fetch("{% url 'parcali_fikir' %}?" + q)).json();
+    secimKutusu.hidden = true;
     kap.innerHTML = "";
     liste.forEach((f) => {
       const d = document.createElement("button");

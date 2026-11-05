@@ -243,8 +243,9 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     dis = _poli_maske(boyut, olc(pc.dis_hat(v)))
     b = max(2, int(px * 1.6))
     serit = ImageChops.subtract(dis, dis.filter(ImageFilter.MinFilter(b * 2 + 1)))
-    kenar_renk = KENAR_HEX[v["kenar_renk"]]
+    kenar_renk = KENAR_HEX.get(v["kenar_renk"]) or pc.MALZEME_HEX.get(v["kenar_renk"], "#888888")
     kenar = (hg.malzeme(v["kenar_renk"], boyut, px) if v["kenar_renk"] in ("altin", "gumus")
+             else malzeme_dokusu(v["kenar_renk"], boyut, px) if v["kenar_renk"] in pc.MALZEME_HEX
              else Image.new("RGB", boyut, _hex(kenar_renk)))
     resim.paste(kenar, (0, 0), serit)
     if v["kenar"] == "lanfel":

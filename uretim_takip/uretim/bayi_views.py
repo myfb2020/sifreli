@@ -118,8 +118,10 @@ def bayi_siparis(request):
         if modeller:
             seriler.append({"seri": seri, "modeller": modeller})
     kartelalar = {g: list(Renk.objects.filter(grup=g, aktif=True)) for g, _ in Renk.GRUPLAR}
+    from . import parcali
     return render(request, "uretim/bayi_siparis.html", {"form": form, "olculer": olculer, "seriler": seriler,
-                                                        "kartelalar": kartelalar})
+                                                        "kartelalar": kartelalar, "studyo": bayi.studyo_acik,
+                                                        "duzenlenir": set(parcali.HAZIR)})
 
 
 # --- Davet bağlantısı -------------------------------------------------------------------

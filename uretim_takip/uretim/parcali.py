@@ -57,8 +57,11 @@ MALZEMELER = [
     ("pelus_pembe", "Pembe peluş", "#deb4b4"),
     ("pelus_lacivert", "Lacivert peluş", "#283458"),
     ("pelus_siyah", "Siyah peluş", "#262424"),
-    ("bienca_krem", "Bienca krem (gümüş-siyah varak)", "#d8d2c8"),
-    ("bienca_gri", "Bienca gri (gümüş varak)", "#9c9a96"),
+    # Bienca – müşteri kartelası BN01–BN04 (2026-11-05, kartla ölçülü numune fotoğraflarından)
+    ("bienca_bn01", "Bienca BN01 Gümüş & altın varak", "#d9d6cc"),
+    ("bienca_bn02", "Bienca BN02 Eskitme kahve / krem", "#8a6a55"),
+    ("bienca_bn03", "Bienca BN03 Gümüş & gri eskitme", "#9aa1a3"),
+    ("bienca_bn04", "Bienca BN04 Altın & gümüş eskitme", "#c8ab62"),
     # Rono (üçlü lamine: süet + keçe + Rono) – müşteri kartelası RN01–RN07 (2026-11-05). Anahtarlar eski kayıtlar için aynı.
     ("acik_gri_keten", "Rono RN01 Gri / vizon", "#b2a092"),
     ("gri_keten", "Rono RN02 Koyu gri / gümüş", "#676260"),
@@ -85,7 +88,52 @@ MALZEMELER = [
     ("gumus", "Gümüş (düz metalik)", "#c2c5c9"),
 ]
 # Kartelada olmayan eski malzemeler: eski kayıtlar açılınca en yakın Rono rengine çevrilir.
-ESKI_MALZEME = {"bej_keten": "krem_keten", "siyah_keten": "antrasit_keten", "rona_kahve_simli": "kahve_keten"}
+ESKI_MALZEME = {"bej_keten": "krem_keten", "siyah_keten": "antrasit_keten", "rona_kahve_simli": "kahve_keten",
+                "bienca_krem": "bienca_bn01", "bienca_gri": "bienca_bn03"}
+# Kartelalı seriler: modelin bütün parçaları yalnız kendi kartelasından; ince çizgiler metalik; kenar kartelaya bağlı.
+KARTELA_MALZEMELERI = {
+    "RNO": ["acik_gri_keten", "gri_keten", "krem_keten", "antrasit_keten", "vizon_keten", "kahve_keten", "beyaz_keten"],
+    "BNA": ["bienca_bn01", "bienca_bn02", "bienca_bn03", "bienca_bn04"],
+}
+METALIK = ["altin", "gumus", "altin_ayna", "siyah_simli"]
+# Hazır modellerin eski malzemeleri kartelada en yakın karşılığına (katalog fotoğrafına bakarak)
+KARTELA_ESLEME = {
+    "RNO": {"pelus_gri": "gri_keten", "pelus_krem": "krem_keten", "bienca_gri": "gri_keten", "bienca_krem": "krem_keten",
+            "pelus_beyaz": "beyaz_keten", "pelus_siyah": "antrasit_keten", "pelus_vizon": "vizon_keten",
+            "pelus_taba": "kahve_keten"},
+    "BNA": {"bienca_krem": "bienca_bn01", "bienca_gri": "bienca_bn03", "pelus_krem": "bienca_bn01",
+            "pelus_taba": "bienca_bn02", "pelus_siyah": "bienca_bn02", "pelus_lacivert": "bienca_bn03",
+            "bakir_varak": "bienca_bn04", "pelus_beyaz": "bienca_bn01", "pelus_gri": "bienca_bn03"},
+}
+MALZEME_ALANLARI = ["zemin", "panel_malzeme", "serit_malzeme", "madalyon_malzeme"] + [f"h{i}_malzeme" for i in range(1, 5)]
+
+
+def seri_kartelasi(katalog):
+    """'RNO-003' → Rono kartelası anahtarı ('RNO'); kartelasız seri / serbest tasarım → None."""
+    on = (katalog or "")[:3]
+    return on if on in KARTELA_MALZEMELERI else None
+
+
+def kartela_secenekleri(on):
+    """Bu seride seçilebilen malzemeler (kartela + ince çizgi için metalik)."""
+    return KARTELA_MALZEMELERI[on] + METALIK
+
+
+def kartelaya_uydur(v, on):
+    """Tasarımın bütün malzemelerini serinin kartelasına çeker; kenar rengi de kartelaya bağlı."""
+    izinli, esle = kartela_secenekleri(on), KARTELA_ESLEME[on]
+    ilk = KARTELA_MALZEMELERI[on][0]
+    for alan in MALZEME_ALANLARI:
+        if alan in v and v[alan] not in izinli:
+            v[alan] = esle.get(v[alan], ilk)
+    if v.get("madalyon_cerceve") and v["madalyon_cerceve"] not in izinli:
+        v["madalyon_cerceve"] = esle.get(v["madalyon_cerceve"], "altin")
+    if v.get("kenar_renk") not in KARTELA_MALZEMELERI[on]:
+        # biye / lanfel: zeminden ayrı görünen kartela rengi (dış halka düz kartela rengiyse o)
+        dis = v.get("h1_malzeme") if v.get("halka_sayisi") else None
+        v["kenar_renk"] = dis if dis in KARTELA_MALZEMELERI[on] else (
+            v["zemin"] if v.get("zemin") in KARTELA_MALZEMELERI[on] else ilk)
+    return v
 MALZEME_AD = {k: a for k, a, _ in MALZEMELER}
 MALZEME_HEX = {k: h for k, _, h in MALZEMELER}
 for _eski, _yeni in ESKI_MALZEME.items():
@@ -132,6 +180,15 @@ def motif_uzun(kod):
     return max(MOTIF[kod]["en"], MOTIF[kod]["boy"])
 KENARLAR = [("biye", "Biye"), ("lanfel", "Lanfel")]
 KENAR_RENKLERI = [("altin", "Altın"), ("gumus", "Gümüş"), ("siyah", "Siyah"), ("beyaz", "Beyaz"), ("bej", "Bej")]
+# Kartelalı serilerde biye / lanfel kartela renginden (Rono RN.., Bienca BN..)
+KENAR_KARTELA = [(k, MALZEME_AD[k]) for liste in KARTELA_MALZEMELERI.values() for k in liste]
+
+
+def kenar_secenekleri():
+    return KENAR_RENKLERI + KENAR_KARTELA
+
+
+KENAR_AD = dict(kenar_secenekleri())
 
 VARSAYILAN = {
     "duzen": "halkali", "en": 120, "boy": 180, "pay": 1,
@@ -304,7 +361,9 @@ def _sec(deger, secenekler, varsayilan):
 
 
 def hazir_degerler(kod):
-    return {**VARSAYILAN, **HAZIR.get(kod, {}), "hazir": kod if kod in HAZIR else "", "katalog": kod if kod in HAZIR else ""}
+    v = {**VARSAYILAN, **HAZIR.get(kod, {}), "hazir": kod if kod in HAZIR else "", "katalog": kod if kod in HAZIR else ""}
+    on = seri_kartelasi(kod)
+    return kartelaya_uydur(v, on) if on and kod in HAZIR else v
 
 
 def temizle(veri, desen_kodlari=()):
@@ -317,13 +376,15 @@ def temizle(veri, desen_kodlari=()):
     v["zemin"] = _sec(g("zemin"), MALZEMELER, "beyaz_keten")
     v["desen_alti"] = _sec(g("desen_alti"), ALTLAR, "siyah")
     v["kenar"] = _sec(g("kenar"), KENARLAR, "biye")
-    v["kenar_renk"] = _sec(g("kenar_renk"), KENAR_RENKLERI, "altin")
+    v["kenar_renk"] = _sec(g("kenar_renk"), kenar_secenekleri(), "altin")
     v["hazir"] = veri.get("hazir") if veri.get("hazir") in HAZIR else ""
     kat = str(veri.get("katalog") or "").upper()
     v["katalog"] = kat if re.fullmatch(r"(IPS|BNA|PCH|RNO|MM)-\d{3}", kat) else ""
     v["aynen"] = "on" if v["katalog"] and veri.get("aynen") in ("on", True, "1", "true") else ""
     if v["duzen"] == "halkali":
-        return _halkali_temizle(v, g, desen)
+        v = _halkali_temizle(v, g, desen)
+        on = seri_kartelasi(v["katalog"])
+        return kartelaya_uydur(v, on) if on else v
     if v["duzen"] == "yuvarlak":
         v["cap"] = _sayi(g("cap"), 200, 60, 400)
         v["en"] = v["boy"] = v["cap"]
@@ -1143,7 +1204,7 @@ def _halkali_montaj(v):
         adimlar.append("İçten dışa her halka: önce yay parçalarını birbirine, sonra düz yanlarla birlikte ortaya zig-zag ile dik."
                        if oval else
                        "İçten dışa her halka: önce kısa üst/alt parçaları, sonra boydan boya uzun yanları zig-zag ile dik.")
-    adimlar.append(f"Kenar: {dict(KENARLAR)[v['kenar']]} ({dict(KENAR_RENKLERI)[v['kenar_renk']].lower()}) ile çevir.")
+    adimlar.append(f"Kenar: {dict(KENARLAR)[v['kenar']]} ({KENAR_AD[v['kenar_renk']].lower()}) ile çevir.")
     return adimlar
 
 
@@ -1168,7 +1229,7 @@ def _halkali_ozet(v):
                  + (f" {v['serit_desen']}" if v["serit_tur"] == "desenli" and v["serit_desen"] else "")
                  + (f" {v['nakis']} ({iplik} iplik)" if v["serit_tur"] == "nakisli" else ""))
     p.append(orta)
-    p.append(f"{dict(KENARLAR)[v['kenar']].lower()} {dict(KENAR_RENKLERI)[v['kenar_renk']].lower()}")
+    p.append(f"{dict(KENARLAR)[v['kenar']].lower()} {KENAR_AD[v['kenar_renk']].lower()}")
     if v.get("katalog"):
         p.append(f"({v['katalog']} esinli)")
     return " · ".join(p)
@@ -1268,7 +1329,7 @@ def montaj_sirasi(v):
         adimlar = ["Lazer: orta diski ve halka yay parçalarını kes.",
                    "Desenli halka parçalarının altına desen altı malzemesini yerleştir.",
                    "Yay parçalarını kendi aralarında zig-zag ile birleştir, sonra diske ve dış halkaya dik."]
-    adimlar.append(f"Kenar: {kenar} ({dict(KENAR_RENKLERI)[v['kenar_renk']].lower()}) ile çevir.")
+    adimlar.append(f"Kenar: {kenar} ({KENAR_AD[v['kenar_renk']].lower()}) ile çevir.")
     return adimlar
 
 
@@ -1311,15 +1372,70 @@ def ozet(v):
         if v["desen_halka"]:
             p.append(f"desenli halka {v['desen_halka']:g} cm {MALZEME_AD[v['desen_malzeme']].lower()}"
                      + (f" {v['desen']}" if v["desen"] else ""))
-    p.append(f"{dict(KENARLAR)[v['kenar']].lower()} {dict(KENAR_RENKLERI)[v['kenar_renk']].lower()}")
+    p.append(f"{dict(KENARLAR)[v['kenar']].lower()} {KENAR_AD[v['kenar_renk']].lower()}")
     if v.get("hazir"):
         p.append(f"({v['hazir']} esinli)")
     return " · ".join(p)
 
 
-def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None):
-    """'Bana fikir ver': atölye kurallarına uyan, birbirinden farklı rastgele tasarımlar."""
-    return [_halkali_fikir(i, rast, desen_kodlari, olcu) for i, rast in _rastlar(adet, tohum)]
+def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None, katalog="", seri=""):
+    """'Bana fikir ver'. Kartelalı seriden bir model seçiliyse (Rono / Bienca) modelin yapısı aynen kalır, yalnız
+    renkler kartelada değişir; model seçilmeyip sekmesi açık seri kartelalıysa serbest öneri o kartelayla boyanır;
+    yoksa atölye kurallarına uyan serbest öneriler."""
+    on = seri_kartelasi(katalog) or (seri if seri in KARTELA_MALZEMELERI else None)
+    sonuc, gorulen = [], set()
+    for i, rast in _rastlar(adet * 4, tohum):
+        if len(sonuc) == adet:
+            break
+        if on and katalog in HAZIR:
+            v = hazir_degerler(katalog)
+            if olcu:
+                v["en"], v["boy"] = olcu
+            v = _kartela_renklendir(v, on, rast)
+        else:
+            v = _halkali_fikir(len(sonuc), rast, desen_kodlari, olcu)
+            if on:
+                v = _kartela_renklendir(v, on, rast)
+        v = temizle(v, desen_kodlari)
+        anahtar = tuple(v.get(a) for a in MALZEME_ALANLARI + ["kenar_renk"])
+        if anahtar in gorulen:
+            continue
+        gorulen.add(anahtar)
+        sonuc.append(v)
+    return sonuc
+
+
+def _parlaklik(ad):
+    h = MALZEME_HEX.get(ad, "#888888").lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def _kartela_renklendir(v, on, rast):
+    """Yapıya dokunmadan renkleri kartelada değiştirir: zemin bir renk, kartela parçaları zeminden belirgin ayrı
+    (açık zemine koyu, koyu zemine açık), ince çizgiler metalik kalır, kenar kartela renginden."""
+    v = dict(v)
+    renkler = KARTELA_MALZEMELERI[on]
+    zemin = rast.choice(renkler)
+    v["zemin"] = zemin
+    zemin_p = _parlaklik(zemin)
+    karsit = [r for r in renkler if r != zemin and abs(_parlaklik(r) - zemin_p) > 45] or [r for r in renkler if r != zemin]
+    vurgu = rast.choice(karsit)
+    metal = rast.choice(["altin", "gumus"])  # ince çizgiler: hepsi aynı metal (altın ya da gümüş)
+    for alan in MALZEME_ALANLARI:
+        if alan == "zemin" or alan not in v:
+            continue
+        if v[alan] in ("altin", "gumus"):
+            v[alan] = metal
+        elif v[alan] not in METALIK:
+            v[alan] = vurgu if alan != "madalyon_malzeme" else rast.choice([zemin, vurgu])
+    if v.get("madalyon_cerceve") in ("altin", "gumus"):
+        v["madalyon_cerceve"] = metal
+    v["iplik"] = metal
+    v["kenar_renk"] = rast.choice([vurgu, vurgu, zemin])
+    v["kenar"] = v.get("kenar") or "biye"
+    v["katalog"], v["hazir"] = v.get("katalog", ""), v.get("hazir", "")
+    return v
 
 
 def dxf(v, malzeme=None, baslik=""):
