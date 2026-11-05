@@ -5,7 +5,7 @@
 <form method="post" class="dikey bayi-siparis">
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
-  {{ form.model }}{{ form.renk }}
+  {{ form.model }}{{ form.renk }}{{ form.bolgeler }}
   <div class="kart">
     <h2>1. Model seçin</h2>
     <div class="seri-sekme">{% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}</div>
@@ -17,6 +17,13 @@
   <div class="kart">
     <h2>2. Renk</h2>
     <p id="renk-once" class="soluk">Önce model seçin.</p>
+    <div id="foto-panel" hidden>
+      <div class="foto-onizleme"><img id="foto-resim" alt="Seçtiğiniz renklerle halı"><span id="foto-bekle" hidden>Boyanıyor…</span></div>
+      <p class="soluk foto-not">Fotoğraf gerçek halıdır; renge dokununca halı o renkle boyanır. Ölçüyü aşağıda yazın.</p>
+      <div id="foto-bolgeler"></div>
+      <h3 class="fikir-baslik">💡 Fikir ver <small class="soluk">– aynı model, başka kartela renkleri</small></h3>
+      <div id="foto-fikirler" class="fikir-izgara"></div>
+    </div>
     {% for grup, renkler in kartelalar.items %}<div class="renk-izgara" data-kartela="{{ grup }}" hidden>
       {% for r in renkler %}<button type="button" class="renk-kart" data-kod="{{ r.kod }}"><img src="{{ r.resim_adresi }}" alt="" loading="lazy"><span><b>{{ r.kod }}</b> {{ r.ad }}</span></button>{% endfor %}
     </div>{% endfor %}
@@ -38,8 +45,53 @@
     <p class="soluk">Siparişiniz Bienna Fur'a "Onay bekliyor" olarak gider; onaylanınca üretime alınır ve teslim tarihi yazılır.</p>
   </div>
 </form>
+{{ foto_modeller|json_script:"foto-modeller" }}
 <script>
 (function () {
+  const FOTO = JSON.parse(document.getElementById("foto-modeller").textContent);
+  const fotoAdres = "{% url 'foto_model_resmi' 'KOD' %}";
+  const bolgeAlan = document.getElementById("id_bolgeler");
+  let fotoKod = null, fotoSecim = {};
+  const adres = (kod, secim, w) => fotoAdres.replace("KOD", kod) + "?" + new URLSearchParams({ ...secim, w }).toString();
+  function fotoCiz() {
+    const img = document.getElementById("foto-resim"), bekle = document.getElementById("foto-bekle");
+    bekle.hidden = false;
+    img.onload = () => { bekle.hidden = true; };
+    img.src = adres(fotoKod, fotoSecim, "o");
+    bolgeAlan.value = JSON.stringify(fotoSecim);
+    document.querySelectorAll("#foto-bolgeler .cip").forEach((c) => c.classList.toggle("secili", fotoSecim[c.dataset.bolge] === c.dataset.k));
+    document.querySelectorAll("#foto-bolgeler [data-secilen]").forEach((e) => {
+      const b = FOTO[fotoKod].bolgeler.find((x) => x.anahtar === e.dataset.secilen);
+      const s = b.secenekler.find((x) => x.k === fotoSecim[b.anahtar]);
+      e.textContent = s ? s.ad + (s.k === b.varsayilan ? " (fotoğraftaki)" : "") : "";
+    });
+  }
+  function fotoKur(kod, secim) {
+    fotoKod = kod; const m = FOTO[kod];
+    fotoSecim = secim || Object.fromEntries(m.bolgeler.map((b) => [b.anahtar, b.varsayilan]));
+    const kap = document.getElementById("foto-bolgeler"); kap.innerHTML = "";
+    m.bolgeler.forEach((b) => {
+      const d = document.createElement("div"); d.className = "foto-bolge";
+      d.innerHTML = `<div class="bolge-ad"><b>${b.ad}</b> <span class="soluk" data-secilen="${b.anahtar}"></span></div><div class="cip-izgara"></div>`;
+      const iz = d.querySelector(".cip-izgara");
+      b.secenekler.forEach((s) => {
+        const c = document.createElement("button"); c.type = "button"; c.className = "cip"; c.dataset.bolge = b.anahtar; c.dataset.k = s.k; c.title = s.ad;
+        c.innerHTML = (s.resim ? `<img src="${s.resim}" alt="" loading="lazy">` : `<i style="background:${s.hex}"></i>`) + `<span>${s.k.length === 4 ? s.k : s.ad}</span>`;
+        c.addEventListener("click", () => { fotoSecim[b.anahtar] = s.k; fotoCiz(); });
+        iz.appendChild(c);
+      });
+      kap.appendChild(d);
+    });
+    const fk = document.getElementById("foto-fikirler"); fk.innerHTML = "";
+    const asil = Object.fromEntries(m.bolgeler.map((b) => [b.anahtar, b.varsayilan]));
+    [asil, ...m.fikirler].forEach((f, i) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "fikir";
+      b.innerHTML = `<img src="${adres(kod, f, "k")}" alt="" loading="lazy"><span>${i ? "Fikir " + i : "Fotoğraftaki"}</span>`;
+      b.addEventListener("click", () => { fotoSecim = { ...f }; fotoCiz(); document.getElementById("foto-resim").scrollIntoView({ behavior: "smooth", block: "center" }); });
+      fk.appendChild(b);
+    });
+    fotoCiz();
+  }
   const modelAlan = document.getElementById("id_model"), renkAlan = document.getElementById("id_renk");
   document.querySelectorAll(".seri-sekme button").forEach((b) => b.addEventListener("click", () => {
     document.querySelectorAll(".seri-sekme button").forEach((x) => x.classList.toggle("etkin", x === b));
@@ -50,10 +102,19 @@
     modelAlan.value = k.dataset.kod;
     document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>` + (k.dataset.duzenlenir ?
       ` · <a href="{% url 'parcali_studyo' %}?hazir=${encodeURIComponent(k.dataset.kod)}">✏️ Renklerini değiştir</a>` : "");
-    const kartela = k.dataset.kartela;
+    let kartela = k.dataset.kartela;
     document.getElementById("renk-once").hidden = true;
+    const foto = !!FOTO[k.dataset.kod];
+    document.getElementById("foto-panel").hidden = !foto;
+    if (foto) {
+      let onceki = null;
+      try { onceki = bolgeAlan.value && fotoKod === null ? JSON.parse(bolgeAlan.value) : null; } catch (e) { onceki = null; }
+      fotoKur(k.dataset.kod, onceki);
+      kartela = "__foto";
+    } else { fotoKod = null; bolgeAlan.value = ""; }
     document.querySelectorAll(".renk-izgara").forEach((g) => { g.hidden = g.dataset.kartela !== kartela; });
     document.getElementById("renk-yaz").hidden = !!kartela;
+    if (foto) { renkAlan.value = ""; return; }
     if (!kartela) renkAlan.value = "";
   }
   document.querySelectorAll(".model-kart").forEach((k) => k.addEventListener("click", () => modelSec(k)));
@@ -109,6 +170,21 @@
   .model-kart img { width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:6px; }
   .renk-kart img { width:100%; aspect-ratio:2/1; object-fit:cover; border-radius:6px; }
   .model-kart.secili, .renk-kart.secili { border-color:var(--ana); box-shadow:0 0 0 2px var(--ana); }
+  #foto-panel { display:grid; gap:12px; }
+  .foto-onizleme { position:relative; background:#efece8; border-radius:12px; overflow:hidden; text-align:center; }
+  .foto-onizleme img { width:100%; max-width:520px; display:block; margin:0 auto; }
+  #foto-bekle { position:absolute; top:10px; right:10px; background:rgba(0,0,0,.6); color:#fff; padding:4px 10px; border-radius:14px; font-size:13px; }
+  .foto-not { margin:0; font-size:13px; }
+  .foto-bolge { border-top:1px solid #eee3d8; padding-top:8px; }
+  .bolge-ad { margin-bottom:6px; }
+  .cip-izgara { display:flex; flex-wrap:wrap; gap:6px; }
+  .cip { border:2px solid #eee3d8; background:#fff; border-radius:24px; padding:3px 10px 3px 3px; display:flex; align-items:center; gap:6px; font-size:13px; }
+  .cip img, .cip i { width:30px; height:30px; border-radius:50%; object-fit:cover; display:block; box-shadow:inset 0 0 0 1px rgba(0,0,0,.1); }
+  .cip.secili { border-color:var(--ana); box-shadow:0 0 0 2px var(--ana); }
+  .fikir-baslik { margin:6px 0 0; font-size:16px; }
+  .fikir-izgara { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:8px; }
+  .fikir { border:2px solid #eee3d8; background:#fff; border-radius:10px; padding:3px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:12px; }
+  .fikir img { width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:7px; background:#efece8; }
   .olcu-baslik, .olcu-satir { display:grid; grid-template-columns:1fr 1fr 70px 40px; gap:6px; align-items:center; }
   .olcu-satir { margin-bottom:6px; } .olcu-satir input { width:100%; min-width:0; }
 </style>

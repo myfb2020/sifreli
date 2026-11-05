@@ -1379,7 +1379,7 @@ class KatalogTesti(TemelVeri):
         from .hesaplar import ofis_grubu
         from .models import KatalogModeli, LazerDeseni
 
-        self.assertEqual(KatalogModeli.objects.count(), 192)
+        self.assertEqual(KatalogModeli.objects.count(), 199)  # 192 katalog + 7 fotoğraflı Rono
         self.assertEqual(LazerDeseni.objects.count(), 15)
         model = KatalogModeli.objects.get(kod="LTS-003")
         # Resimler yalnızca giriş yapanlara
@@ -2545,6 +2545,72 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.assertEqual(k.on_islem, "Nakışlı")
         self.client.force_login(self.yonetici)
         self.assertContains(self.client.get(reverse("istasyon_parca", args=[lazer.pk])), "(Nakışlı)")
+
+
+class FotoModelTesti(TasarimStudyosuTesti):
+    """Gerçek fotoğraflı modeller: bölge renkleri fotoğraf üzerinde boyanır, sipariş boyanmış fotoğrafla gider."""
+
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def setUp(self):
+        import tempfile
+
+        from django.test import override_settings
+
+        super().setUp()
+        self.medya = tempfile.TemporaryDirectory()
+        self.ayar = override_settings(MEDIA_ROOT=self.medya.name)
+        self.ayar.enable()
+
+    def tearDown(self):
+        self.ayar.disable()
+        self.medya.cleanup()
+
+    def test_boyama_ve_fikirler(self):
+        from . import foto_model
+        from .models import KatalogModeli
+        self.assertEqual(set(KatalogModeli.objects.filter(kod__in=foto_model.MODELLER).values_list("kod", flat=True)),
+                         set(foto_model.MODELLER))
+        for kod in foto_model.MODELLER:
+            asil = foto_model.secim_temizle(kod, {})
+            fikirler = foto_model.fikirler(kod)
+            self.assertEqual(len(fikirler), 6)
+            self.assertNotIn(asil, fikirler)
+            resim = foto_model.boya(kod, fikirler[0], 200)
+            self.assertEqual(resim.width, 200)
+        # geçersiz renk fotoğraftakine döner; metal yalnız desen bölgesinde, gümüş iplik yok
+        secim = foto_model.secim_temizle("RNO-010", {"dis": "ALTIN", "bant": "BN04", "orta": "XX"})
+        self.assertEqual(secim, {"dis": "RN06", "bant": "BN04", "orta": "RN06"})
+        self.assertNotIn("gumus", foto_model.secenekler(foto_model.IPLIK))
+        self.assertIn("ALTIN", foto_model.secenekler(foto_model.DESEN))
+        self.assertEqual(foto_model.metin("RNO-006", foto_model.secim_temizle("RNO-006", {"iplik": "kahve"})),
+                         "Zemin: RN03 · Nakış şeridi: RN07 · Nakış ipliği: Kahve")
+        # renk değişince resim değişir; aynı seçim önbellekten gelir
+        a = foto_model.jpeg("RNO-012", foto_model.secim_temizle("RNO-012", {}), 260)
+        b = foto_model.jpeg("RNO-012", foto_model.secim_temizle("RNO-012", {"bant": "RN06"}), 260)
+        self.assertNotEqual(a, b)
+        self.assertEqual(b, foto_model.jpeg("RNO-012", foto_model.secim_temizle("RNO-012", {"bant": "RN06"}), 260))
+
+    def test_bayi_fotografli_siparis(self):
+        from .models import Musteri
+        self.client.force_login(self.bayi_hesap)
+        sayfa = self.client.get(reverse("bayi_siparis"))
+        self.assertContains(sayfa, 'data-kod="RNO-010"')
+        self.assertContains(sayfa, "foto-modeller")
+        resim = self.client.get(reverse("foto_model_resmi", args=["RNO-010"]) + "?bant=BN01&w=k")
+        self.assertEqual((resim.status_code, resim["Content-Type"]), (200, "image/jpeg"))
+        self.assertEqual(self.client.get(reverse("foto_model_resmi", args=["XYZ"])).status_code, 404)
+        v = {"olcu-TOTAL_FORMS": "1", "olcu-INITIAL_FORMS": "0", "olcu-0-en_cm": "160", "olcu-0-boy_cm": "230",
+             "olcu-0-adet": "1", "model": "RNO-010", "bolgeler": '{"dis": "RN03", "bant": "BN01", "orta": "RN03"}'}
+        self.assertRedirects(self.client.post(reverse("bayi_siparis"), v), reverse("bayi_ana"))
+        sp = Siparis.objects.get(musteri=Musteri.objects.get(ad="Ankara Bayi"), katalog_modeli__kod="RNO-010")
+        self.assertEqual(sp.renk_notu, "Dış bant: RN03 · Eskitme bant: BN01 · Orta: RN03")
+        self.assertIn("Renkler:", sp.notlar)
+        self.assertEqual(sp.fotograflar.count(), 1)
+        # ofis siparişte boyanmış fotoğrafı görür
+        self.client.force_login(self.yonetici)
+        self.assertContains(self.client.get(reverse("siparis_detay", args=[sp.pk])), sp.fotograflar.first().resim.url)
 
 
 class KartelaStudyoTesti(TasarimStudyosuTesti):

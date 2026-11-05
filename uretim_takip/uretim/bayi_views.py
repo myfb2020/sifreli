@@ -14,13 +14,13 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import bildirim, servisler
+from . import bildirim, foto_model, fotograf, servisler
 from .forms import olcu_formseti
 from .models import (
     BayiDavet, BildirimAboneligi, HesapAyari, KatalogModeli, KatalogSerisi, Musteri, Renk, Siparis, UretimLotu,
@@ -64,6 +64,7 @@ def bayi_ana(request):
 class BayiSiparisForm(forms.Form):
     model = forms.CharField(widget=forms.HiddenInput)
     renk = forms.CharField(required=False, widget=forms.HiddenInput)
+    bolgeler = forms.CharField(required=False, widget=forms.HiddenInput)  # fotoğraflı model: bölge → renk (JSON)
     renk_notu = forms.CharField(label="Renk", required=False, max_length=100,
                                 widget=forms.TextInput(attrs={"placeholder": "Ör. krem zemin, altın biye"}))
     teslim = forms.DateField(label="İstediğiniz teslim tarihi (isteğe bağlı)", required=False,
@@ -78,7 +79,15 @@ class BayiSiparisForm(forms.Form):
             raise ValidationError("Katalogdan bir model seçin.")
         veri["model"] = model
         renk = None
-        if model.seri.kartela:
+        veri["foto_secim"] = None
+        if model.kod in foto_model.MODELLER:
+            try:
+                gelen = json.loads(veri.get("bolgeler") or "{}")
+            except ValueError:
+                gelen = {}
+            veri["foto_secim"] = foto_model.secim_temizle(model.kod, gelen if isinstance(gelen, dict) else {})
+            veri["renk_notu"] = foto_model.metin(model.kod, veri["foto_secim"])[:100]
+        elif model.seri.kartela:
             renk = Renk.objects.filter(kod=veri.get("renk", ""), grup=model.seri.kartela, aktif=True).first()
             if renk is None:
                 raise ValidationError("Kartelanın renklerinden birini seçin.")
@@ -104,11 +113,14 @@ def bayi_siparis(request):
                 siparis = Siparis.objects.create(
                     musteri=bayi, durum="onay", katalog_modeli=model, hali_turu=model.seri.hali_turu,
                     renk=renk, renk_notu="" if renk else v["renk_notu"].strip(),
-                    urun=f"{model.kod} · {renk or v['renk_notu'].strip()}"[:200],
+                    urun=(model.kod if v["foto_secim"] else f"{model.kod} · {renk or v['renk_notu'].strip()}")[:200],
                     teslim_tarihi=v["teslim"] or timezone.localdate() + timedelta(days=21),
-                    notlar=v["notlar"] + ("" if v["teslim"] else "\n(Bayi teslim tarihi istemedi; tarih ofisçe belirlenecek.)"),
+                    notlar=v["notlar"] + ("" if v["teslim"] else "\n(Bayi teslim tarihi istemedi; tarih ofisçe belirlenecek.)")
+                    + (f"\nRenkler: {foto_model.metin(model.kod, v['foto_secim'])}" if v["foto_secim"] else ""),
                 )
                 servisler.kalemleri_kaydet(siparis, satirlar)
+                if v["foto_secim"]:  # bayinin gördüğü boyanmış fotoğraf siparişin resmi olur (ofis + istasyon görür)
+                    fotograf.kaydet(siparis, foto_model.jpeg(model.kod, v["foto_secim"]))
             bildirim.yeni_bayi_siparisi(siparis)
             messages.success(request, f"Siparişiniz gönderildi ({siparis.siparis_no}). Onaylanınca üretime alınacak.")
             return redirect("bayi_ana")
@@ -119,9 +131,25 @@ def bayi_siparis(request):
             seriler.append({"seri": seri, "modeller": modeller})
     kartelalar = {g: list(Renk.objects.filter(grup=g, aktif=True)) for g, _ in Renk.GRUPLAR}
     from . import parcali
+    resimler = {r.kod: r.resim_adresi for liste in kartelalar.values() for r in liste}
     return render(request, "uretim/bayi_siparis.html", {"form": form, "olculer": olculer, "seriler": seriler,
                                                         "kartelalar": kartelalar, "studyo": bayi.studyo_acik,
-                                                        "duzenlenir": set(parcali.HAZIR)})
+                                                        "duzenlenir": set(parcali.HAZIR) - set(foto_model.MODELLER),
+                                                        "foto_modeller": foto_model.istemci_verisi(resimler)})
+
+
+GENISLIKLER = {"k": 260, "o": 520, "b": None}
+
+
+@login_required
+def foto_model_resmi(request, kod):
+    """Fotoğraflı modelin seçilen renklerle boyanmış resmi: ?zemin=RN03&bant=BN02&w=o"""
+    if kod not in foto_model.MODELLER:
+        raise Http404
+    secim = foto_model.secim_temizle(kod, request.GET)
+    yanit = HttpResponse(foto_model.jpeg(kod, secim, GENISLIKLER.get(request.GET.get("w"), 520)), content_type="image/jpeg")
+    yanit["Cache-Control"] = "private, max-age=86400"
+    return yanit
 
 
 # --- Davet bağlantısı -------------------------------------------------------------------
