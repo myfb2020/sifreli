@@ -135,14 +135,14 @@
 </ul>
 
 <h2>Bayiler</h2>
-<p><b class="d">🤝 Bayiler</b> → <b>+ Yeni bayi</b> (ad, telefon, stüdyo açık mı) → <b class="d">📲 WhatsApp'ta gönder</b>. Bayi bağlantıyı açıp kendi şifresini koyar (bağlantı 7 gün, tek kullanım). Stüdyosu kapalı bayi yalnız katalogdan sipariş verir. Bayi sipariş gönderince ekranda ses + yeşil bant çıkar; telefona bildirim için bu sayfada <b class="d">🔔 Bildirimleri aç</b>.</p>
+<p><b class="d">🤝 Bayiler</b> → <b>+ Yeni bayi</b> (ad, telefon) → <b class="d">📲 WhatsApp'ta gönder</b>. Bayi bağlantıyı açıp kendi şifresini koyar (bağlantı 7 gün, tek kullanım). Bayi sipariş gönderince ekranda ses + yeşil bant çıkar; telefona bildirim için bu sayfada <b class="d">🔔 Bildirimleri aç</b>. <b>Yanlışlıkla Başla / Bitti:</b> yönetici işin sayfasında son işlemin yanındaki <b class="d">↩ Geri al</b> ile düzeltir.</p>
 <p><b>Tamir / iade:</b> biten ya da sevk edilen siparişte <b class="d">↩ Tamir / iade aç</b>: neden, açıklama, fotoğraf, hangi halı, geçeceği istasyonlar, hata kimin. Ekranlara 🔧 TAMİR olarak düşer; bayi görmez, stoğa girmez. Raporlarda sayısı ve nedenleri görünür.</p>
 
 <h2>Çalışan hesapları (yönetici)</h2>
 <p><b class="d">Hesaplar</b> → hesabı açın → tür <b>İstasyon tableti</b>. <b>"Bu hesap kimin?"</b> kutusundan çalışanı, <b>"Hangi istasyonda?"</b> kutusundan istasyonunu seçin. Kendi telefonunu kullanan çalışana artık <b>ad ve PIN sorulmaz</b>, iş onun adına yazılır. Kimin olduğu seçilmeyen ortak tablet ise ad ve PIN sormaya devam eder.</p>
 
 <h2>7. Raporlar</h2>
-<p><b class="d">Raporlar</b>: tarih aralığına göre personel, istasyon ve makine bazında iş, süre ve fire; istasyonlar arası bekleme; Excel'e aktarma.</p>
+<p><b class="d">Raporlar</b>: tarih aralığına göre personel, istasyon ve makine bazında iş, süre ve fire; bekleme; Excel'e aktarma.</p>
 
 <div class="kutu uyari"><b>Önemli:</b> Programı güncellemeden önce yönetici <b class="d">💾 Yedek</b> indirir. Program açılmazsa <b>acil durum kartına</b> bakın.</div>
 <footer>Bienna Fur · Üretim Takip · Büro rehberi</footer>
@@ -196,45 +196,30 @@
 <section class="bolum" id="bayi">
 <header class="kapak">
   <div><div class="marka">BIENNA FUR</div><h1>Bayi Sipariş Rehberi</h1></div>
-  <div class="alt">Halınızı tasarlayın, sipariş verin, takip edin<br><span class="adres">uretim.pythonanywhere.com</span></div>
+  <div class="alt">Halınızı seçin, renklerini belirleyin, takip edin<br><span class="adres">uretim.pythonanywhere.com</span></div>
 </header>
 
 <p>Bienna Fur'dan size verilen kullanıcı adı ve şifreyle girin. Telefonunuza kurmak için Android'de <b class="d">Uygulamayı yükle</b>'ye, iPhone'da Safari'de <b class="d">Paylaş ⬆ → Ana Ekrana Ekle</b>'ye dokunun.</p>
 
 <table>
-  <tr><th style="width:30%">🛒 Sipariş ver</th><td>Katalogdan model seçin, rengi kartelamızdan seçin (Rono, Bienca) ya da yazın, ölçüleri girin, gönderin. <b>📷 Fotoğraflı Rono modellerinde</b> (RNO-006…012) zemin, bant, desen ve nakış ipliği için ayrı ayrı renge dokunun; halının fotoğrafı o renklerle boyanır. 💡 Fikir ver aynı halıyı başka renk takımlarıyla gösterir.</td></tr>
-  <tr><th>🧩 Suni deri</th><td>İpek Peluş, Bienca, Peluche, Rono katalog modelleri ve kendi tasarımınız.</td></tr>
-  <tr><th>🎨 Kürk / deri modelleri</th><td>Toskana ve diğer kürk/deri katalog modellerinden tasarım.</td></tr>
+  <tr><th style="width:30%">🛒 Sipariş ver</th><td>Önce halı türünü seçin: <b>Suni deri halı</b> ya da <b>Deri / kürk halı</b>. Sonra model, renk, ölçü → gönder.</td></tr>
   <tr><th>📦 Siparişlerim</th><td>Gönderdiğiniz siparişlerin durumu ve teslim tarihi.</td></tr>
 </table>
 
-<h2>1. Katalogdan model seçmek (Suni deri)</h2>
+<h2>1. Suni deri halı (Rono · Bienca · peluş)</h2>
 <ol>
-  <li><b class="d">🧩 Suni deri</b> sayfasında üstteki sekmelerden seriyi seçin: <b>İpek Peluş · Bienca · Peluche · Rono · Müşteri modelleri</b>.</li>
-  <li>Bir modele dokunun. İki seçenek çıkar:
-    <ul>
-      <li><b class="d">🛒 Bu modeli olduğu gibi sipariş et</b> — katalogdaki halının aynısı. Yalnız <b>ölçü, adet</b> ve isterseniz not yazıp gönderirsiniz.</li>
-      <li><b class="d">✏️ Bu modelden başla, değiştir</b> — halı düzenleme ekranında açılır; renk, bant, desen ve ölçüyü değiştirebilirsiniz. <b>Rono ve Bienca</b> modellerinde yalnız o kartelanın renkleri (ince çizgiler altın / gümüş) çıkar; <b class="d">💡 Bana fikir ver</b> seçtiğiniz modelin yapısını koruyup 6 renk önerisi verir.</li>
-    </ul>
-  </li>
+  <li><b class="d">🛒 Sipariş ver → Suni deri halı</b>. Üstteki sekmelerden seriyi seçin: <b>Rono · Bienca · İpek Peluş · Peluche</b>.</li>
+  <li>Bir modele dokunun. <b>📷 işaretli</b> modellerde halının gerçek fotoğrafı açılır; altında her bölge (zemin, bant, lazer desen, nakış ipliği) için renkler vardır. Bir renge dokunun, <b>fotoğraf o renkle boyanır</b>. Renkler Rono RN01–07 ve Bienca BN01–04 kartelamızdandır; lazer desende altın ve gümüş de seçilebilir.</li>
+  <li><b class="d">💡 Fikir ver</b>: aynı halı 6 farklı renk takımıyla görünür; beğendiğinize dokunun.</li>
+  <li>📷 işareti olmayan modellerde rengi karteladan seçin (peluşta rengi yazın).</li>
 </ol>
+<div class="kutu ipucu">Gördüğünüz boyanmış fotoğraf siparişinizin resmi olur; atölye halıyı bu görüntüye ve yazdığınız ölçüye göre yapar.</div>
 
-<h2>2. Halıyı değiştirmek (5 adım)</h2>
-<p>Ekranın üstünde halının resmi durur; her seçimde hemen değişir. <b>Resme dokunursanız büyür</b>, ✕ ile dönersiniz.</p>
-<table>
-  <tr><th style="width:22%">1 Şekil</th><td>Dikdörtgen ya da oval; en ve boy (cm). Oval + en = boy → yuvarlak halı.</td></tr>
-  <tr><th>2 Halkalar</th><td>Dışarıdan içeriye en çok 4 halka (<b>+ / −</b>). Her halka: <b>düz</b>, <b>lazer desenli</b> (desenini seçin) ya da <b>nakışlı</b> (motifini seçin); genişlik ve malzeme.</td></tr>
-  <tr><th>3 Orta</th><td>Orta zeminin malzemesi; ortaya <b>madalyon</b> (yuvarlak parça), <b>nakış paneli</b> ya da enine/boyuna <b>şerit</b>.</td></tr>
-  <tr><th>4 Kenar</th><td>Biye ya da lanfel ve rengi; nakış ipliğinin rengi.</td></tr>
-  <tr><th>5 Gönder</th><td>Adet, istediğiniz teslim tarihi, notunuz → <b class="d">📤 Siparişi gönder</b>.</td></tr>
-</table>
-<div class="iki">
-  <div class="kutu ipucu"><b>✓ Üretilebilir</b> yazısı tasarımın atölyede yapılabileceğini gösterir. <b>⚠ uyarı</b> çıkarsa dokunun; ne yapmanız gerektiği yazar (örn. "halıyı büyütün").</div>
-  <div class="kutu"><b>💡 Bana fikir ver</b> düğmesi, yazdığınız ölçüde 6 farklı öneri hazırlar; beğendiğinize dokunun.</div>
-</div>
+<h2>2. Deri / kürk halı</h2>
+<p><b class="d">🛒 Sipariş ver → Deri / kürk halı</b>: Toskana, tilki, dana, tavşan… katalogdan modeli seçin, rengi yazın, ölçüleri girin, gönderin.</p>
 
-<h2>3. Kürk / deri modelleri</h2>
-<p>Katalogdaki bir halıdan başlayın; bant malzemesi, lazer deseni, kürk rengi ve ölçüyü değiştirip gönderin.</p>
+<h2>3. Ölçü, teslim, not</h2>
+<p>Aynı modelden farklı ölçüler için <b class="d">+ Ölçü ekle</b>. İsterseniz teslim tarihi ve not yazın → <b class="d">📤 Siparişi gönder</b>. Sipariş "Onay bekliyor" olarak gider.</p>
 
 <h2>4. Siparişinizi takip etmek</h2>
 <ul>

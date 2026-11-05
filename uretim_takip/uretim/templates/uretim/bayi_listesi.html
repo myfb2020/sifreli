@@ -23,12 +23,11 @@
         {% if not r.k.is_active %}<span class="rozet iptal">Hesap kapalı</span>
         {% elif r.k.has_usable_password %}✓ Giriş yaptı{% if r.k.last_login %} · son giriş {{ r.k.last_login|date:"d.m.Y H:i" }}{% endif %}
         {% elif r.davet and r.davet.gecerli %}⏳ Davet gönderildi, henüz açılmadı{% else %}Davet bağlantısı yok / süresi doldu{% endif %}
-        · {{ r.m.bekleyen }} onay bekleyen · {{ r.m.aktif }} devam eden · stüdyo {% if r.m.studyo_acik %}açık{% else %}kapalı{% endif %}
+        · {{ r.m.bekleyen }} onay bekleyen · {{ r.m.aktif }} devam eden
       </span>
     </div>
     <div class="bayi-dugmeler">
       {% if r.k.is_active %}<form method="post" action="{% url 'bayi_davet' r.m.pk %}">{% csrf_token %}<button class="btn kucuk">🔗 Davet bağlantısı</button></form>{% endif %}
-      <form method="post" action="{% url 'bayi_studyo' r.m.pk %}">{% csrf_token %}<button class="btn kucuk ikincil">{% if r.m.studyo_acik %}Stüdyoyu kapat{% else %}Stüdyoyu aç{% endif %}</button></form>
       {% if user.is_superuser %}<form method="post" action="{% url 'bayi_hesap' r.m.pk %}" onsubmit="return confirm('Emin misiniz?')">{% csrf_token %}<button class="btn kucuk ikincil">{% if r.k.is_active %}Hesabı kapat{% else %}Hesabı aç{% endif %}</button></form>{% endif %}
     </div>
   </div>

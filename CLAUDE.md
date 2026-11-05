@@ -11,7 +11,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 
 ## Çalışma kuralları
 - **Kullanıcının kuralı (2026-10-29):** Her isteğinden önce önce düşün ve planı yaz; kullanıcı onaylamadan program yazmaya başlama.
-- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (140 test; `--parallel` bu ortamda çalışmaz) + `manage.py makemigrations --check --dry-run`.
+- Test: `cd uretim_takip && ../.venv/bin/python manage.py test uretim` (142 test; `--parallel` bu ortamda çalışmaz) + `manage.py makemigrations --check --dry-run`.
 - Teslim: zip → `SendUserFile`. Komut (`/home/user/sifreli`'de):
   `rm -f uretim_takip.zip && zip -qr uretim_takip.zip uretim_takip -x 'uretim_takip/db.sqlite3' 'uretim_takip/.env' 'uretim_takip/staticfiles/*' 'uretim_takip/yedekler/*' 'uretim_takip/medya/*' '*/__pycache__/*' '*.pyc'`
 - Kullanıcının yükleme adımı: Yedek indir → Files'a zip → Bash: `cd ~ && unzip -o uretim_takip.zip && cd uretim_takip && bash kurulum.sh` → Web → Reload.
@@ -116,6 +116,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-11-05: Aşama 1 (migration 0033): siyah simli + ayna altın kalktı (altın + gümüş kalır, `ESKI_MALZEME`), iplik kenar/metalden bağımsız, 5 kötü nakış motifi silindi (61.02, 54.01, 60.03, 73.01, 74.01 → `ESKI_MOTIF`), yönetici ↩ geri al (`servisler.islem_geri_al`, `IslemKaydi.stok_dusumu`, iş sayfasında son işlem), bayi menü yalnız Sipariş ver + Siparişlerim; Sipariş ver önce Suni deri / Deri-kürk (`bayi_views.seri_turu`, `bayi_siparis_tur.html`); stüdyolar yalnız yönetici (menü 🎨 Stüdyo, önizleme, gönderemez; `bayi_siniri`, testlerde `STUDYO_BAYIYE_ACIK`); Bayiler'de stüdyo aç/kapa kalktı. Sıradaki: Aşama 2 (bütün Rono/Bienca fotoğraflı + nakış/desen değiştirme).
 - 2026-11-05: Gerçekçi görünüm 1. adım (migration 0032): kullanıcının 7 Rono fotoğrafı RNO-006…012 kataloğa (FF logolu koyulmadı; pirinç köşe/çerçeve yok → fotoğraftan temizlendi), bayi Sipariş ver'de fotoğraf üzerinde bölge renkleri + fikir ver, siparişe boyanmış foto. Sıradaki (kullanıcı 'evet'): beğenirse öteki Rono/Bienca katalog modelleri; sonra siyah simli/ayna altın/gümüş kaldırma, iplik-kenar ayrımı, Bienca/Rono'da şerit+nakış, bayi ana sayfa iki düğme + güzelleştirme.
 - 2026-11-05: Stüdyo kartela: Bienca BN01–04 gerçek dokular (kartla ölçülü, `doku/bienca_bn0X.jpg`, olcek.json), eski bienca_krem/gri → BN01/BN03 (`ESKI_MALZEME`); `parcali.KARTELA_MALZEMELERI` (RNO 7, BNA 4) + `METALIK` (altın, gümüş, ayna altın, siyah simli – ince çizgi); katalog RNO/BNA modelinde `kartelaya_uydur` (temizle + hazir_degerler; `KARTELA_ESLEME`), kenar rengi kartelaya bağlı (`kenar_secenekleri`, `KENAR_AD`); arayüzde `kartelaFiltre()` (data-grup); 💡 fikir ver seçili model/sekme ile (`fikirler(katalog, seri)`, `_kartela_renklendir`: yapı aynı, zemin + vurgu + metal + kenar); Sipariş ver'de '✏️ Renklerini değiştir' (?hazir=KOD).
 - 2026-11-05: Hızlı düzeltme: istasyon kilidi kaldırıldı (istasyon_secimi/ekrani/parca yönlendirmesi yok; bağlı istasyon yalnız kısayol + Pano/İşler süzgeci + başlatta varsayılan). Çoklu istasyon / ortak tablet PIN planı kullanıcı cevabını bekliyor (madde 17).

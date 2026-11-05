@@ -189,8 +189,6 @@
   <nav class="menu">
   {% if bayi %}
   <a href="{% url 'bayi_siparis' %}">🛒 Sipariş ver</a>
-  {% if bayi.studyo_acik %}<a href="{% url 'parcali_studyo' %}">🧩 Suni deri</a>
-  <a href="{% url 'tasarim_studyo' %}">🎨 Kürk / deri modelleri</a>{% endif %}
   <a href="{% url 'bayi_ana' %}">📦 Siparişlerim</a>
   {% else %}
   <a href="{% url 'pano' %}">Pano</a>
@@ -203,6 +201,7 @@
   {% endif %}
   {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}{% if onay_bekleyen %}?durum=onay{% endif %}">Siparişler{% if onay_bekleyen %} <span class="rozet bekliyor" title="Onay bekleyen bayi tasarımı">{{ onay_bekleyen }}</span>{% endif %}</a>{% endif %}
   {% if user.is_staff %}<a href="{% url 'bayi_listesi' %}">🤝 Bayiler</a>{% endif %}
+  {% if user.is_superuser %}<a href="{% url 'parcali_studyo' %}">🎨 Stüdyo</a>{% endif %}
   <a href="{% url 'stok_listesi' %}">Stok</a>
   <a href="{% url 'katalog' %}">Katalog</a>
   {% if user.is_staff and not user.is_superuser %}<a href="{% url 'lot_listesi' %}">İşler</a>{% endif %}

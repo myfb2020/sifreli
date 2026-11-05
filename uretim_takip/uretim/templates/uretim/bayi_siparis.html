@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 {% block baslik %}Sipariş ver{% endblock %}
 {% block icerik %}
-<h1>🛒 Sipariş ver</h1>
+<h1>🛒 Sipariş ver · {% if tur == "suni" %}Suni deri halı{% else %}Deri / kürk halı{% endif %}</h1>
+<p><a href="{% url 'bayi_siparis' %}">← Halı türünü değiştir</a></p>
 <form method="post" class="dikey bayi-siparis">
-  {% csrf_token %}
+  {% csrf_token %}<input type="hidden" name="tur" value="{{ tur }}">
   {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
   {{ form.model }}{{ form.renk }}{{ form.bolgeler }}
   <div class="kart">
     <h2>1. Model seçin</h2>
+    {% if tur == "suni" %}<p class="soluk" style="margin-top:0">📷 işaretli modellerde renkleri halının fotoğrafı üzerinde siz seçersiniz.</p>{% endif %}
     <div class="seri-sekme">{% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}</div>
     {% for x in seriler %}<div class="model-izgara" data-seri-izgara="{{ x.seri.pk }}"{% if not forloop.first %} hidden{% endif %}>
-      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}" data-kartela="{{ x.seri.kartela }}"{% if studyo and m.kod in duzenlenir %} data-duzenlenir="1"{% endif %}><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{{ m.kod }}</span></button>{% endfor %}
+      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}" data-kartela="{{ x.seri.kartela }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{% if m.kod in foto_modeller %}📷 {% endif %}{{ m.kod }}</span></button>{% endfor %}
     </div>{% endfor %}
     <p id="secilen-model" class="soluk">Henüz model seçilmedi.</p>
   </div>
@@ -100,8 +102,7 @@
   function modelSec(k) {
     document.querySelectorAll(".model-kart").forEach((x) => x.classList.toggle("secili", x === k));
     modelAlan.value = k.dataset.kod;
-    document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>` + (k.dataset.duzenlenir ?
-      ` · <a href="{% url 'parcali_studyo' %}?hazir=${encodeURIComponent(k.dataset.kod)}">✏️ Renklerini değiştir</a>` : "");
+    document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>`;
     let kartela = k.dataset.kartela;
     document.getElementById("renk-once").hidden = true;
     const foto = !!FOTO[k.dataset.kod];

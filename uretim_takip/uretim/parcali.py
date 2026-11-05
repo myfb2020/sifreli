@@ -38,7 +38,7 @@ EN_COK_HALKA = 4
 AILELER = [
     ("krem_kahve", "Krem → kahve", ["beyaz_keten", "krem_keten", "acik_gri_keten", "vizon_keten", "kahve_keten"]),
     ("gri_antrasit", "Beyaz → antrasit", ["beyaz_keten", "acik_gri_keten", "gri_keten", "antrasit_keten"]),
-    ("siyah_altin", "Siyah – altın", ["antrasit_keten", "varak_altin", "siyah_simli", "altin_ayna"]),
+    ("siyah_altin", "Siyah – altın", ["antrasit_keten", "varak_altin", "altin", "gumus"]),
     ("gri_gumus", "Gri – gümüş", ["acik_gri_keten", "varak_gumus", "gri_keten", "gumus_sim"]),
     ("toprak_bakir", "Toprak – bakır", ["krem_keten", "bakir_varak", "vizon_keten", "kahve_keten"]),
     ("kontrast", "Siyah – beyaz", ["beyaz_keten", "antrasit_keten"]),
@@ -76,8 +76,6 @@ MALZEMELER = [
     ("bakir_varak", "Gri-bakır varak", "#b7a99a"),
     ("varak_sampanya", "Şampanya varak", "#ddd0b8"),
     ("gumus_sim", "Gümüş sim", "#b9bbbe"),
-    ("siyah_simli", "Siyah simli", "#1a1a1c"),
-    ("altin_ayna", "Ayna altın", "#c9a75e"),
     # diğer
     ("siyah_kadife", "Siyah kadife", "#151417"),
     ("gri_kadife", "Gri kadife", "#a7a6a3"),
@@ -89,13 +87,14 @@ MALZEMELER = [
 ]
 # Kartelada olmayan eski malzemeler: eski kayıtlar açılınca en yakın Rono rengine çevrilir.
 ESKI_MALZEME = {"bej_keten": "krem_keten", "siyah_keten": "antrasit_keten", "rona_kahve_simli": "kahve_keten",
-                "bienca_krem": "bienca_bn01", "bienca_gri": "bienca_bn03"}
+                "bienca_krem": "bienca_bn01", "bienca_gri": "bienca_bn03",
+                "siyah_simli": "antrasit_keten", "altin_ayna": "altin"}  # 2026-11-05: simli ve ayna altın kalktı
 # Kartelalı seriler: modelin bütün parçaları yalnız kendi kartelasından; ince çizgiler metalik; kenar kartelaya bağlı.
 KARTELA_MALZEMELERI = {
     "RNO": ["acik_gri_keten", "gri_keten", "krem_keten", "antrasit_keten", "vizon_keten", "kahve_keten", "beyaz_keten"],
     "BNA": ["bienca_bn01", "bienca_bn02", "bienca_bn03", "bienca_bn04"],
 }
-METALIK = ["altin", "gumus", "altin_ayna", "siyah_simli"]
+METALIK = ["altin", "gumus"]
 # Hazır modellerin eski malzemeleri kartelada en yakın karşılığına (katalog fotoğrafına bakarak)
 KARTELA_ESLEME = {
     "RNO": {"pelus_gri": "gri_keten", "pelus_krem": "krem_keten", "bienca_gri": "gri_keten", "bienca_krem": "krem_keten",
@@ -147,23 +146,20 @@ NAKISLAR = [("yok", "Nakış yok"), ("grek_kare", "Grek kare (altın iplik)"), (
 # Marka logoları (FF, GG, LV, Medusa) ve görüntüsü bozuk olanlar (2026-10-30, kullanıcı onayı) listede yok. Maske: tasarim_varlik/nakis/<kod>.png
 NAKIS_MOTIFLERI = [
     ("61.01", "Grek madalyon", 11.5, 11.5, "tek"),
-    ("61.02", "Grek madalyon (kalın)", 11.4, 11.4, "tek"),
-    ("54.01", "Grek kare küçük", 7.5, 7.5, "tek"),
-    ("60.03", "Grek köşe", 10.7, 10.0, "tek"),
     ("56.01", "Bienna Fur logo", 15.0, 15.0, "tek"),
-    ("73.01", "Kare ve sütun", 33.9, 33.9, "tek"),
     ("57.01", "Elmas kafes", 40.0, 25.0, "tek"),
     ("60.01", "Grek şerit", 40.0, 10.0, "serit"),
     ("60.05", "Grek şerit (çift çizgi)", 40.0, 10.0, "serit"),
     ("68.01", "İnce Grek şerit", 40.0, 6.0, "serit"),
     ("61.03", "İkili Grek madalyon", 38.3, 10.0, "serit"),
     ("76.03", "İkili madalyon", 40.0, 15.0, "serit"),
-    ("74.01", "Grek çizgi bant", 37.7, 8.1, "serit"),
     ("65.01", "İnce zincir", 39.7, 3.2, "serit"),
 ]
 MOTIF = {k: {"ad": a, "en": e, "boy": b, "tur": t} for k, a, e, b, t in NAKIS_MOTIFLERI}
 MOTIFLER = [(k, f"{k} {a}") for k, a, _, _, _ in NAKIS_MOTIFLERI]
-ESKI_MOTIF = {"grek_kare": "61.01", "grek_kare_gumus": "61.01"}  # ilk sürümün motif adları
+ESKI_MOTIF = {"grek_kare": "61.01", "grek_kare_gumus": "61.01",  # ilk sürümün motif adları
+              # iyi görünmediği için kaldırılan motifler (2026-11-05) → en yakını
+              "61.02": "61.01", "54.01": "61.01", "60.03": "61.01", "73.01": "57.01", "74.01": "60.01"}
 IPLIKLER = [("altin", "Altın", "#c9a75e"), ("gumus", "Gümüş", "#c2c5c9"), ("bej", "Bej", "#b9a582"),
             ("beyaz", "Beyaz", "#f1ede4"), ("kahve", "Kahve", "#6b5440"), ("siyah", "Siyah", "#1e1d1c")]
 IPLIK_HEX = {k: h for k, _, h in IPLIKLER}
@@ -1270,7 +1266,7 @@ def _halkali_fikir(i, rast, desen_kodlari, olcu):
     v["orta"] = orta
     if orta == "duz" and rast.random() < 0.6:
         v.update(madalyon=rast.choice(["duz", "nakisli"]), madalyon_malzeme=ikinci, madalyon_cerceve=metal,
-                 madalyon_cap=rast.choice([24, 28, 34]), madalyon_motif=rast.choice(["61.01", "61.02", "56.01"]))
+                 madalyon_cap=rast.choice([24, 28, 34]), madalyon_motif=rast.choice(["61.01", "76.03", "56.01"]))
     elif orta == "panel":
         v.update(panel_malzeme=ikinci, nakis=rast.choice([k for k, _, _, _, t in NAKIS_MOTIFLERI if t == "tek"]),
                  motif_adet=rast.choice([1, 1, 2, 3]))
@@ -1431,7 +1427,7 @@ def _kartela_renklendir(v, on, rast):
             v[alan] = vurgu if alan != "madalyon_malzeme" else rast.choice([zemin, vurgu])
     if v.get("madalyon_cerceve") in ("altin", "gumus"):
         v["madalyon_cerceve"] = metal
-    v["iplik"] = metal
+    # nakış ipliği kenar / metal rengine bağlı değil: kullanıcının seçtiği iplik kalır
     v["kenar_renk"] = rast.choice([vurgu, vurgu, zemin])
     v["kenar"] = v.get("kenar") or "biye"
     v["katalog"], v["hazir"] = v.get("katalog", ""), v.get("hazir", "")

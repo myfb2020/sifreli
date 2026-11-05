@@ -837,6 +837,8 @@ class IslemKaydi(models.Model):
     cikis_en_cm = models.DecimalField("çıkan en (cm)", max_digits=7, decimal_places=1, null=True, blank=True)
     cikis_boy_cm = models.DecimalField("çıkan boy (cm)", max_digits=7, decimal_places=1, null=True, blank=True)
     aciklama = models.TextField("açıklama", blank=True)
+    stok_dusumu = models.JSONField("bitirirken stoktan düşülen", default=list, blank=True,
+                                   help_text="[[stok lotu pk, m²], …] – yönetici bitirmeyi geri alırsa stoğa döner.")
 
     class Meta:
         ordering = ["-baslangic"]

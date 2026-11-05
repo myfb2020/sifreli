@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -1412,6 +1412,7 @@ class KatalogTesti(TemelVeri):
         self.assertContains(yanit, "katalog modeli yok")
 
 
+@override_settings(STUDYO_BAYIYE_ACIK=True)  # stüdyo artık yalnız yöneticide; bu testler eski bayi akışıyla çalışır
 class TasarimStudyosuTesti(TemelVeri):
     def setUp(self):
         from .hesaplar import HesapFormu, ofis_grubu
@@ -2169,6 +2170,41 @@ class BirinciGuncellemeTesti(TemelVeri):
         self.assertEqual(islem2.lot, lotlar[0])
         self.assertEqual(sp.lotlar.count(), 2)
 
+    def test_yonetici_islem_geri_al(self):
+        self._yeni((None, "100", "150", "1"))
+        sp = Siparis.objects.get(urun="Peluş")
+        lot = sp.lotlar.get()
+        kalan = self.ham.kalan_m2
+        # yanlışlıkla başlatıldı → yönetici başlatmayı siler
+        islem = servisler.islem_baslat(lot=lot, asama=self.lazer, personel=self.ayse)
+        normal = get_user_model().objects.create_user("normal_ofis", password="x", is_staff=True)
+        self.client.force_login(normal)
+        self.assertEqual(self.client.post(reverse("islem_geri_al", args=[islem.pk])).status_code, 403)
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("lot_detay", args=[lot.pk])), "Başlatmayı geri al")
+        self.client.post(reverse("islem_geri_al", args=[islem.pk]))
+        lot.refresh_from_db()
+        sp.refresh_from_db()
+        self.assertEqual((lot.islemler.count(), lot.durum, sp.durum), (0, "bekliyor", "acik"))
+        # yanlışlıkla bitirildi (stoktan 2 m² düştü) → bitirme geri alınır, malzeme stoğa döner
+        islem = servisler.islem_baslat(lot=lot, asama=self.lazer, personel=self.ayse)
+        servisler.islem_bitir(islem=islem, personel=self.ayse, kesim={"m2": Decimal("2"), "rulo": self.ham})
+        self.ham.refresh_from_db()
+        self.assertEqual(self.ham.kalan_m2, kalan - 2)
+        self.assertContains(self.client.get(reverse("lot_detay", args=[lot.pk])), "Bitirmeyi geri al")
+        self.client.post(reverse("islem_geri_al", args=[islem.pk]))
+        islem.refresh_from_db()
+        lot.refresh_from_db()
+        self.ham.refresh_from_db()
+        self.assertEqual((islem.bitis, lot.durum, lot.son_asama), (None, "islemde", self.lazer))
+        self.assertEqual(self.ham.kalan_m2, kalan)
+        self.assertTrue(lot.is_notlari.filter(metin__startswith="↩ Yönetici geri aldı").exists())
+        # yeniden bitirilebilir; yalnız son işlem geri alınır
+        servisler.islem_bitir(islem=islem, personel=self.ayse)
+        sonraki = servisler.islem_baslat(lot=lot, asama=lot.siradaki_asama, personel=self.ayse)
+        self.assertFalse(servisler.geri_alinabilir(islem))
+        self.assertTrue(servisler.geri_alinabilir(sonraki))
+
     def test_siparis_duzenle_olcu_ve_fotograf(self):
         self._yeni((None, "100", "150", "1"), (None, "80", "120", "2"), fotograflar=[self._foto(), self._foto()])
         sp = Siparis.objects.get(urun="Peluş")
@@ -2385,7 +2421,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         bayi.save()
         self.client.force_login(self.bayi_hesap)
         self.assertRedirects(self.client.get(reverse("parcali_studyo")), reverse("bayi_siparis"))
-        sayfa = self.client.get(reverse("bayi_siparis"))
+        sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
         self.assertContains(sayfa, 'data-kod="RNO-001"')
         self.assertContains(sayfa, "RN06")
         self.assertNotContains(self.client.get(reverse("bayi_ana")), reverse("parcali_studyo"))
@@ -2432,8 +2468,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.assertContains(sayfa, "wa.me/905321112233")
         self.assertContains(sayfa, reverse("davet_ac", args=[davet.anahtar]))
         k = davet.kullanici
-        self.assertEqual((k.username, k.has_usable_password(), Musteri.objects.get(ad="İzmir Bayi").studyo_acik),
-                         ("izmir-bayi", False, False))
+        self.assertEqual((k.username, k.has_usable_password()), ("izmir-bayi", False))
         # ofis hesabı kapatamaz
         m = Musteri.objects.get(ad="İzmir Bayi")
         self.assertEqual(self.client.post(reverse("bayi_hesap", args=[m.pk])).status_code, 403)
@@ -2567,6 +2602,26 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.ayar.disable()
         self.medya.cleanup()
 
+    def test_yeni_bayi_duzeni_ve_stüdyo_yalniz_yonetici(self):
+        with self.settings(STUDYO_BAYIYE_ACIK=False):
+            self.client.force_login(self.bayi_hesap)
+            for ad in ("parcali_studyo", "tasarim_studyo"):
+                self.assertRedirects(self.client.get(reverse(ad)), reverse("bayi_siparis"), fetch_redirect_response=False)
+            secim = self.client.get(reverse("bayi_siparis"))
+            self.assertContains(secim, "Suni deri halı")
+            self.assertContains(secim, "?tur=deri")
+            self.assertNotContains(self.client.get(reverse("bayi_ana")), reverse("parcali_studyo"))
+            suni = self.client.get(reverse("bayi_siparis") + "?tur=suni").content.decode()
+            deri = self.client.get(reverse("bayi_siparis") + "?tur=deri").content.decode()
+            self.assertIn('data-kod="RNO-010"', suni)
+            self.assertNotIn('data-kod="TOS-034"', suni)
+            self.assertIn('data-kod="TOS-034"', deri)
+            self.assertNotIn('data-kod="RNO-010"', deri)
+            self.client.force_login(self.ofis)
+            self.assertRedirects(self.client.get(reverse("parcali_studyo")), reverse("pano"), fetch_redirect_response=False)
+            self.client.force_login(self.yonetici)
+            self.assertEqual(self.client.get(reverse("parcali_studyo")).status_code, 200)
+
     def test_boyama_ve_fikirler(self):
         from . import foto_model
         from .models import KatalogModeli
@@ -2582,8 +2637,8 @@ class FotoModelTesti(TasarimStudyosuTesti):
         # geçersiz renk fotoğraftakine döner; metal yalnız desen bölgesinde, gümüş iplik yok
         secim = foto_model.secim_temizle("RNO-010", {"dis": "ALTIN", "bant": "BN04", "orta": "XX"})
         self.assertEqual(secim, {"dis": "RN06", "bant": "BN04", "orta": "RN06"})
-        self.assertNotIn("gumus", foto_model.secenekler(foto_model.IPLIK))
-        self.assertIn("ALTIN", foto_model.secenekler(foto_model.DESEN))
+        self.assertIn("gumus", foto_model.secenekler(foto_model.IPLIK))
+        self.assertTrue({"ALTIN", "GUMUS"} <= set(foto_model.secenekler(foto_model.DESEN)))
         self.assertEqual(foto_model.metin("RNO-006", foto_model.secim_temizle("RNO-006", {"iplik": "kahve"})),
                          "Zemin: RN03 · Nakış şeridi: RN07 · Nakış ipliği: Kahve")
         # renk değişince resim değişir; aynı seçim önbellekten gelir
@@ -2595,7 +2650,7 @@ class FotoModelTesti(TasarimStudyosuTesti):
     def test_bayi_fotografli_siparis(self):
         from .models import Musteri
         self.client.force_login(self.bayi_hesap)
-        sayfa = self.client.get(reverse("bayi_siparis"))
+        sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
         self.assertContains(sayfa, 'data-kod="RNO-010"')
         self.assertContains(sayfa, "foto-modeller")
         resim = self.client.get(reverse("foto_model_resmi", args=["RNO-010"]) + "?bant=BN01&w=k")
@@ -2663,4 +2718,4 @@ class KartelaStudyoTesti(TasarimStudyosuTesti):
         sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "RNO-004"})
         self.assertContains(sayfa, 'data-grup="RNO"')
         self.assertContains(sayfa, "Bienca BN01 Gümüş &amp; altın varak")
-        self.assertContains(self.client.get(reverse("bayi_siparis")), "Renklerini değiştir")
+        self.assertNotContains(self.client.get(reverse("bayi_siparis") + "?tur=suni"), "Renklerini değiştir")

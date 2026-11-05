@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block baslik %}Sipariş ver{% endblock %}
+{% block icerik %}
+<h1>🛒 Sipariş ver</h1>
+<p class="soluk">Hangi halıyı sipariş edeceksiniz?</p>
+<div class="tur-secim">
+  <a class="tur-kart" href="?tur=suni">
+    {% if ornek.suni and ornek.suni.resim %}<img src="{{ ornek.suni.resim.url }}" alt="">{% endif %}
+    <span><b>Suni deri halı</b><small>Rono · Bienca · peluş — renklerini fotoğraf üzerinde seçerek tasarlayın</small></span>
+  </a>
+  <a class="tur-kart" href="?tur=deri">
+    {% if ornek.deri and ornek.deri.resim %}<img src="{{ ornek.deri.resim.url }}" alt="">{% endif %}
+    <span><b>Deri / kürk halı</b><small>Toskana · tilki · dana · tavşan — katalogdan model seçin</small></span>
+  </a>
+</div>
+<style>
+  .tur-secim { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; }
+  .tur-kart { display:flex; flex-direction:column; background:#fff; border:2px solid #eee3d8; border-radius:16px; overflow:hidden;
+              text-decoration:none; color:inherit; box-shadow:0 4px 14px rgba(60,40,20,.08); }
+  .tur-kart:hover, .tur-kart:focus { border-color:var(--ana); }
+  .tur-kart img { width:100%; aspect-ratio:16/9; object-fit:cover; object-position:center 30%; background:#efece8; }
+  .tur-kart span { padding:14px 16px; display:flex; flex-direction:column; gap:4px; }
+  .tur-kart b { font-size:20px; } .tur-kart small { color:#7a6b5d; font-size:14px; }
+</style>
+{% endblock %}

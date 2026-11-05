@@ -4,7 +4,6 @@
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
   <h1 style="margin:0;margin-right:auto">📦 Siparişlerim</h1>
   <a class="btn" href="{% url 'bayi_siparis' %}">🛒 Sipariş ver</a>
-  {% if studyo %}<a class="btn ikincil" href="{% url 'parcali_studyo' %}">🧩 Suni deri</a>{% endif %}
 </div>
 {% for r in satirlar %}{% with s=r.s t=r.t d=r.d %}
 <div class="kart bayi-kart">
@@ -19,7 +18,6 @@
       <span class="soluk">· {% if s.olcu_metni %}{{ s.olcu_metni }} · {% endif %}teslim {{ s.teslim_tarihi|date:"d.m.Y" }}{% if d.kod == "onay" %} (istenen){% endif %}</span>
     </div>
     {% if t and t.ofis_notu %}<div class="mesaj info" style="margin:6px 0 0">Bienna Fur: {{ t.ofis_notu|linebreaksbr }}</div>{% endif %}
-    {% if t and studyo %}<a class="btn kucuk ikincil" style="margin-top:6px" href="{% url 'tasarim_studyo' %}?kaynak={{ t.pk }}">Bu tasarımdan yenisini yap</a>{% endif %}
   </div>
 </div>
 {% endwith %}{% empty %}

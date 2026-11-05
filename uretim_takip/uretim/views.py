@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
@@ -193,7 +194,23 @@ def lot_detay(request, pk):
     )
     for islem in islemler:
         islem.bekleme_metni = uyarilar.sure_metni(islem.bekleme) if islem.bekleme is not None else ""
+    if request.user.is_superuser and islemler and servisler.geri_alinabilir(islemler[-1]):
+        islemler[-1].geri_alinir = True
     return render(request, "uretim/lot_detay.html", {"lot": lot, "islemler": islemler})
+
+
+@require_POST
+@login_required
+def islem_geri_al(request, pk):
+    """Yönetici: istasyonda yanlışlıkla başlatılan / bitirilen son işlemi geri alır."""
+    if not request.user.is_superuser:
+        raise PermissionDenied("İşlemi yalnız yönetici geri alabilir.")
+    islem = get_object_or_404(IslemKaydi, pk=pk)
+    try:
+        messages.success(request, servisler.islem_geri_al(islem=islem, kullanici=request.user))
+    except ValidationError as hata:
+        messages.error(request, " ".join(hata.messages))
+    return redirect("lot_detay", islem.lot_id)
 
 
 def _tarih_araligi(request):

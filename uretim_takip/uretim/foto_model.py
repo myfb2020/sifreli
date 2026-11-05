@@ -67,18 +67,20 @@ def _kartela():
         kod = re.search(r"\b([RB]N\d\d)\b", ad).group(1)
         sonuc[kod] = (anahtar, ad.split(kod, 1)[1].strip() or ad, parcali.MALZEME_HEX[anahtar])
     sonuc["ALTIN"] = ("altin", "Altın", parcali.MALZEME_HEX["altin"])
+    sonuc["GUMUS"] = ("gumus", "Gümüş", parcali.MALZEME_HEX["gumus"])
     return sonuc
 
 
 KARTELA = _kartela()
-IPLIK_RENK = {k: (ad, hex_) for k, ad, hex_ in parcali.IPLIKLER if k != "gumus"}
+METALLER = ["ALTIN", "GUMUS"]
+IPLIK_RENK = {k: (ad, hex_) for k, ad, hex_ in parcali.IPLIKLER}
 
 
 def secenekler(tur):
     if tur == IPLIK:
         return list(IPLIK_RENK)
-    kodlar = [k for k in KARTELA if k != "ALTIN"]
-    return kodlar + ["ALTIN"] if tur == DESEN else kodlar
+    kodlar = [k for k in KARTELA if k not in METALLER]
+    return kodlar + METALLER if tur == DESEN else kodlar
 
 
 def bolgeler(kod):
@@ -97,8 +99,8 @@ def secim_temizle(kod, veri):
 def renk_adi(tur, deger):
     if tur == IPLIK:
         return f"{IPLIK_RENK[deger][0]} iplik"
-    if deger == "ALTIN":
-        return "Altın"
+    if deger in METALLER:
+        return KARTELA[deger][1]
     return f"{deger} {KARTELA[deger][1]}"
 
 
@@ -222,8 +224,8 @@ def boya(kod, secim, genislik=None):
         desenli = b["varsayilan"] in DESENLI_ASIL
         if b["tur"] == IPLIK:
             katman = _boya_duz(gri, ort, _hex(IPLIK_RENK[deger][1]), min(0.8, guc * 1.5))
-        elif deger == "ALTIN":
-            katman = _boya_duz(gri, ort, _hex(KARTELA["ALTIN"][2]), min(1.0, guc * 1.8))
+        elif deger in METALLER:
+            katman = _boya_duz(gri, ort, _hex(KARTELA[deger][2]), min(1.0, guc * 1.8))
         elif deger.startswith("BN"):
             koyu, acik = _bn_paleti(KARTELA[deger][0])
             if desenli:  # fotoğraftaki eskitme deseni yeni Bienca'nın iki tonuyla
@@ -286,7 +288,7 @@ TAKIMLAR = [
     ("RN07", "BN04", "RN03"), ("RN02", "RN07", "RN01"), ("RN05", "RN06", "RN03"), ("RN04", "BN01", "RN02"),
     ("RN03", "BN03", "RN01"), ("RN06", "RN03", "RN05"), ("RN07", "ALTIN", "RN03"), ("RN04", "RN03", "RN02"),
 ]
-ACIK = {"RN03", "RN07", "RN01", "BN01", "BN04", "ALTIN"}
+ACIK = {"RN03", "RN07", "RN01", "BN01", "BN04", "ALTIN", "GUMUS"}
 
 
 def fikirler(kod, adet=6):
@@ -304,8 +306,8 @@ def fikirler(kod, adet=6):
             istenen = {"zemin": zemin, "vurgu": vurgu, "ikinci": ikinci, "metal": vurgu}[b["rol"]]
             if istenen not in secenek:
                 istenen = "ALTIN" if b["rol"] == "metal" else ikinci
-            if b["rol"] == "metal" and istenen != "ALTIN":
-                istenen = "ALTIN" if len(sonuc) % 2 == 0 else istenen
+            if b["rol"] == "metal" and istenen not in METALLER:
+                istenen = METALLER[len(sonuc) % 2]
             secim[b["anahtar"]] = istenen if istenen in secenek else b["varsayilan"]
         if secim != asil and secim not in sonuc:
             sonuc.append(secim)
@@ -324,8 +326,8 @@ def istemci_verisi(resim_adresleri):
             for deger in secenekler(b["tur"]):
                 if b["tur"] == IPLIK:
                     sec.append({"k": deger, "ad": IPLIK_RENK[deger][0], "hex": IPLIK_RENK[deger][1]})
-                elif deger == "ALTIN":
-                    sec.append({"k": deger, "ad": "Altın", "hex": KARTELA[deger][2]})
+                elif deger in METALLER:
+                    sec.append({"k": deger, "ad": KARTELA[deger][1], "hex": KARTELA[deger][2]})
                 else:
                     sec.append({"k": deger, "ad": f"{deger} {KARTELA[deger][1]}", "resim": resim_adresleri.get(deger, ""),
                                 "hex": KARTELA[deger][2]})

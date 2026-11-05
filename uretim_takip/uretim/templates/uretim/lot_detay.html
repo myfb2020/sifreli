@@ -55,7 +55,9 @@
       <td class="sayi">{{ i.giris_kg }} → {{ i.cikis_kg|default:"…" }}</td>
       <td class="sayi">{{ i.giris_m2 }} → {{ i.cikis_m2|default:"…" }}</td>
       <td class="sayi">{% if i.fire_m2 is not None %}{{ i.fire_m2 }} <span class="soluk">(%{{ i.fire_yuzde_m2 }})</span>{% endif %}</td>
-      <td>{{ i.aciklama|linebreaksbr }}</td>
+      <td>{{ i.aciklama|linebreaksbr }}
+        {% if i.geri_alinir %}<form method="post" action="{% url 'islem_geri_al' i.pk %}" onsubmit="return confirm('{% if i.bitis %}Bitirme geri alınsın mı? İş yeniden {{ i.asama.ad }} istasyonunda çalışılıyor olur{% if i.stok_dusumu %}, düşülen malzeme stoğa döner{% endif %}.{% else %}Başlatma silinsin mi? İş {{ i.asama.ad }} istasyonunda yeniden bekler.{% endif %}')">{% csrf_token %}
+          <button class="btn kucuk ikincil" type="submit">↩ {% if i.bitis %}Bitirmeyi{% else %}Başlatmayı{% endif %} geri al</button></form>{% endif %}</td>
     </tr>
     {% empty %}
     <tr><td colspan="9" class="soluk">Bu işte henüz işlem yapılmadı.</td></tr>

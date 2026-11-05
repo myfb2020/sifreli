@@ -48,7 +48,10 @@ def tasarim_ozet(veri):
 
 
 def _bayi_gerekli(request):
+    """Stüdyo: bayi hesabı (eski düzen) ya da yönetici (önizleme; bayi yoksa gönderemez)."""
     if getattr(request, "bayi", None) is None:
+        if request.user.is_superuser:
+            return None
         raise PermissionDenied("Bu sayfa bayi hesapları içindir.")
     return request.bayi
 
@@ -115,6 +118,9 @@ def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""
 def studyo(request):
     bayi = _bayi_gerekli(request)
     form = GonderForm(request.POST or None)
+    if request.method == "POST" and bayi is None:
+        messages.error(request, "Yönetici önizlemesi: tasarım buradan gönderilemez.")
+        return redirect(request.path)
     if request.method == "POST":
         veri = _temizle(request.POST)
         if form.is_valid():

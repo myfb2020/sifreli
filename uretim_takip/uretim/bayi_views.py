@@ -55,7 +55,7 @@ def bayi_ana(request):
         if s.durum == "iptal" and not (tasarim and tasarim.durum == "reddedildi"):
             continue
         satirlar.append({"s": s, "t": tasarim, "d": s.bayi_durumu()})
-    return render(request, "uretim/bayi_ana.html", {"satirlar": satirlar, "studyo": bayi.studyo_acik})
+    return render(request, "uretim/bayi_ana.html", {"satirlar": satirlar})
 
 
 # --- Bayi: katalogdan basit sipariş -------------------------------------------------
@@ -97,9 +97,36 @@ class BayiSiparisForm(forms.Form):
         return veri
 
 
+# Bayi Sipariş ver'de iki bölüm: suni deri (Rono, Bienca, peluş – fotoğraf üzerinde renk seçerek tasarlar) ve deri/kürk.
+SUNI_SERILER = {"rono", "bienca", "ipek peluş", "peluche"}
+HER_IKISI = {"müşteri modelleri"}
+
+
+def _kucuk(ad):
+    return ad.replace("İ", "i").replace("I", "ı").lower()
+
+
+def seri_turu(seri):
+    ad = _kucuk(seri.ad)
+    if ad in HER_IKISI:
+        return "ikisi"
+    return "suni" if ad in SUNI_SERILER else "deri"
+
+
 @login_required
 def bayi_siparis(request):
     bayi = _bayi(request)
+    tur = request.POST.get("tur") or request.GET.get("tur")
+    secilen = request.POST.get("model") or request.GET.get("model")
+    if tur not in ("suni", "deri") and secilen:
+        m = KatalogModeli.objects.filter(kod=secilen).select_related("seri").first()
+        tur = seri_turu(m.seri) if m else None
+        tur = "suni" if tur == "ikisi" else tur
+    if tur not in ("suni", "deri"):
+        ornek = {t: KatalogModeli.objects.filter(kod=k).first() for t, k in (("suni", "RNO-010"), ("deri", "TOS-034"))}
+        if ornek["deri"] is None:
+            ornek["deri"] = KatalogModeli.objects.filter(seri__ad="Toskana").exclude(resim="").first()
+        return render(request, "uretim/bayi_siparis_tur.html", {"ornek": ornek})
     form = BayiSiparisForm(request.POST or None, initial={"model": request.GET.get("model", "")})
     olculer = olcu_formseti(request.POST or None)
     if request.method == "POST" and form.is_valid() and olculer.is_valid():
@@ -125,16 +152,16 @@ def bayi_siparis(request):
             messages.success(request, f"Siparişiniz gönderildi ({siparis.siparis_no}). Onaylanınca üretime alınacak.")
             return redirect("bayi_ana")
     seriler = []
-    for seri in KatalogSerisi.objects.order_by("sira", "ad"):
+    for seri in sorted(KatalogSerisi.objects.all(), key=lambda x: (_kucuk(x.ad) not in ("rono", "bienca"), x.sira, x.ad)):
+        if seri_turu(seri) not in (tur, "ikisi"):
+            continue
         modeller = [m for m in seri.modeller.filter(aktif=True).order_by("kod") if m.resim]
         if modeller:
             seriler.append({"seri": seri, "modeller": modeller})
     kartelalar = {g: list(Renk.objects.filter(grup=g, aktif=True)) for g, _ in Renk.GRUPLAR}
-    from . import parcali
     resimler = {r.kod: r.resim_adresi for liste in kartelalar.values() for r in liste}
     return render(request, "uretim/bayi_siparis.html", {"form": form, "olculer": olculer, "seriler": seriler,
-                                                        "kartelalar": kartelalar, "studyo": bayi.studyo_acik,
-                                                        "duzenlenir": set(parcali.HAZIR) - set(foto_model.MODELLER),
+                                                        "kartelalar": kartelalar, "tur": tur, "duzenlenir": set(),
                                                         "foto_modeller": foto_model.istemci_verisi(resimler)})
 
 
@@ -197,8 +224,6 @@ class YeniBayiForm(forms.Form):
     ad = forms.CharField(label="veya yeni bayi adı", required=False, max_length=120)
     telefon = forms.CharField(label="Telefon (WhatsApp)", required=False, max_length=30,
                               widget=forms.TextInput(attrs={"inputmode": "tel", "placeholder": "05xx xxx xx xx"}))
-    studyo_acik = forms.BooleanField(label="Tasarım stüdyosu açık (kapalıysa yalnız katalogdan sipariş verir)",
-                                     required=False, initial=False)
 
     def clean(self):
         veri = super().clean()
@@ -227,7 +252,6 @@ def bayi_listesi(request):
             musteri = v["musteri"] or Musteri.objects.create(ad=v["ad"].strip())
             if v.get("telefon"):
                 musteri.telefon = v["telefon"].strip()
-            musteri.studyo_acik = v["studyo_acik"]
             musteri.save()
             kullanici = get_user_model().objects.create_user(_kullanici_adi(musteri.ad))
             kullanici.set_unusable_password()

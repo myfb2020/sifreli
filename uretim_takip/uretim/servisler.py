@@ -139,6 +139,7 @@ def malzeme_dus(*, lot, m2, rulo=None, cesit=None):
         ad = adaylar[0].cesit_metni if adaylar else "Bu malzeme"
         raise ValidationError(f"{ad}: stokta yalnızca {kalan_toplam} m² var, {m2} m² düşülemez.")
     gerekli = m2
+    dusulen = []
     for stok in adaylar:
         if gerekli <= 0:
             break
@@ -150,7 +151,9 @@ def malzeme_dus(*, lot, m2, rulo=None, cesit=None):
         if not yeni:
             kaynak.m2 += al
             kaynak.save(update_fields=["m2"])
+        dusulen.append([stok.pk, str(al)])
         gerekli -= al
+    return dusulen
 
 
 @transaction.atomic
@@ -167,7 +170,8 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
     if kesim is None and ilk_adim_mi(islem) and SistemAyari.yukle().stok_zorunlu and not islem.lot.kaynaklar.exists():
         raise ValidationError("Kullanılan malzemeyi ve ölçüsünü girin (stok okutma zorunlu).")
     if kesim is not None:
-        malzeme_dus(lot=islem.lot, m2=kesim["m2"], rulo=kesim.get("rulo"), cesit=kesim.get("cesit"))
+        islem.stok_dusumu = [*malzeme_dus(lot=islem.lot, m2=kesim["m2"], rulo=kesim.get("rulo"), cesit=kesim.get("cesit")),
+                             ["baslangic", str(islem.lot.baslangic_m2)]]
         lot = islem.lot
         kullanilan = sum((k.m2 for k in lot.kaynaklar.all()), Decimal(0))
         if lot.kalem_id:
@@ -333,6 +337,79 @@ def tamir_bitti(lot):
     if not acik and siparis.durum == "tamirde":
         siparis.durum = kayit.onceki_durum or "sevk"
         siparis.save(update_fields=["durum"])
+
+
+# --- Yönetici düzeltmesi: yanlışlıkla başlatılan / bitirilen işlem ---------------------------------
+
+
+def geri_alinabilir(islem):
+    """İşin en son işlemi mi (yalnız o geri alınır)? Sevk / iptal edilmiş siparişte geri alma yok."""
+    lot = islem.lot
+    if lot.siparis_id and lot.siparis.durum in ("sevk", "iptal") and lot.tur != "tamir":
+        return False
+    return not lot.islemler.filter(baslangic__gt=islem.baslangic).exclude(pk=islem.pk).exists() and \
+        not lot.islemler.filter(baslangic=islem.baslangic, pk__gt=islem.pk).exists()
+
+
+@transaction.atomic
+def islem_geri_al(*, islem, kullanici):
+    """Açık işlem → başlatma silinir (iş o istasyonda yeniden bekler).
+    Bitmiş işlem → bitirme geri alınır (iş o istasyonda yeniden 'çalışılıyor'); düşülen malzeme stoğa döner."""
+    islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama", "lot__siparis").get(pk=islem.pk)
+    if not getattr(kullanici, "is_superuser", False):
+        raise ValidationError("İşlemi yalnız yönetici geri alabilir.")
+    if not geri_alinabilir(islem):
+        raise ValidationError("Yalnız işin en son işlemi geri alınabilir.")
+    lot = UretimLotu.objects.select_for_update().get(pk=islem.lot_id)
+    siparis = lot.siparis
+    kim = kullanici.get_full_name() or kullanici.username
+    if islem.bitis is None:
+        asama = islem.asama
+        islem.delete()
+        onceki = lot.islemler.order_by("-baslangic", "-pk").first()
+        lot.durum = "bekliyor"
+        lot.son_asama = onceki.asama if onceki else None
+        lot.save(update_fields=["durum", "son_asama"])
+        if siparis and siparis.durum == "uretimde" and not IslemKaydi.objects.filter(lot__siparis=siparis).exists():
+            siparis.durum = "acik"
+            siparis.save(update_fields=["durum"])
+        metin = f"↩ Yönetici geri aldı: {asama.ad} başlatması silindi ({kim})."
+    else:
+        tamamlanmisti = lot.durum == "tamamlandi"
+        for kayit in islem.stok_dusumu or []:
+            if kayit[0] == "baslangic":
+                lot.baslangic_m2 = Decimal(kayit[1])
+                continue
+            kaynak = LotKaynagi.objects.filter(uretim_lotu=lot, ham_deri_id=kayit[0]).first()
+            if kaynak is not None:
+                kaynak.m2 -= Decimal(kayit[1])
+                if kaynak.m2 <= 0 and not kaynak.kg:
+                    kaynak.delete()
+                else:
+                    kaynak.save(update_fields=["m2"])
+        MalzemeHareketi.objects.filter(islem=islem).delete()
+        islem.bitis = None
+        islem.bitiren = None
+        islem.cikis_kg = islem.cikis_m2 = None
+        islem.cikis_en_cm = islem.cikis_boy_cm = None
+        islem.stok_dusumu = []
+        islem.save()
+        lot.durum = "islemde"
+        lot.son_asama = islem.asama
+        lot.mevcut_kg, lot.mevcut_m2 = islem.giris_kg, islem.giris_m2
+        lot.save(update_fields=["durum", "son_asama", "mevcut_kg", "mevcut_m2", "baslangic_m2"])
+        if tamamlanmisti and siparis:
+            if lot.tur == "tamir":
+                TamirKaydi.objects.filter(lot=lot).update(bitis=None)
+                if siparis.durum != "tamirde":
+                    siparis.durum = "tamirde"
+                    siparis.save(update_fields=["durum"])
+            elif siparis.durum == "tamamlandi":
+                siparis.durum = "uretimde"
+                siparis.save(update_fields=["durum"])
+        metin = f"↩ Yönetici geri aldı: {islem.asama.ad} bitirmesi geri alındı, iş yeniden bu istasyonda ({kim})."
+    IsNotu.objects.create(lot=lot, metin=metin, asama=islem.asama, kullanici=kullanici)
+    return metin
 
 
 def kendi_istasyonu(kullanici):

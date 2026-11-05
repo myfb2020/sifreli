@@ -60,6 +60,9 @@ def bayi_hesap(v):
 def studyo(request):
     bayi = _bayi_gerekli(request)
     form = GonderForm(request.POST or None)
+    if request.method == "POST" and bayi is None:
+        messages.error(request, "Yönetici önizlemesi: tasarım buradan gönderilemez.")
+        return redirect(request.path)
     if request.method == "POST":
         veri = _temizle(request.POST)
         if form.is_valid():
