@@ -120,15 +120,19 @@ def kartela_secenekleri(on):
 
 
 def kartelaya_uydur(v, on):
-    """Tasarımın bütün malzemelerini serinin kartelasına çeker; kenar rengi de kartelaya bağlı."""
+    """Zemin serinin kartelasında; bantlar Rono ya da Bienca + altın/gümüş; biye kartela rengi ya da altın/gümüş."""
     izinli, esle = kartela_secenekleri(on), KARTELA_ESLEME[on]
+    bant_izinli = set(izinli) | {m for liste in KARTELA_MALZEMELERI.values() for m in liste}
     ilk = KARTELA_MALZEMELERI[on][0]
     for alan in MALZEME_ALANLARI:
-        if alan in v and v[alan] not in izinli:
+        uygun = [m for m in KARTELA_MALZEMELERI[on]] if alan == "zemin" else bant_izinli
+        if alan in v and v[alan] not in uygun:
             v[alan] = esle.get(v[alan], ilk)
+            if v[alan] not in uygun:
+                v[alan] = ilk
     if v.get("madalyon_cerceve") and v["madalyon_cerceve"] not in izinli:
         v["madalyon_cerceve"] = esle.get(v["madalyon_cerceve"], "altin")
-    if v.get("kenar_renk") not in KARTELA_MALZEMELERI[on]:
+    if v.get("kenar_renk") not in KARTELA_MALZEMELERI[on] and v.get("kenar_renk") not in METALIK:
         # biye / lanfel: zeminden ayrı görünen kartela rengi (dış halka düz kartela rengiyse o)
         dis = v.get("h1_malzeme") if v.get("halka_sayisi") else None
         v["kenar_renk"] = dis if dis in KARTELA_MALZEMELERI[on] else (
@@ -357,8 +361,26 @@ def _sec(deger, secenekler, varsayilan):
     return deger if deger in anahtarlar else varsayilan
 
 
+# Gerçekçi görünüm için seçilen 10 model: renkler katalog fotoğrafına bakılarak (2026-11-06)
+SECILI_MODELLER = ["RNO-001", "RNO-003", "RNO-004", "RNO-005", "BNA-001", "BNA-003", "BNA-005", "BNA-009", "BNA-018",
+                   "BNA-026"]
+FOTO_RENK = {
+    "RNO-001": {"zemin": "gri_keten", "h1_malzeme": "bienca_bn03", "kenar_renk": "gumus"},
+    "RNO-003": {"zemin": "beyaz_keten", "h1_malzeme": "bienca_bn04", "kenar_renk": "altin"},
+    "RNO-004": {"zemin": "beyaz_keten", "h1_malzeme": "altin", "h2_malzeme": "antrasit_keten", "kenar_renk": "altin"},
+    "RNO-005": {"zemin": "krem_keten", "h1_malzeme": "krem_keten", "h2_malzeme": "gumus", "kenar_renk": "altin"},
+    "BNA-001": {"zemin": "bienca_bn02", "h1_malzeme": "gumus", "kenar_renk": "gumus"},
+    "BNA-003": {"zemin": "bienca_bn01", "h1_malzeme": "antrasit_keten", "kenar_renk": "gumus"},
+    "BNA-005": {"zemin": "bienca_bn03", "h1_malzeme": "gumus", "kenar_renk": "gumus"},
+    "BNA-009": {"zemin": "bienca_bn04", "h1_malzeme": "altin", "kenar_renk": "altin"},
+    "BNA-018": {"zemin": "bienca_bn01", "h1_malzeme": "kahve_keten", "kenar_renk": "altin"},
+    "BNA-026": {"zemin": "bienca_bn01", "h1_malzeme": "gumus", "kenar_renk": "gumus"},
+}
+
+
 def hazir_degerler(kod):
-    v = {**VARSAYILAN, **HAZIR.get(kod, {}), "hazir": kod if kod in HAZIR else "", "katalog": kod if kod in HAZIR else ""}
+    v = {**VARSAYILAN, **HAZIR.get(kod, {}), **FOTO_RENK.get(kod, {}),
+         "hazir": kod if kod in HAZIR else "", "katalog": kod if kod in HAZIR else ""}
     on = seri_kartelasi(kod)
     return kartelaya_uydur(v, on) if on and kod in HAZIR else v
 

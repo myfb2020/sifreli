@@ -2801,10 +2801,10 @@ class KartelaStudyoTesti(TasarimStudyosuTesti):
             if not on:
                 continue
             v = parcali.hazir_degerler(kod)
-            izinli = set(parcali.kartela_secenekleri(on))
+            izinli = set(parcali.kartela_secenekleri(on)) | {m for l in parcali.KARTELA_MALZEMELERI.values() for m in l}
             for alan in parcali.MALZEME_ALANLARI:
-                self.assertIn(v[alan], izinli, f"{kod} {alan}")
-            self.assertIn(v["kenar_renk"], parcali.KARTELA_MALZEMELERI[on], kod)
+                self.assertIn(v[alan], parcali.KARTELA_MALZEMELERI[on] if alan == "zemin" else izinli, f"{kod} {alan}")
+            self.assertIn(v["kenar_renk"], parcali.KARTELA_MALZEMELERI[on] + parcali.METALIK, kod)
         # kartelalı modelde dışarıdan gelen yanlış malzeme düzeltilir; serbest tasarımda dokunulmaz
         v = parcali.temizle({"duzen": "halkali", "katalog": "BNA-005", "zemin": "pelus_taba", "halka_sayisi": 1,
                              "h1_malzeme": "gumus", "kenar_renk": "siyah"})

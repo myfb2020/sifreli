@@ -41,7 +41,40 @@ def _kadife(boyut, renk):
     return Image.composite(parlak, taban, leke.point(lambda p: max(0, p - 150)))
 
 
+@lru_cache(maxsize=24)
+def _kartela_dokusu(ad, boyut, px):
+    """Rono / Bienca: atölye numune fotoğrafı (ışığı düzeltilmiş) gerçek ölçüsünde, ayna döşeme yerine
+    büyük yumuşak geçişli yamalarla. Bienca baskısı büyük ve tekrarsızdır: bütün halıyı tek parça kaplar."""
+    import random
+    kaynak = hg._doku(ad)
+    if ad.startswith("bienca"):
+        k = max(boyut[0] / kaynak.width, boyut[1] / kaynak.height)
+        b = kaynak.resize((max(1, round(kaynak.width * k)), max(1, round(kaynak.height * k))), Image.LANCZOS)
+        return b.crop(((b.width - boyut[0]) // 2, (b.height - boyut[1]) // 2,
+                       (b.width - boyut[0]) // 2 + boyut[0], (b.height - boyut[1]) // 2 + boyut[1]))
+    cm = max(hg.DOKU_CM_OZEL.get(ad, 15) * 2.2, 30)  # Rono: dokuma ince; leke deseni ~30 cm ölçeğinde
+    w = max(16, round(cm * px))
+    kaynak = kaynak.resize((w, max(16, round(kaynak.height * w / kaynak.width))), Image.LANCZOS)
+    ort = kaynak.resize((1, 1), Image.BOX).getpixel((0, 0))
+    tuval = Image.new("RGB", boyut, ort)
+    yw, yh = int(kaynak.width * 0.9), int(kaynak.height * 0.9)
+    maske = hg._yumusak_maske(yw, yh, max(3, min(yw, yh) // 5))
+    rast = random.Random(ad)
+    for y in range(-yh // 3, boyut[1], int(yh * 0.62)):
+        for x in range(-yw // 3, boyut[0], int(yw * 0.62)):
+            sx, sy = rast.randint(0, kaynak.width - yw), rast.randint(0, kaynak.height - yh)
+            yama = kaynak.crop((sx, sy, sx + yw, sy + yh))
+            if rast.random() < 0.5:
+                yama = ImageOps.mirror(yama)
+            if rast.random() < 0.5:
+                yama = ImageOps.flip(yama)
+            tuval.paste(yama, (x, y), maske)
+    return tuval
+
+
 def malzeme_dokusu(ad, boyut, px):
+    if (ad.startswith("bienca_bn") or ad.endswith("_keten")) and hg._var_mi(ad):
+        return _kartela_dokusu(ad, boyut, round(px, 3))
     if hg._var_mi(ad):
         return hg.doku_doldur(ad, boyut, px)
     if ad in cizim.BANT_HEX:
@@ -230,6 +263,8 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     cizgi = ImageDraw.Draw(dikis)
     kalin = max(1, int(px * 0.3))
     for p in parcalar:
+        if p.get("tur") == "zemin" and "/" in p.get("ad", ""):
+            continue  # 140 cm'lik rulo ek yeri: üretim bilgisi, görüntüde gösterilmez
         poli = olc(p["poli"])
         cizgi.line(poli + [poli[0]], fill=255, width=kalin)
     yumusak = dikis.filter(ImageFilter.GaussianBlur(max(1.5, px * 1.2)))
