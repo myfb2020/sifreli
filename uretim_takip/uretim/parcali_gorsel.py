@@ -54,6 +54,13 @@ def _kartela_dokusu(ad, boyut, px):
     if ad.startswith("bienca"):
         k = max(boyut[0] / kaynak.width, boyut[1] / kaynak.height)
         b = kaynak.resize((max(1, round(kaynak.width * k)), max(1, round(kaynak.height * k))), Image.LANCZOS)
+        # numune fotoğrafındaki ışık-gölge (kıvrım, pencere ışığı) halıda gölge gibi görünür: geniş ölçekli
+        # parlaklık farkı silinir, desenin kendi açık-koyu tonu kalır
+        gri = b.convert("L")
+        ort = max(1, gri.resize((1, 1), Image.BOX).getpixel((0, 0)))
+        genis = gri.filter(ImageFilter.GaussianBlur(max(4, b.width / 8)))
+        duz = genis.point(lambda q: max(0, min(255, round(128 * ort / max(q, 1)))))
+        b = ImageChops.multiply(b, Image.merge("RGB", (duz,) * 3)).point(lambda q: min(255, q * 2))
         return b.crop(((b.width - boyut[0]) // 2, (b.height - boyut[1]) // 2,
                        (b.width - boyut[0]) // 2 + boyut[0], (b.height - boyut[1]) // 2 + boyut[1]))
     # Rono: numunenin genel rengi ve hafif eskitme tonları bütün parçayı tek kaplar (kare kare tekrar görünmez);
@@ -266,7 +273,7 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     # bantların gölgesi ve dikiş (zig-zag) izleri
     if golge_kaynak.getbbox():
         golge = golge_kaynak.filter(ImageFilter.GaussianBlur(max(2, px * 0.8)))
-        golge = ImageChops.subtract(golge, golge_kaynak).point(lambda q: int(q * 0.45))
+        golge = ImageChops.subtract(golge, golge_kaynak).point(lambda q: int(q * 0.2))
         resim = Image.composite(Image.new("RGB", boyut, (0, 0, 0)), resim, golge)
     # kabartma: her parça dikiş yerinde hafifçe içe çöker (gölge), ortası ışık alır
     dikis = Image.new("L", boyut, 0)
@@ -301,7 +308,7 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
         noktalar = ImageChops.multiply(dikis, kesik)
         resim = Image.composite(Image.new("RGB", boyut, (70, 60, 45)), resim, noktalar)
 
-    isik = Image.radial_gradient("L").resize(boyut).point(lambda q: 255 - q // 4)
+    isik = Image.radial_gradient("L").resize(boyut).point(lambda q: 255 - q // 12)
     resim = ImageChops.multiply(resim, Image.merge("RGB", (isik, isik, isik)))
 
     pay = int(uzun_kenar * 0.05)
