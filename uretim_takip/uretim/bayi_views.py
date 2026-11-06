@@ -21,7 +21,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import bildirim, foto_model, fotograf, servisler
-from .forms import olcu_formseti
+from .forms import CokluResimAlani, olcu_formseti
 from .models import (
     BayiDavet, BildirimAboneligi, HesapAyari, KatalogModeli, KatalogSerisi, Musteri, Renk, Siparis, UretimLotu,
 )
@@ -46,7 +46,7 @@ def bayi_ana(request):
         Siparis.objects.filter(musteri=bayi)
         .select_related("katalog_modeli", "renk", "tasarim")
         .prefetch_related(Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama", "kalem")),
-                          "kalemler", "tamirler")
+                          "kalemler", "tamirler", "fotograflar")
         .order_by("-tarih", "-pk")
     )
     satirlar = []
@@ -61,6 +61,9 @@ def bayi_ana(request):
 # --- Bayi: katalogdan basit sipariş -------------------------------------------------
 
 
+BAYI_FOTO = 3
+
+
 class BayiSiparisForm(forms.Form):
     model = forms.CharField(widget=forms.HiddenInput)
     renk = forms.CharField(required=False, widget=forms.HiddenInput)
@@ -71,6 +74,7 @@ class BayiSiparisForm(forms.Form):
                              widget=forms.DateInput(attrs={"type": "date"}))
     notlar = forms.CharField(label="Notunuz (isteğe bağlı)", required=False, max_length=1000,
                              widget=forms.Textarea(attrs={"rows": 2}))
+    fotograflar = CokluResimAlani(label="📷 Fotoğraf ekle (isteğe bağlı, en çok 3)", required=False)
 
     def clean(self):
         veri = super().clean()
@@ -78,6 +82,13 @@ class BayiSiparisForm(forms.Form):
         if model is None:
             raise ValidationError("Katalogdan bir model seçin.")
         veri["model"] = model
+        if len(veri.get("fotograflar") or []) > BAYI_FOTO:
+            self.add_error("fotograflar", f"En çok {BAYI_FOTO} fotoğraf ekleyebilirsiniz.")
+        else:
+            try:  # bozuk dosya sipariş açılmadan yakalansın
+                veri["foto_icerik"] = [fotograf.kucult(d) for d in veri.get("fotograflar") or []]
+            except fotograf.FotografHatasi as hata:
+                self.add_error("fotograflar", str(hata))
         renk = None
         veri["foto_secim"] = None
         if model.kod in foto_model.MODELLER:
@@ -127,7 +138,7 @@ def bayi_siparis(request):
         if ornek["deri"] is None:
             ornek["deri"] = KatalogModeli.objects.filter(seri__ad="Toskana").exclude(resim="").first()
         return render(request, "uretim/bayi_siparis_tur.html", {"ornek": ornek})
-    form = BayiSiparisForm(request.POST or None, initial={"model": request.GET.get("model", "")})
+    form = BayiSiparisForm(request.POST or None, request.FILES or None, initial={"model": request.GET.get("model", "")})
     olculer = olcu_formseti(request.POST or None)
     if request.method == "POST" and form.is_valid() and olculer.is_valid():
         satirlar = olculer.satirlar()
@@ -148,6 +159,8 @@ def bayi_siparis(request):
                 servisler.kalemleri_kaydet(siparis, satirlar)
                 if v["foto_secim"]:  # bayinin gördüğü boyanmış fotoğraf siparişin resmi olur (ofis + istasyon görür)
                     fotograf.kaydet(siparis, foto_model.jpeg(model.kod, v["foto_secim"]))
+                for icerik in v.get("foto_icerik") or []:  # bayinin eklediği fotoğraflar
+                    fotograf.kaydet(siparis, icerik)
             bildirim.yeni_bayi_siparisi(siparis)
             messages.success(request, f"Siparişiniz gönderildi ({siparis.siparis_no}). Onaylanınca üretime alınacak.")
             return redirect("bayi_ana")

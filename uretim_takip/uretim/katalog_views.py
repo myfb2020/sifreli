@@ -14,8 +14,11 @@ from .models import KatalogModeli, KatalogSerisi, LazerDeseni
 @login_required
 def medya(request, yol):
     """Yüklenen resimler yalnızca giriş yapanlara gösterilir; müşteri fotoğrafları bayilere gösterilmez."""
-    if yol.startswith("siparis/") and getattr(request, "bayi", None) is not None:
-        raise Http404
+    bayi = getattr(request, "bayi", None)
+    if yol.startswith("siparis/") and bayi is not None:
+        from .models import SiparisFotografi  # bayi yalnız kendi siparişinin fotoğraflarını görür
+        if not SiparisFotografi.objects.filter(resim=yol, siparis__musteri=bayi).exists():
+            raise Http404
     yanit = serve(request, yol, document_root=settings.MEDIA_ROOT)
     yanit["Cache-Control"] = "private, max-age=604800"
     return yanit

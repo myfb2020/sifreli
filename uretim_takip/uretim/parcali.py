@@ -59,9 +59,10 @@ MALZEMELER = [
     ("pelus_siyah", "Siyah peluş", "#262424"),
     # Bienca – müşteri kartelası BN01–BN04 (2026-11-05, kartla ölçülü numune fotoğraflarından)
     ("bienca_bn01", "Bienca BN01 Gümüş & altın varak", "#d9d6cc"),
-    ("bienca_bn02", "Bienca BN02 Eskitme kahve / krem", "#8a6a55"),
+    ("bienca_bn02", "Bienca BN02 Bakır eskitme / gri", "#9a8577"),
     ("bienca_bn03", "Bienca BN03 Gümüş & gri eskitme", "#9aa1a3"),
     ("bienca_bn04", "Bienca BN04 Altın & gümüş eskitme", "#c8ab62"),
+    ("bienca_bn05", "Bienca BN05 Krem & yoğun altın eskitme", "#c9bc94"),
     # Rono (üçlü lamine: süet + keçe + Rono) – müşteri kartelası RN01–RN07 (2026-11-05). Anahtarlar eski kayıtlar için aynı.
     ("acik_gri_keten", "Rono RN01 Gri / vizon", "#b2a092"),
     ("gri_keten", "Rono RN02 Koyu gri / gümüş", "#676260"),
@@ -92,7 +93,7 @@ ESKI_MALZEME = {"bej_keten": "krem_keten", "siyah_keten": "antrasit_keten", "ron
 # Kartelalı seriler: modelin bütün parçaları yalnız kendi kartelasından; ince çizgiler metalik; kenar kartelaya bağlı.
 KARTELA_MALZEMELERI = {
     "RNO": ["acik_gri_keten", "gri_keten", "krem_keten", "antrasit_keten", "vizon_keten", "kahve_keten", "beyaz_keten"],
-    "BNA": ["bienca_bn01", "bienca_bn02", "bienca_bn03", "bienca_bn04"],
+    "BNA": ["bienca_bn01", "bienca_bn02", "bienca_bn03", "bienca_bn04", "bienca_bn05"],
 }
 METALIK = ["altin", "gumus"]
 # Hazır modellerin eski malzemeleri kartelada en yakın karşılığına (katalog fotoğrafına bakarak)

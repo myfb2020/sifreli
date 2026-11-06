@@ -659,7 +659,7 @@ class SiparisKalemi(models.Model):
 class SiparisFotografi(models.Model):
     """Müşterinin gönderdiği ürün fotoğrafı (WhatsApp vb.). Ofis yükler; iş bitene kadar istasyonlarda görünür."""
 
-    EN_COK = 3
+    EN_COK = 4  # bayi 3 fotoğraf + boyanmış tasarım fotoğrafı
     siparis = models.ForeignKey(Siparis, on_delete=models.CASCADE, related_name="fotograflar", verbose_name="sipariş")
     resim = models.FileField(upload_to="siparis/%Y/%m/", validators=[resim_dogrulayici])
     olusturma = models.DateTimeField("yüklenme", default=timezone.now, editable=False)

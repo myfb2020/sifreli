@@ -7,9 +7,10 @@
 </div>
 {% for r in satirlar %}{% with s=r.s t=r.t d=r.d %}
 <div class="kart bayi-kart">
-  <div class="bayi-resim">{% if t %}<a href="{% url 'tasarim_resim' t.pk %}" target="_blank"><img src="{% url 'tasarim_resim' t.pk %}" alt="" loading="lazy"></a>
+  <div class="bayi-resim">{% with fotolar=s.fotograflar.all %}{% if fotolar %}{% for f in fotolar %}<a href="{{ f.resim.url }}" class="buyut"><img src="{{ f.resim.url }}" alt="" loading="lazy"{% if not forloop.first %} class="kucuk-foto"{% endif %}></a>{% endfor %}
+    {% elif t %}<a href="{% url 'tasarim_resim' t.pk %}" target="_blank"><img src="{% url 'tasarim_resim' t.pk %}" alt="" loading="lazy"></a>
     {% elif s.katalog_modeli.resim %}<a href="{{ s.katalog_modeli.resim.url }}" class="buyut"><img src="{{ s.katalog_modeli.resim.url }}" alt="" loading="lazy"></a>
-    {% elif s.renk %}<img src="{{ s.renk.resim_adresi }}" alt="">{% endif %}</div>
+    {% elif s.renk %}<img src="{{ s.renk.resim_adresi }}" alt="">{% endif %}{% endwith %}</div>
   <div style="min-width:0">
     <div class="bayi-satir"><b>{{ s.siparis_no }}</b> · {{ s.urun }}
       {% if t and t.durum == "reddedildi" %}<span class="rozet iptal">Reddedildi</span>
@@ -26,6 +27,8 @@
 <style>
   .bayi-kart { display:grid; grid-template-columns:90px minmax(0,1fr); gap:12px; align-items:start; padding:12px; }
   .bayi-resim img { width:100%; background:#fff; border-radius:8px; display:block; }
+  .bayi-resim a + a { display:inline-block; width:30%; margin:4px 2% 0 0; }
+  .bayi-resim .kucuk-foto { aspect-ratio:1; object-fit:cover; }
   .bayi-satir { line-height:1.7; }
 </style>
 {% endblock %}

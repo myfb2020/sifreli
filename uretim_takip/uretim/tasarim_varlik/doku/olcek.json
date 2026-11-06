@@ -25,8 +25,10 @@
  "pelus_pembe": 9.8,
  "pelus_lacivert": 9.8,
  "pelus_vizon": 9.8,
- "bienca_bn01": 14.7,
- "bienca_bn04": 9.1,
- "bienca_bn03": 9.5,
- "bienca_bn02": 13.6
+ "bienca_bn01": 60,
+ "bienca_bn04": 60,
+ "bienca_bn03": 60,
+ "bienca_bn02": 60,
+ "bienca_bn05": 58,
+ "altin": 50
 }

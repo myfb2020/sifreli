@@ -1379,7 +1379,7 @@ class KatalogTesti(TemelVeri):
         from .hesaplar import ofis_grubu
         from .models import KatalogModeli, LazerDeseni
 
-        self.assertEqual(KatalogModeli.objects.count(), 199)  # 192 katalog + 7 fotoğraflı Rono
+        self.assertEqual(KatalogModeli.objects.count(), 202)  # 192 katalog + 10 fotoğraflı model
         self.assertEqual(LazerDeseni.objects.count(), 15)
         model = KatalogModeli.objects.get(kod="LTS-003")
         # Resimler yalnızca giriş yapanlara
@@ -1927,12 +1927,12 @@ class SiparisFotografiTesti(TasarimStudyosuTesti):
         self.assertContains(self.client.get(reverse("siparis_listesi")), fotolar[0].resim.url)
         detay = self.client.get(reverse("siparis_detay", args=[s.pk]))
         self.assertContains(detay, 'class="buyut"')
-        self.assertContains(detay, "Fotoğraf ekle (1 yer)")
+        self.assertContains(detay, "Fotoğraf ekle (2 yer)")
         # istasyon ekranlarında kullanılan parça fotoğrafı gösterir
         from django.template.loader import render_to_string
         self.assertIn(fotolar[1].resim.url, render_to_string("uretim/_siparis_resim.html", {"s": s}))
         # en çok 3: 2 fotoğraf daha eklenemez
-        self.client.post(reverse("siparis_foto_ekle", args=[s.pk]), {"fotograflar": [self._foto(), self._foto()]})
+        self.client.post(reverse("siparis_foto_ekle", args=[s.pk]), {"fotograflar": [self._foto(), self._foto(), self._foto()]})
         self.assertEqual(s.fotograflar.count(), 2)
         self.client.post(reverse("siparis_foto_ekle", args=[s.pk]), {"fotograflar": [self._foto()]})
         self.assertEqual(s.fotograflar.count(), 3)
@@ -2406,7 +2406,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
     def test_kartela_ve_rono_adi(self):
         from .models import KatalogSerisi, Renk
         self.assertEqual(Renk.objects.filter(grup="rono").count(), 7)
-        self.assertEqual(Renk.objects.filter(grup="bienca").count(), 4)
+        self.assertEqual(Renk.objects.filter(grup="bienca").count(), 5)
         self.assertEqual(KatalogSerisi.objects.get(ad="Rono").kartela, "rono")
         self.assertTrue(DeriTuru.objects.filter(ad="Rono").exists())
         self.assertFalse(DeriTuru.objects.filter(ad="Rona").exists())
@@ -2635,7 +2635,7 @@ class FotoModelTesti(TasarimStudyosuTesti):
             self.assertEqual(resim.width, 200)
         # geçersiz renk fotoğraftakine döner; metal yalnız desen bölgesinde, gümüş iplik yok
         secim = foto_model.secim_temizle("RNO-010", {"dis": "ALTIN", "bant": "BN04", "orta": "XX"})
-        self.assertEqual(secim, {"dis": "RN06", "bant": "BN04", "orta": "RN06"})
+        self.assertEqual(secim, {"dis": "RN06", "bant": "BN04", "orta": "RN06", "nakis_motif": "", "nakis_iplik": "bej"})
         self.assertIn("gumus", foto_model.secenekler(foto_model.IPLIK))
         self.assertTrue({"ALTIN", "GUMUS"} <= set(foto_model.secenekler(foto_model.DESEN)))
         self.assertEqual(foto_model.metin("RNO-006", foto_model.secim_temizle("RNO-006", {"iplik": "kahve"})),
@@ -2662,6 +2662,58 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.assertIn("Nakış: 76.03", foto_model.metin("RNO-006", m))
         self.assertEqual(foto_model.secim_temizle("RNO-006", {"motif": "73.01"})["motif"], "")  # silinen motif
         self.assertEqual(foto_model.boya("RNO-006", m, 200).width, 200)
+
+    def test_aile_kurallari_nakisli_bant_ve_yeni_modeller(self):
+        from . import foto_model
+        from .models import KatalogModeli, Renk
+        self.assertTrue(Renk.objects.filter(kod="BN05", grup="bienca").exists())
+        self.assertTrue(KatalogModeli.objects.filter(kod__in=["BNA-027", "BNA-028", "RNO-013"]).count() == 3)
+        # zemin kendi ailesinde: Rono zemine Bienca/metal olmaz, Rono halıdaki banda Bienca olur
+        s = foto_model.secim_temizle("RNO-010", {"orta": "BN01", "bant": "BN05", "dis": "RN08"})
+        self.assertEqual((s["orta"], s["bant"], s["dis"]), ("RN06", "BN05", "RN06"))
+        self.assertEqual(foto_model.secim_temizle("BNA-005", {"orta": "RN03"})["orta"], "BN03")
+        # nakışlı bant: bant Rono olur, lazer deseni kalkar, siparişe yazılır
+        s = foto_model.secim_temizle("BNA-003", {"nakis_motif": "61.01", "nakis_iplik": "altin", "desen_kodu": "DB001",
+                                                 "desen": "ALTIN"})
+        self.assertTrue(s["desen"].startswith("RN"))
+        self.assertEqual(s["desen_kodu"], "")
+        self.assertIn("Nakışlı bant: 61.01", foto_model.metin("BNA-003", s))
+        self.assertEqual(foto_model.boya("BNA-003", s, 200).width, 200)
+        # nakışlı Rono yakın görünüm: motif ve iplik değişir
+        s = foto_model.secim_temizle("RNO-013", {"motif": "76.03", "iplik": "altin", "zemin": "RN06"})
+        self.assertNotEqual(foto_model.jpeg("RNO-013", s, 260), foto_model.jpeg("RNO-013", foto_model.secim_temizle("RNO-013", {}), 260))
+        for kod in ("BNA-027", "BNA-028"):
+            self.assertEqual(foto_model.boya(kod, foto_model.fikirler(kod)[0], 150).width, 150)
+
+    def test_bayi_fotograf_ekler_ve_yalniz_kendininkini_gorur(self):
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        from .models import Musteri
+
+        def foto():
+            t = io.BytesIO()
+            Image.new("RGB", (800, 600), (120, 100, 90)).save(t, "JPEG")
+            return SimpleUploadedFile("oda.jpg", t.getvalue(), content_type="image/jpeg")
+
+        self.client.force_login(self.bayi_hesap)
+        v = {"olcu-TOTAL_FORMS": "1", "olcu-INITIAL_FORMS": "0", "olcu-0-en_cm": "160", "olcu-0-boy_cm": "230",
+             "olcu-0-adet": "1", "model": "RNO-010", "bolgeler": "{}"}
+        self.assertContains(self.client.post(reverse("bayi_siparis"), {**v, "fotograflar": [foto() for _ in range(4)]}),
+                            "En çok 3")
+        self.assertRedirects(self.client.post(reverse("bayi_siparis"), {**v, "fotograflar": [foto(), foto()]}),
+                             reverse("bayi_ana"))
+        sp = Siparis.objects.get(musteri=Musteri.objects.get(ad="Ankara Bayi"), katalog_modeli__kod="RNO-010")
+        self.assertEqual(sp.fotograflar.count(), 3)  # boyanmış tasarım + 2 bayi fotoğrafı
+        url = sp.fotograflar.last().resim.url
+        self.assertContains(self.client.get(reverse("bayi_ana")), url)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        # başka müşterinin fotoğrafı bayiye kapalı
+        baska = Siparis.objects.create(musteri=Musteri.objects.create(ad="Başka"), urun="x", teslim_tarihi=timezone.localdate())
+        f = fotograf_kaydet = __import__("uretim.fotograf", fromlist=["kaydet"]).kaydet(baska, foto().read())
+        self.assertEqual(self.client.get(f.resim.url).status_code, 404)
 
     def test_bayi_fotografli_siparis(self):
         from .models import Musteri

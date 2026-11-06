@@ -3,7 +3,7 @@
 {% block icerik %}
 <h1>🛒 Sipariş ver · {% if tur == "suni" %}Suni deri halı{% else %}Deri / kürk halı{% endif %}</h1>
 <p><a href="{% url 'bayi_siparis' %}">← Halı türünü değiştir</a></p>
-<form method="post" class="dikey bayi-siparis">
+<form method="post" class="dikey bayi-siparis" enctype="multipart/form-data">
   {% csrf_token %}<input type="hidden" name="tur" value="{{ tur }}">
   {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
   {{ form.model }}{{ form.renk }}{{ form.bolgeler }}
@@ -43,6 +43,8 @@
     <h2>4. Teslim ve not</h2>
     {% include "uretim/_alan.html" with alan=form.teslim %}
     {% include "uretim/_alan.html" with alan=form.notlar %}
+    {% include "uretim/_alan.html" with alan=form.fotograflar %}
+    <p class="soluk" style="margin-top:-6px">Örnek, oda ya da istediğiniz değişikliğin fotoğrafı; atölye siparişle birlikte görür.</p>
     <button class="btn buyuk" type="submit" style="width:100%">📤 Siparişi gönder</button>
     <p class="soluk">Siparişiniz Bienna Fur'a "Onay bekliyor" olarak gider; onaylanınca üretime alınır ve teslim tarihi yazılır.</p>
   </div>
@@ -78,7 +80,7 @@
       const iz = d.querySelector(".cip-izgara");
       b.secenekler.forEach((s) => {
         const c = document.createElement("button"); c.type = "button"; c.className = "cip"; c.dataset.bolge = b.anahtar; c.dataset.k = s.k; c.title = s.ad;
-        const ozel = b.anahtar === "desen_kodu" || b.anahtar === "motif";
+        const ozel = ["desen_kodu", "motif", "nakis_motif"].includes(b.anahtar);
         if (ozel) c.classList.add("cip-desen");
         c.innerHTML = (s.resim ? `<img src="${s.resim}" alt="" loading="lazy">` : (s.hex ? `<i style="background:${s.hex}"></i>` : "")) +
           `<span>${ozel || s.k.length !== 4 ? s.ad : s.k}</span>`;
