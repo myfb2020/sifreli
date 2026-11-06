@@ -149,22 +149,28 @@ NAKISLAR = [("yok", "Nakış yok"), ("grek_kare", "Grek kare (altın iplik)"), (
 # Nakış makinesindeki motifler (atölyenin nakış kataloğundan; ölçüler nakış dosyasındaki gibi, cm).
 # tur "serit": uç uca dizilmek için yapılmış bant motifi; "tek": tek başına motif.
 # Marka logoları (FF, GG, LV, Medusa) ve görüntüsü bozuk olanlar (2026-10-30, kullanıcı onayı) listede yok. Maske: tasarim_varlik/nakis/<kod>.png
-NAKIS_MOTIFLERI = [
+NAKIS_MOTIFLERI = [  # atölye nakış kataloğu (2026-11-06, marka logoları yok); ölçü cm
     ("61.01", "Grek madalyon", 11.5, 11.5, "tek"),
+    ("60.03", "Grek köşe", 10.7, 10.0, "tek"),
     ("56.01", "Bienna Fur logo", 15.0, 15.0, "tek"),
     ("57.01", "Elmas kafes", 40.0, 25.0, "tek"),
+    ("75.01", "Grek madalyon panelleri", 40.0, 43.0, "tek"),
     ("60.01", "Grek şerit", 40.0, 10.0, "serit"),
-    ("60.05", "Grek şerit (çift çizgi)", 40.0, 10.0, "serit"),
+    ("60.04", "Çift Grek şerit", 40.0, 30.0, "serit"),
     ("68.01", "İnce Grek şerit", 40.0, 6.0, "serit"),
-    ("61.03", "İkili Grek madalyon", 38.3, 10.0, "serit"),
-    ("76.03", "İkili madalyon", 40.0, 15.0, "serit"),
-    ("65.01", "İnce zincir", 39.7, 3.2, "serit"),
+    ("62.01", "Madalyon şeridi", 40.0, 9.8, "serit"),
+    ("65.01", "Zincir", 39.7, 3.2, "serit"),
+    ("79.01", "Çiçek dalı", 40.0, 13.2, "serit"),
+    ("81.01", "Dalgalı örgü", 40.0, 18.0, "serit"),
+    ("82.01", "Dalgalı örgü (dar)", 18.0, 10.0, "tek"),
+    ("77.03", "Grek harf (G)", 40.0, 18.0, "serit"),
 ]
 MOTIF = {k: {"ad": a, "en": e, "boy": b, "tur": t} for k, a, e, b, t in NAKIS_MOTIFLERI}
 MOTIFLER = [(k, f"{k} {a}") for k, a, _, _, _ in NAKIS_MOTIFLERI]
 ESKI_MOTIF = {"grek_kare": "61.01", "grek_kare_gumus": "61.01",  # ilk sürümün motif adları
               # iyi görünmediği için kaldırılan motifler (2026-11-05) → en yakını
-              "61.02": "61.01", "54.01": "61.01", "60.03": "61.01", "73.01": "57.01", "74.01": "60.01"}
+              "61.02": "61.01", "54.01": "61.01", "73.01": "57.01", "74.01": "60.01",
+              "60.05": "60.04", "61.03": "61.01", "76.03": "75.01"}
 IPLIKLER = [("altin", "Altın", "#c9a75e"), ("gumus", "Gümüş", "#c2c5c9"), ("bej", "Bej", "#b9a582"),
             ("beyaz", "Beyaz", "#f1ede4"), ("kahve", "Kahve", "#6b5440"), ("siyah", "Siyah", "#1e1d1c")]
 IPLIK_HEX = {k: h for k, _, h in IPLIKLER}
@@ -1305,7 +1311,7 @@ def _halkali_fikir(i, rast, desen_kodlari, olcu):
     v["orta"] = orta
     if orta == "duz" and rast.random() < 0.6:
         v.update(madalyon=rast.choice(["duz", "nakisli"]), madalyon_malzeme=ikinci, madalyon_cerceve=metal,
-                 madalyon_cap=rast.choice([24, 28, 34]), madalyon_motif=rast.choice(["61.01", "76.03", "56.01"]))
+                 madalyon_cap=rast.choice([24, 28, 34]), madalyon_motif=rast.choice(["61.01", "75.01", "56.01"]))
     elif orta == "panel":
         v.update(panel_malzeme=ikinci, nakis=rast.choice([k for k, _, _, _, t in NAKIS_MOTIFLERI if t == "tek"]),
                  motif_adet=rast.choice([1, 1, 2, 3]))

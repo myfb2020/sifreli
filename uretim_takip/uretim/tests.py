@@ -1842,7 +1842,7 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.assertNotContains(sayfa, 'value="DB007"')  # gizlenen lazer deseni
         self.assertEqual(self.client.get(reverse("parcali_motif", args=["61.01"]))["Content-Type"], "image/png")
         self.assertEqual(self.client.get(reverse("parcali_motif", args=["64.01"])).status_code, 404)  # marka logosu yok
-        self.assertEqual(self.client.get(reverse("parcali_motif", args=["82.01"])).status_code, 404)  # çıkarılan motif
+        self.assertEqual(self.client.get(reverse("parcali_motif", args=["59.02"])).status_code, 404)  # marka logosu (Medusa) yok
         # kürk / deri sayfasında suni deri hazırları görünmez
         self.assertNotContains(self.client.get(reverse("tasarim_studyo")), "SD-1")
 
@@ -2658,9 +2658,9 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.assertEqual(foto_model.secim_temizle("BNA-003", {"desen_kodu": "DB002"})["desen_kodu"], "")  # gizli desen
         self.assertNotEqual(foto_model.jpeg("BNA-003", secim, 260),
                             foto_model.jpeg("BNA-003", foto_model.secim_temizle("BNA-003", {"desen": "ALTIN"}), 260))
-        m = foto_model.secim_temizle("RNO-006", {"motif": "76.03", "iplik": "kahve"})
-        self.assertIn("Nakış: 76.03", foto_model.metin("RNO-006", m))
-        self.assertEqual(foto_model.secim_temizle("RNO-006", {"motif": "73.01"})["motif"], "")  # silinen motif
+        m = foto_model.secim_temizle("RNO-006", {"motif": "75.01", "iplik": "kahve"})
+        self.assertIn("Nakış: 75.01", foto_model.metin("RNO-006", m))
+        self.assertEqual(foto_model.secim_temizle("RNO-006", {"motif": "59.02"})["motif"], "")  # marka logosu yok
         self.assertEqual(foto_model.boya("RNO-006", m, 200).width, 200)
 
     def test_aile_kurallari_nakisli_bant_ve_yeni_modeller(self):
@@ -2680,7 +2680,7 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.assertIn("Nakışlı bant: 61.01", foto_model.metin("BNA-003", s))
         self.assertEqual(foto_model.boya("BNA-003", s, 200).width, 200)
         # nakışlı Rono yakın görünüm: motif ve iplik değişir
-        s = foto_model.secim_temizle("RNO-013", {"motif": "76.03", "iplik": "altin", "zemin": "RN06"})
+        s = foto_model.secim_temizle("RNO-013", {"motif": "75.01", "iplik": "altin", "zemin": "RN06"})
         self.assertNotEqual(foto_model.jpeg("RNO-013", s, 260), foto_model.jpeg("RNO-013", foto_model.secim_temizle("RNO-013", {}), 260))
         for kod in ("BNA-027", "BNA-028"):
             self.assertEqual(foto_model.boya(kod, foto_model.fikirler(kod)[0], 150).width, 150)
