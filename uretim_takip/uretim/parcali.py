@@ -364,17 +364,28 @@ def _sec(deger, secenekler, varsayilan):
 # Gerçekçi görünüm için seçilen 10 model: renkler katalog fotoğrafına bakılarak (2026-11-06)
 SECILI_MODELLER = ["RNO-001", "RNO-003", "RNO-004", "RNO-005", "BNA-001", "BNA-003", "BNA-005", "BNA-009", "BNA-018",
                    "BNA-026"]
+def _yapi(zemin, kenar, *halkalar, alt="yok"):
+    """Katalog fotoğrafından ölçülen yapı: halkalar dıştan içe (tür, genişlik cm, malzeme, desen)."""
+    d = {"duzen": "halkali", "sekil": "dikdortgen", "orta": "duz", "zemin": zemin, "kenar": "biye", "kenar_renk": kenar,
+         "halka_sayisi": len(halkalar), "desen_alti": alt}
+    for i, (tur, gen, mal, desen) in enumerate(halkalar, 1):
+        d.update({f"h{i}_tur": tur, f"h{i}_gen": gen, f"h{i}_malzeme": mal, f"h{i}_desen": desen})
+    return d
+
+
 FOTO_RENK = {
-    "RNO-001": {"zemin": "gri_keten", "h1_malzeme": "bienca_bn03", "kenar_renk": "gumus"},
-    "RNO-003": {"zemin": "beyaz_keten", "h1_malzeme": "bienca_bn04", "kenar_renk": "altin"},
-    "RNO-004": {"zemin": "beyaz_keten", "h1_malzeme": "altin", "h2_malzeme": "antrasit_keten", "kenar_renk": "altin"},
-    "RNO-005": {"zemin": "krem_keten", "h1_malzeme": "krem_keten", "h2_malzeme": "gumus", "kenar_renk": "altin"},
-    "BNA-001": {"zemin": "bienca_bn02", "h1_malzeme": "gumus", "kenar_renk": "gumus"},
-    "BNA-003": {"zemin": "bienca_bn01", "h1_malzeme": "antrasit_keten", "kenar_renk": "gumus"},
-    "BNA-005": {"zemin": "bienca_bn03", "h1_malzeme": "gumus", "kenar_renk": "gumus"},
-    "BNA-009": {"zemin": "bienca_bn04", "h1_malzeme": "altin", "kenar_renk": "altin"},
-    "BNA-018": {"zemin": "bienca_bn01", "h1_malzeme": "kahve_keten", "kenar_renk": "altin"},
-    "BNA-026": {"zemin": "bienca_bn01", "h1_malzeme": "gumus", "kenar_renk": "gumus"},
+    "RNO-001": _yapi("gri_keten", "gumus", ("duz", 14, "bienca_bn01", ""), ("desenli", 8, "bienca_bn01", "LZ04")),
+    "RNO-003": _yapi("acik_gri_keten", "altin", ("duz", 6, "bienca_bn04", ""), ("desenli", 10, "bienca_bn04", "LZ05"),
+                     ("duz", 6, "bienca_bn04", "")),
+    "RNO-004": _yapi("beyaz_keten", "altin", ("duz", 4, "beyaz_keten", ""), ("desenli", 9, "beyaz_keten", "LZ04")),
+    "RNO-005": _yapi("beyaz_keten", "altin", ("duz", 22, "krem_keten", ""), ("duz", 1.5, "gumus", ""),
+                     ("desenli", 9, "beyaz_keten", "LZ01")),
+    "BNA-001": _yapi("bienca_bn01", "bienca_bn01", ("desenli", 12, "bienca_bn01", "LZ02")),
+    "BNA-003": _yapi("bienca_bn01", "altin", ("desenli", 22, "antrasit_keten", "LZ03"), alt="krem"),
+    "BNA-005": _yapi("bienca_bn03", "gumus", ("desenli", 14, "gumus", "LZ01"), alt="krem"),
+    "BNA-009": _yapi("bienca_bn04", "altin", ("desenli", 14, "bienca_bn04", "LZ02")),
+    "BNA-018": _yapi("bienca_bn01", "gumus", ("desenli", 16, "kahve_keten", "LZ02")),
+    "BNA-026": _yapi("bienca_bn01", "altin", ("desenli", 12, "bienca_bn01", "LZ02")),
 }
 
 
@@ -452,8 +463,13 @@ def temizle(veri, desen_kodlari=()):
     return v
 
 
+def veri_alt_izinli(v):
+    return v.get("katalog", "") in FOTO_RENK
+
+
 def _halkali_temizle(v, g, desen):
-    v["desen_alti"] = "yok"  # atölyede desenli parçanın altına bir şey konmaz; delikler boş
+    # atölyede desenli parçanın altı çoğu modelde boş; bazı katalog modellerinde altta açık renk lamine görünür
+    v["desen_alti"] = _sec(g("desen_alti"), ALTLAR, "yok") if veri_alt_izinli(v) else "yok"
     v["sekil"] = _sec(g("sekil"), SEKILLER, "dikdortgen")
     v["en"] = _sayi(g("en"), 120, 60, 400)
     v["boy"] = _sayi(g("boy"), 180, 60, 600)

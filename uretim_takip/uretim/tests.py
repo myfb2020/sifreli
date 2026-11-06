@@ -1380,7 +1380,7 @@ class KatalogTesti(TemelVeri):
         from .models import KatalogModeli, LazerDeseni
 
         self.assertEqual(KatalogModeli.objects.count(), 202)  # 192 katalog + 10 fotoğraflı model
-        self.assertEqual(LazerDeseni.objects.count(), 15)
+        self.assertEqual(LazerDeseni.objects.count(), 23)
         model = KatalogModeli.objects.get(kod="LTS-003")
         # Resimler yalnızca giriş yapanlara
         self.assertEqual(self.client.get(model.resim.url).status_code, 302)
@@ -1533,7 +1533,7 @@ class HaliGorselTesti(TestCase):
         from . import hali_gorsel
 
         desenler = set(hali_gorsel.desen_bilgisi())
-        self.assertEqual(len(desenler), 15)
+        self.assertEqual(len(desenler), 23)  # DB001–015 + atölye DXF LZ01–08
         for kod, _, _ in tasarim_cizim.HAZIRLAR:
             resim = hali_gorsel.ciz(tasarim_cizim.temizle(tasarim_cizim.hazir_degerler(kod), desenler), 300)
             self.assertGreater(resim.width, 100)
@@ -2825,7 +2825,7 @@ class KartelaStudyoTesti(TasarimStudyosuTesti):
             self.assertEqual((v["katalog"], v["halka_sayisi"], v["h1_tur"], v["h2_desen"]),
                              ("RNO-004", taban["halka_sayisi"], taban["h1_tur"], taban["h2_desen"]))
             self.assertIn(v["zemin"], parcali.KARTELA_MALZEMELERI["RNO"])
-            self.assertIn(v["h1_malzeme"], ("altin", "gumus"))  # ince çizgi metalik kalır
+            self.assertIn(v["h1_malzeme"], parcali.kartela_secenekleri("RNO") + parcali.KARTELA_MALZEMELERI["BNA"])
             renkler.add(v["zemin"])
             self.assertTrue(f["baslik"].startswith("RNO-004"))
         self.assertGreater(len(renkler), 2)

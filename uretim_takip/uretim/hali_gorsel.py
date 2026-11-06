@@ -127,11 +127,41 @@ def malzeme(ad, boyut, px_cm=3):
     return Image.blend(taban, ImageChops.overlay(taban, gurultu), 0.25 if metal else 0.18)
 
 
+@lru_cache(maxsize=32)
+def _lz_serit(kod, uzunluk, bant):
+    """Atölye DXF deseni (LZ..): şerit bant genişliğine ölçeklenir, uzunluk boyunca tekrar eder (L, 255 = delik)."""
+    kaynak = _maske(kod)
+    k = bant / kaynak.height
+    tek = kaynak.resize((max(2, round(kaynak.width * k)), max(2, round(bant))), Image.LANCZOS)
+    adet = max(1, round(uzunluk / tek.width))  # tam sayıda tekrar: uçlarda yarım desen kalmasın
+    tek = tek.resize((max(2, round(uzunluk / adet)), tek.height), Image.LANCZOS)
+    serit = Image.new("L", (max(1, int(uzunluk)), tek.height), 0)
+    for i in range(adet):
+        serit.paste(tek, (i * tek.width, 0))
+    return serit
+
+
+def _lz_cerceve(kod, boyut, bant_px):
+    """Dikdörtgen çerçeve: uzun kenarlar tam boy, kısa kenarlar araya (halkalı halının parça düzeni)."""
+    W, H = boyut
+    b = int(round(bant_px))
+    m = Image.new("L", boyut, 0)
+    if b < 4 or W <= 2 * b or H <= 2 * b:
+        return m
+    yatay = _lz_serit(kod, W - 2 * b, b)
+    dikey = _lz_serit(kod, H, b).rotate(90, expand=True)
+    m.paste(dikey, (0, 0)); m.paste(ImageOps.mirror(dikey), (W - b, 0))
+    m.paste(yatay, (b, 0)); m.paste(ImageOps.flip(yatay), (b, H - b))
+    return m
+
+
 def _kenar_desen_maskesi(kod, boyut, bant_px):
     """Verilen dikdörtgen (bant dış kenarı) için tüm kenar boyunca desen kesikleri (L, 255 = delik)."""
     bilgi = desen_bilgisi().get(kod)
     if not bilgi or bant_px < 6:
         return Image.new("L", boyut, 0)
+    if bilgi.get("tur") == "lz":
+        return _lz_cerceve(kod, boyut, bant_px)
     W, H = boyut
     qw, qh = (W + 1) // 2, (H + 1) // 2
     k = bant_px / bilgi["bant"]

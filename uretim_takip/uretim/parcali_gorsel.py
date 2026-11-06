@@ -41,6 +41,10 @@ def _kadife(boyut, renk):
     return Image.composite(parlak, taban, leke.point(lambda p: max(0, p - 150)))
 
 
+def ImageStat_ort(resim):
+    return resim.resize((1, 1), Image.BOX).getpixel((0, 0))
+
+
 @lru_cache(maxsize=24)
 def _kartela_dokusu(ad, boyut, px):
     """Rono / Bienca: atölye numune fotoğrafı (ışığı düzeltilmiş) gerçek ölçüsünde, ayna döşeme yerine
@@ -52,24 +56,28 @@ def _kartela_dokusu(ad, boyut, px):
         b = kaynak.resize((max(1, round(kaynak.width * k)), max(1, round(kaynak.height * k))), Image.LANCZOS)
         return b.crop(((b.width - boyut[0]) // 2, (b.height - boyut[1]) // 2,
                        (b.width - boyut[0]) // 2 + boyut[0], (b.height - boyut[1]) // 2 + boyut[1]))
-    cm = max(hg.DOKU_CM_OZEL.get(ad, 15) * 2.2, 30)  # Rono: dokuma ince; leke deseni ~30 cm ölçeğinde
-    w = max(16, round(cm * px))
-    kaynak = kaynak.resize((w, max(16, round(kaynak.height * w / kaynak.width))), Image.LANCZOS)
-    ort = kaynak.resize((1, 1), Image.BOX).getpixel((0, 0))
-    tuval = Image.new("RGB", boyut, ort)
-    yw, yh = int(kaynak.width * 0.9), int(kaynak.height * 0.9)
-    maske = hg._yumusak_maske(yw, yh, max(3, min(yw, yh) // 5))
-    rast = random.Random(ad)
-    for y in range(-yh // 3, boyut[1], int(yh * 0.62)):
-        for x in range(-yw // 3, boyut[0], int(yw * 0.62)):
-            sx, sy = rast.randint(0, kaynak.width - yw), rast.randint(0, kaynak.height - yh)
-            yama = kaynak.crop((sx, sy, sx + yw, sy + yh))
-            if rast.random() < 0.5:
-                yama = ImageOps.mirror(yama)
-            if rast.random() < 0.5:
-                yama = ImageOps.flip(yama)
-            tuval.paste(yama, (x, y), maske)
-    return tuval
+    # Rono: numunenin genel rengi ve hafif eskitme tonları bütün parçayı tek kaplar (kare kare tekrar görünmez);
+    # ince dokuma gerçek ölçüsünde üstüne işlenir
+    gri = kaynak.convert("L")
+    bulanik = kaynak.filter(ImageFilter.GaussianBlur(max(2, kaynak.width / 40)))
+    k = max(boyut[0] / kaynak.width, boyut[1] / kaynak.height)
+    taban = bulanik.resize((max(1, round(kaynak.width * k)), max(1, round(kaynak.height * k))), Image.LANCZOS)
+    taban = taban.crop(((taban.width - boyut[0]) // 2, (taban.height - boyut[1]) // 2,
+                        (taban.width - boyut[0]) // 2 + boyut[0], (taban.height - boyut[1]) // 2 + boyut[1]))
+    ort = ImageStat_ort(taban)
+    taban = Image.blend(taban, Image.new("RGB", boyut, ort), 0.55)  # eskitme lekeleri yumuşak kalsın
+    cm = hg.DOKU_CM_OZEL.get(ad, 15)
+    w = max(12, round(cm * px))
+    ince = kaynak.resize((w, max(12, round(kaynak.height * w / kaynak.width))), Image.LANCZOS).convert("L")
+    ince = ImageChops.subtract(ince, ince.filter(ImageFilter.GaussianBlur(3)), 1, 128)  # yalnız dokuma ayrıntısı
+    kes = min(8, ince.width // 4, ince.height // 4)  # bulanıklaştırmanın kenarda bıraktığı parlak şerit kesilir
+    ince = ince.crop((kes, kes, ince.width - kes, ince.height - kes)).point(lambda q: round(128 + (q - 128) * 0.7))
+    doku = Image.new("L", boyut, 128)
+    for sira, y in enumerate(range(0, boyut[1], ince.height)):
+        kay = (sira * ince.width // 3) % ince.width  # tuğla gibi kaydırılır: tekrar sırası görünmesin
+        for x in range(-kay, boyut[0], ince.width):
+            doku.paste(ince, (x, y))
+    return ImageChops.multiply(taban, Image.merge("RGB", (doku,) * 3)).point(lambda q: min(255, q * 2))
 
 
 def malzeme_dokusu(ad, boyut, px):
@@ -108,6 +116,8 @@ def _desen_serit(kod, uzunluk, bant):
     """Düz bir bant boyunca desen delikleri (yatay)."""
     if not kod or bant < 6:
         return Image.new("L", (max(1, uzunluk), max(1, bant)), 0)
+    if hg.desen_bilgisi().get(kod, {}).get("tur") == "lz":
+        return hg._lz_serit(kod, uzunluk, bant)
     tam = hg._kenar_desen_maskesi(kod, (uzunluk + 4 * bant, 6 * bant), bant)
     return tam.crop((2 * bant, 0, 2 * bant + uzunluk, bant))
 

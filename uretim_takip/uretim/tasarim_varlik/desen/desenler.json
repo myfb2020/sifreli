@@ -73,5 +73,77 @@
   "bant": 100,
   "periyot": 100,
   "tur": "periyodik"
+ },
+ "LZ01": {
+  "tur": "lz",
+  "ad": "Bomba",
+  "en_cm": 10.0,
+  "boy_cm": 43.4,
+  "alan": false,
+  "bant": 400,
+  "periyot": 1738
+ },
+ "LZ02": {
+  "tur": "lz",
+  "ad": "Bulut",
+  "en_cm": 17.0,
+  "boy_cm": 80.1,
+  "alan": false,
+  "bant": 680,
+  "periyot": 3202
+ },
+ "LZ03": {
+  "tur": "lz",
+  "ad": "Dama",
+  "en_cm": 15.0,
+  "boy_cm": 108.2,
+  "alan": false,
+  "bant": 600,
+  "periyot": 4327
+ },
+ "LZ04": {
+  "tur": "lz",
+  "ad": "Kısa",
+  "en_cm": 15.0,
+  "boy_cm": 95.6,
+  "alan": false,
+  "bant": 600,
+  "periyot": 3825
+ },
+ "LZ07": {
+  "tur": "lz",
+  "ad": "Köşem",
+  "en_cm": 10.0,
+  "boy_cm": 28.6,
+  "alan": true,
+  "bant": 400,
+  "periyot": 1143
+ },
+ "LZ05": {
+  "tur": "lz",
+  "ad": "Line",
+  "en_cm": 15.0,
+  "boy_cm": 75.0,
+  "alan": false,
+  "bant": 600,
+  "periyot": 3000
+ },
+ "LZ08": {
+  "tur": "lz",
+  "ad": "Mahsun",
+  "en_cm": 3.3,
+  "boy_cm": 14.4,
+  "alan": false,
+  "bant": 131,
+  "periyot": 576
+ },
+ "LZ06": {
+  "tur": "lz",
+  "ad": "Rıva",
+  "en_cm": 21.0,
+  "boy_cm": 40.0,
+  "alan": true,
+  "bant": 840,
+  "periyot": 1600
  }
 }
