@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    TamirKaydi, DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, MalzemeHareketi, SistemAyari, SiparisKalemi,
+    DuzeltmeKaydi, TamirKaydi, DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, MalzemeHareketi, SistemAyari, SiparisKalemi,
     UretimLotu, sayi_metni,
 )
 
@@ -356,8 +356,8 @@ def islem_geri_al(*, islem, kullanici):
     """Açık işlem → başlatma silinir (iş o istasyonda yeniden bekler).
     Bitmiş işlem → bitirme geri alınır (iş o istasyonda yeniden 'çalışılıyor'); düşülen malzeme stoğa döner."""
     islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama", "lot__siparis").get(pk=islem.pk)
-    if not getattr(kullanici, "is_superuser", False):
-        raise ValidationError("İşlemi yalnız yönetici geri alabilir.")
+    if not duzeltebilir(kullanici, islem.lot):
+        raise ValidationError("Bu işlemi geri alma yetkiniz yok.")
     if not geri_alinabilir(islem):
         raise ValidationError("Yalnız işin en son işlemi geri alınabilir.")
     lot = UretimLotu.objects.select_for_update().get(pk=islem.lot_id)
@@ -409,7 +409,123 @@ def islem_geri_al(*, islem, kullanici):
                 siparis.save(update_fields=["durum"])
         metin = f"↩ Yönetici geri aldı: {islem.asama.ad} bitirmesi geri alındı, iş yeniden bu istasyonda ({kim})."
     IsNotu.objects.create(lot=lot, metin=metin, asama=islem.asama, kullanici=kullanici)
+    DuzeltmeKaydi.objects.create(tur="geri_al", lot=lot, siparis=siparis, kullanici=kullanici, metin=metin[:300])
     return metin
+
+
+# --- Düzeltme yetkisi: lazer tableti Lazer / Nakış / Kaplama'daki işleri düzeltir ---------------------------
+
+
+def duzeltme_istasyonu_mu(asama):
+    return asama is not None and (asama.lazer_mi or asama.ad.lower() in ("nakış", "kaplama"))
+
+
+def duzeltebilir(kullanici, lot):
+    """Yönetici her işi; düzeltme yetkili tablet yalnız Lazer / Nakış / Kaplama'nın ötesine geçmemiş işi düzeltir."""
+    from .models import hesap_duzeltme_yetkili
+
+    if getattr(kullanici, "is_superuser", False):
+        return True
+    if not hesap_duzeltme_yetkili(kullanici):
+        return False
+    return all(duzeltme_istasyonu_mu(i.asama) for i in lot.islemler.select_related("asama"))
+
+
+def _kim(kullanici):
+    return kullanici.get_full_name() or kullanici.username
+
+
+def _lotu_iptal_et(lot, kullanici, neden):
+    """İşi iptal eder: açık işlem kapanır, stoktan alınan malzeme stoğa döner. Geri açmak için durumunu döndürür."""
+    acik = lot.islemler.filter(bitis__isnull=True).first()
+    veri = {"lot": lot.pk, "durum": lot.durum, "son_asama": lot.son_asama_id, "acik_islem": acik.pk if acik else None,
+            "kaynaklar": [[k.ham_deri_id, str(k.kg), str(k.m2)] for k in lot.kaynaklar.all()]}
+    if acik is not None:
+        acik.bitis = timezone.now()
+        acik.cikis_kg, acik.cikis_m2 = acik.giris_kg, acik.giris_m2
+        acik.aciklama = f"{acik.aciklama}\n(İş iptal edildi)".strip()
+        acik.save()
+    lot.kaynaklar.all().delete()
+    lot.durum = "iptal"
+    lot.save(update_fields=["durum"])
+    IsNotu.objects.create(lot=lot, metin=f"🗑 İş iptal edildi: {neden} ({_kim(kullanici)}).", asama=lot.son_asama,
+                          kullanici=kullanici)
+    return veri
+
+
+def _neden(neden):
+    neden = (neden or "").strip()
+    if not neden:
+        raise ValidationError("İptal nedenini yazın.")
+    return neden[:200]
+
+
+@transaction.atomic
+def is_iptal(*, lot, kullanici, neden):
+    lot = UretimLotu.objects.select_for_update().get(pk=lot.pk)
+    neden = _neden(neden)
+    if lot.durum == "iptal":
+        raise ValidationError("Bu iş zaten iptal.")
+    if not duzeltebilir(kullanici, lot):
+        raise ValidationError("Bu işi iptal etme yetkiniz yok (iş Lazer / Nakış / Kaplama'yı geçmiş).")
+    veri = _lotu_iptal_et(lot, kullanici, neden)
+    return DuzeltmeKaydi.objects.create(tur="is_iptal", lot=lot, siparis=lot.siparis, kullanici=kullanici, neden=neden,
+                                        metin=f"{lot} iptal edildi", veri={"lotlar": [veri]})
+
+
+def siparis_iptal_edilebilir(kullanici, siparis):
+    if siparis is None or siparis.durum in ("iptal", "sevk"):
+        return False
+    return all(duzeltebilir(kullanici, l) for l in siparis.lotlar.all())
+
+
+@transaction.atomic
+def siparis_iptal(*, siparis, kullanici, neden):
+    """Çift girilmiş siparişi bütün işleriyle iptal eder."""
+    from .models import Siparis
+
+    siparis = Siparis.objects.select_for_update().get(pk=siparis.pk)
+    neden = _neden(neden)
+    if not siparis_iptal_edilebilir(kullanici, siparis):
+        raise ValidationError("Bu siparişi iptal etme yetkiniz yok (bir işi Lazer / Nakış / Kaplama'yı geçmiş).")
+    lotlar = [_lotu_iptal_et(l, kullanici, neden) for l in siparis.lotlar.exclude(durum="iptal")]
+    veri = {"siparis_durum": siparis.durum, "lotlar": lotlar}
+    siparis.durum = "iptal"
+    siparis.save(update_fields=["durum"])
+    return DuzeltmeKaydi.objects.create(tur="siparis_iptal", siparis=siparis, kullanici=kullanici, neden=neden,
+                                        metin=f"{siparis.siparis_no} iptal edildi ({len(lotlar)} iş)", veri=veri)
+
+
+@transaction.atomic
+def iptali_geri_ac(*, kayit, kullanici):
+    """Yönetici: iptal edilen işi / siparişi eski hâline döndürür (alınan malzeme yeniden stoktan düşer)."""
+    kayit = DuzeltmeKaydi.objects.select_for_update().get(pk=kayit.pk)
+    if not getattr(kullanici, "is_superuser", False):
+        raise ValidationError("İptali yalnız yönetici geri açabilir.")
+    if kayit.tur not in ("is_iptal", "siparis_iptal") or kayit.geri_acildi:
+        raise ValidationError("Bu kayıt geri açılamaz.")
+    for v in kayit.veri.get("lotlar", []):
+        lot = UretimLotu.objects.select_for_update().filter(pk=v["lot"]).first()
+        if lot is None or lot.durum != "iptal":
+            continue
+        for ham, kg, m2 in v["kaynaklar"]:
+            LotKaynagi.objects.create(uretim_lotu=lot, ham_deri_id=ham, kg=Decimal(kg), m2=Decimal(m2))
+        durum = v["durum"]
+        if v.get("acik_islem") and not lot.islemler.filter(bitis__isnull=True).exists():
+            IslemKaydi.objects.filter(pk=v["acik_islem"]).update(bitis=None, cikis_kg=None, cikis_m2=None)
+        elif durum == "islemde":
+            durum = "bekliyor"
+        lot.durum = durum
+        lot.son_asama_id = v["son_asama"]
+        lot.save(update_fields=["durum", "son_asama"])
+        IsNotu.objects.create(lot=lot, metin=f"↩ Yönetici iptali geri açtı ({_kim(kullanici)}).", kullanici=kullanici)
+    if kayit.tur == "siparis_iptal" and kayit.siparis_id:
+        kayit.siparis.durum = kayit.veri.get("siparis_durum") or "acik"
+        kayit.siparis.save(update_fields=["durum"])
+    kayit.geri_acildi = True
+    kayit.save(update_fields=["geri_acildi"])
+    DuzeltmeKaydi.objects.create(tur="geri_ac", lot=kayit.lot, siparis=kayit.siparis, kullanici=kullanici,
+                                 metin=f"Geri açıldı: {kayit.metin}"[:300])
 
 
 def kendi_istasyonu(kullanici):

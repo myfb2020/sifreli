@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block baslik %}Son düzeltmeler{% endblock %}
+{% block icerik %}
+<h1>🛠 Son düzeltmeler</h1>
+<p class="soluk">Yönetici ve düzeltme yetkili tabletlerin geri aldığı işlemler ve iptal ettiği işler / siparişler.</p>
+<div class="kart tablo-kap"><table>
+  <tr><th>Zaman</th><th>Ne yapıldı</th><th>İş / sipariş</th><th>Kim</th><th>Neden</th><th></th></tr>
+  {% for k in kayitlar %}<tr>
+    <td>{{ k.zaman|date:"d.m.Y H:i" }}</td>
+    <td>{{ k.get_tur_display }}<br><span class="soluk">{{ k.metin }}</span></td>
+    <td>{% if k.lot %}<a href="{% url 'lot_detay' k.lot.pk %}">{{ k.lot.lot_no }}</a>{% endif %}
+        {% if k.siparis %}<br><span class="soluk">{{ k.siparis.siparis_no }}</span>{% endif %}</td>
+    <td>{{ k.kullanici|default:"–" }}</td>
+    <td>{{ k.neden|default:"" }}</td>
+    <td>{% if k.tur == "is_iptal" or k.tur == "siparis_iptal" %}{% if k.geri_acildi %}<span class="soluk">geri açıldı</span>{% else %}
+      <form method="post" onsubmit="return confirm('İptal geri açılsın mı? Alınan malzeme yeniden stoktan düşer.')">{% csrf_token %}
+        <input type="hidden" name="kayit" value="{{ k.pk }}"><button class="btn kucuk ikincil">↩ Geri aç</button></form>{% endif %}{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="6" class="soluk">Düzeltme yok.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

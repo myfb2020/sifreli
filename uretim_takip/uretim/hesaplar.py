@@ -14,7 +14,7 @@ from django.contrib.auth.models import Group, Permission
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from .models import Asama, HesapAyari, Musteri, Personel, hesap_bayisi, hesap_istasyonu, hesap_personeli
+from .models import Asama, HesapAyari, Musteri, Personel, hesap_bayisi, hesap_duzeltme_yetkili, hesap_istasyonu, hesap_personeli
 from .yedek import sadece_yonetici
 
 OFIS_GRUBU = "Ofis"
@@ -86,6 +86,9 @@ class HesapFormu(forms.Form):
         help_text="Bayinin siparişleri bu müşteri adına açılır.",
     )
     yeni_bayi = forms.CharField(label="veya yeni bayi adı", required=False, max_length=120)
+    duzeltme_yetkisi = forms.BooleanField(
+        label="Düzeltme yetkisi (lazer tableti)", required=False,
+        help_text="Lazer / Nakış / Kaplama'da yanlış Başla-Bitti'yi geri alır, çift işi ve çift siparişi iptal eder.")
     aktif = forms.BooleanField(label="Hesap açık (kapatılırsa giriş yapamaz)", required=False, initial=True)
 
     def __init__(self, *args, kullanici=None, **kwargs):
@@ -135,7 +138,8 @@ class HesapFormu(forms.Form):
             bayi = (Musteri.objects.filter(ad__iexact=yeni).first() or Musteri.objects.create(ad=yeni)) if yeni else v["bayi"]
         HesapAyari.objects.update_or_create(
             kullanici=kullanici, defaults={"istasyon": v.get("istasyon") if tur == "tablet" else None, "musteri": bayi,
-                                           "personel": v.get("personel") if tur == "tablet" else None}
+                                           "personel": v.get("personel") if tur == "tablet" else None,
+                                           "duzeltme_yetkisi": bool(v.get("duzeltme_yetkisi")) and tur == "tablet"}
         )
         return kullanici
 
@@ -156,7 +160,8 @@ def hesap_formu(request, pk=None):
     if kullanici:
         baslangic = {"kullanici_adi": kullanici.username, "tur": hesap_turu(kullanici), "aktif": kullanici.is_active,
                      "istasyon": hesap_istasyonu(kullanici), "bayi": hesap_bayisi(kullanici),
-                     "personel": hesap_personeli(kullanici)}
+                     "personel": hesap_personeli(kullanici),
+                     "duzeltme_yetkisi": hesap_duzeltme_yetkili(kullanici) and not kullanici.is_superuser}
     form = HesapFormu(request.POST or None, kullanici=kullanici, initial=baslangic)
     if request.method == "POST" and form.is_valid():
         k = form.kaydet(request.user)

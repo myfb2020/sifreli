@@ -2406,7 +2406,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
     def test_kartela_ve_rono_adi(self):
         from .models import KatalogSerisi, Renk
         self.assertEqual(Renk.objects.filter(grup="rono").count(), 7)
-        self.assertEqual(Renk.objects.filter(grup="bienca").count(), 5)
+        self.assertEqual(Renk.objects.filter(grup="bienca", aktif=True).count(), 4)
         self.assertEqual(KatalogSerisi.objects.get(ad="Rono").kartela, "rono")
         self.assertTrue(DeriTuru.objects.filter(ad="Rono").exists())
         self.assertFalse(DeriTuru.objects.filter(ad="Rona").exists())
@@ -2666,11 +2666,11 @@ class FotoModelTesti(TasarimStudyosuTesti):
     def test_aile_kurallari_nakisli_bant_ve_yeni_modeller(self):
         from . import foto_model
         from .models import KatalogModeli, Renk
-        self.assertTrue(Renk.objects.filter(kod="BN05", grup="bienca").exists())
+        self.assertFalse(Renk.objects.filter(kod="BN05", aktif=True).exists())  # Bienca 4 renk
         self.assertTrue(KatalogModeli.objects.filter(kod__in=["BNA-027", "BNA-028", "RNO-013"]).count() == 3)
         # zemin kendi ailesinde: Rono zemine Bienca/metal olmaz, Rono halıdaki banda Bienca olur
-        s = foto_model.secim_temizle("RNO-010", {"orta": "BN01", "bant": "BN05", "dis": "RN08"})
-        self.assertEqual((s["orta"], s["bant"], s["dis"]), ("RN06", "BN05", "RN06"))
+        s = foto_model.secim_temizle("RNO-010", {"orta": "BN01", "bant": "BN04", "dis": "RN08"})
+        self.assertEqual((s["orta"], s["bant"], s["dis"]), ("RN06", "BN04", "RN06"))
         self.assertEqual(foto_model.secim_temizle("BNA-005", {"orta": "RN03"})["orta"], "BN03")
         # nakışlı bant: bant Rono olur, lazer deseni kalkar, siparişe yazılır
         s = foto_model.secim_temizle("BNA-003", {"nakis_motif": "61.01", "nakis_iplik": "altin", "desen_kodu": "DB001",
@@ -2684,6 +2684,58 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.assertNotEqual(foto_model.jpeg("RNO-013", s, 260), foto_model.jpeg("RNO-013", foto_model.secim_temizle("RNO-013", {}), 260))
         for kod in ("BNA-027", "BNA-028"):
             self.assertEqual(foto_model.boya(kod, foto_model.fikirler(kod)[0], 150).width, 150)
+
+    def test_duzeltme_yetkisi_lazer_tableti(self):
+        from .models import DuzeltmeKaydi, HesapAyari, Musteri
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        zigzag = Asama.objects.get(ad="Zig-zag")
+        tablet = get_user_model().objects.create_user("lazer-tablet-1", password="x")
+        HesapAyari.objects.create(kullanici=tablet, istasyon=lazer, duzeltme_yetkisi=True)
+        baska = get_user_model().objects.create_user("biye-tablet", password="x")
+        HesapAyari.objects.create(kullanici=baska)
+        sp = Siparis.objects.create(musteri=Musteri.objects.create(ad="Çift"), urun="x", teslim_tarihi=timezone.localdate())
+        servisler.kalemleri_kaydet(sp, [(None, Decimal("100"), Decimal("150"), 1)])
+        servisler.siparis_islerini_ac(sp)
+        lot = sp.lotlar.get()
+        islem = servisler.islem_baslat(lot=lot, asama=lazer, personel=self.ahmet)
+        # yetkisiz tablet: düğme yok, istek reddedilir
+        self.client.force_login(baska)
+        self.assertNotContains(self.client.get(reverse("lot_detay", args=[lot.pk])), "Bu işi iptal et")
+        self.assertEqual(self.client.post(reverse("is_iptal", args=[lot.pk]), {"neden": "x"}).status_code, 403)
+        # yetkili lazer tableti: başlatmayı geri alır, işi iptal eder
+        self.client.force_login(tablet)
+        sayfa = self.client.get(reverse("lot_detay", args=[lot.pk]))
+        self.assertContains(sayfa, "Başlatmayı geri al")
+        self.assertContains(sayfa, "siparişini iptal et")
+        self.client.post(reverse("islem_geri_al", args=[islem.pk]))
+        self.assertEqual(lot.islemler.count(), 0)
+        self.client.post(reverse("is_iptal", args=[lot.pk]), {"neden": "iki kez girildi"})
+        lot.refresh_from_db()
+        self.assertEqual(lot.durum, "iptal")
+        kayit = DuzeltmeKaydi.objects.get(tur="is_iptal")
+        self.assertEqual((kayit.kullanici, kayit.neden), (tablet, "iki kez girildi"))
+        # yönetici geri açar
+        self.client.force_login(self.yonetici)
+        self.assertContains(self.client.get(reverse("duzeltmeler")), "iki kez girildi")
+        self.client.post(reverse("duzeltmeler"), {"kayit": kayit.pk})
+        lot.refresh_from_db()
+        self.assertEqual(lot.durum, "bekliyor")
+        # zig-zag'a geçmiş iş tabletten düzeltilemez; sipariş de iptal edilemez
+        i1 = servisler.islem_baslat(lot=lot, asama=lazer, personel=self.ahmet)
+        servisler.islem_bitir(islem=i1, personel=self.ahmet)
+        servisler.islem_baslat(lot=lot, asama=zigzag, personel=self.ahmet)
+        self.assertFalse(servisler.duzeltebilir(tablet, lot))
+        self.assertFalse(servisler.siparis_iptal_edilebilir(tablet, sp))
+        self.assertTrue(servisler.duzeltebilir(self.yonetici, lot))
+        # çift sipariş: yalnız lazer/nakış/kaplamadaki işleriyle iptal
+        sp2 = Siparis.objects.create(musteri=sp.musteri, urun="çift", teslim_tarihi=timezone.localdate())
+        servisler.kalemleri_kaydet(sp2, [(None, Decimal("100"), Decimal("150"), 1), (None, Decimal("80"), Decimal("120"), 1)])
+        servisler.siparis_islerini_ac(sp2)
+        self.client.force_login(tablet)
+        self.client.post(reverse("siparis_iptal_tablet", args=[sp2.lotlar.first().pk]), {"neden": "çift sipariş"})
+        sp2.refresh_from_db()
+        self.assertEqual(sp2.durum, "iptal")
+        self.assertFalse(sp2.lotlar.exclude(durum="iptal").exists())
 
     def test_bayi_fotograf_ekler_ve_yalniz_kendininkini_gorur(self):
         import io

@@ -10,6 +10,23 @@
   {% endif %}{% endif %}
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_uretimlotu_change' lot.pk %}">Düzenle</a>{% endif %}
 </div>
+{% if is_iptal_edilir or siparis_iptal_edilir %}
+<details class="kart duzeltme-kart">
+  <summary>🛠 Düzeltme (yanlış ya da iki kez girilmiş)</summary>
+  {% if is_iptal_edilir %}
+  <form method="post" action="{% url 'is_iptal' lot.pk %}" class="dikey" onsubmit="return confirm('{{ lot.lot_no }} iptal edilsin mi? Alınan malzeme stoğa döner.')">{% csrf_token %}
+    <label>İptal nedeni<input name="neden" required maxlength="200" placeholder="Ör. iki kez girildi"></label>
+    <button class="btn ikincil" type="submit">🗑 Bu işi iptal et</button>
+  </form>{% endif %}
+  {% if siparis_iptal_edilir %}
+  <form method="post" action="{% url 'siparis_iptal_tablet' lot.pk %}" class="dikey" style="margin-top:12px" onsubmit="return confirm('{{ lot.siparis.siparis_no }} siparişi ve bütün işleri iptal edilsin mi?')">{% csrf_token %}
+    <label>Sipariş iki kez girildiyse – neden<input name="neden" required maxlength="200" placeholder="Ör. sipariş çift girilmiş"></label>
+    <button class="btn ikincil" type="submit">🗑 {{ lot.siparis.siparis_no }} siparişini iptal et</button>
+  </form>{% endif %}
+  <p class="soluk" style="margin-bottom:0">Yanlışlıkla iptal edilirse yönetici geri açabilir.</p>
+</details>
+<style>.duzeltme-kart summary{cursor:pointer;font-weight:600}.duzeltme-kart input{width:100%}</style>
+{% endif %}
 
 <div class="izgara">
   <div class="kart">

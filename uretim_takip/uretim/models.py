@@ -1113,6 +1113,9 @@ class HesapAyari(models.Model):
     musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, null=True, blank=True, related_name="bayi_hesaplari",
                                 verbose_name="bayi (müşteri)",
                                 help_text="Bayi hesabı: yalnızca tasarım stüdyosu ve kendi siparişleri.")
+    duzeltme_yetkisi = models.BooleanField(
+        "düzeltme yetkisi", default=False,
+        help_text="Lazer tableti: Lazer / Nakış / Kaplama'da yanlış işlemi geri alır, çift işi ve çift siparişi iptal eder.")
 
     class Meta:
         verbose_name = "hesap ayarı"
@@ -1120,6 +1123,38 @@ class HesapAyari(models.Model):
 
     def __str__(self):
         return f"{self.kullanici} → {self.istasyon or '-'}"
+
+
+class DuzeltmeKaydi(models.Model):
+    """Yönetici ya da düzeltme yetkili tabletin yaptığı düzeltme (geri al / iş iptal / sipariş iptal / geri aç)."""
+
+    TURLER = [("geri_al", "İşlem geri alındı"), ("is_iptal", "İş iptal edildi"), ("siparis_iptal", "Sipariş iptal edildi"),
+              ("geri_ac", "İptal geri açıldı")]
+    tur = models.CharField(max_length=14, choices=TURLER)
+    lot = models.ForeignKey("UretimLotu", on_delete=models.SET_NULL, null=True, blank=True, related_name="duzeltmeler")
+    siparis = models.ForeignKey(Siparis, on_delete=models.SET_NULL, null=True, blank=True, related_name="duzeltmeler")
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True)
+    neden = models.CharField(max_length=200, blank=True)
+    metin = models.CharField(max_length=300, blank=True)
+    veri = models.JSONField(default=dict, blank=True, help_text="Geri açmak için önceki durum ve stok düşümleri.")
+    zaman = models.DateTimeField(default=timezone.now)
+    geri_acildi = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-zaman", "-pk"]
+        verbose_name = "düzeltme kaydı"
+        verbose_name_plural = "düzeltme kayıtları"
+
+    def __str__(self):
+        return f"{self.get_tur_display()} · {self.zaman:%d.%m.%Y %H:%M}"
+
+
+def hesap_duzeltme_yetkili(kullanici):
+    if not getattr(kullanici, "is_authenticated", False):
+        return False
+    if kullanici.is_superuser:
+        return True
+    return HesapAyari.objects.filter(kullanici=kullanici, duzeltme_yetkisi=True).exists()
 
 
 def hesap_istasyonu(kullanici):

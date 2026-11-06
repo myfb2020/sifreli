@@ -22,7 +22,7 @@ from . import parcali
 KLASOR = Path(__file__).resolve().parent / "tasarim_varlik" / "foto_model"
 DOKU = Path(__file__).resolve().parent / "tasarim_varlik" / "doku"
 ONBELLEK_SINIR = 600
-SURUM = 6  # boyama yöntemi değişince önbellek yenilensin  # önbellekte en çok bu kadar boyanmış resim kalır
+SURUM = 7  # boyama yöntemi değişince önbellek yenilensin  # önbellekte en çok bu kadar boyanmış resim kalır
 
 # bölge türleri: hangi renkler seçilebilir
 MALZEME, DESEN, IPLIK = "malzeme", "desen", "iplik"
@@ -59,9 +59,9 @@ MODELLER = {
         ("zemin", "Zemin", MALZEME, "RN03", "zemin"),
         ("iplik", "Nakış ipliği", IPLIK, "bej", "iplik")]},
     "BNA-027": {"ad": "Krem & altın Bienca · lazer desenli bant", "px_cm": 7.3, "bolgeler": [
-        ("dis", "Dış kenar", MALZEME, "BN05", "ikinci"),
-        ("desen", "Lazer desenli bant", DESEN, "BN05", "vurgu"),
-        ("orta", "Orta", MALZEME, "BN05", "zemin")]},
+        ("dis", "Dış kenar", MALZEME, "BN04", "ikinci"),
+        ("desen", "Lazer desenli bant", DESEN, "BN04", "vurgu"),
+        ("orta", "Orta", MALZEME, "BN04", "zemin")]},
     "BNA-028": {"ad": "Bienca · lazer desenli bant · altın biye", "px_cm": 11, "bolgeler": [
         ("kenar", "Biye", DESEN, "ALTIN", "metal"),
         ("desen", "Lazer desenli bant", DESEN, "BN01", "vurgu"),
@@ -88,7 +88,7 @@ NAKIS_KUTULARI = {"RNO-013": [tuple(round(v * 1.19) for v in k) for k in (
     (523, 735, 690, 895))]}
 NAKIS_BOSLUK = {"RNO-013": (357, 524)}  # motifsiz zemin şeridi (x aralığı): silinen motifin yerine buradan doku
 # fotoğrafta desenli (eskitme/varak) olan bölgeler: başka renge geçince fotoğrafın deseni değil kartelanın dokusu görünür
-DESENLI_ASIL = {"BN01", "BN02", "BN03", "BN04", "BN05"}
+DESENLI_ASIL = {"BN01", "BN02", "BN03", "BN04"}
 
 
 def _kartela():
@@ -314,8 +314,12 @@ def boya(kod, secim, genislik=None):
         desenli = b["varsayilan"] in DESENLI_ASIL
         if b["tur"] == IPLIK:
             katman = _boya_duz(gri, ort, _hex(IPLIK_RENK[deger][1]), min(0.8, guc * 1.5))
-        elif deger in METALLER:
-            katman = _boya_duz(gri, ort, _hex(KARTELA[deger][2]), min(1.0, guc * 1.8))
+        elif deger in METALLER:  # gerçek altın / gümüş biye fotoğrafı; desen ve gölge fotoğraftan
+            doku = _doku(KARTELA[deger][0], round(px_cm, 2), foto.size)
+            if doku is not None:
+                katman = _carp(doku, gri.point(_lut(lambda v: 128 * _carpan(v, ort, min(0.9, guc * 1.5), 1.3))))
+            else:
+                katman = _boya_duz(gri, ort, _hex(KARTELA[deger][2]), min(1.0, guc * 1.8))
         elif deger.startswith("BN"):  # gerçek Bienca dokusu (atölye fotoğrafı, gerçek ölçüde), ışık fotoğraftan
             doku = _bienca_kapla(KARTELA[deger][0], _kutu(maske), foto.size)
             yum_ort, _ = _bolge_olcusu(yumusak_gri, maske)

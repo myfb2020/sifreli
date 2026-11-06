@@ -194,23 +194,73 @@ def lot_detay(request, pk):
     )
     for islem in islemler:
         islem.bekleme_metni = uyarilar.sure_metni(islem.bekleme) if islem.bekleme is not None else ""
-    if request.user.is_superuser and islemler and servisler.geri_alinabilir(islemler[-1]):
+    duzeltir = servisler.duzeltebilir(request.user, lot)
+    if duzeltir and islemler and servisler.geri_alinabilir(islemler[-1]):
         islemler[-1].geri_alinir = True
-    return render(request, "uretim/lot_detay.html", {"lot": lot, "islemler": islemler})
+    return render(request, "uretim/lot_detay.html", {
+        "lot": lot, "islemler": islemler, "is_iptal_edilir": duzeltir and lot.durum != "iptal",
+        "siparis_iptal_edilir": lot.siparis_id and not request.user.is_staff
+        and servisler.siparis_iptal_edilebilir(request.user, lot.siparis)})
 
 
 @require_POST
 @login_required
 def islem_geri_al(request, pk):
-    """Yönetici: istasyonda yanlışlıkla başlatılan / bitirilen son işlemi geri alır."""
-    if not request.user.is_superuser:
-        raise PermissionDenied("İşlemi yalnız yönetici geri alabilir.")
+    """Yönetici ya da düzeltme yetkili tablet: istasyonda yanlışlıkla başlatılan / bitirilen son işlemi geri alır."""
     islem = get_object_or_404(IslemKaydi, pk=pk)
+    if not servisler.duzeltebilir(request.user, islem.lot):
+        raise PermissionDenied("Bu işlemi geri alma yetkiniz yok.")
     try:
         messages.success(request, servisler.islem_geri_al(islem=islem, kullanici=request.user))
     except ValidationError as hata:
         messages.error(request, " ".join(hata.messages))
     return redirect("lot_detay", islem.lot_id)
+
+
+@require_POST
+@login_required
+def is_iptal(request, pk):
+    lot = get_object_or_404(UretimLotu, pk=pk)
+    if not servisler.duzeltebilir(request.user, lot):
+        raise PermissionDenied("Bu işi iptal etme yetkiniz yok.")
+    try:
+        servisler.is_iptal(lot=lot, kullanici=request.user, neden=request.POST.get("neden", ""))
+        messages.success(request, f"{lot} iptal edildi; alınan malzeme stoğa döndü.")
+    except ValidationError as hata:
+        messages.error(request, " ".join(hata.messages))
+    return redirect("lot_detay", lot.pk)
+
+
+@require_POST
+@login_required
+def siparis_iptal(request, pk):
+    lot = get_object_or_404(UretimLotu.objects.select_related("siparis"), pk=pk)
+    if not servisler.siparis_iptal_edilebilir(request.user, lot.siparis):
+        raise PermissionDenied("Bu siparişi iptal etme yetkiniz yok.")
+    try:
+        k = servisler.siparis_iptal(siparis=lot.siparis, kullanici=request.user, neden=request.POST.get("neden", ""))
+        messages.success(request, k.metin + ".")
+    except ValidationError as hata:
+        messages.error(request, " ".join(hata.messages))
+    return redirect("lot_detay", lot.pk)
+
+
+@login_required
+def duzeltmeler(request):
+    """Yönetici: son düzeltmeler (kim, ne zaman, neden) ve iptali geri açma."""
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    from .models import DuzeltmeKaydi
+    if request.method == "POST":
+        kayit = get_object_or_404(DuzeltmeKaydi, pk=request.POST.get("kayit"))
+        try:
+            servisler.iptali_geri_ac(kayit=kayit, kullanici=request.user)
+            messages.success(request, f"Geri açıldı: {kayit.metin}")
+        except ValidationError as hata:
+            messages.error(request, " ".join(hata.messages))
+        return redirect("duzeltmeler")
+    kayitlar = DuzeltmeKaydi.objects.select_related("lot", "siparis", "kullanici")[:200]
+    return render(request, "uretim/duzeltmeler.html", {"kayitlar": kayitlar})
 
 
 def _tarih_araligi(request):
