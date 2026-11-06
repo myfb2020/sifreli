@@ -91,7 +91,9 @@ class BayiSiparisForm(forms.Form):
                 self.add_error("fotograflar", str(hata))
         renk = None
         veri["foto_secim"] = None
-        if model.kod in foto_model.MODELLER:
+        # fotoğraf boyama ekranı kapalı: bölge renkleri yalnız gönderilmişse (eski bağlantılar) kullanılır,
+        # yoksa kartela rengi seçilir
+        if model.kod in foto_model.MODELLER and (veri.get("bolgeler") or "").strip() not in ("", "{}"):
             try:
                 gelen = json.loads(veri.get("bolgeler") or "{}")
             except ValueError:
@@ -172,10 +174,12 @@ def bayi_siparis(request):
         if modeller:
             seriler.append({"seri": seri, "modeller": modeller})
     kartelalar = {g: list(Renk.objects.filter(grup=g, aktif=True)) for g, _ in Renk.GRUPLAR}
+    from . import parcali
     resimler = {r.kod: r.resim_adresi for liste in kartelalar.values() for r in liste}
     return render(request, "uretim/bayi_siparis.html", {"form": form, "olculer": olculer, "seriler": seriler,
                                                         "kartelalar": kartelalar, "tur": tur, "duzenlenir": set(),
-                                                        "foto_modeller": foto_model.istemci_verisi(resimler)})
+                                                        # fotoğraf boyama kapalı (kullanıcı 2026-11-06); seçili modeller parçalı stüdyoda
+                                                        "foto_modeller": {}, "tasarlanir": set(parcali.SECILI_MODELLER)})
 
 
 GENISLIKLER = {"k": 260, "o": 520, "b": None}

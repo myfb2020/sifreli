@@ -10,6 +10,16 @@ IZINLI = ("/bayi/", "/tasarim/", "/medya/", "/cikis/", "/giris/", "/static/", "/
 STUDYO = ("/tasarim/", "/tasarim/parcali/")  # tasarım stüdyoları yalnız yönetici (2026-11-05: bayiden kalktı)
 
 
+def _secili_model_tasarimi(request):
+    """Bayi parçalı stüdyoyu yalnız gerçekçi çizimi hazır modellerle açar (Sipariş ver → 🎨 Tasarla)."""
+    from .parcali import SECILI_MODELLER
+
+    if request.path != "/tasarim/parcali/":
+        return False
+    kod = request.POST.get("katalog") if request.method == "POST" else request.GET.get("hazir")
+    return (kod or "").upper() in SECILI_MODELLER
+
+
 def _eski_duzen():
     """Eski düzen (stüdyo bayiye açık) yalnız stüdyo testleri için ayardan açılır."""
     return getattr(settings, "STUDYO_BAYIYE_ACIK", False)
@@ -26,11 +36,12 @@ class BayiSiniri:
             request.bayi = bayi
             if bayi is not None and not request.path.startswith(IZINLI):
                 return redirect("bayi_ana")
-            if bayi is not None and request.path in STUDYO and (not _eski_duzen() or not bayi.studyo_acik):
+            if bayi is not None and request.path in STUDYO and (not _eski_duzen() or not bayi.studyo_acik) \
+                    and not _secili_model_tasarimi(request):
                 return redirect("bayi_siparis")
         else:
             request.bayi = None
         if request.path in STUDYO and not _eski_duzen() and kullanici is not None and kullanici.is_authenticated \
-                and not kullanici.is_superuser:
+                and not kullanici.is_superuser and not (request.bayi is not None and _secili_model_tasarimi(request)):
             return redirect("bayi_siparis" if request.bayi is not None else "pano")
         return self.get_response(request)

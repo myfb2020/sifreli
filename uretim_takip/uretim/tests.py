@@ -2601,6 +2601,27 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.ayar.disable()
         self.medya.cleanup()
 
+    def test_bayi_secili_modeli_parcali_studyoda_tasarlar(self):
+        from . import parcali
+        with self.settings(STUDYO_BAYIYE_ACIK=False):
+            self.client.force_login(self.bayi_hesap)
+            sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
+            self.assertContains(sayfa, 'data-tasarla="1"')
+            self.assertNotContains(sayfa, "foto-model/RNO")
+            kod = parcali.SECILI_MODELLER[0]
+            studyo = self.client.get(reverse("parcali_studyo") + f"?hazir={kod}")
+            self.assertEqual(studyo.status_code, 200)
+            self.assertNotContains(studyo, 'data-kod="IPS-449"')  # yalnız seçili modeller
+            self.assertRedirects(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-449"), reverse("bayi_siparis"),
+                                 fetch_redirect_response=False)
+            v = parcali.temizle(parcali.hazir_degerler(kod))
+            veri = {k: ("on" if x is True else x) for k, x in v.items() if x not in (None, False)}
+            veri.update({"adet": "1"})
+            self.assertRedirects(self.client.post(reverse("parcali_studyo"), veri), reverse("bayi_ana"))
+            self.assertTrue(Siparis.objects.filter(durum="onay", tasarim__veri__katalog=kod).exists())
+            self.client.force_login(self.ofis)
+            self.assertContains(self.client.get(reverse("pano")), "Bugün kim ne yaptı")
+
     def test_yeni_bayi_duzeni_ve_stüdyo_yalniz_yonetici(self):
         with self.settings(STUDYO_BAYIYE_ACIK=False):
             self.client.force_login(self.bayi_hesap)
@@ -2752,13 +2773,13 @@ class FotoModelTesti(TasarimStudyosuTesti):
 
         self.client.force_login(self.bayi_hesap)
         v = {"olcu-TOTAL_FORMS": "1", "olcu-INITIAL_FORMS": "0", "olcu-0-en_cm": "160", "olcu-0-boy_cm": "230",
-             "olcu-0-adet": "1", "model": "RNO-010", "bolgeler": "{}"}
+             "olcu-0-adet": "1", "model": "RNO-010", "bolgeler": "{}", "renk": "RN06"}
         self.assertContains(self.client.post(reverse("bayi_siparis"), {**v, "fotograflar": [foto() for _ in range(4)]}),
                             "En çok 3")
         self.assertRedirects(self.client.post(reverse("bayi_siparis"), {**v, "fotograflar": [foto(), foto()]}),
                              reverse("bayi_ana"))
         sp = Siparis.objects.get(musteri=Musteri.objects.get(ad="Ankara Bayi"), katalog_modeli__kod="RNO-010")
-        self.assertEqual(sp.fotograflar.count(), 3)  # boyanmış tasarım + 2 bayi fotoğrafı
+        self.assertEqual(sp.fotograflar.count(), 2)  # bayinin 2 fotoğrafı (boyama kapalı)
         url = sp.fotograflar.last().resim.url
         self.assertContains(self.client.get(reverse("bayi_ana")), url)
         self.assertEqual(self.client.get(url).status_code, 200)

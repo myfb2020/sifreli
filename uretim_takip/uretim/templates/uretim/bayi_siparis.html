@@ -9,10 +9,10 @@
   {{ form.model }}{{ form.renk }}{{ form.bolgeler }}
   <div class="kart">
     <h2>1. Model seçin</h2>
-    {% if tur == "suni" %}<p class="soluk" style="margin-top:0">📷 işaretli modellerde renkleri halının fotoğrafı üzerinde siz seçersiniz.</p>{% endif %}
+    {% if tur == "suni" %}<p class="soluk" style="margin-top:0">🎨 işaretli modelleri renk, lazer deseni ve nakış bordürünü seçerek tasarlayabilirsiniz.</p>{% endif %}
     <div class="seri-sekme">{% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}</div>
     {% for x in seriler %}<div class="model-izgara" data-seri-izgara="{{ x.seri.pk }}"{% if not forloop.first %} hidden{% endif %}>
-      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}" data-kartela="{{ x.seri.kartela }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{% if m.kod in foto_modeller %}📷 {% endif %}{{ m.kod }}</span></button>{% endfor %}
+      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}"{% if m.kod in tasarlanir %} data-tasarla="1"{% endif %} data-kartela="{{ x.seri.kartela }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{% if m.kod in tasarlanir %}🎨 {% endif %}{{ m.kod }}</span></button>{% endfor %}
     </div>{% endfor %}
     <p id="secilen-model" class="soluk">Henüz model seçilmedi.</p>
   </div>
@@ -107,7 +107,9 @@
   function modelSec(k) {
     document.querySelectorAll(".model-kart").forEach((x) => x.classList.toggle("secili", x === k));
     modelAlan.value = k.dataset.kod;
-    document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>`;
+    document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>` + (k.dataset.tasarla ?
+      `<br><a class="btn" style="margin-top:8px" href="{% url 'parcali_studyo' %}?hazir=${encodeURIComponent(k.dataset.kod)}">🎨 Renk, desen ve nakışı değiştirerek tasarla</a>
+       <span class="soluk" style="display:block;margin-top:4px">Ya da aşağıdan rengini seçip olduğu gibi sipariş verin.</span>` : "");
     let kartela = k.dataset.kartela;
     document.getElementById("renk-once").hidden = true;
     const foto = !!FOTO[k.dataset.kod];

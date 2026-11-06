@@ -1,5 +1,6 @@
 """Parçalı (lego) suni deri tasarım: bayi ekranı, canlı önizleme, ofis için kesim listesi."""
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -73,12 +74,16 @@ def studyo(request):
     else:
         kaynak = Tasarim.objects.filter(pk=request.GET.get("kaynak") or 0, musteri=bayi).first()
         veri = _temizle(kaynak.veri if kaynak else parcali.hazir_degerler(request.GET.get("hazir") or "IPS-449"))
+    yalniz_secili = bayi is not None and not getattr(settings, "STUDYO_BAYIYE_ACIK", False)
     veri = _temizle(parcali.eskiden_cevir(veri))  # ekran yalnız halkalı yapıyı düzenler
     desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari() - parcali.GIZLI_DESENLER)
-    hazirlar = [{"kod": k, "deger": _temizle(parcali.hazir_degerler(k))} for k, _, _ in parcali.HAZIRLAR]
+    hazirlar = [{"kod": k, "deger": _temizle(parcali.hazir_degerler(k))} for k, _, _ in parcali.HAZIRLAR
+                if not yalniz_secili or k in parcali.SECILI_MODELLER]
     seriler = []
     for on, ad in parcali.KATALOG_SERILERI + parcali.EK_SERILER:
         modeller = KatalogModeli.objects.filter(kod__startswith=on + "-").exclude(resim="").order_by("kod")
+        if yalniz_secili:  # bayi yalnız gerçekçi çizimi hazır modelleri görür
+            modeller = modeller.filter(kod__in=parcali.SECILI_MODELLER)
         seriler.append({"on": on, "ad": ad, "modeller": [{"kod": m.kod, "resim": m.resim.url,
                                                           "duzenlenir": m.kod in parcali.HAZIR} for m in modeller]})
     seriler = [sr for sr in seriler if sr["modeller"]]

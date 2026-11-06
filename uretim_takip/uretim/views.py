@@ -64,7 +64,7 @@ def pano(request):
         "asamalar": asamalar,
         "acik_islemler": acik,
         "istasyon": istasyon,
-        "bugun_personel": raporlar.bugun_kim_ne_yapti(bugun, istasyon),
+        "bugun_personel": raporlar.bugun_kim_ne_yapti(bugun),  # herkes bütün atölyeyi görür (bayi panoya giremez)
         "geciken_siparisler": Siparis.objects.filter(
             durum__in=["acik", "uretimde"], teslim_tarihi__lt=bugun
         ).select_related("musteri"),
