@@ -22,7 +22,7 @@ from . import parcali
 KLASOR = Path(__file__).resolve().parent / "tasarim_varlik" / "foto_model"
 DOKU = Path(__file__).resolve().parent / "tasarim_varlik" / "doku"
 ONBELLEK_SINIR = 600
-SURUM = 5  # boyama yöntemi değişince önbellek yenilensin  # önbellekte en çok bu kadar boyanmış resim kalır
+SURUM = 6  # boyama yöntemi değişince önbellek yenilensin  # önbellekte en çok bu kadar boyanmış resim kalır
 
 # bölge türleri: hangi renkler seçilebilir
 MALZEME, DESEN, IPLIK = "malzeme", "desen", "iplik"
