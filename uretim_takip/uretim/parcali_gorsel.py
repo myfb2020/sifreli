@@ -87,6 +87,37 @@ def _kartela_dokusu(ad, boyut, px):
     return ImageChops.multiply(taban, Image.merge("RGB", (doku,) * 3)).point(lambda q: min(255, q * 2))
 
 
+@lru_cache(maxsize=12)
+def _bienca_ince(ad, boyut, px, bolum=3):
+    """Dar bant için Bienca: baskı 1/3 ölçekte, aynalı döşenir → büyük lekeler yerine ince eskitme."""
+    from PIL import ImageOps
+    kucuk = _kartela_dokusu(ad, (max(8, boyut[0] // bolum), max(8, boyut[1] // bolum)), px)
+    ikili = Image.new("RGB", (kucuk.width * 2, kucuk.height * 2))
+    ikili.paste(kucuk, (0, 0)); ikili.paste(ImageOps.mirror(kucuk), (kucuk.width, 0))
+    ikili.paste(ImageOps.flip(kucuk), (0, kucuk.height))
+    ikili.paste(ImageOps.flip(ImageOps.mirror(kucuk)), (kucuk.width, kucuk.height))
+    tuval = Image.new("RGB", boyut)
+    for y in range(0, boyut[1], ikili.height):
+        for x in range(0, boyut[0], ikili.width):
+            tuval.paste(ikili, (x, y))
+    return tuval
+
+
+def _metal_parilti(boyut, guc=0.45):
+    """Altın / gümüş biye: çapraz yumuşak ışık bantları (fotoğraftaki metal parıltısı), 128 = değişmez."""
+    W, H = boyut
+    kucuk = Image.new("L", (64, 64))
+    import math
+    kucuk.putdata([round(128 + 127 * guc * math.sin((x + y) / 64 * math.pi * 3) ** 3)
+                   for y in range(64) for x in range(64)])
+    return kucuk.resize(boyut, Image.BICUBIC)
+
+
+def _parlaklik(resim, maske):
+    from PIL import ImageStat
+    return ImageStat.Stat(resim.convert("L"), maske).mean[0] if maske.getbbox() else 128
+
+
 def malzeme_dokusu(ad, boyut, px):
     if (ad.startswith("bienca_bn") or ad.endswith("_keten")) and hg._var_mi(ad):
         return _kartela_dokusu(ad, boyut, round(px, 3))
@@ -240,9 +271,11 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     for p in parcalar:
         poli = olc(p["poli"])
         maske = _poli_maske(boyut, poli)
-        if p["malzeme"] not in dokular:
-            dokular[p["malzeme"]] = malzeme_dokusu(p["malzeme"], boyut, px)
-        katman = dokular[p["malzeme"]]
+        ince = p["malzeme"].startswith("bienca") and p.get("tur") != "zemin"
+        if (p["malzeme"], ince) not in dokular:
+            dokular[p["malzeme"], ince] = (_bienca_ince(p["malzeme"], boyut, round(px, 3)) if ince
+                                           else malzeme_dokusu(p["malzeme"], boyut, px))
+        katman = dokular[p["malzeme"], ince]
         if p["desen"]:
             if v["duzen"] == "halkali":
                 delik = desen_maskeleri.get(p.get("desen_anahtar"))
@@ -258,7 +291,11 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
                     delikler = ImageChops.lighter(delikler, delik)
                 else:
                     katman = Image.composite(alt, katman, delik)
-                katman = Image.composite(Image.new("RGB", boyut, (25, 20, 15)), katman, kenar.point(lambda q: q // 2))
+                # desen kenarı: açık bantta koyu çizgi, koyu bantta açık çizgi (delik koyu zeminde de okunsun)
+                koyu = _parlaklik(katman, maske) < 95
+                cizgi_renk = (175, 165, 150) if koyu else (25, 20, 15)
+                katman = Image.composite(Image.new("RGB", boyut, cizgi_renk), katman,
+                                         kenar.point(lambda q: int(q * 0.8) if koyu else q // 2))
             golge_kaynak = ImageChops.lighter(golge_kaynak, maske)
         resim.paste(katman, (0, 0), maske)
 
@@ -294,22 +331,41 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     # kenar (biye / lanfel)
     dis = _poli_maske(boyut, olc(pc.dis_hat(v)))
     b = max(2, int(px * 1.6))
-    serit = ImageChops.subtract(dis, dis.filter(ImageFilter.MinFilter(b * 2 + 1)))
+    # resim kenarına dayanan hat süzgeçte aşınmaz (kenar piksel uzatılır): önce siyah pay eklenir
+    genis = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b * 2 + 1))
+    serit = ImageChops.subtract(dis, genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H)))
     kenar_renk = KENAR_HEX.get(v["kenar_renk"]) or pc.MALZEME_HEX.get(v["kenar_renk"], "#888888")
     kenar = (hg.malzeme(v["kenar_renk"], boyut, px) if v["kenar_renk"] in ("altin", "gumus")
              else malzeme_dokusu(v["kenar_renk"], boyut, px) if v["kenar_renk"] in pc.MALZEME_HEX
              else Image.new("RGB", boyut, _hex(kenar_renk)))
-    resim.paste(kenar, (0, 0), serit)
+    if v["kenar_renk"] in ("altin", "gumus"):
+        parilti = _metal_parilti(boyut)
+        if v["kenar_renk"] == "altin":  # fotoğraf dokusu soluk: katalogdaki altın biye daha doygun sarı
+            from PIL import ImageEnhance
+            kenar = ImageEnhance.Color(kenar).enhance(1.7)
+        kenar = ImageChops.multiply(kenar, Image.merge("RGB", (parilti,) * 3)).point(lambda q: min(255, q * 2))
+        # biyenin iç kenarında ince parlak çizgi (yuvarlak biye ışığı yakalar)
+        ic_cizgi = ImageChops.subtract(serit, serit.filter(ImageFilter.MinFilter(3))).filter(
+            ImageFilter.GaussianBlur(0.6)).point(lambda q: q // 2)
+        resim.paste(kenar, (0, 0), serit)
+        resim = Image.composite(Image.new("RGB", boyut, (255, 248, 225)), resim, ic_cizgi)
+    else:
+        resim.paste(kenar, (0, 0), serit)
     if v["kenar"] == "lanfel":
         # Lanfel (overlok): kenar şeridinin iç sınırında kesik kesik iplik izi.
-        ic = dis.filter(ImageFilter.MinFilter(b | 1))  # süzgeç boyu tek sayı olmalı
+        ic = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b | 1)).crop(
+            (b + 2, b + 2, b + 2 + W, b + 2 + H))  # süzgeç boyu tek sayı olmalı; pay: resim kenarı da aşınsın
         dikis = ImageChops.subtract(ic, ic.filter(ImageFilter.MinFilter(3)))
         kesik = Image.effect_noise(boyut, 120).point(lambda q: 255 if q > 128 else 0)
         noktalar = ImageChops.multiply(dikis, kesik)
         resim = Image.composite(Image.new("RGB", boyut, (70, 60, 45)), resim, noktalar)
 
-    isik = Image.radial_gradient("L").resize(boyut).point(lambda q: 255 - q // 12)
+    isik = Image.radial_gradient("L").resize(boyut).point(lambda q: 255 - q // 7)
     resim = ImageChops.multiply(resim, Image.merge("RGB", (isik, isik, isik)))
+    # sol üstten yumuşak pencere ışığı (fotoğraftaki gibi): parlak alan biraz açılır
+    egim = Image.new("L", (2, 2)); egim.putdata([34, 12, 12, 0])  # sol üst en açık, sağ alt hiç
+    egim = egim.resize((4, 4), Image.NEAREST).resize(boyut, Image.BICUBIC).filter(ImageFilter.GaussianBlur(boyut[0] / 6))
+    resim = Image.composite(Image.new("RGB", boyut, (255, 252, 244)), resim, egim)
 
     pay = int(uzun_kenar * 0.05)
     tuval = Image.new("RGB", (W + 2 * pay, H + 2 * pay), arka)
