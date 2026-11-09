@@ -328,9 +328,13 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     resim = Image.composite(Image.new("RGB", boyut, (255, 250, 240)), resim, isik_kenar)
     resim = Image.composite(Image.new("RGB", boyut, (48, 42, 36)), resim, dikis.point(lambda q: int(q * 0.7)))
 
-    # kenar (biye / lanfel)
-    dis = _poli_maske(boyut, olc(pc.dis_hat(v)))
-    b = max(2, int(px * 1.6))
+    # kenar (biye / lanfel); dikdörtgen halının köşeleri katalogdaki gibi hafif yuvarlak
+    if v.get("duzen") == "yuvarlak" or (v.get("sekil") == "oval"):
+        dis = _poli_maske(boyut, olc(pc.dis_hat(v)))
+    else:
+        dis = Image.new("L", boyut, 0)
+        ImageDraw.Draw(dis).rounded_rectangle((0, 0, W - 1, H - 1), radius=max(3, int(px * 3)), fill=255)
+    b = max(3, int(px * 2.2))
     # resim kenarına dayanan hat süzgeçte aşınmaz (kenar piksel uzatılır): önce siyah pay eklenir
     genis = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b * 2 + 1))
     serit = ImageChops.subtract(dis, genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H)))
@@ -338,23 +342,25 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     kenar = (hg.malzeme(v["kenar_renk"], boyut, px) if v["kenar_renk"] in ("altin", "gumus")
              else malzeme_dokusu(v["kenar_renk"], boyut, px) if v["kenar_renk"] in pc.MALZEME_HEX
              else Image.new("RGB", boyut, _hex(kenar_renk)))
-    if v["kenar_renk"] in ("altin", "gumus"):
+    metal = v["kenar_renk"] in ("altin", "gumus")
+    if metal:
         parilti = _metal_parilti(boyut)
         if v["kenar_renk"] == "altin":  # fotoğraf dokusu soluk: katalogdaki altın biye daha doygun sarı
             from PIL import ImageEnhance
             kenar = ImageEnhance.Color(kenar).enhance(1.7)
         kenar = ImageChops.multiply(kenar, Image.merge("RGB", (parilti,) * 3)).point(lambda q: min(255, q * 2))
-        # biyenin iç kenarında ince parlak çizgi (yuvarlak biye ışığı yakalar)
-        ic_cizgi = ImageChops.subtract(serit, serit.filter(ImageFilter.MinFilter(3))).filter(
-            ImageFilter.GaussianBlur(0.6)).point(lambda q: q // 2)
-        resim.paste(kenar, (0, 0), serit)
-        resim = Image.composite(Image.new("RGB", boyut, (255, 248, 225)), resim, ic_cizgi)
-    else:
-        resim.paste(kenar, (0, 0), serit)
+    if v["kenar"] == "biye":
+        # biye halının kenarını saran yuvarlak boru: dış ve iç kenarı gölgede, üçte birinde parlak sırt
+        profil = _biye_profili(dis, b, W, H, metal)
+        kenar = ImageChops.multiply(kenar, Image.merge("RGB", (profil,) * 3)).point(lambda q: min(255, q * 2))
+    resim.paste(kenar, (0, 0), serit)
+    # biyenin içteki halıya düşen ince gölgesi (biye kabarık durur)
+    ic = genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H))
+    biye_golge = ImageChops.subtract(ic, ic.filter(ImageFilter.MinFilter(max(3, int(px * 0.8)) | 1)))
+    biye_golge = biye_golge.filter(ImageFilter.GaussianBlur(max(1, px * 0.4))).point(lambda q: int(q * 0.45))
+    resim = Image.composite(Image.new("RGB", boyut, (15, 12, 10)), resim, biye_golge)
     if v["kenar"] == "lanfel":
         # Lanfel (overlok): kenar şeridinin iç sınırında kesik kesik iplik izi.
-        ic = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b | 1)).crop(
-            (b + 2, b + 2, b + 2 + W, b + 2 + H))  # süzgeç boyu tek sayı olmalı; pay: resim kenarı da aşınsın
         dikis = ImageChops.subtract(ic, ic.filter(ImageFilter.MinFilter(3)))
         kesik = Image.effect_noise(boyut, 120).point(lambda q: 255 if q > 128 else 0)
         noktalar = ImageChops.multiply(dikis, kesik)
@@ -366,15 +372,65 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     egim = Image.new("L", (2, 2)); egim.putdata([34, 12, 12, 0])  # sol üst en açık, sağ alt hiç
     egim = egim.resize((4, 4), Image.NEAREST).resize(boyut, Image.BICUBIC).filter(ImageFilter.GaussianBlur(boyut[0] / 6))
     resim = Image.composite(Image.new("RGB", boyut, (255, 252, 244)), resim, egim)
+    # metal / varak parıltısı: ışığın vurduğu çapraz bantta parlak yerler (varak, metal) biraz daha parlar
+    resim = _varak_parlat(resim, boyut)
 
     pay = int(uzun_kenar * 0.05)
-    tuval = Image.new("RGB", (W + 2 * pay, H + 2 * pay), arka)
+    tuval = _deri_zemin((W + 2 * pay, H + 2 * pay), arka)
     golge = Image.new("L", tuval.size, 0)
     golge.paste(dis, (pay + int(px * 1.5), pay + int(px * 2.5)))
     golge = golge.filter(ImageFilter.GaussianBlur(pay / 3)).point(lambda q: int(q * 0.7))
     tuval = Image.composite(Image.new("RGB", tuval.size, (0, 0, 0)), tuval, golge)
-    tuval.paste(resim, (pay, pay), ImageChops.subtract(dis, delikler))
+    gorunur = ImageChops.subtract(dis, delikler)
+    # lazer deliklerinde derinlik: halının kalınlığı deliğin içine (sağ alta) gölge düşürür
+    if delikler.getbbox():
+        d = max(2, int(px * 0.5))
+        derin = Image.new("L", tuval.size, 0)
+        derin.paste(gorunur, (pay + d, pay + d))
+        derin = derin.filter(ImageFilter.GaussianBlur(max(1, px * 0.35))).point(lambda q: int(q * 0.75))
+        tuval = Image.composite(Image.new("RGB", tuval.size, (0, 0, 0)), tuval, derin)
+    tuval.paste(resim, (pay, pay), gorunur)
     return tuval
+
+
+def _biye_profili(dis, b, W, H, metal):
+    """Biye şeridinde dıştan içe ışık profili (128 = değişmez): kenarlar koyu, dıştan üçte birde parlak sırt."""
+    profil = Image.new("L", (W, H), 128)
+    onceki = ImageOps.expand(dis, 2, 0)
+    for k in range(b):
+        sonraki = onceki.filter(ImageFilter.MinFilter(3))
+        halka = ImageChops.subtract(onceki, sonraki).crop((2, 2, 2 + W, 2 + H))
+        t = (k + 0.5) / b
+        deger = 0.62 + 0.55 * math.sin(math.pi * min(1, t * 1.25)) ** 1.5 + (0.18 if metal and 0.25 < t < 0.45 else 0)
+        profil.paste(max(0, min(255, round(128 * deger))), (0, 0), halka)
+        onceki = sonraki
+    return profil.filter(ImageFilter.GaussianBlur(0.8))
+
+
+@lru_cache(maxsize=4)
+def _deri_zemin(boyut, arka):
+    """Katalog fotoğraflarındaki gibi halının altında koyu, kabarcıklı deri zemin."""
+    w, h = boyut
+    k = Image.effect_noise((max(8, w // 4), max(8, h // 4)), 90).filter(ImageFilter.GaussianBlur(1.0))
+    k = ImageOps.autocontrast(k).resize(boyut, Image.BICUBIC)
+    kabarik = k.point(lambda q: 255 if q > 150 else int(q * 0.5)).filter(ImageFilter.GaussianBlur(1.5))
+    isik = ImageChops.subtract(kabarik, ImageChops.offset(kabarik, 2, 2))
+    zemin = Image.new("RGB", boyut, arka)
+    zemin = Image.composite(Image.new("RGB", boyut, tuple(min(255, c + 26) for c in arka)), zemin,
+                            isik.point(lambda q: min(255, q * 2)))
+    golge = ImageChops.subtract(ImageChops.offset(kabarik, 2, 2), kabarik)
+    return Image.composite(Image.new("RGB", boyut, (8, 7, 6)), zemin, golge.point(lambda q: min(255, q * 2)))
+
+
+def _varak_parlat(resim, boyut):
+    """Parlak (varak / metal) noktalar çapraz ışık bandında açılır; mat malzemelere neredeyse dokunmaz."""
+    gri = resim.convert("L")
+    parlak = gri.point(lambda q: max(0, q - 170) * 3)  # yalnız zaten parlak yerler
+    bant = Image.new("L", (64, 64))
+    bant.putdata([round(255 * max(0, math.cos((x + y - 52) / 64 * math.pi * 1.6)) ** 4) for y in range(64) for x in range(64)])
+    bant = bant.resize(boyut, Image.BICUBIC)
+    maske = ImageChops.multiply(parlak, bant).point(lambda q: int(q * 0.45))
+    return Image.composite(Image.new("RGB", boyut, (255, 252, 240)), resim, maske)
 
 
 @lru_cache(maxsize=64)
