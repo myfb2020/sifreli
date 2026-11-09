@@ -120,7 +120,7 @@ def kartela_secenekleri(on):
 
 
 def kartelaya_uydur(v, on):
-    """Zemin serinin kartelasında; bantlar Rono ya da Bienca + altın/gümüş; biye kartela rengi ya da altın/gümüş."""
+    """Zemin serinin kartelasında; bantlar Rono ya da Bienca + altın/gümüş; biye Rono / Bienca rengi ya da altın/gümüş."""
     izinli, esle = kartela_secenekleri(on), KARTELA_ESLEME[on]
     bant_izinli = set(izinli) | {m for liste in KARTELA_MALZEMELERI.values() for m in liste}
     ilk = KARTELA_MALZEMELERI[on][0]
@@ -132,7 +132,8 @@ def kartelaya_uydur(v, on):
                 v[alan] = ilk
     if v.get("madalyon_cerceve") and v["madalyon_cerceve"] not in izinli:
         v["madalyon_cerceve"] = esle.get(v["madalyon_cerceve"], "altin")
-    if v.get("kenar_renk") not in KARTELA_MALZEMELERI[on] and v.get("kenar_renk") not in METALIK:
+    tum_kartela = {m for liste in KARTELA_MALZEMELERI.values() for m in liste}
+    if v.get("kenar_renk") not in tum_kartela and v.get("kenar_renk") not in METALIK:
         # biye / lanfel: zeminden ayrı görünen kartela rengi (dış halka düz kartela rengiyse o)
         dis = v.get("h1_malzeme") if v.get("halka_sayisi") else None
         v["kenar_renk"] = dis if dis in KARTELA_MALZEMELERI[on] else (
