@@ -87,12 +87,25 @@ def hedef_renk(deger):
     return foto_model._hex(foto_model.KARTELA[deger][2])
 
 
-def renk_ayarla(resim, maske, hedef, oran=0.85):
-    """Bölgenin ortalama rengini kartela rengine çeker (kanal kanal çarpan): doku ve gölge kalır."""
+def ai_maskesi(once, sonra, kaba):
+    """3. deneme: bölge haritamız kaba (komşu bölgeye taşıyor). Yapay zekanın gerçekten değiştirdiği pikseller
+    (desen kenarlarını iyi izler) ile haritamızın biraz genişletilmiş hâlinin kesişimi kullanılır."""
+    fark = ImageChops.difference(once, sonra).convert("L").filter(ImageFilter.GaussianBlur(1))
+    degisen = fark.point(lambda v: 255 if v > 18 else 0).filter(ImageFilter.MaxFilter(3))
+    alan = kaba.point(lambda v: 255 if v > 20 else 0).filter(ImageFilter.MaxFilter(7))
+    return ImageChops.multiply(degisen, alan).filter(ImageFilter.GaussianBlur(0.8))
+
+
+def renk_ayarla(resim, maske, hedef, oran=0.85, yalniz_parlaklik=False):
+    """Bölgenin ortalama rengini kartela rengine çeker (kanal kanal çarpan): doku ve gölge kalır. Bienca / metal
+    çok renkli (bakır + gri gibi): yalnız parlaklık ayarlanır, yapay zekanın tonu kalır."""
     sert = maske.point(lambda v: 255 if v > 128 else 0)
     if not sert.getbbox():
         return resim
     ort = ImageStat.Stat(resim, sert).mean
+    if yalniz_parlaklik:
+        k = (sum(hedef) / 3) / max(sum(ort) / 3, 4)
+        hedef = [o * k for o in ort]
     kanallar = []
     for k, o, h in zip(resim.split(), ort, hedef):
         carpan = 1 + oran * (h / max(o, 4) - 1)
@@ -107,9 +120,10 @@ def calistir(klasor, yapay_zeka=True):
         asil = foto_model._kaynak(kod, None)[0]
         resimler = [("Katalog", asil)]
         if yapay_zeka:
-            onceki = os.path.join(klasor, f"{kod}_Yapay_zeka.jpg")
-            if os.path.exists(onceki):
-                resimler.append(("1. deneme", Image.open(onceki).convert("RGB")))
+            for ad, dosya in (("1. deneme", "Yapay_zeka"), ("2. deneme", "2_deneme")):
+                onceki = os.path.join(klasor, f"{kod}_{dosya}.jpg")
+                if os.path.exists(onceki):
+                    resimler.append((ad, Image.open(onceki).convert("RGB")))
             sonuc = asil
             for bolge, renk in degisim.items():
                 maske = degisen_maske(kod, {bolge: renk}, sonuc.size)
@@ -118,15 +132,17 @@ def calistir(klasor, yapay_zeka=True):
                     sonuc = Image.composite(boyali, sonuc, maske)
                     continue
                 ai = renklendir(sonuc, bolge, renk)
+                maske = ai_maskesi(sonuc, ai, maske)
                 sonuc = Image.composite(ai, sonuc, maske)
-                sonuc = renk_ayarla(sonuc, maske, hedef_renk(renk))
-            resimler.append(("2. deneme", sonuc))
+                sonuc = renk_ayarla(sonuc, maske, hedef_renk(renk), oran=0.6,
+                                    yalniz_parlaklik=not renk.startswith("RN"))
+            resimler.append(("3. deneme", sonuc))
         for ad, r in resimler:
-            if ad != "1. deneme":
+            if ad not in ("1. deneme", "2. deneme"):
                 r.save(os.path.join(klasor, f"{kod}_{ad.replace(' ', '_').replace('.', '')}.jpg"), quality=92)
         satirlar.append((kod, degisim, resimler))
     # hepsi tek karşılaştırma resminde
-    w, h = 400, 490
+    w, h = 330, 410
     sutun = max(len(r) for _, _, r in satirlar)
     tuval = Image.new("RGB", (sutun * w + 20, len(satirlar) * (h + 50) + 10), "white")
     c = ImageDraw.Draw(tuval)
