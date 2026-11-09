@@ -7,7 +7,7 @@ import os
 import urllib.request
 import uuid
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageStat
 import urllib.error
 
 from . import foto_model
@@ -23,7 +23,7 @@ RENK = {
     "RN04": "anthracite black suede", "RN05": "mink milky brown suede", "RN06": "dark chocolate brown suede",
     "RN07": "ecru off-white suede", "BN01": "white leather with silver and gold foil distressed print",
     "BN02": "grey leather with copper distressed foil print", "BN03": "grey leather with silver distressed foil print",
-    "BN04": "cream leather with gold and silver distressed foil print",
+    "BN04": "cream leather with distressed gold foil AND silver foil patches mixed",
     "ALTIN": "shiny gold metallic leather", "GUMUS": "shiny silver metallic leather",
 }
 
@@ -72,7 +72,32 @@ def degisen_maske(kod, secim, boyut):
     for s, b in zip(siralar, foto_model.bolgeler(kod)):
         if b["anahtar"] in secim:
             maske = ImageChops.lighter(maske, harita.point(lambda v, s=s: 255 if v == s else 0))
-    return maske.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(3)).resize(boyut)
+    # 2. deneme: genişletme yok (değişmeyen komşu bölgeye taşmasın), yalnız yarım piksel yumuşatma
+    return maske.filter(ImageFilter.GaussianBlur(0.8)).resize(boyut)
+
+
+INCE = {"kenar", "cerceve"}  # ince çizgi / biye: yapay zeka tutamıyor → kendi boyamamız
+
+
+def hedef_renk(deger):
+    """Kartelanın gerçek rengi: Rono kartela rengi, Bienca / metal gerçek doku fotoğrafının ortalaması."""
+    dosya = foto_model.DOKU / f"{foto_model.KARTELA[deger][0]}.jpg"
+    if not deger.startswith("RN") and dosya.exists():
+        return tuple(ImageStat.Stat(Image.open(dosya).convert("RGB")).mean)
+    return foto_model._hex(foto_model.KARTELA[deger][2])
+
+
+def renk_ayarla(resim, maske, hedef, oran=0.85):
+    """Bölgenin ortalama rengini kartela rengine çeker (kanal kanal çarpan): doku ve gölge kalır."""
+    sert = maske.point(lambda v: 255 if v > 128 else 0)
+    if not sert.getbbox():
+        return resim
+    ort = ImageStat.Stat(resim, sert).mean
+    kanallar = []
+    for k, o, h in zip(resim.split(), ort, hedef):
+        carpan = 1 + oran * (h / max(o, 4) - 1)
+        kanallar.append(k.point(lambda v, c=carpan: max(0, min(255, round(v * c)))))
+    return Image.composite(Image.merge("RGB", kanallar), resim, maske)
 
 
 def calistir(klasor, yapay_zeka=True):
@@ -82,13 +107,23 @@ def calistir(klasor, yapay_zeka=True):
         asil = foto_model._kaynak(kod, None)[0]
         resimler = [("Katalog", asil)]
         if yapay_zeka:
+            onceki = os.path.join(klasor, f"{kod}_Yapay_zeka.jpg")
+            if os.path.exists(onceki):
+                resimler.append(("1. deneme", Image.open(onceki).convert("RGB")))
             sonuc = asil
             for bolge, renk in degisim.items():
+                maske = degisen_maske(kod, {bolge: renk}, sonuc.size)
+                if bolge in INCE:  # ince çizgi: fotoğraf boyaması
+                    boyali = foto_model.boya(kod, foto_model.secim_temizle(kod, {bolge: renk}))
+                    sonuc = Image.composite(boyali, sonuc, maske)
+                    continue
                 ai = renklendir(sonuc, bolge, renk)
-                sonuc = Image.composite(ai, sonuc, degisen_maske(kod, {bolge: renk}, sonuc.size))
-            resimler.append(("Yapay zeka", sonuc))
+                sonuc = Image.composite(ai, sonuc, maske)
+                sonuc = renk_ayarla(sonuc, maske, hedef_renk(renk))
+            resimler.append(("2. deneme", sonuc))
         for ad, r in resimler:
-            r.save(os.path.join(klasor, f"{kod}_{ad.replace(' ', '_')}.jpg"), quality=92)
+            if ad != "1. deneme":
+                r.save(os.path.join(klasor, f"{kod}_{ad.replace(' ', '_').replace('.', '')}.jpg"), quality=92)
         satirlar.append((kod, degisim, resimler))
     # hepsi tek karşılaştırma resminde
     w, h = 400, 490
