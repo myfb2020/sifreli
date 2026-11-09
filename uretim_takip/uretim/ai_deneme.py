@@ -155,3 +155,60 @@ def calistir(klasor, yapay_zeka=True):
     yol = os.path.join(klasor, "karsilastirma.jpg")
     tuval.save(yol, quality=90)
     return yol
+
+
+# ---- 2026-11-09: parçalı çizime yapay zeka son rötuşu (kullanıcı onayı) -------------------------------------------
+# Çizim (renk, desen, ölçü kesin) yapay zekaya düşük güçte verilir: yalnız ışık, malzeme gerçekliği, gölge eklenir.
+ADRES_SD3 = "https://api.stability.ai/v2beta/stable-image/generate/sd3"
+ISTEM_ROTUS = ("professional top-down studio product photograph of a handmade luxury rug made of leather panels, "
+               "laser-cut lattice border, metallic foil print, soft natural light, subtle realistic shadows, "
+               "fine leather grain, photorealistic, sharp focus, same colors, same layout")
+OLUMSUZ_ROTUS = "different pattern, extra objects, text, logo, watermark, blurry, painting, cartoon, color change, distorted"
+
+
+def rotus_yap(resim, guc=0.22, model="sd3.5-large"):
+    anahtar = os.environ.get("STABILITY_API_KEY", "").strip()
+    if not anahtar:
+        raise RuntimeError(".env dosyasında STABILITY_API_KEY yok")
+    veri, tur = _cok_parcali({"prompt": ISTEM_ROTUS, "negative_prompt": OLUMSUZ_ROTUS, "mode": "image-to-image",
+                              "strength": str(guc), "model": model, "output_format": "jpeg"}, resim)
+    istek = urllib.request.Request(ADRES_SD3, data=veri, method="POST", headers={
+        "Authorization": f"Bearer {anahtar}", "Accept": "image/*", "Content-Type": tur})
+    try:
+        with urllib.request.urlopen(istek, timeout=180) as yanit:
+            return Image.open(io.BytesIO(yanit.read())).convert("RGB").resize(resim.size, Image.LANCZOS)
+    except urllib.error.HTTPError as h:
+        raise RuntimeError(f"Stability hata {h.code}: {h.read()[:300].decode('utf-8', 'replace')}")
+    except urllib.error.URLError as h:
+        raise RuntimeError(f"Stability'ye bağlanılamadı: {h.reason}")
+
+
+def parcali_calistir(klasor, kodlar=None, guc=0.22, yapay_zeka=True, yazdir=print):
+    from pathlib import Path
+    from . import parcali, parcali_gorsel
+    os.makedirs(klasor, exist_ok=True)
+    kodlar = kodlar or parcali.SECILI_MODELLER
+    katalog = Path(__file__).resolve().parent / "katalog_tohum" / "model"
+    satirlar = []
+    for i, kod in enumerate(kodlar, 1):
+        yazdir(f"{i}/{len(kodlar)} {kod} …")
+        foto = next(katalog.glob(f"{kod}.*"), None)
+        cizim = parcali_gorsel.ciz(parcali.hazir_degerler(kod), 1024)
+        resimler = [("Katalog", Image.open(foto).convert("RGB") if foto else Image.new("RGB", (10, 10), "white")),
+                    ("Çizim", cizim)]
+        if yapay_zeka:
+            resimler.append(("Yapay zeka rötuşu", rotus_yap(cizim, guc)))
+        for ad, r in resimler[1:]:
+            r.save(os.path.join(klasor, f"{kod}_{'cizim' if ad == 'Çizim' else 'rotus'}.jpg"), quality=92)
+        satirlar.append((kod, resimler))
+    w, h = 330, 430
+    tuval = Image.new("RGB", (3 * w + 20, len(satirlar) * (h + 30) + 10), "white")
+    c = ImageDraw.Draw(tuval)
+    for i, (kod, resimler) in enumerate(satirlar):
+        y = 10 + i * (h + 30)
+        for j, (ad, r) in enumerate(resimler):
+            k = r.copy(); k.thumbnail((w - 10, h - 10))
+            tuval.paste(k, (10 + j * w, y)); c.text((10 + j * w, y + k.height + 3), f"{kod} - {ad}", fill="black")
+    yol = os.path.join(klasor, "parcali_rotus.jpg")
+    tuval.save(yol, quality=88)
+    return yol

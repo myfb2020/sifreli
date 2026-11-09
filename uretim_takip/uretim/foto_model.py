@@ -88,7 +88,7 @@ NAKIS_KUTULARI = {"RNO-013": [tuple(round(v * 1.19) for v in k) for k in (
     (523, 735, 690, 895))]}
 NAKIS_BOSLUK = {"RNO-013": (357, 524)}  # motifsiz zemin şeridi (x aralığı): silinen motifin yerine buradan doku
 # fotoğrafta desenli (eskitme/varak) olan bölgeler: başka renge geçince fotoğrafın deseni değil kartelanın dokusu görünür
-DESENLI_ASIL = {"BN01", "BN02", "BN03", "BN04"}
+DESENLI_ASIL = {"BN01", "BN02", "BN03", "BN04", "BN05"}
 
 
 def _kartela():

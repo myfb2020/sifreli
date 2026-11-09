@@ -2406,7 +2406,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
     def test_kartela_ve_rono_adi(self):
         from .models import KatalogSerisi, Renk
         self.assertEqual(Renk.objects.filter(grup="rono").count(), 7)
-        self.assertEqual(Renk.objects.filter(grup="bienca", aktif=True).count(), 4)
+        self.assertEqual(Renk.objects.filter(grup="bienca", aktif=True).count(), 5)
         self.assertEqual(KatalogSerisi.objects.get(ad="Rono").kartela, "rono")
         self.assertTrue(DeriTuru.objects.filter(ad="Rono").exists())
         self.assertFalse(DeriTuru.objects.filter(ad="Rona").exists())
@@ -2687,7 +2687,7 @@ class FotoModelTesti(TasarimStudyosuTesti):
     def test_aile_kurallari_nakisli_bant_ve_yeni_modeller(self):
         from . import foto_model
         from .models import KatalogModeli, Renk
-        self.assertFalse(Renk.objects.filter(kod="BN05", aktif=True).exists())  # Bienca 4 renk
+        self.assertTrue(Renk.objects.filter(kod="BN05", aktif=True).exists())  # Bienca 5 renk (2026-11-09 BN05 geri)
         self.assertTrue(KatalogModeli.objects.filter(kod__in=["BNA-027", "BNA-028", "RNO-013"]).count() == 3)
         # zemin kendi ailesinde: Rono zemine Bienca/metal olmaz, Rono halıdaki banda Bienca olur
         s = foto_model.secim_temizle("RNO-010", {"orta": "BN01", "bant": "BN04", "dis": "RN08"})

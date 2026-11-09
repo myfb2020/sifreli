@@ -62,6 +62,7 @@ MALZEMELER = [
     ("bienca_bn02", "Bienca BN02 Bakır eskitme / gri", "#9a8577"),
     ("bienca_bn03", "Bienca BN03 Gümüş & gri eskitme", "#9aa1a3"),
     ("bienca_bn04", "Bienca BN04 Altın & gümüş eskitme", "#c8ab62"),
+    ("bienca_bn05", "Bienca BN05 Gri & siyah-gümüş varak", "#8f8a84"),
     # Rono (üçlü lamine: süet + keçe + Rono) – müşteri kartelası RN01–RN07 (2026-11-05). Anahtarlar eski kayıtlar için aynı.
     ("acik_gri_keten", "Rono RN01 Gri / vizon", "#a09489"),
     ("gri_keten", "Rono RN02 Koyu gri / gümüş", "#676361"),
@@ -88,12 +89,11 @@ MALZEMELER = [
 # Kartelada olmayan eski malzemeler: eski kayıtlar açılınca en yakın Rono rengine çevrilir.
 ESKI_MALZEME = {"bej_keten": "krem_keten", "siyah_keten": "antrasit_keten", "rona_kahve_simli": "kahve_keten",
                 "bienca_krem": "bienca_bn01", "bienca_gri": "bienca_bn03",
-                "siyah_simli": "antrasit_keten", "altin_ayna": "altin",
-                "bienca_bn05": "bienca_bn04"}  # 2026-11-06: Bienca 4 renk, BN05 kalktı  # 2026-11-05: simli ve ayna altın kalktı
+                "siyah_simli": "antrasit_keten", "altin_ayna": "altin"}  # 2026-11-09: BN05 geri geldi (gri & siyah-gümüş, BNA-005)  # 2026-11-05: simli ve ayna altın kalktı
 # Kartelalı seriler: modelin bütün parçaları yalnız kendi kartelasından; ince çizgiler metalik; kenar kartelaya bağlı.
 KARTELA_MALZEMELERI = {
     "RNO": ["acik_gri_keten", "gri_keten", "krem_keten", "antrasit_keten", "vizon_keten", "kahve_keten", "beyaz_keten"],
-    "BNA": ["bienca_bn01", "bienca_bn02", "bienca_bn03", "bienca_bn04"],
+    "BNA": ["bienca_bn01", "bienca_bn02", "bienca_bn03", "bienca_bn04", "bienca_bn05"],
 }
 METALIK = ["altin", "gumus"]
 # Hazır modellerin eski malzemeleri kartelada en yakın karşılığına (katalog fotoğrafına bakarak)
@@ -384,12 +384,12 @@ FOTO_RENK = {
     "RNO-001": _yapi("gri_keten", "gumus", ("duz", 14, "bienca_bn01", ""), ("desenli", 8, "bienca_bn01", "LZ04")),
     "RNO-003": _yapi("acik_gri_keten", "altin", ("duz", 6, "bienca_bn04", ""), ("desenli", 10, "bienca_bn04", "LZ05"),
                      ("duz", 6, "bienca_bn04", "")),
-    "RNO-004": _yapi("beyaz_keten", "altin", ("duz", 4, "beyaz_keten", ""), ("desenli", 9, "beyaz_keten", "LZ04")),
+    "RNO-004": _yapi("beyaz_keten", "altin", ("duz", 4, "bienca_bn01", ""), ("desenli", 9, "beyaz_keten", "LZ04")),
     "RNO-005": _yapi("beyaz_keten", "altin", ("duz", 22, "krem_keten", ""), ("duz", 1.5, "gumus", ""),
                      ("desenli", 9, "beyaz_keten", "LZ01")),
     "BNA-001": _yapi("bienca_bn01", "bienca_bn01", ("desenli", 12, "bienca_bn01", "LZ02")),
     "BNA-003": _yapi("bienca_bn01", "altin", ("desenli", 22, "antrasit_keten", "LZ03"), alt="krem"),
-    "BNA-005": _yapi("bienca_bn03", "gumus", ("desenli", 14, "gumus", "LZ01"), alt="krem"),
+    "BNA-005": _yapi("bienca_bn05", "gumus", ("desenli", 14, "gumus", "LZ01"), alt="krem"),
     "BNA-009": _yapi("bienca_bn04", "altin", ("desenli", 14, "bienca_bn04", "LZ02")),
     "BNA-018": _yapi("bienca_bn01", "gumus", ("desenli", 16, "kahve_keten", "LZ02")),
     "BNA-026": _yapi("bienca_bn01", "altin", ("desenli", 12, "bienca_bn01", "LZ02")),
@@ -489,12 +489,11 @@ def _halkali_temizle(v, g, desen):
         v[on + "malzeme"] = _sec(g(on + "malzeme"), MALZEMELER, "beyaz_keten")
         v[on + "desen"] = desen(on + "desen")
         v[on + "nakis"] = _motif_sec(g(on + "nakis"))
-        alt = halka_en_az(v[on + "tur"], v[on + "nakis"])
         v[on + "gen"] = _sayi(g(on + "gen"), 10, 0, 50)
         if i <= v["halka_sayisi"]:
             v[on + "gen"] = min(v[on + "gen"], round(max(0, kalan), 1))
-            if v[on + "gen"] < min(alt, kalan):
-                v[on + "gen"] = round(max(0, min(alt, kalan)), 1)
+            # genişlik kendiliğinden büyütülmez (2026-11-09, kullanıcı: bayi yalnız deseni / nakışı değiştirince
+            # halka modeldeki gibi kalsın); sığmıyorsa uyarı çıkar (uyarilar: "en az … cm ister")
             kalan -= v[on + "gen"]
     v["orta"] = _sec(g("orta"), ORTA_TURLERI, "duz")
     v["nakis"] = _motif_sec(g("nakis"))
