@@ -126,6 +126,9 @@ def kartelaya_uydur(v, on):
     ilk = KARTELA_MALZEMELERI[on][0]
     for alan in MALZEME_ALANLARI:
         uygun = [m for m in KARTELA_MALZEMELERI[on]] if alan == "zemin" else bant_izinli
+        if alan == "zemin":  # katalog fotoğrafında ortası öteki kartelada olan model (ör. BNA-011 siyah Rono orta)
+            kendi = FOTO_RENK.get(v.get("katalog") or v.get("hazir") or "", {}).get("zemin")
+            uygun = uygun + ([kendi] if kendi else [])
         if alan in v and v[alan] not in uygun:
             v[alan] = esle.get(v[alan], ilk)
             if v[alan] not in uygun:
@@ -371,10 +374,11 @@ def _sec(deger, secenekler, varsayilan):
 # Gerçekçi görünüm için seçilen 10 model: renkler katalog fotoğrafına bakılarak (2026-11-06)
 SECILI_MODELLER = ["RNO-001", "RNO-003", "RNO-004", "RNO-005", "BNA-001", "BNA-003", "BNA-005", "BNA-009", "BNA-018",
                    "BNA-026"]
-def _yapi(zemin, kenar, *halkalar, alt="yok"):
-    """Katalog fotoğrafından ölçülen yapı: halkalar dıştan içe (tür, genişlik cm, malzeme, desen)."""
+def _yapi(zemin, kenar, *halkalar, alt="yok", **ek):
+    """Katalog fotoğrafından ölçülen yapı: halkalar dıştan içe (tür, genişlik cm, malzeme, desen); ek: orta şerit,
+    oval şekil vb. doğrudan alanlar."""
     d = {"duzen": "halkali", "sekil": "dikdortgen", "orta": "duz", "zemin": zemin, "kenar": "biye", "kenar_renk": kenar,
-         "halka_sayisi": len(halkalar), "desen_alti": alt}
+         "halka_sayisi": len(halkalar), "desen_alti": alt, **ek}
     for i, (tur, gen, mal, desen) in enumerate(halkalar, 1):
         d.update({f"h{i}_tur": tur, f"h{i}_gen": gen, f"h{i}_malzeme": mal, f"h{i}_desen": desen})
     return d
@@ -393,7 +397,32 @@ FOTO_RENK = {
     "BNA-009": _yapi("bienca_bn04", "altin", ("desenli", 14, "bienca_bn04", "LZ02")),
     "BNA-018": _yapi("bienca_bn01", "gumus", ("desenli", 16, "kahve_keten", "LZ02")),
     "BNA-026": _yapi("bienca_bn01", "altin", ("desenli", 12, "bienca_bn01", "LZ02")),
+    # 2026-11-10: kalan Rono / Bienca katalog modelleri (fotoğraftan; desen en yakın LZ)
+    "RNO-002": _yapi("beyaz_keten", "gumus", orta="serit", serit_tur="desenli", serit_yon="boyuna", serit_adet=1,
+                     serit=24, serit_malzeme="kahve_keten", serit_desen="LZ08"),
+    "BNA-002": _yapi("bienca_bn03", "gumus", ("desenli", 16, "gumus", "LZ03"), alt="krem"),
+    "BNA-004": _yapi("bienca_bn02", "bienca_bn02", ("desenli", 14, "bienca_bn02", "LZ06")),
+    "BNA-006": _yapi("bienca_bn03", "gumus", ("desenli", 7, "bienca_bn03", "LZ04"), alt="gumus_sim"),
+    "BNA-007": _yapi("bienca_bn03", "gumus", ("desenli", 18, "gumus", "LZ04"), alt="krem"),
+    "BNA-008": _yapi("bienca_bn02", "gumus", ("desenli", 18, "gumus", "LZ07"), alt="gumus_sim"),
+    "BNA-010": _yapi("kahve_keten", "altin", ("desenli", 18, "bienca_bn02", "LZ03"), sekil="oval"),
+    "BNA-011": _yapi("antrasit_keten", "gumus", ("desenli", 22, "bienca_bn03", "LZ07"), alt="gumus_sim"),
+    "BNA-013": _yapi("kahve_keten", "gumus", ("desenli", 20, "bienca_bn03", "LZ02"), alt="gumus_sim"),
+    "BNA-014": _yapi("pelus_lacivert", "altin", ("desenli", 16, "krem_keten", "LZ01")),
+    "BNA-015": _yapi("pelus_lacivert", "gumus", ("desenli", 20, "gumus", "LZ05"), alt="gumus_sim", sekil="oval"),
+    "BNA-016": _yapi("bienca_bn04", "altin", ("desenli", 14, "bienca_bn04", "LZ01"), sekil="oval"),
+    "BNA-017": _yapi("gumus", "gumus", orta="serit", serit_tur="desenli", serit_yon="enine", serit_adet=2, serit=40,
+                     serit_malzeme="gumus", serit_desen="LZ06", aralik=100),
+    "BNA-019": _yapi("bienca_bn01", "altin", ("desenli", 18, "altin", "LZ06")),
+    "BNA-021": _yapi("pelus_lacivert", "altin", orta="serit", serit_tur="desenli", serit_yon="boyuna", serit_adet=2,
+                     serit=16, serit_malzeme="altin", serit_desen="LZ08", aralik=90),
+    "BNA-025": _yapi("pelus_siyah", "antrasit_keten", ("duz", 16, "antrasit_keten", ""), ("desenli", 6, "altin", "LZ04"),
+                     ("duz", 17, "antrasit_keten", ""), ("duz", 3, "altin", "")),
 }
+
+
+# Parçalara ayrılmış her katalog modeli bayiye açıktır (2026-11-10: kalan Rono / Bienca modelleri de eklendi)
+SECILI_MODELLER[:] = list(FOTO_RENK)
 
 
 def hazir_degerler(kod):
