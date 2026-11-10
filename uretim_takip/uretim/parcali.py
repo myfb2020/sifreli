@@ -421,12 +421,20 @@ FOTO_RENK = {
 }
 
 
-# Parçalara ayrılmış her katalog modeli bayiye açıktır (2026-11-10: kalan Rono / Bienca modelleri de eklendi)
-SECILI_MODELLER[:] = list(FOTO_RENK)
+# Bayiye açık (🎨 tasarla) modeller: çizimi katalog fotoğrafına yeterince benzeyenler (2026-11-10, kullanıcı: kötü
+# görünen bayiye gösterilmesin). Öteki modeller bayide yalnız fotoğrafıyla "olduğu gibi sipariş".
+BAYIDE_GIZLI = {
+    "BNA-004", "BNA-006", "BNA-008", "BNA-016", "BNA-021",  # Bienca baskısı / desen fotoğraftan çok farklı
+    "IPS-439", "IPS-454", "IPS-456", "IPS-461", "IPS-462", "IPS-466", "IPS-468", "IPS-475", "IPS-477", "IPS-478",
+    "IPS-483",  # mermer / varak yaprak / leopar / çapraz köşe: elimizdeki dokularla olmuyor
+}
+SECILI_MODELLER[:] = [k for k in list(FOTO_RENK) + [k for k in KATALOG_DEGER if k.startswith("IPS")]
+                      if k not in BAYIDE_GIZLI]
 
 
 def hazir_degerler(kod):
-    v = {**VARSAYILAN, **HAZIR.get(kod, {}), **FOTO_RENK.get(kod, {}),
+    ips_alt = {"desen_alti": "krem"} if kod[:3] in ("IPS", "PCH") and "desen_alti" not in HAZIR.get(kod, {}) else {}
+    v = {**VARSAYILAN, **ips_alt, **HAZIR.get(kod, {}), **FOTO_RENK.get(kod, {}),
          "hazir": kod if kod in HAZIR else "", "katalog": kod if kod in HAZIR else ""}
     on = seri_kartelasi(kod)
     return kartelaya_uydur(v, on) if on and kod in HAZIR else v
@@ -500,7 +508,8 @@ def temizle(veri, desen_kodlari=()):
 
 
 def veri_alt_izinli(v):
-    return v.get("katalog", "") in FOTO_RENK
+    k = v.get("katalog", "") or ""
+    return k in FOTO_RENK or k[:3] in ("IPS", "PCH")
 
 
 def _halkali_temizle(v, g, desen):

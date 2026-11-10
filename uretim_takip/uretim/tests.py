@@ -2618,8 +2618,8 @@ class FotoModelTesti(TasarimStudyosuTesti):
             kod = parcali.SECILI_MODELLER[0]
             studyo = self.client.get(reverse("parcali_studyo") + f"?hazir={kod}")
             self.assertEqual(studyo.status_code, 200)
-            self.assertNotContains(studyo, 'data-kod="IPS-449"')  # yalnız seçili modeller
-            self.assertRedirects(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-449"), reverse("bayi_siparis"),
+            self.assertNotContains(studyo, 'data-kod="IPS-462"')  # yalnız seçili modeller
+            self.assertRedirects(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-462"), reverse("bayi_siparis"),
                                  fetch_redirect_response=False)
             v = parcali.temizle(parcali.hazir_degerler(kod))
             veri = {k: ("on" if x is True else x) for k, x in v.items() if x not in (None, False)}

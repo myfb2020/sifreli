@@ -317,7 +317,7 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     cizgi = ImageDraw.Draw(dikis)
     kalin = max(1, int(px * 0.3))
     for p in parcalar:
-        if p.get("tur") == "zemin" and "/" in p.get("ad", ""):
+        if p.get("tur") == "zemin":  # zemin parçaları arası ek yeri (rulo, madalyon için sol/sağ) görüntüde gösterilmez
             continue  # 140 cm'lik rulo ek yeri: üretim bilgisi, görüntüde gösterilmez
         poli = olc(p["poli"])
         cizgi.line(poli + [poli[0]], fill=255, width=kalin)
