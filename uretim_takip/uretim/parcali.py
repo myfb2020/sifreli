@@ -421,6 +421,29 @@ FOTO_RENK = {
 }
 
 
+# 2026-11-10: Peluche (PCH) modelleri fotoğrafa göre yeniden: geniş lazer bordür (LZ), beyaz zemin pelus_krem (beyaz
+# peluş dokusu varak gibi parlıyordu), düz beyaz dış bant, altın / gümüş biye
+_P = lambda zemin, kenar, *h, **ek: _yapi(zemin, kenar, *h, alt="krem", **ek)  # noqa: E731
+FOTO_RENK.update({
+    "PCH-002": _P("pelus_siyah", "altin", ("duz", 8, "pelus_siyah", ""), ("desenli", 16, "altin", "LZ04"),
+                  madalyon="duz", madalyon_malzeme="altin", madalyon_cap=26),
+    "PCH-003": _P("pelus_krem", "gumus", ("duz", 10, "pelus_krem", ""), ("desenli", 14, "gumus", "LZ07"),
+                  madalyon="duz", madalyon_malzeme="gumus", madalyon_cap=22),
+    "PCH-005": _P("pelus_gri", "gumus", ("duz", 10, "pelus_gri", ""), ("desenli", 14, "gumus", "LZ04"),
+                  madalyon="duz", madalyon_malzeme="gumus", madalyon_cap=24),
+    "PCH-006": _P("pelus_krem", "altin", ("duz", 10, "pelus_krem", ""), ("desenli", 16, "altin", "LZ07"),
+                  madalyon="duz", madalyon_malzeme="altin", madalyon_cap=22),
+    "PCH-011": _P("pelus_siyah", "gumus", ("duz", 10, "pelus_krem", ""), ("desenli", 14, "altin", "LZ01"),
+                  madalyon="duz", madalyon_malzeme="altin", madalyon_cap=26),
+    "PCH-012": _P("pelus_krem", "gumus", ("duz", 18, "pelus_krem", ""), ("desenli", 12, "altin", "LZ04"),
+                  sekil="oval", madalyon="duz", madalyon_malzeme="altin", madalyon_cap=24),
+    "PCH-013": _P("pelus_siyah", "gumus", ("duz", 8, "pelus_krem", ""), ("desenli", 18, "gumus", "LZ02"),
+                  madalyon="duz", madalyon_malzeme="gumus", madalyon_cap=30),
+    "PCH-016": _P("pelus_krem", "altin", ("duz", 10, "pelus_krem", ""), ("desenli", 16, "altin", "LZ07"),
+                  madalyon="duz", madalyon_malzeme="altin", madalyon_cap=22),
+})
+
+
 # Bayiye açık (🎨 tasarla) modeller: çizimi katalog fotoğrafına yeterince benzeyenler (2026-11-10, kullanıcı: kötü
 # görünen bayiye gösterilmesin). Öteki modeller bayide yalnız fotoğrafıyla "olduğu gibi sipariş".
 BAYIDE_GIZLI = {
@@ -428,7 +451,7 @@ BAYIDE_GIZLI = {
     "IPS-439", "IPS-454", "IPS-456", "IPS-461", "IPS-462", "IPS-466", "IPS-468", "IPS-475", "IPS-477", "IPS-478",
     "IPS-483",  # mermer / varak yaprak / leopar / çapraz köşe: elimizdeki dokularla olmuyor
 }
-SECILI_MODELLER[:] = [k for k in list(FOTO_RENK) + [k for k in KATALOG_DEGER if k.startswith("IPS")]
+SECILI_MODELLER[:] = [k for k in dict.fromkeys(list(FOTO_RENK) + [k for k in KATALOG_DEGER if k.startswith("IPS")])
                       if k not in BAYIDE_GIZLI]
 
 
