@@ -69,6 +69,7 @@
       <div class="halka" data-halka="{{ r.no }}">
         <h3>{{ r.no }}. halka{% if r.no == 1 %} <small class="soluk">(en dıştaki)</small>{% endif %}</h3>
         <div class="yerinde-uyari" data-uyari-halka="{{ r.no }}" hidden></div>
+        <p class="soluk nakis-kural" hidden style="margin:2px 0">Lazer desenli çerçeve olduğu için nakışlı halka seçilemez.</p>
         <div class="secim-izgara">{% for k, ad in halka_turleri %}<label class="secim"><input type="radio" name="h{{ r.no }}_tur" value="{{ k }}"{% if r.tur == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
         <p><label for="h{{ r.no }}_gen">Genişlik (cm)</label><input id="h{{ r.no }}_gen" name="h{{ r.no }}_gen" type="number" min="0" max="50" step="1" value="{{ r.gen|floatformat:'-1' }}"></p>
         <label class="alt-baslik">Malzeme</label>
@@ -93,6 +94,7 @@
       <label class="alt-baslik">Orta zemin malzemesi</label>
       {% include "uretim/_malzeme_secimi.html" with alan="zemin" secili=v.zemin %}
       <label class="alt-baslik">Ortaya ne konsun?</label>
+      <p class="soluk nakis-kural" hidden>Lazer desenli çerçevesi olan halıya nakış yapılmaz; nakış paneli ve nakışlı şerit yalnız çerçevesiz halıda.</p>
       <div class="secim-izgara">{% for k, ad in orta_turleri %}<label class="secim"><input type="radio" name="orta" value="{{ k }}"{% if v.orta == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
       <div data-kosul="orta=duz">
         <label class="alt-baslik">Ortada madalyon (yuvarlak parça)</label>
@@ -230,6 +232,7 @@
   .hazir.secili { border-color:var(--ana); background:#fbf6f1; }
   .fikir-kap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 8px; }
   #fikirler:empty { display:none; }
+  label.secim.kapali { opacity:.35; pointer-events:none; }
   .mal-izgara, .desen-izgara { display:grid; gap:6px; margin-bottom:4px; }
   .mal-izgara { grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); }
   .mal { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; font-weight:normal !important; font-size:11px; text-align:center; line-height:1.15; }
@@ -300,10 +303,26 @@
       if (ac && e.dataset.kosul2 && deger("orta") === "serit") ac = kosulTut(e.dataset.kosul2);
       e.hidden = !ac;
     });
+    nakisKurali();
     form.querySelectorAll(".adim").forEach((a) => { a.hidden = String(adim) !== a.dataset.adim; });
     document.querySelectorAll(".adimlar button").forEach((b) => b.classList.toggle("etkin", String(adim) === b.dataset.git));
     document.getElementById("geri").style.visibility = adim > 1 ? "visible" : "hidden";
     document.getElementById("ileri").style.visibility = adim < 5 ? "visible" : "hidden";
+  }
+  // Atölye kuralı: lazer desenli çerçevesi olan halıya nakış yapılmaz (nakışlı halka, nakış paneli, nakışlı şerit kapanır)
+  function nakisKurali() {
+    const n = parseInt((document.getElementById("halka_sayisi") || {}).value, 10) || 0;
+    let desenli = false;
+    for (let i = 1; i <= n; i++) { if (deger(`h${i}_tur`) === "desenli") desenli = true; }
+    const kapat = (secici, yedek) => form.querySelectorAll(secici).forEach((g) => {
+      g.disabled = desenli;
+      g.closest("label").classList.toggle("kapali", desenli);
+      if (desenli && g.checked) { const y = form.querySelector(`[name="${g.name}"][value="${yedek}"]`); if (y) y.checked = true; }
+    });
+    kapat('input[name$="_tur"][value="nakisli"]:not([name="serit_tur"])', "duz");
+    kapat('input[name="orta"][value="panel"]', "duz");
+    kapat('input[name="serit_tur"][value="nakisli"]', "desenli");
+    document.querySelectorAll(".nakis-kural").forEach((e) => { e.hidden = !desenli; });
   }
   function adimaGit(n) { adim = Math.min(5, Math.max(1, n)); goster(); form.scrollIntoView({ behavior: "smooth", block: "start" }); }
   document.querySelectorAll(".adimlar button").forEach((b) => b.addEventListener("click", () => adimaGit(parseInt(b.dataset.git, 10))));

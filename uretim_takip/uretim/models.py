@@ -19,7 +19,7 @@ def sonraki_numara(model, alan, onek):
         .values_list(alan, flat=True)
         .first()
     )
-    sira = int(son.rsplit("-", 1)[1]) + 1 if son else 1
+    sira = int(son.rsplit("-", 1)[1].split("/")[0]) + 1 if son else 1  # bölünmüş iş IS-…-0001/2
     return f"{bas}{sira:04d}"
 
 
@@ -687,6 +687,10 @@ class UretimLotu(models.Model):
     )
     kalem = models.ForeignKey(SiparisKalemi, on_delete=models.SET_NULL, null=True, blank=True, related_name="lotlar",
                               verbose_name="ölçü satırı")
+    adet = models.PositiveIntegerField("halı adedi", default=1,
+                                       help_text="Bu işte birlikte giden halı sayısı; bitenler ayrı işe bölünüp geçer.")
+    ana_lot = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="bolunenler",
+                                verbose_name="bölündüğü iş")
     tur = models.CharField("iş türü", max_length=8, choices=[("uretim", "Üretim"), ("tamir", "Tamir / iade")],
                            default="uretim")
     olusturma = models.DateTimeField("oluşturma", default=timezone.now)
@@ -784,7 +788,9 @@ class UretimLotu(models.Model):
     def olcu_metni(self):
         """Bu işin ölçüsü: ölçü satırından ('160 × 230 cm ×2'), yoksa siparişten."""
         if self.kalem_id:
-            return self.kalem.olcu_metni()
+            # bölünmüş işte ölçü satırının toplam adedi değil, bu işteki halı sayısı
+            k = self.kalem
+            return f"{sayi_metni(k.en_cm)} × {sayi_metni(k.boy_cm)} cm" + (f" ×{self.adet}" if self.adet > 1 else "")
         return self.siparis.olcu_metni if self.siparis_id else ""
 
     @property

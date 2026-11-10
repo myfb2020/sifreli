@@ -52,7 +52,7 @@ def siparis_islerini_ac(siparis):
     acilan = []
     for kalem in siparis.kalemler.filter(lotlar__isnull=True):
         acilan.append(UretimLotu.objects.create(siparis=siparis, kalem=kalem, baslangic_kg=Decimal(0),
-                                                baslangic_m2=kalem.m2))
+                                                baslangic_m2=kalem.m2, adet=kalem.adet or 1))
     return acilan
 
 
@@ -157,8 +157,40 @@ def malzeme_dus(*, lot, m2, rulo=None, cesit=None):
 
 
 @transaction.atomic
+def _bol(islem, adet):
+    """Açık işlemdeki işin 'adet' halısını yeni bir işe ayırır (IS-…/2): yeni iş aynı istasyonda, aynı anda başlamış
+    sayılır ve hemen bitirilecek işlem onun olur; kalan halılar eski işte, işlem açık kalarak devam eder."""
+    lot = UretimLotu.objects.select_for_update().get(pk=islem.lot_id)
+    oran = Decimal(adet) / Decimal(lot.adet)
+    kalan = Decimal(1) - oran
+    kok = lot.ana_lot or lot
+    sira = kok.bolunenler.count() + 2
+    yuvarla = lambda d: (d * oran).quantize(Decimal("0.01")) if d is not None else None  # noqa: E731
+    yeni = UretimLotu.objects.create(
+        lot_no=f"{kok.lot_no}/{sira}", siparis_id=lot.siparis_id, kalem_id=lot.kalem_id, tur=lot.tur, adet=adet,
+        ana_lot=kok, baslangic_kg=yuvarla(lot.baslangic_kg), baslangic_m2=yuvarla(lot.baslangic_m2),
+        mevcut_kg=yuvarla(lot.mevcut_kg), mevcut_m2=yuvarla(lot.mevcut_m2), son_asama=lot.son_asama,
+        durum=lot.durum, eski_stok_turu=lot.eski_stok_turu, notlar=lot.notlar)
+    for alan in ("baslangic_kg", "baslangic_m2", "mevcut_kg", "mevcut_m2"):
+        deger = getattr(lot, alan)
+        if deger is not None:
+            setattr(lot, alan, (deger * kalan).quantize(Decimal("0.01")))
+    lot.adet -= adet
+    lot.save(update_fields=["adet", "baslangic_kg", "baslangic_m2", "mevcut_kg", "mevcut_m2"])
+    kopya = IslemKaydi.objects.create(
+        lot=yeni, asama=islem.asama, makine=islem.makine, personel=islem.personel, baslangic=islem.baslangic,
+        aciklama=islem.aciklama, giris_kg=yuvarla(islem.giris_kg), giris_m2=yuvarla(islem.giris_m2),
+        giris_en_cm=islem.giris_en_cm, giris_boy_cm=islem.giris_boy_cm)
+    for alan in ("giris_kg", "giris_m2"):
+        deger = getattr(islem, alan)
+        if deger is not None:
+            setattr(islem, alan, (deger * kalan).quantize(Decimal("0.01")))
+    islem.save(update_fields=["giris_kg", "giris_m2"])
+    return kopya
+
+
 def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", malzemeler=(), kesim=None, cikis_olcu=None,
-                fire_m2=None):
+                fire_m2=None, biten_adet=None):
     """Aşamayı bitirir. malzemeler: [(malzeme, miktar), ...] bu aşamada kullanılan sarf malzemeleri.
 
     kesim: ilk istasyonda kullanılan ana malzeme {"m2", "rulo" ya da "cesit"}; stoktan düşülür, işin başlangıç m²'si
@@ -167,6 +199,11 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
     islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama", "lot__siparis").get(pk=islem.pk)
     if islem.bitis is not None:
         raise ValidationError("Bu işlem zaten bitirilmiş.")
+    if biten_adet is not None:
+        if biten_adet < 1 or biten_adet > islem.lot.adet:
+            raise ValidationError(f"Biten halı sayısı 1 ile {islem.lot.adet} arasında olmalı.")
+        if biten_adet < islem.lot.adet:  # yalnız bitenler sıradaki istasyona geçer, kalanlar burada sürer
+            islem = IslemKaydi.objects.select_related("lot", "asama", "lot__siparis").get(pk=_bol(islem, biten_adet).pk)
     if kesim is None and ilk_adim_mi(islem) and SistemAyari.yukle().stok_zorunlu and not islem.lot.kaynaklar.exists():
         raise ValidationError("Kullanılan malzemeyi ve ölçüsünü girin (stok okutma zorunlu).")
     if kesim is not None:

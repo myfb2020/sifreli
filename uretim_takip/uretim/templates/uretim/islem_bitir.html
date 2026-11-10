@@ -17,6 +17,7 @@
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
     {% for alan in form %}{% if alan.name == "personel" or alan.name == "pin" %}{% include "uretim/_alan.html" %}{% endif %}{% endfor %}
+    {% if form.biten_adet %}<div class="kart" style="background:#fbf6ea;margin:10px 0">{% include "uretim/_alan.html" with alan=form.biten_adet %}</div>{% endif %}
     {% if ilk_adim %}
     <h2 style="margin-top:16px">Kullanılan malzeme {% if not form.stok_zorunlu %}<span class="soluk" style="font-weight:normal;font-size:14px">(isteğe bağlı)</span>{% endif %}</h2>
     <p class="soluk">Bu iş için rulodan ne kadar kullandığınızı yazın; m²'si stoktan düşülür, fire kendiliğinden hesaplanır.</p>

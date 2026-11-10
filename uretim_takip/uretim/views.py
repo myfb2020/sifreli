@@ -135,7 +135,7 @@ def islem_bitir(request, pk):
     form = IslemBitirForm(
         request.POST if request.method == "POST" else None, initial={"personel": islem.personel}, personel=hesap_personeli(request.user),
         ilk_adim=ilk_adim, stok_zorunlu=SistemAyari.yukle().stok_zorunlu,
-        cesitler=servisler.stoktaki_cesitler() if ilk_adim else (), lazer=islem.asama.lazer_mi,
+        cesitler=servisler.stoktaki_cesitler() if ilk_adim else (), lazer=islem.asama.lazer_mi, adet=islem.lot.adet,
     )
     # Malzeme bölümü gönderilmediyse (eski açık sayfa) malzeme kullanılmadı sayılır.
     malzeme_verisi = request.POST if "malzeme-TOTAL_FORMS" in request.POST else None
@@ -147,12 +147,17 @@ def islem_bitir(request, pk):
         try:
             servisler.islem_bitir(
                 islem=islem, personel=v["personel"], aciklama=v["aciklama"], malzemeler=kullanilan, kesim=v.get("kesim"),
-                cikis_olcu=v.get("cikis_olcu"), fire_m2=v.get("fire_m2"),
+                cikis_olcu=v.get("cikis_olcu"), fire_m2=v.get("fire_m2"), biten_adet=v.get("biten_adet"),
             )
         except ValidationError as hata:
             form.add_error(None, hata)
         else:
-            messages.success(request, f"{islem.lot} – “{islem.asama.ad}” bitti.")
+            biten = v.get("biten_adet")
+            if biten and biten < islem.lot.adet:
+                messages.success(request, f"{islem.lot} – {biten} halı “{islem.asama.ad}” istasyonunda bitti ve sıradaki "
+                                          f"istasyona geçti; {islem.lot.adet - biten} halı burada devam ediyor.")
+            else:
+                messages.success(request, f"{islem.lot} – “{islem.asama.ad}” bitti.")
             return geri_don(request, "pano")
     malzeme_kodlari = dict(Malzeme.objects.filter(aktif=True).values_list("kod", "pk"))
     return render(request, "uretim/islem_bitir.html",

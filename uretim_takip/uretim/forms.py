@@ -177,9 +177,18 @@ class IslemBitirForm(PinliForm):
     cikis_boy = ondalik_alan("Çıkan boy (cm)", required=False)
     fire_m2 = ondalik_alan("Fire (m²)", required=False)
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    biten_adet = forms.IntegerField(label="Kaç halı bitti?", required=False, min_value=1)
 
-    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), lazer=False, **kwargs):
+    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), lazer=False, adet=1, **kwargs):
         super().__init__(*args, **kwargs)
+        if adet > 1:
+            self.fields["biten_adet"].max_value = adet
+            self.fields["biten_adet"].initial = adet
+            self.fields["biten_adet"].widget.attrs.update({"max": adet, "inputmode": "numeric"})
+            self.fields["biten_adet"].help_text = (f"Bu işte {adet} halı var. Hepsi bitmediyse bitenlerin sayısını yazın: "
+                                                   "onlar sıradaki istasyona geçer, kalanlar burada devam eder.")
+        else:
+            del self.fields["biten_adet"]
         self.ilk_adim = ilk_adim
         self.lazer = lazer
         if lazer:

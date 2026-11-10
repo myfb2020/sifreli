@@ -510,12 +510,27 @@ def _halkali_temizle(v, g, desen):
     v["serit"] = _sayi(g("serit"), 20, 8 if v["serit_tur"] == "desenli" else motif_kisa(v["nakis"]) + 2 * MOTIF_PAY, 60)
     v["serit_malzeme"] = _sec(g("serit_malzeme"), MALZEMELER, "beyaz_keten")
     v["serit_desen"] = desen("serit_desen")
+    # Atölye kuralı (2026-11-09, kullanıcı): lazer desenli çerçevesi olan halıya nakış yapılmaz; nakış şeridi / paneli
+    # yalnız lazer desenli çerçevesi olmayan halıda (düz bantlı ya da bantsız)
+    if lazer_cerceveli(v):
+        for i in range(1, v["halka_sayisi"] + 1):
+            if v[f"h{i}_tur"] == "nakisli":
+                v[f"h{i}_tur"] = "duz"
+        if v["orta"] == "panel":
+            v["orta"] = "duz"
+        if v["serit_tur"] == "nakisli":
+            v["serit_tur"] = "desenli"
     v["madalyon"] = _sec(g("madalyon"), MADALYONLAR, "yok") if v["orta"] == "duz" else "yok"
     v["madalyon_cap"] = _sayi(g("madalyon_cap"), 28, 15, 80)
     v["madalyon_malzeme"] = _sec(g("madalyon_malzeme"), MALZEMELER, "pelus_krem")
     v["madalyon_cerceve"] = _sec(g("madalyon_cerceve"), MALZEMELER + [("", "Yok")], "")
     v["madalyon_motif"] = _motif_sec(g("madalyon_motif"))
     return v
+
+
+def lazer_cerceveli(v):
+    """Halıda lazer desenli halka (çerçeve) var mı?"""
+    return any(v.get(f"h{i}_tur") == "desenli" for i in range(1, int(v.get("halka_sayisi") or 0) + 1))
 
 
 def _motif_sec(deger):

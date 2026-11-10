@@ -1753,13 +1753,20 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.assertLessEqual(parcali.halka_toplami(v), 35)
         # oval: yay parçaları tablaya sığar, toplam alan oval alanı
         v = parcali.temizle({"duzen": "halkali", "sekil": "oval", "en": 250, "boy": 380, "halka_sayisi": 2,
-                             "h1_tur": "nakisli", "h1_gen": 24, "h2_tur": "desenli", "h2_gen": 14, "h2_desen": "DB007", "pay": 2}, k)
+                             "h1_tur": "nakisli", "h1_gen": 24, "h2_tur": "duz", "h2_gen": 14, "pay": 2}, k)
         ps = parcali.parcalar(v)
         self.assertTrue(all(parcali.sigar(p["en"], p["boy"], v["pay"]) for p in ps))
         self.assertGreaterEqual(len([p for p in ps if p.get("yay") and p.get("halka") == 1]), 4)
         self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), parcali.alan(parcali.dis_hat(v)), delta=60)
         n = parcali.nakis_bilgisi(v)
         self.assertGreater(n["adet"], 10)
+        # atölye kuralı: lazer desenli çerçeveli halıda nakış olmaz (nakışlı halka düz olur, panel/nakışlı şerit kalkar)
+        y = parcali.temizle({"duzen": "halkali", "en": 160, "boy": 230, "halka_sayisi": 2, "h1_tur": "desenli",
+                             "h1_desen": "DB003", "h2_tur": "nakisli", "orta": "panel"}, k)
+        self.assertEqual((y["h2_tur"], y["orta"]), ("duz", "duz"))
+        y = parcali.temizle({"duzen": "halkali", "en": 160, "boy": 230, "halka_sayisi": 1, "h1_tur": "duz",
+                             "orta": "serit", "serit_tur": "nakisli"}, k)
+        self.assertEqual(y["serit_tur"], "nakisli")  # düz bantlı halıda nakışlı şerit kalır
         self.assertEqual(n["tur"], -(-n["adet"] // 7))
         self.assertTrue(all(m[2] <= 40 and m[3] <= 65 for p in ps for m in p.get("motifler", [])))
 
@@ -2705,6 +2712,37 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.assertNotEqual(foto_model.jpeg("RNO-013", s, 260), foto_model.jpeg("RNO-013", foto_model.secim_temizle("RNO-013", {}), 260))
         for kod in ("BNA-027", "BNA-028"):
             self.assertEqual(foto_model.boya(kod, foto_model.fikirler(kod)[0], 150).width, 150)
+
+    def test_ayni_olcu_halilar_tek_tek_gecer(self):
+        from .models import Musteri
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        sp = Siparis.objects.create(musteri=Musteri.objects.create(ad="Beşli"), urun="x", teslim_tarihi=timezone.localdate())
+        servisler.kalemleri_kaydet(sp, [(None, Decimal("100"), Decimal("150"), 5)])
+        servisler.siparis_islerini_ac(sp)
+        lot = sp.lotlar.get()
+        self.assertEqual(lot.adet, 5)
+        islem = servisler.islem_baslat(lot=lot, asama=lazer, personel=self.ahmet)
+        # ekranda "Kaç halı bitti?" sorulur; 2 tanesi biter → ayrı iş olarak sıradaki istasyona geçer
+        self.client.force_login(self.ofis_kullanici if hasattr(self, "ofis_kullanici") else
+                                get_user_model().objects.create_superuser("bes-yonetici", password="x"))
+        self.assertContains(self.client.get(reverse("islem_bitir", args=[islem.pk])), "Kaç halı bitti?")
+        servisler.islem_bitir(islem=islem, personel=self.ahmet, biten_adet=2)
+        lot.refresh_from_db()
+        yeni = lot.bolunenler.get()
+        self.assertEqual((lot.adet, yeni.adet), (3, 2))
+        self.assertEqual(yeni.lot_no, f"{lot.lot_no}/2")
+        self.assertEqual(yeni.durum, "bekliyor")
+        self.assertEqual(yeni.son_asama, lazer)
+        self.assertTrue(lot.islemler.filter(bitis__isnull=True).exists())  # kalan 3 halı lazerde sürüyor
+        self.assertEqual(lot.mevcut_m2 + yeni.mevcut_m2, Decimal("7.50"))
+        self.assertIn("×2", yeni.olcu_metni)
+        # kalanların hepsi bitince bölünme olmaz; yeni iş numarası da bozulmaz
+        servisler.islem_bitir(islem=lot.islemler.get(bitis__isnull=True), personel=self.ahmet, biten_adet=3)
+        self.assertEqual(lot.bolunenler.count(), 1)
+        self.assertTrue(UretimLotu.objects.create(baslangic_kg=0, baslangic_m2=1).lot_no.endswith("2"))
+        with self.assertRaises(ValidationError):
+            servisler.islem_bitir(islem=servisler.islem_baslat(lot=yeni, asama=Asama.objects.get(ad="Zig-zag"),
+                                                               personel=self.ahmet), personel=self.ahmet, biten_adet=9)
 
     def test_duzeltme_yetkisi_lazer_tableti(self):
         from .models import DuzeltmeKaydi, HesapAyari, Musteri
