@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Prefetch
+from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -64,8 +65,36 @@ def _tasarim_erisim(request, pk):
     return tasarim
 
 
+ONIZLEME_SINIR = 300  # diskte en çok bu kadar hazır önizleme tutulur
+ONIZLEME_SURUM = 1  # çizim değişince artır: eski hazır resimler kullanılmaz
+
+
+def _hazir_onizleme(veri, boyut, ciz):
+    """Aynı tasarım + boyut ikinci kez istenirse yeniden çizilmez (ücretsiz sunucuda çizim pahalı): medya/onizleme."""
+    import hashlib
+    import json
+    import os
+    anahtar = hashlib.sha1(json.dumps([ONIZLEME_SURUM, boyut, veri], sort_keys=True, default=str).encode()).hexdigest()
+    klasor = settings.MEDIA_ROOT / "onizleme"
+    yol = klasor / f"{anahtar}.jpg"
+    try:
+        if yol.exists():
+            os.utime(yol)
+            return yol.read_bytes()
+        icerik = ciz()
+        klasor.mkdir(parents=True, exist_ok=True)
+        yol.write_bytes(icerik)
+        dosyalar = sorted(klasor.glob("*.jpg"), key=lambda d: d.stat().st_mtime)
+        for eski in dosyalar[:-ONIZLEME_SINIR]:
+            eski.unlink(missing_ok=True)
+        return icerik
+    except OSError:
+        return ciz()
+
+
 def _jpeg(veri, boyut):
-    icerik = parcali_gorsel.jpeg(veri, boyut) if parcali_mi(veri) else hali_gorsel.jpeg(veri, boyut)
+    ciz = (lambda: parcali_gorsel.jpeg(veri, boyut)) if parcali_mi(veri) else (lambda: hali_gorsel.jpeg(veri, boyut))
+    icerik = _hazir_onizleme(veri, boyut, ciz)
     yanit = HttpResponse(icerik, content_type="image/jpeg")
     yanit["Cache-Control"] = "private, max-age=86400"
     return yanit
@@ -73,7 +102,7 @@ def _jpeg(veri, boyut):
 
 def _boyut(request, varsayilan=900):
     try:
-        return min(max(int(request.GET.get("b", varsayilan)), 120), 1400)
+        return min(max(int(request.GET.get("b", varsayilan)) // 20 * 20, 120), 1200)  # 20'lik adım: hazır resim tutsun
     except ValueError:
         return varsayilan
 

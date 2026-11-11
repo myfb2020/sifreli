@@ -14,7 +14,7 @@ NAKIS_EN, NAKIS_BOY = 40, 60  # cm, nakış makinesinin en büyük alanı
 NAKIS_KAFA = 7  # aynı motif aynı anda kaç kez işlenir
 
 DUZENLER = [
-    ("halkali", "Halkalı", "İç içe halkalar + orta; dikdörtgen ya da oval"),
+    ("halkali", "Bordürlü", "İç içe bordürler + orta; dikdörtgen ya da oval"),
     ("cerceve", "Dikdörtgen çerçeve", "Zemin + desenli bantlar; bantlar uç uca birleşir"),
     ("oval_serit", "Oval + nakış şeridi", "Oval zemin, ortadan geçen nakışlı şerit"),
     ("yuvarlak", "Yuvarlak halka", "Orta disk + parçalı desenli halka + dış halka"),
@@ -205,6 +205,7 @@ VARSAYILAN = {
     "duzen": "halkali", "en": 120, "boy": 180, "pay": 1,
     # halkalı
     "sekil": "dikdortgen", "halka_sayisi": 2,
+    "a1_gen": 0, "a2_gen": 0, "a3_gen": 0,  # eski kayıtlar bitişik kalır; yeni tasarımda ara_bantla 10 cm verir
     "h1_tur": "duz", "h1_gen": 12, "h1_malzeme": "beyaz_keten", "h1_desen": "", "h1_nakis": "61.01",
     "h2_tur": "desenli", "h2_gen": 14, "h2_malzeme": "antrasit_keten", "h2_desen": "DB003", "h2_nakis": "61.01",
     "h3_tur": "duz", "h3_gen": 8, "h3_malzeme": "antrasit_keten", "h3_desen": "", "h3_nakis": "61.01",
@@ -416,8 +417,8 @@ FOTO_RENK = {
     "BNA-019": _yapi("bienca_bn01", "altin", ("desenli", 18, "altin", "LZ06")),
     "BNA-021": _yapi("pelus_lacivert", "altin", orta="serit", serit_tur="desenli", serit_yon="boyuna", serit_adet=2,
                      serit=16, serit_malzeme="altin", serit_desen="LZ08", aralik=90),
-    "BNA-025": _yapi("pelus_siyah", "antrasit_keten", ("duz", 16, "antrasit_keten", ""), ("desenli", 6, "altin", "LZ04"),
-                     ("duz", 17, "antrasit_keten", ""), ("duz", 3, "altin", "")),
+    "BNA-025": _yapi("pelus_siyah", "altin", ("duz", 16, "pelus_siyah", ""), ("desenli", 6, "altin", "LZ04"),
+                     ("duz", 17, "pelus_siyah", ""), ("duz", 3, "altin", "")),
 }
 
 
@@ -457,7 +458,8 @@ SECILI_MODELLER[:] = [k for k in dict.fromkeys(list(FOTO_RENK) + [k for k in KAT
 
 def hazir_degerler(kod):
     ips_alt = {"desen_alti": "krem"} if kod[:3] in ("IPS", "PCH") and "desen_alti" not in HAZIR.get(kod, {}) else {}
-    v = {**VARSAYILAN, **ips_alt, **HAZIR.get(kod, {}), **FOTO_RENK.get(kod, {}),
+    tanim = ara_bantla({**HAZIR.get(kod, {}), **FOTO_RENK.get(kod, {})})
+    v = {**VARSAYILAN, **ips_alt, **tanim,
          "hazir": kod if kod in HAZIR else "", "katalog": kod if kod in HAZIR else ""}
     on = seri_kartelasi(kod)
     return kartelaya_uydur(v, on) if on and kod in HAZIR else v
@@ -556,6 +558,10 @@ def _halkali_temizle(v, g, desen):
             # genişlik kendiliğinden büyütülmez (2026-11-09, kullanıcı: bayi yalnız deseni / nakışı değiştirince
             # halka modeldeki gibi kalsın); sığmıyorsa uyarı çıkar (uyarilar: "en az … cm ister")
             kalan -= v[on + "gen"]
+        if i < EN_COK_HALKA:
+            v[f"a{i}_gen"] = _ara_sec(g(f"a{i}_gen"))  # eski kayıtta yok → 0 = bitişik (değişmesin)
+            if i < v["halka_sayisi"]:
+                kalan -= v[f"a{i}_gen"]
     v["orta"] = _sec(g("orta"), ORTA_TURLERI, "duz")
     v["nakis"] = _motif_sec(g("nakis"))
     v["iplik"] = "gumus" if g("nakis") == "grek_kare_gumus" else _sec(g("iplik"), IPLIKLER, "altin")
@@ -646,7 +652,57 @@ def halkalar(v):
                       "desen": v[on + "desen"] if v[on + "tur"] == "desenli" else "",
                       "nakis": v[on + "nakis"] if v[on + "tur"] == "nakisli" else "", "d": d})
         d += v[on + "gen"]
+        ara = v.get(f"a{i}_gen") or 0
+        if ara and i < v["halka_sayisi"]:  # iki bordür arası: orta renginde ara bant
+            sonuc.append({"no": f"a{i}", "ara": True, "tur": "duz", "gen": ara, "malzeme": v["zemin"], "desen": "",
+                          "nakis": "", "d": d})
+            d += ara
+    if sonuc and sonuc[-1].get("ara"):  # içeride bordür kalmadıysa ara bant da olmaz
+        sonuc.pop()
     return sonuc
+
+
+ARA_SECENEK = (5, 10, 15, 20, 25, 30)  # iki bordür arası ara bant genişlikleri (cm); 0 = bitişik (yalnız katalog modeli)
+
+
+def _ara_sec(deger):
+    """Ara bant genişliği: 0 (bitişik) ya da 5–30 arası en yakın 5'in katı."""
+    try:
+        d = float(str(deger).replace(",", "."))
+    except (TypeError, ValueError):
+        return 0
+    if d <= 0:
+        return 0
+    return min(ARA_SECENEK, key=lambda a: abs(a - d))
+
+
+def ara_bantla(v):
+    """Katalog tanımındaki 'iki bordür arasında kalan, orta malzemesinden düz bant'ı ara banda çevirir; bordürler
+    yeniden numaralanır. Ara bandı zaten tanımlı (a*_gen anahtarı olan) değerlere dokunmaz."""
+    if v.get("duzen", "halkali") != "halkali" or any(f"a{i}_gen" in v for i in range(1, EN_COK_HALKA)):
+        return v
+    n = int(v.get("halka_sayisi") or 0)
+    alanlar = ("tur", "gen", "malzeme", "desen", "nakis")
+    eski = [{a: v.get(f"h{i}_{a}") for a in alanlar} for i in range(1, n + 1)]
+    yeni, aralar, bekleyen = [], [], None  # aralar[k]: yeni[k] bordüründen sonraki ara bant
+    for j, h in enumerate(eski):
+        if 0 < j < n - 1 and yeni and bekleyen is None and h["tur"] == "duz" and h["malzeme"] == v.get("zemin"):
+            bekleyen = _ara_sec(h["gen"]) or 5
+            continue
+        if yeni:
+            aralar.append(bekleyen or 0)  # 0: bitişik iki bordür (katalogdaki gibi)
+        bekleyen = None
+        yeni.append(h)
+    for i in range(1, EN_COK_HALKA + 1):
+        if i <= len(yeni):
+            for a in alanlar:
+                if yeni[i - 1][a] is not None:
+                    v[f"h{i}_{a}"] = yeni[i - 1][a]
+        if i < EN_COK_HALKA:
+            v[f"a{i}_gen"] = aralar[i - 1] if i - 1 < len(aralar) else 10  # sonradan eklenecek bordür için 10 cm
+    if n:
+        v["halka_sayisi"] = len(yeni)
+    return v
 
 
 def halka_toplami(v):
@@ -1020,7 +1076,7 @@ def _halkali_yerel(v):
     for h in halkalar(v):
         d, g, no = h["d"], h["gen"], h["no"]
         tur = {"duz": "serit", "desenli": "bant", "nakisli": "nakis"}[h["tur"]]
-        ad = f"{no}. halka"
+        ad = f"{no[1:]}. ara bant" if h.get("ara") else f"{no}. bordür"
         kod = h["nakis"] or "61.01"
         if tur == "nakis" and g < motif_kisa(kod) + 2:  # motif sığmaz: nakışsız kalır, uyarı verilir
             tur = "serit"
@@ -1282,18 +1338,18 @@ def halkali_uyari_listesi(v):
     for i in range(1, v["halka_sayisi"] + 1):
         gen, tur = v[f"h{i}_gen"], v[f"h{i}_tur"]
         if gen < halka_en_az(tur, v[f"h{i}_nakis"]):
-            ekle(f"{i}. halkaya yer kalmadı ({gen:g} cm; bu seçim en az {halka_en_az(tur, v[f'h{i}_nakis']):g} cm ister); "
-                 "halıyı büyütün ya da diğer halkaları daraltın.", 2, i)
+            ekle(f"{i}. bordüre yer kalmadı ({gen:g} cm; bu seçim en az {halka_en_az(tur, v[f'h{i}_nakis']):g} cm ister); "
+                 "halıyı büyütün ya da diğer bordürleri daraltın.", 2, i)
     for h in halkalar(v):
         if h["tur"] == "nakisli" and h["gen"] >= halka_en_az("nakisli", h["nakis"]) and not any(p.get("motifler") for p in ps if p.get("halka") == h["no"]):
-            ekle(f"{h['no']}. halka nakış için çok dar.", 2, h["no"])
+            ekle(f"{h['no']}. bordür nakış için çok dar.", 2, h["no"])
     if v["orta"] == "serit" and v["serit_tur"] == "nakisli" and not any(
             p.get("motifler") for p in ps if p["ad"].startswith("Nakışlı şerit")):
         ekle("Ortadaki şerit nakış için çok kısa ya da dar.", 3)
     if v["orta"] == "panel":
         panel = next((p for p in ps if p["ad"] == "Nakış paneli"), None)
         if not panel:
-            ekle("Seçilen motif ortaya sığmıyor; daha küçük bir motif seçin ya da halkaları daraltın.", 3)
+            ekle("Seçilen motif ortaya sığmıyor; daha küçük bir motif seçin ya da bordürleri daraltın.", 3)
         elif len(panel["motifler"]) < v["motif_adet"]:
             ekle(f"Ortaya {v['motif_adet']} motif sığmadı; {len(panel['motifler'])} motif kondu.", 3)
     kucuk = [p for p in ps if min(p["en"], p["boy"]) < 4]
@@ -1318,9 +1374,9 @@ def _halkali_montaj(v):
     elif v["orta"] == "serit":
         adimlar.append("Orta: zemin parçalarını şeritlerle sırayla zig-zag ile birleştir.")
     if halkalar(v):
-        adimlar.append("İçten dışa her halka: önce yay parçalarını birbirine, sonra düz yanlarla birlikte ortaya zig-zag ile dik."
+        adimlar.append("İçten dışa her bordür: önce yay parçalarını birbirine, sonra düz yanlarla birlikte ortaya zig-zag ile dik."
                        if oval else
-                       "İçten dışa her halka: önce kısa üst/alt parçaları, sonra boydan boya uzun yanları zig-zag ile dik.")
+                       "İçten dışa her bordür: önce kısa üst/alt parçaları, sonra boydan boya uzun yanları zig-zag ile dik.")
     adimlar.append(f"Kenar: {dict(KENARLAR)[v['kenar']]} ({KENAR_AD[v['kenar_renk']].lower()}) ile çevir.")
     return adimlar
 
@@ -1330,8 +1386,11 @@ def _halkali_ozet(v):
         return f"Suni deri halı – katalog modeli {v['katalog']} (olduğu gibi) · {v['en']:g}×{v['boy']:g} cm"
     p = [f"Suni deri halı – {dict(SEKILLER)[v['sekil']].lower()} {v['en']:g}×{v['boy']:g} cm"]
     for h in halkalar(v):
+        if h.get("ara"):
+            p.append(f"ara bant {h['gen']:g} cm (orta renginde)")
+            continue
         tur = {"duz": "düz", "desenli": "lazer desenli", "nakisli": "nakışlı"}[h["tur"]]
-        p.append(f"{h['no']}. halka {h['gen']:g} cm {tur} {MALZEME_AD[h['malzeme']].lower()}"
+        p.append(f"{h['no']}. bordür {h['gen']:g} cm {tur} {MALZEME_AD[h['malzeme']].lower()}"
                  + (f" {h['desen']}" if h["desen"] else "") + (f" {h['nakis']}" if h["nakis"] else ""))
     orta = f"orta {MALZEME_AD[v['zemin']].lower()}"
     iplik = dict((k, a) for k, a, _ in IPLIKLER)[v["iplik"]].lower()

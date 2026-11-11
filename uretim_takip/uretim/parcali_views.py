@@ -89,10 +89,11 @@ def studyo(request):
     seriler = [sr for sr in seriler if sr["modeller"]]
     motifler = [{"kod": k, "ad": a, "olcu": f"{e:g}×{b:g}"} for k, a, e, b, _ in parcali.NAKIS_MOTIFLERI]
     halkalar = [{"no": i, "tur": veri[f"h{i}_tur"], "gen": veri[f"h{i}_gen"], "malzeme": veri[f"h{i}_malzeme"],
-                 "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"],
+                 "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"], "ara": veri.get(f"a{i}_gen", 0),
                  "ad_malzeme": f"h{i}_malzeme", "ad_desen": f"h{i}_desen", "ad_nakis": f"h{i}_nakis"} for i in range(1, parcali.EN_COK_HALKA + 1)]
     return render(request, "uretim/tasarim_parcali.html", {
         "form": form, "v": veri, "h": bayi_hesap(veri), "halkalar": halkalar, "malzemeler": _gruplu_malzemeler(),
+        "ara_secenek": parcali.ARA_SECENEK,
         "sekiller": parcali.SEKILLER, "halka_turleri": parcali.HALKA_TURLERI, "orta_turleri": parcali.ORTA_TURLERI,
         "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "nakis_motifleri": motifler,
         "iplikler": parcali.IPLIKLER,
@@ -124,7 +125,7 @@ def fikir(request):
             baslik = (f"{v['katalog']} · zemin {parcali.MALZEME_AD[v['zemin']].split(' ', 2)[1]}"
                       f" · kenar {parcali.KENAR_AD[v['kenar_renk']].split(' ', 2)[1]}")
         else:
-            baslik = f"{dict(parcali.SEKILLER)[v['sekil']]} · {v['halka_sayisi']} halka · orta {orta}"
+            baslik = f"{dict(parcali.SEKILLER)[v['sekil']]} · {v['halka_sayisi']} bordür · orta {orta}"
         sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()}, "baslik": baslik})
     return JsonResponse(sonuc, safe=False)
 
