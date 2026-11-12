@@ -66,7 +66,7 @@ def _tasarim_erisim(request, pk):
 
 
 ONIZLEME_SINIR = 300  # diskte en çok bu kadar hazır önizleme tutulur
-ONIZLEME_SURUM = 1  # çizim değişince artır: eski hazır resimler kullanılmaz
+ONIZLEME_SURUM = 2  # çizim değişince artır: eski hazır resimler kullanılmaz
 
 
 def _hazir_onizleme(veri, boyut, ciz):

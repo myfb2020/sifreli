@@ -118,7 +118,32 @@ def _parlaklik(resim, maske):
     return ImageStat.Stat(resim.convert("L"), maske).mean[0] if maske.getbbox() else 128
 
 
+@lru_cache(maxsize=24)
+def _pelus(ad, boyut, px):
+    """Peluş: tüy görünümü. Büyük yumuşak ton dalgaları (elle taranmış tüy), tüy yönünde ince çizgiler ve ince
+    gren; fotoğraf karosu gibi tekrar etmez. 128 tabanlı katmanlar renge çarpılır."""
+    w, h = boyut
+    renk = _hex(pc.MALZEME_HEX[ad])
+    koyu = sum(renk) / 3 < 70
+
+    def gurultu(bw, bh, sigma, bulanik):
+        g = Image.effect_noise((max(4, bw), max(4, bh)), sigma).filter(ImageFilter.GaussianBlur(bulanik))
+        return g.resize(boyut, Image.BICUBIC)
+
+    dalga = gurultu(w // max(8, int(px * 9)), h // max(8, int(px * 9)), 60, 1.2)       # ~9 cm'lik ton dalgaları
+    tarak = gurultu(w // max(3, int(px * 1.2)), h // max(10, int(px * 7)), 45, 0.8)     # tüy yönünde çizgiler
+    gren = Image.effect_noise(boyut, 26).filter(ImageFilter.GaussianBlur(0.5))
+    guc = (0.34, 0.22, 0.30) if koyu else (0.16, 0.10, 0.14)
+    ton = Image.new("L", boyut, 128)
+    for katman, g in zip((dalga, tarak, gren), guc):
+        ton = ImageChops.add(ton, katman.point(lambda q, g=g: int((q - 128) * g) + 128), 1, -128)
+    taban = Image.new("RGB", boyut, tuple(min(255, c + (5 if koyu else 0)) for c in renk))
+    return ImageChops.multiply(taban, Image.merge("RGB", (ton,) * 3)).point(lambda q: min(255, q * 2))
+
+
 def malzeme_dokusu(ad, boyut, px):
+    if ad.startswith("pelus_"):
+        return _pelus(ad, boyut, round(px, 3))
     if (ad.startswith("bienca_bn") or ad.endswith("_keten")) and hg._var_mi(ad):
         return _kartela_dokusu(ad, boyut, round(px, 3))
     if hg._var_mi(ad):
@@ -235,7 +260,7 @@ def _poli_maske(boyut, poli):
     return m
 
 
-def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
+def ciz(v, uzun_kenar=900, arka=(252, 251, 249)):
     px = uzun_kenar / max(v["en"], v["boy"])
     W, H = int(round(v["en"] * px)), int(round(v["boy"] * px))
     boyut = (W, H)
@@ -268,9 +293,13 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
                 desen_maskeleri[p["desen_anahtar"]] = _halkali_desen(v, p["desen_anahtar"], boyut, px)
 
     golge_kaynak = Image.new("L", boyut, 0)
-    for p in parcalar:
+    ton = Image.new("L", boyut, 128)  # parçaların tüy / dokuma yönü: yatay ve dikey parça ışığı farklı yansıtır
+    for sira, p in enumerate(parcalar):
         poli = olc(p["poli"])
         maske = _poli_maske(boyut, poli)
+        if p.get("tur") != "zemin":
+            ton.paste(134 if p.get("yon") == "yatay" else 122 if p.get("yon") == "dikey" else 128 + (sira % 3 - 1) * 4,
+                      (0, 0), maske)
         ince = p["malzeme"].startswith("bienca") and p.get("tur") != "zemin"
         if (p["malzeme"], ince) not in dokular:
             dokular[p["malzeme"], ince] = (_bienca_ince(p["malzeme"], boyut, round(px, 3)) if ince
@@ -298,6 +327,8 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
                                          kenar.point(lambda q: int(q * 0.8) if koyu else q // 2))
             golge_kaynak = ImageChops.lighter(golge_kaynak, maske)
         resim.paste(katman, (0, 0), maske)
+
+    resim = ImageChops.multiply(resim, Image.merge("RGB", (ton,) * 3)).point(lambda q: min(255, q * 2))
 
     # nakış motifleri
     if v["duzen"] == "oval_serit" and v["nakis"] != "yok":
@@ -376,14 +407,17 @@ def ciz(v, uzun_kenar=900, arka=(38, 35, 33)):
     resim = _varak_parlat(resim, boyut)
 
     pay = int(uzun_kenar * 0.05)
-    tuval = _deri_zemin((W + 2 * pay, H + 2 * pay), arka)
+    acik = sum(arka) / 3 > 128
+    tuval = Image.new("RGB", (W + 2 * pay, H + 2 * pay), arka) if acik else _deri_zemin((W + 2 * pay, H + 2 * pay), arka)
     golge = Image.new("L", tuval.size, 0)
-    golge.paste(dis, (pay + int(px * 1.5), pay + int(px * 2.5)))
-    golge = golge.filter(ImageFilter.GaussianBlur(pay / 3)).point(lambda q: int(q * 0.7))
-    tuval = Image.composite(Image.new("RGB", tuval.size, (0, 0, 0)), tuval, golge)
+    golge.paste(dis, (pay + int(px * 1.2), pay + int(px * 2.2)))
+    golge = golge.filter(ImageFilter.GaussianBlur(pay / 2.5)).point(lambda q: int(q * (0.42 if acik else 0.7)))
+    tuval = Image.composite(Image.new("RGB", tuval.size, (40, 34, 28) if acik else (0, 0, 0)), tuval, golge)
     gorunur = ImageChops.subtract(dis, delikler)
-    # lazer deliklerinde derinlik: halının kalınlığı deliğin içine (sağ alta) gölge düşürür
+    # lazer deliklerinden halının altı (koyu zemin) görünür; halının kalınlığı deliğin içine (sağ alta) gölge düşürür
     if delikler.getbbox():
+        if acik:
+            tuval.paste((58, 52, 47), (pay, pay), dis)
         d = max(2, int(px * 0.5))
         derin = Image.new("L", tuval.size, 0)
         derin.paste(gorunur, (pay + d, pay + d))

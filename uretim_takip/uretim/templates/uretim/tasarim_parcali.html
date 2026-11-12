@@ -181,12 +181,12 @@
 
 <style>
   .studyo { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
-  .studyo-onizleme { position:sticky; top:calc(var(--ust, 60px) + 8px); background:#26231f; color:#d8d0c6; }
-  .studyo-onizleme .soluk { color:#cfc6bb; }
+  .studyo-onizleme { position:sticky; top:calc(var(--ust, 60px) + 8px); background:#fcfbf9; color:var(--yazi); }
+  .studyo-onizleme .soluk { color:var(--soluk); }
   #onizleme { width:100%; max-height:62vh; object-fit:contain; display:block; margin:0 auto 6px; transition:opacity .15s; cursor:zoom-in; }
   #onizleme.bekle { opacity:.6; }
-  .rozet { display:block; margin:6px auto 0; border:0; border-radius:16px; padding:5px 14px; font:inherit; font-size:14px; background:#2f4a2c; color:#bfe3b9; cursor:default; }
-  .rozet.sorun { background:#5a3a1e; color:#ffd9a8; cursor:pointer; }
+  .rozet { display:block; margin:6px auto 0; border:0; border-radius:16px; padding:5px 14px; font:inherit; font-size:14px; background:#e3f1e0; color:#2e6b34; cursor:default; }
+  .rozet.sorun { background:#fbe9d2; color:#8a4b0a; cursor:pointer; }
   .uyari-listesi { margin-top:6px; font-size:13px; color:#ffd9a8; }
   .uyari-listesi div { padding:2px 0; }
   .yerinde-uyari { background:#fff4e5; border-left:4px solid #e0902a; color:#7a4a10; padding:6px 10px; border-radius:6px; font-size:14px; margin:4px 0 8px; }
@@ -228,12 +228,12 @@
   .katalog-model img { aspect-ratio:3/4; object-fit:cover; }
   .model-secim { position:sticky; bottom:0; background:#fbf6f1; border:2px solid var(--ana); border-radius:10px; padding:10px; margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .model-secim[hidden] { display:none; }
-  .aynen-not { background:#2f4a2c; color:#d9f0d4; border-radius:8px; padding:8px; margin:6px 0; font-size:14px; }
+  .aynen-not { background:#e3f1e0; color:#2a5a2f; border-radius:8px; padding:8px; margin:6px 0; font-size:14px; }
   .aynen-not[hidden] { display:none; }
   .gercek { position:absolute; top:6px; left:6px; background:#000a; color:#fff; font-style:normal; font-size:10px; padding:1px 5px; border-radius:6px; }
   .hazir-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; }
   .hazir { border:2px solid #e6ddd3; border-radius:10px; background:#fff; padding:4px; cursor:pointer; text-align:center; font:inherit; font-size:12px; display:flex; flex-direction:column; gap:2px; }
-  .hazir img { width:100%; aspect-ratio:3/4; object-fit:contain; border-radius:6px; background:#26231f; }
+  .hazir img { width:100%; aspect-ratio:3/4; object-fit:contain; border-radius:6px; background:#fcfbf9; }
   .hazir span { color:#7a6f66; line-height:1.2; }
   .hazir.secili { border-color:var(--ana); background:#fbf6f1; }
   .fikir-kap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 8px; }
