@@ -60,11 +60,17 @@ def pano(request):
         c = [k for k in calisilan if k.asama.pk == asama.pk]
         asamalar.append({"asama": asama, "bekleyen": len(g), "islemde": len(c),
                          "geciken": sum(1 for k in g + c if k.gecikti)})
+    kim = raporlar.bugun_kim_ne_yapti(bugun)
     baglam = {
+        "bugun": bugun,
+        "calisan_kisi": len({i.personel_id for i in acik}),
+        "biten_hali": sum(k.get("biten_hali") or 0 for k in kim),
+        "biten_m2": sum((k.get("biten_m2") or 0) for k in kim),
+        "biten_islem": sum(k.get("islem_sayisi") or 0 for k in kim),
         "asamalar": asamalar,
         "acik_islemler": acik,
         "istasyon": istasyon,
-        "bugun_personel": raporlar.bugun_kim_ne_yapti(bugun),  # herkes bütün atölyeyi görür (bayi panoya giremez)
+        "bugun_personel": kim,  # herkes bütün atölyeyi görür (bayi panoya giremez)
         "geciken_siparisler": Siparis.objects.filter(
             durum__in=["acik", "uretimde"], teslim_tarihi__lt=bugun
         ).select_related("musteri"),

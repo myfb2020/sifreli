@@ -13,39 +13,64 @@
   <link rel="apple-touch-icon" href="{% static 'uretim/ikon/apple-touch-icon.png' %}">
   <link rel="icon" type="image/png" href="{% static 'uretim/ikon/favicon-32.png' %}">
   <style>
-    :root { --ana:#7a4b2a; --ana-koyu:#5a361d; --zemin:#fcfbf9; --kart:#fff; --cizgi:#ece6df; --yazi:#2b211a;
-            --soluk:#7d6f64; --yesil:#2e7d4f; --kirmizi:#b23a2e; --sari:#b7791f; }
+    :root { --ana:#8a6a2c; --ana-koyu:#6d5220; --altin:#a8843c; --altin-acik:#f3ead7; --koyu:#1c1815;
+            --zemin:#f7f4ef; --kart:#fff; --cizgi:#e8e0d5; --yazi:#231c16;
+            --soluk:#857769; --yesil:#2e7d4f; --kirmizi:#b23a2e; --sari:#b7791f; }
     * { box-sizing:border-box; }
     body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--zemin);
            color:var(--yazi); font-size:16px; }
-    /* Saydam üst şerit: arkasındaki sayfa buzlu cam gibi görünür. */
-    header { position:sticky; top:0; z-index:40; background:rgba(255,255,255,0.55);
-             -webkit-backdrop-filter:blur(12px) saturate(1.4); backdrop-filter:blur(12px) saturate(1.4);
-             border-bottom:1px solid rgba(122,75,42,0.10); color:var(--yazi); padding:0 16px; display:flex;
-             align-items:center; gap:16px; flex-wrap:wrap; min-height:60px; }
-    header a { color:var(--ana-koyu); text-decoration:none; padding:8px 4px; border-radius:6px; }
-    header a:hover { background:rgba(122,75,42,0.08); }
+    h1, h2 { font-family:Georgia,"Times New Roman",serif; font-weight:600; letter-spacing:.01em; }
+    /* Koyu üst şerit (bayi, tablet, dar ekran); ofis ve yöneticide geniş ekranda sol yan menü olur. */
+    header { position:sticky; top:0; z-index:40; background:var(--koyu); color:#f1e9dc; padding:0 18px; display:flex;
+             align-items:center; gap:14px; flex-wrap:wrap; min-height:60px; }
+    header a { color:#e9dfd0; text-decoration:none; padding:8px 12px; border-radius:20px; }
+    header a:hover { background:rgba(255,255,255,0.09); }
+    header .menu a.etkin { background:#d8b874; color:var(--koyu); font-weight:600; }
     header .marka { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; margin-right:auto;
-                    color:var(--yazi); padding:4px 0; }
-    header .marka img { height:46px; width:46px; display:block; border-radius:50%; }
-    .marka-yazi { font-family:Georgia,"Times New Roman",serif; letter-spacing:0.18em; font-weight:600; color:#a8802f; }
-    .marka-alt { font-size:13px; font-weight:500; color:var(--soluk); letter-spacing:0; }
+                    color:#f1e9dc; padding:4px 0; border-radius:0; }
+    header .marka:hover { background:none; }
+    header .marka img { height:42px; width:42px; display:block; border-radius:50%; }
+    .marka-yazi { font-family:Georgia,"Times New Roman",serif; letter-spacing:0.22em; font-weight:600; color:#d8b874; }
+    .marka-alt { font-size:13px; font-weight:500; color:#b9ad9c; letter-spacing:0; }
     .sp-resim { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px; }
     .sp-resim img { border-radius:6px; display:block; max-width:100%; object-fit:contain; }
-    header .menu { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    header .menu { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+    header .menu small { display:none; }
+    header .menu .rozet { background:#d8b874; color:var(--koyu); font-weight:700; }
     header form { margin:0; }
-    header button { background:none; border:1px solid rgba(122,75,42,0.35); color:var(--ana-koyu); border-radius:6px;
-                    padding:6px 10px; cursor:pointer; }
-    main { max-width:1200px; margin:0 auto; padding:16px; }
-    h1 { font-size:22px; margin:8px 0 16px; }
-    h2 { font-size:18px; margin:0 0 12px; }
-    .kart { background:var(--kart); border:1px solid var(--cizgi); border-radius:10px; padding:16px; margin-bottom:16px; }
+    header button { background:none; border:1px solid rgba(233,223,208,0.4); color:#e9dfd0; border-radius:20px;
+                    padding:6px 14px; cursor:pointer; font:inherit; font-size:14px; }
+    @media (min-width: 1000px) {
+      body.yanli { --ust:0px; }
+      body.yanli header { position:fixed; top:0; bottom:0; left:0; width:232px; flex-direction:column; flex-wrap:nowrap;
+                          align-items:stretch; gap:6px; padding:16px 12px 20px; overflow-y:auto; min-height:0; }
+      body.yanli header .marka { margin:0 6px 14px; flex-wrap:wrap; }
+      body.yanli header .marka-yazi { font-size:15px; }
+      body.yanli header .marka-alt { flex-basis:100%; margin-left:52px; margin-top:-14px; font-size:12px; }
+      body.yanli header .menu { flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:2px; }
+      body.yanli header .menu a { border-radius:10px; padding:9px 12px; font-size:15px; display:flex; align-items:center; gap:8px; }
+      body.yanli header .menu a .rozet { margin-left:auto; }
+      body.yanli header .menu a.etkin { background:#2f2823; color:#f4e3b8; }
+      body.yanli header .menu small { display:block; color:#8f8474; font-size:11px; letter-spacing:.12em;
+                                      text-transform:uppercase; margin:14px 12px 4px; }
+      body.yanli header form { margin:10px 6px 0; }
+      body.yanli main { margin-left:232px; max-width:none; padding:22px 30px 40px; }
+    }
+    main { max-width:1200px; margin:0 auto; padding:18px 16px 40px; }
+    main a:not([class]) { color:var(--ana-koyu); text-underline-offset:2px; }
+    main a:not([class]):hover { color:var(--altin); }
+    h1 { font-size:26px; margin:6px 0 16px; }
+    h2 { font-size:19px; margin:0 0 12px; }
+    .kart { background:var(--kart); border:1px solid var(--cizgi); border-radius:14px; padding:16px 18px; margin-bottom:16px; }
     .izgara { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
-    .btn { display:inline-block; background:var(--ana); color:#fff; border:0; border-radius:8px; padding:12px 18px;
-           font-size:16px; text-decoration:none; cursor:pointer; }
-    .btn:hover { background:var(--ana-koyu); }
+    .btn { display:inline-block; background:var(--koyu); color:#f1e9dc; border:0; border-radius:24px; padding:11px 20px;
+           font-size:16px; font-weight:600; text-decoration:none; cursor:pointer; }
+    .btn:hover { background:#3a312a; }
+    .btn.altin { background:var(--altin); color:#fff; }
+    .btn.altin:hover { background:var(--ana); }
     .btn.buyuk { padding:18px 28px; font-size:20px; }
-    .btn.ikincil { background:#fff; color:var(--ana); border:1px solid var(--ana); }
+    .btn.ikincil { background:#fff; color:var(--yazi); border:1px solid var(--cizgi); }
+    .btn.ikincil:hover { background:var(--altin-acik); }
     .btn.kucuk { padding:6px 12px; font-size:14px; }
     table { width:100%; border-collapse:collapse; }
     th, td { text-align:left; padding:8px; border-bottom:1px solid var(--cizgi); vertical-align:top; }
@@ -150,18 +175,25 @@
     .sekme.secili { color:var(--ana); border-bottom-color:var(--ana); font-weight:600; }
     @media (max-width: 760px) {
       /* Telefonda: üstte logo, altında yana kaydırılabilen tek satır menü. */
-      header { flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:0; padding:0 12px; }
+      header { flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:0; padding:4px 12px 0; }
       header .marka img { height:38px; width:38px; }
       .marka-yazi { font-size:16px; }
       header .menu { flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; gap:6px; padding-bottom:6px;
                      min-width:0; max-width:100%;
                      -webkit-overflow-scrolling:touch; scrollbar-width:none; }
       header .menu::-webkit-scrollbar { display:none; }
-      header .menu a { background:rgba(122,75,42,0.07); padding:8px 12px; }
+      header .menu a { background:rgba(255,255,255,0.07); padding:8px 12px; }
+      /* Bayi telefonda: menü ekranın altında sabit durur. */
+      body.bayili header .menu { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--cizgi);
+                                 padding:8px 6px calc(8px + env(safe-area-inset-bottom)); justify-content:space-around; gap:0; z-index:50; }
+      body.bayili header .menu a { background:none; color:var(--soluk); font-size:13px; border-radius:10px; }
+      body.bayili header .menu a.etkin { background:none; color:var(--altin); font-weight:700; }
+      body.bayili header button { border-color:var(--cizgi); color:var(--soluk); font-size:13px; }
+      body.bayili main { padding-bottom:86px; }
     }
     @media print {
       header, .yazdirma-gizle, .mesaj { display:none !important; }
-      body, main { background:#fff; padding:0; margin:0; max-width:none; }
+      body, main, body.yanli main { background:#fff; padding:0; margin:0; max-width:none; }
       .etiket-izgara { grid-template-columns:repeat(2, 1fr); gap:4mm; }
       .etiket { border:1px dashed #666; }
     }
@@ -180,7 +212,7 @@
   }
 </script>
 </head>
-<body>
+<body class="{% if user.is_authenticated %}{% if bayi %}bayili{% elif user.is_staff %}yanli{% else %}tabletli{% endif %}{% endif %}">
 {% if user.is_authenticated %}
 <header>
   <a class="marka" href="{% if bayi %}{% url 'bayi_ana' %}{% else %}{% url 'pano' %}{% endif %}" aria-label="{{ marka_adi }}">
@@ -188,26 +220,31 @@
     <span class="marka-alt">{% if bayi %}{{ bayi }}{% else %}Üretim Takip{% endif %}</span></a>
   <nav class="menu">
   {% if bayi %}
+  <a href="{% url 'bayi_ana' %}">⌂ Ana sayfa</a>
   <a href="{% url 'bayi_siparis' %}">🛒 Sipariş ver</a>
-  <a href="{% url 'bayi_ana' %}">📦 Siparişlerim</a>
+  <a href="{% url 'bayi_ana' %}#siparislerim">📦 Siparişlerim</a>
   {% else %}
-  <a href="{% url 'pano' %}">Pano</a>
+  <a href="{% url 'pano' %}">▦ Pano</a>
   {# Üretim ekranları: tablet hesabı ve yönetici. Ofis hesabı (personel durumlu) görmez. #}
   {% if not user.is_staff or user.is_superuser %}
   <a href="{% if hesap_istasyonu %}{% url 'istasyon_ekrani' hesap_istasyonu.pk %}{% else %}{% url 'istasyon_secimi' %}{% endif %}">🏭 {{ hesap_istasyonu.ad|default:"İstasyon" }}</a>
   <a href="{% url 'qr_tara' %}">📷 QR Okut</a>
-  <a href="{% url 'lot_listesi' %}">İşler</a>
-  <a href="{% url 'islem_merkezi' %}">İşlem Başlat</a>
+  <a href="{% url 'lot_listesi' %}">☰ İşler</a>
+  <a href="{% url 'islem_merkezi' %}">▶ İşlem Başlat</a>
   {% endif %}
-  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}{% if onay_bekleyen %}?durum=onay{% endif %}">Siparişler{% if onay_bekleyen %} <span class="rozet bekliyor" title="Onay bekleyen bayi tasarımı">{{ onay_bekleyen }}</span>{% endif %}</a>{% endif %}
+  <small>Satış</small>
+  {% if perms.uretim.view_siparis %}<a href="{% url 'siparis_listesi' %}{% if onay_bekleyen %}?durum=onay{% endif %}">🧾 Siparişler{% if onay_bekleyen %} <span class="rozet bekliyor" title="Onay bekleyen bayi tasarımı">{{ onay_bekleyen }}</span>{% endif %}</a>{% endif %}
   {% if user.is_staff %}<a href="{% url 'bayi_listesi' %}">🤝 Bayiler</a>{% endif %}
   {% if user.is_superuser %}<a href="{% url 'parcali_studyo' %}">🎨 Stüdyo</a>
-  <a href="{% url 'duzeltmeler' %}">🛠 Düzeltmeler</a>{% endif %}
-  <a href="{% url 'stok_listesi' %}">Stok</a>
-  <a href="{% url 'katalog' %}">Katalog</a>
-  {% if user.is_staff and not user.is_superuser %}<a href="{% url 'lot_listesi' %}">İşler</a>{% endif %}
-  {% if user.is_staff %}<a href="{% url 'rapor' %}">Raporlar</a>
-  <a href="{% url 'admin:index' %}">Yönetim</a>{% endif %}
+  {% endif %}
+  <a href="{% url 'katalog' %}">📚 Katalog</a>
+  <small>Atölye</small>
+  <a href="{% url 'stok_listesi' %}">📦 Stok</a>
+  {% if user.is_staff and not user.is_superuser %}<a href="{% url 'lot_listesi' %}">☰ İşler</a>{% endif %}
+  {% if user.is_superuser %}<a href="{% url 'duzeltmeler' %}">🛠 Düzeltmeler</a>{% endif %}
+  {% if user.is_staff %}<a href="{% url 'rapor' %}">📈 Raporlar</a>
+  <small>Yönetim</small>
+  <a href="{% url 'admin:index' %}">⚙ Yönetim paneli</a>{% endif %}
   {% if user.is_superuser %}<a href="{% url 'hesap_listesi' %}">👥 Hesaplar</a>
   <a href="{% url 'excel_aktar' %}">📥 Excel'den aktar</a>
   <a href="{% url 'yedek_indir' %}" title="Veritabanının yedeğini indir">💾 Yedek</a>{% endif %}
@@ -225,6 +262,16 @@
   {% block icerik %}{% endblock %}
 </main>
 <script>
+  // Menüde bulunulan sayfa işaretlenir (adresi en uzun eşleşen bağlantı).
+  (function () {
+    let en = null, boy = -1;
+    document.querySelectorAll("header .menu a").forEach((a) => {
+      const yol = new URL(a.href).pathname;
+      if (a.hash || a.target) return;
+      if ((location.pathname === yol || (yol !== "/" && location.pathname.startsWith(yol))) && yol.length > boy) { en = a; boy = yol.length; }
+    });
+    if (en) en.classList.add("etkin");
+  })();
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("{% url 'service_worker' %}", { scope: "/" });
   }

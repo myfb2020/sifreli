@@ -1,34 +1,82 @@
 {% extends "base.html" %}
 {% block baslik %}Siparişlerim{% endblock %}
 {% block icerik %}
-<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-  <h1 style="margin:0;margin-right:auto">📦 Siparişlerim</h1>
-  <a class="btn" href="{% url 'bayi_siparis' %}">🛒 Sipariş ver</a>
+<div class="bayi-ust">
+  <div><h1>Hoş geldiniz, {{ bayi }}</h1><p class="soluk">Modelinizi seçin, renklerini değiştirin, siparişinizi takip edin.</p></div>
+  <a class="btn altin" href="{% url 'bayi_siparis' %}">🛒 Sipariş ver</a>
 </div>
+<div class="ozetler">
+  <div class="ozet{% if ozet.onay %} vurgu{% endif %}"><b>{{ ozet.onay }}</b><span>Onay bekleyen</span></div>
+  <div class="ozet"><b>{{ ozet.uretimde }}</b><span>Üretimde</span></div>
+  <div class="ozet"><b>{{ ozet.hazir }}</b><span>Sevke hazır</span></div>
+  <div class="ozet"><b>{% if ozet.teslim %}{{ ozet.teslim|date:"j M" }}{% else %}–{% endif %}</b><span>En yakın teslim</span></div>
+</div>
+
+<h2 class="bolum">Sipariş ver</h2>
+<div class="turler">
+  <a class="tur" href="{% url 'bayi_siparis' %}?tur=suni"><span class="tur-resim">{% for m in ornek.suni %}<img src="{{ m.resim.url }}" alt="">{% endfor %}</span>
+    <span><b>Suni deri halı</b><small>Bienca · Rono · İpek peluş · Peluche<br>Renk, bordür ve deseni siz seçin</small><i class="btn kucuk">Modelleri gör</i></span></a>
+  <a class="tur" href="{% url 'bayi_siparis' %}?tur=deri"><span class="tur-resim">{% for m in ornek.deri %}<img src="{{ m.resim.url }}" alt="">{% endfor %}</span>
+    <span><b>Deri / kürk halı</b><small>Toskana · tilki · dana · tavşan<br>Katalogdan olduğu gibi sipariş</small><i class="btn kucuk">Modelleri gör</i></span></a>
+</div>
+
+<h2 class="bolum" id="siparislerim">📦 Siparişlerim</h2>
+<div class="sp-izgara">
 {% for r in satirlar %}{% with s=r.s t=r.t d=r.d %}
 <div class="kart bayi-kart">
   <div class="bayi-resim">{% with fotolar=s.fotograflar.all %}{% if fotolar %}{% for f in fotolar %}<a href="{{ f.resim.url }}" class="buyut"><img src="{{ f.resim.url }}" alt="" loading="lazy"{% if not forloop.first %} class="kucuk-foto"{% endif %}></a>{% endfor %}
-    {% elif t %}<a href="{% url 'tasarim_resim' t.pk %}" target="_blank"><img src="{% url 'tasarim_resim' t.pk %}" alt="" loading="lazy"></a>
+    {% elif t %}<a href="{% url 'tasarim_resim' t.pk %}?b=1200" class="buyut"><img src="{% url 'tasarim_resim' t.pk %}?b=300" alt="" loading="lazy"></a>
     {% elif s.katalog_modeli.resim %}<a href="{{ s.katalog_modeli.resim.url }}" class="buyut"><img src="{{ s.katalog_modeli.resim.url }}" alt="" loading="lazy"></a>
     {% elif s.renk %}<img src="{{ s.renk.resim_adresi }}" alt="">{% endif %}{% endwith %}</div>
   <div style="min-width:0">
-    <div class="bayi-satir"><b>{{ s.siparis_no }}</b> · {{ s.urun }}
-      {% if t and t.durum == "reddedildi" %}<span class="rozet iptal">Reddedildi</span>
+    <div class="bayi-satir"><b>{{ s.siparis_no }}</b>
+      {% if r.reddedildi %}<span class="rozet iptal">Reddedildi</span>
       {% else %}<span class="rozet {% if d.kod == 'onay' %}bekliyor{% elif d.kod == 'tamamlandi' or d.kod == 'sevk' %}tamamlandi{% else %}islemde{% endif %}">{{ d.etiket }}{% if d.istasyonlar %} · {{ d.istasyonlar|join:", " }}{% endif %}</span>{% endif %}
-      {% if d.kod == "uretimde" and d.toplam > 1 %}<span class="soluk">· {{ d.toplam }} halıdan {{ d.hazir }}'i hazır</span>{% endif %}
-      <span class="soluk">· {% if s.olcu_metni %}{{ s.olcu_metni }} · {% endif %}teslim {{ s.teslim_tarihi|date:"d.m.Y" }}{% if d.kod == "onay" %} (istenen){% endif %}</span>
     </div>
-    {% if t and t.ofis_notu %}<div class="mesaj info" style="margin:6px 0 0">Bienna Fur: {{ t.ofis_notu|linebreaksbr }}</div>{% endif %}
+    <div class="soluk bayi-ayrinti">{{ s.urun }}{% if s.olcu_metni %} · {{ s.olcu_metni }}{% endif %} · teslim {{ s.teslim_tarihi|date:"d.m.Y" }}{% if d.kod == "onay" %} (istenen){% endif %}
+      {% if d.kod == "uretimde" and d.toplam > 1 %} · {{ d.toplam }} halıdan {{ d.hazir }}'i hazır{% endif %}</div>
+    {% if r.adimlar and not r.reddedildi %}<div class="adimlar-cizgi">{% for ad, durum in r.adimlar %}{% if not forloop.first %}<i{% if durum %} class="dolu"{% endif %}></i>{% endif %}<span class="{{ durum }}">{{ ad }}</span>{% endfor %}</div>{% endif %}
+    {% if t and t.ofis_notu %}<div class="mesaj info" style="margin:8px 0 0">Bienna Fur: {{ t.ofis_notu|linebreaksbr }}</div>{% endif %}
   </div>
 </div>
 {% endwith %}{% empty %}
 <div class="kart"><p>Henüz siparişiniz yok. <a href="{% url 'bayi_siparis' %}">Katalogdan sipariş verin →</a></p></div>
 {% endfor %}
+</div>
 <style>
-  .bayi-kart { display:grid; grid-template-columns:90px minmax(0,1fr); gap:12px; align-items:start; padding:12px; }
-  .bayi-resim img { width:100%; background:#fff; border-radius:8px; display:block; }
+  .bayi-ust { display:flex; gap:12px; flex-wrap:wrap; align-items:end; justify-content:space-between; margin-bottom:16px; }
+  .bayi-ust h1 { margin:0; } .bayi-ust p { margin:4px 0 0; }
+  .ozetler { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .ozet { background:var(--kart); border:1px solid var(--cizgi); border-radius:14px; padding:14px 16px; }
+  .ozet b { display:block; font:600 26px Georgia,serif; } .ozet span { color:var(--soluk); font-size:14px; }
+  .ozet.vurgu { background:var(--altin-acik); border-color:#e2d2ad; }
+  h2.bolum { margin:0 0 10px; font-size:21px; scroll-margin-top:70px; }
+  .turler { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:26px; }
+  .tur { background:var(--kart); border:1px solid var(--cizgi); border-radius:18px; padding:18px; display:flex; gap:16px; align-items:center;
+         text-decoration:none; color:inherit; }
+  .tur:hover { border-color:var(--altin); }
+  .tur-resim { display:flex; gap:8px; flex:none; } .tur-resim img { height:140px; border-radius:8px; display:block; }
+  .tur b { display:block; font:600 22px Georgia,serif; } .tur small { display:block; color:var(--soluk); font-size:14px; margin:6px 0 12px; line-height:1.45; }
+  .tur i { font-style:normal; }
+  .sp-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(420px,1fr)); gap:14px; }
+  .sp-izgara .kart { margin:0; }
+  .bayi-kart { display:grid; grid-template-columns:92px minmax(0,1fr); gap:14px; align-items:start; padding:14px; }
+  .bayi-resim img { width:100%; background:#fcfbf9; border-radius:8px; display:block; }
   .bayi-resim a + a { display:inline-block; width:30%; margin:4px 2% 0 0; }
   .bayi-resim .kucuk-foto { aspect-ratio:1; object-fit:cover; }
-  .bayi-satir { line-height:1.7; }
+  .bayi-satir { line-height:1.7; } .bayi-ayrinti { font-size:14px; margin-top:2px; }
+  .adimlar-cizgi { display:flex; align-items:flex-start; margin-top:12px; font-size:12px; color:var(--soluk); }
+  .adimlar-cizgi i { flex:1; height:3px; background:var(--cizgi); margin:5px 4px 0; border-radius:2px; }
+  .adimlar-cizgi i.dolu, .adimlar-cizgi i.simdi { background:var(--altin); }
+  .adimlar-cizgi span { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .adimlar-cizgi span::before { content:""; width:12px; height:12px; border-radius:50%; background:var(--cizgi); }
+  .adimlar-cizgi span.dolu::before { background:var(--altin); }
+  .adimlar-cizgi span.simdi { color:var(--yazi); font-weight:700; }
+  .adimlar-cizgi span.simdi::before { background:var(--altin); box-shadow:0 0 0 4px #ecdcb6; }
+  @media (max-width: 760px) {
+    .ozetler { grid-template-columns:1fr 1fr; } .turler { grid-template-columns:1fr; }
+    .tur-resim img { height:104px; } .tur-resim img + img { display:none; }
+    .sp-izgara { grid-template-columns:1fr; } .bayi-ust .btn { display:none; }
+  }
 </style>
 {% endblock %}

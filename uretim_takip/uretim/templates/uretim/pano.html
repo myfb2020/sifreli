@@ -1,36 +1,52 @@
 {% extends "base.html" %}
 {% block icerik %}
-<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-  <h1 style="margin:0;margin-right:auto">Üretim Panosu</h1>
+<div class="pano-ust">
+  <div><h1>Üretim Panosu</h1><p class="soluk">{{ bugun|date:"j F Y l" }}{% if calisan_kisi %} · atölyede {{ calisan_kisi }} kişi çalışıyor{% endif %}</p></div>
+  <div class="pano-hizli">
   {% if not user.is_staff or user.is_superuser %}
-  <a class="btn buyuk" href="{% if hesap_istasyonu %}{% url 'istasyon_ekrani' hesap_istasyonu.pk %}{% else %}{% url 'istasyon_secimi' %}{% endif %}">🏭 {% if hesap_istasyonu %}{{ hesap_istasyonu.ad }} ekranı{% else %}İstasyon ekranım{% endif %}</a>
+  <a class="btn buyuk altin" href="{% if hesap_istasyonu %}{% url 'istasyon_ekrani' hesap_istasyonu.pk %}{% else %}{% url 'istasyon_secimi' %}{% endif %}">🏭 {% if hesap_istasyonu %}{{ hesap_istasyonu.ad }} ekranı{% else %}İstasyon ekranım{% endif %}</a>
   <a class="btn buyuk ikincil" href="{% url 'qr_tara' %}">📷 QR Okut</a>
   <a class="btn buyuk ikincil" href="{% url 'islem_merkezi' %}">▶ İşlem Başlat</a>
   {% endif %}
   {% if perms.uretim.add_siparis and user.is_staff and not user.is_superuser %}
-  <a class="btn buyuk" href="{% url 'siparis_yeni' %}">+ Yeni sipariş</a>
+  <a class="btn buyuk altin" href="{% url 'siparis_yeni' %}">+ Yeni sipariş</a>
   {% endif %}
+  </div>
+</div>
+
+<div class="ozetler">
+  {% if perms.uretim.view_siparis %}<a class="ozet{% if onay_bekleyen %} vurgu{% endif %}" href="{% url 'siparis_listesi' %}?durum=onay"><b>{{ onay_bekleyen|default:0 }}</b><span>Onay bekleyen bayi siparişi</span></a>{% endif %}
+  <div class="ozet"><b>{{ acik_islemler|length }}</b><span>Çalışılan iş</span></div>
+  <div class="ozet"><b>{% if biten_hali %}{{ biten_hali }} halı · {{ biten_m2|floatformat:"-1" }} m²{% else %}{{ biten_islem }} iş{% endif %}</b><span>Bugün biten</span></div>
+  <a class="ozet{% if gecikmeler %} uyarili{% endif %}" href="#dikkat"><b>{{ gecikmeler|length }}</b><span>Süresi aşan iş</span></a>
+</div>
+
+<h2 class="bolum">{% if istasyon %}İstasyonum{% else %}İstasyonlar{% endif %}</h2>
+<div class="ist-kartlar">
+  {% for a in asamalar %}
+  <a class="ist-kart{% if a.geciken %} gecikmis{% endif %}" href="{% url 'istasyon_ekrani' a.asama.pk %}">
+    <h3>{{ a.asama.ad }} ›</h3>
+    <div class="ist-sayi"><div><b>{{ a.bekleyen }}</b>gelen</div><div><b>{{ a.islemde }}</b>çalışılan</div><div><b{% if a.geciken %} class="uyari"{% endif %}>{{ a.geciken }}</b>geciken</div></div>
+    <span class="ist-ek">{% if a.bekleyen %}{{ a.bekleyen }} bekliyor{% endif %}{% if a.islemde %}{% if a.bekleyen %} · {% endif %}{{ a.islemde }} çalışılıyor{% endif %}{% if a.geciken %} · ⏰ {{ a.geciken }} süreyi aştı{% endif %}</span>
+  </a>
+  {% endfor %}
 </div>
 
 {% if gecikmeler or azalan_stoklar %}
-<div class="izgara">
+<div class="izgara" id="dikkat">
   {% if gecikmeler %}
-  <div class="kart uyari-karti">
+  <div class="kart">
     <h2>⏰ Süre sınırını aşan işler ({{ gecikmeler|length }})</h2>
     <table>
-      {% for k in gecikmeler %}
-      <tr>
-        <td><a href="{% url 'istasyon_ekrani' k.asama.pk %}"><b>{{ k.asama.ad }}</b></a></td>
-        <td>{% if k.tur == "siparis" %}Yeni sipariş {{ k.siparis.siparis_no }}{% else %}<a href="{% url 'lot_detay' k.lot.pk %}">{{ k.lot.lot_no }}</a>{% endif %}
-          {% if k.siparis %}<span class="soluk"> · {{ k.siparis.musteri }}</span>{% endif %}</td>
-        <td class="uyari">{% if k.tur == "calisilan" %}çalışma{% else %}bekleme{% endif %} {{ k.asim_metni }} aştı</td>
-      </tr>
-      {% endfor %}
+      {% for k in gecikmeler|slice:":6" %}{% include "uretim/_pano_gecikme.html" %}{% endfor %}
     </table>
+    {% if gecikmeler|length > 6 %}<details><summary class="soluk" style="cursor:pointer;padding:8px 0">Öteki {{ gecikmeler|length|add:"-6" }} işi göster</summary><table>
+      {% for k in gecikmeler|slice:"6:" %}{% include "uretim/_pano_gecikme.html" %}{% endfor %}
+    </table></details>{% endif %}
   </div>
   {% endif %}
   {% if azalan_stoklar %}
-  <div class="kart uyari-karti">
+  <div class="kart">
     <h2>📉 Azalan stok ({{ azalan_stoklar|length }})</h2>
     <table>
       {% for s in azalan_stoklar %}
@@ -60,21 +76,6 @@
     {% endfor %}
   </table></div>
   {% else %}<p class="soluk">Şu anda açık işlem yok.</p>{% endif %}
-</div>
-
-<div class="kart">
-  <h2>{% if istasyon %}İstasyonum{% else %}İstasyonlar{% endif %}</h2>
-  <div class="asama-seridi">
-    {% for a in asamalar %}
-    <a class="asama-kutu{% if a.geciken %} gecikmis{% endif %}" href="{% url 'istasyon_ekrani' a.asama.pk %}">
-      <b>{{ a.asama.ad }} ›</b>
-      {% if a.bekleyen %}<span class="rozet bekliyor">{{ a.bekleyen }} bekliyor</span>{% endif %}
-      {% if a.islemde %}<span class="rozet islemde">{{ a.islemde }} çalışılıyor</span>{% endif %}
-      {% if a.geciken %}<span class="uyari" style="display:block;font-size:13px">⏰ {{ a.geciken }} süreyi aştı</span>{% endif %}
-      {% if not a.islemde and not a.bekleyen %}<span class="soluk">–</span>{% endif %}
-    </a>
-    {% endfor %}
-  </div>
 </div>
 
 <div class="izgara">
@@ -131,4 +132,22 @@
   <button class="btn kucuk ikincil" type="submit">{% if stok_zorunlu %}İsteğe bağlı yap{% else %}Zorunlu yap{% endif %}</button>
 </form>
 {% endif %}
+<style>
+  .pano-ust { display:flex; gap:12px; flex-wrap:wrap; align-items:end; justify-content:space-between; margin-bottom:16px; }
+  .pano-ust h1 { margin:0; } .pano-ust p { margin:4px 0 0; }
+  .pano-hizli { display:flex; gap:10px; flex-wrap:wrap; }
+  .ozetler { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:22px; }
+  .ozet { background:var(--kart); border:1px solid var(--cizgi); border-radius:14px; padding:14px 16px; text-decoration:none; color:inherit; display:block; }
+  .ozet b { display:block; font:600 26px Georgia,serif; } .ozet span { color:var(--soluk); font-size:14px; }
+  .ozet.vurgu { background:var(--altin-acik); border-color:#e2d2ad; } .ozet.uyarili b { color:var(--kirmizi); }
+  h2.bolum { margin:0 0 10px; font-size:21px; }
+  .ist-kartlar { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; margin-bottom:22px; }
+  .ist-kart { background:var(--kart); border:1px solid var(--cizgi); border-radius:14px; padding:14px; text-decoration:none; color:inherit; display:block; }
+  .ist-kart:hover { border-color:var(--altin); } .ist-kart.gecikmis { border-color:#e7b9b3; border-left:4px solid var(--kirmizi); }
+  .ist-kart h3 { margin:0 0 10px; font:600 16px Georgia,serif; }
+  .ist-sayi { display:flex; gap:16px; } .ist-sayi div { font-size:12px; color:var(--soluk); }
+  .ist-sayi b { display:block; font:600 22px Georgia,serif; color:var(--yazi); } .ist-sayi b.uyari { color:var(--kirmizi); }
+  .ist-ek { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  .tabletli .pano-hizli { width:100%; } .tabletli .pano-hizli .btn { flex:1 1 200px; text-align:center; padding:26px 20px; font-size:22px; border-radius:18px; }
+</style>
 {% endblock %}

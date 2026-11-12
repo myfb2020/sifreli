@@ -282,7 +282,10 @@
   const kac = (t) => String(t).replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";");
   const deger = (ad) => (form.querySelector(`[name="${ad}"]:checked`) || form.querySelector(`[name="${ad}"]:not([type=radio])`) || {}).value;
   let zamanlayici = null, sira = 0, adim = {% if form.errors %}5{% else %}1{% endif %};
-  const ustAyarla = () => document.documentElement.style.setProperty("--ust", (document.querySelector("header")?.offsetHeight || 0) + "px");
+  const ustAyarla = () => {  // yan menülü (sabit) düzende üstte şerit yok
+    const h = document.querySelector("header");
+    document.documentElement.style.setProperty("--ust", (h && getComputedStyle(h).position !== "fixed" ? h.offsetHeight : 0) + "px");
+  };
   ustAyarla(); window.addEventListener("resize", ustAyarla);
 
   // seçim listelerinde "Tümünü göster"

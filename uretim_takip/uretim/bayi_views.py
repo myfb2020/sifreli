@@ -54,8 +54,47 @@ def bayi_ana(request):
         tasarim = getattr(s, "tasarim", None)
         if s.durum == "iptal" and not (tasarim and tasarim.durum == "reddedildi"):
             continue
-        satirlar.append({"s": s, "t": tasarim, "d": s.bayi_durumu()})
-    return render(request, "uretim/bayi_ana.html", {"satirlar": satirlar})
+        d = s.bayi_durumu()
+        satirlar.append({"s": s, "t": tasarim, "d": d, "adimlar": _asama_cizgisi(d),
+                         "reddedildi": bool(tasarim and tasarim.durum == "reddedildi")})
+    acik = [r for r in satirlar if not r["reddedildi"]]
+    teslimler = [r["s"].teslim_tarihi for r in acik if r["d"]["kod"] in ("onay", "acik", "uretimde") and r["s"].teslim_tarihi]
+    ozet = {"onay": sum(1 for r in acik if r["d"]["kod"] == "onay"),
+            "uretimde": sum(1 for r in acik if r["d"]["kod"] in ("acik", "uretimde")),
+            "hazir": sum(1 for r in acik if r["d"]["kod"] == "tamamlandi"),
+            "teslim": min(teslimler) if teslimler else None}
+    return render(request, "uretim/bayi_ana.html", {"satirlar": satirlar, "ozet": ozet, "ornek": _tur_ornekleri()})
+
+
+ADIMLAR = ["Onay", "Lazer", "Dikiş", "Kenar", "Sevk"]
+
+
+def _tur_ornekleri():
+    """Ana sayfadaki iki sipariş kartının örnek fotoğrafları (ikişer model)."""
+    def bul(kodlar):
+        return [m for m in (KatalogModeli.objects.filter(kod=k).exclude(resim="").first() for k in kodlar) if m]
+    return {"suni": bul(("BNA-009", "IPS-457")), "deri": bul(("TOS-035", "HMK-165"))}
+
+
+def _asama_cizgisi(d):
+    """Bayiye sade aşama çizgisi: [(ad, 'dolu' | 'simdi' | '')]. Üretimdeyken en gerideki halının istasyonu esas."""
+    kod = d["kod"]
+    if kod == "onay":
+        simdi = 0
+    elif kod == "acik":
+        simdi = 1
+    elif kod == "uretimde":
+        def sira(ad):
+            ad = ad.lower()
+            return 2 if "zig" in ad else 3 if any(k in ad for k in ("biye", "lanfel", "kenar")) else 1
+        simdi = min((sira(a) for a in d["istasyonlar"]), default=1)
+    elif kod == "tamamlandi":
+        simdi = 4
+    elif kod == "sevk":
+        simdi = 5
+    else:
+        return []
+    return [(ad, "dolu" if i < simdi else "simdi" if i == simdi else "") for i, ad in enumerate(ADIMLAR)]
 
 
 # --- Bayi: katalogdan basit sipariş -------------------------------------------------

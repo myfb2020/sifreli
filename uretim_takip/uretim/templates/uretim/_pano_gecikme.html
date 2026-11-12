@@ -1,0 +1,6 @@
+<tr>
+  <td><a href="{% url 'istasyon_ekrani' k.asama.pk %}"><b>{{ k.asama.ad }}</b></a></td>
+  <td>{% if k.tur == "siparis" %}Yeni sipariş {{ k.siparis.siparis_no }}{% else %}<a href="{% url 'lot_detay' k.lot.pk %}">{{ k.lot.lot_no }}</a>{% endif %}
+    {% if k.siparis %}<span class="soluk"> · {{ k.siparis.musteri }}</span>{% endif %}</td>
+  <td class="uyari">{% if k.tur == "calisilan" %}çalışma{% else %}bekleme{% endif %} {{ k.asim_metni }} aştı</td>
+</tr>

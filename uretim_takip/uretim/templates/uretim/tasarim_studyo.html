@@ -159,7 +159,10 @@
   const siparisAlanlari = ["adet", "istenen_tarih", "notlar", "csrfmiddlewaretoken"];
   let zamanlayici = null, sira = 0;
   // Önizleme, yapışkan üst menünün hemen altında dursun
-  const ustAyarla = () => document.documentElement.style.setProperty("--ust", (document.querySelector("header")?.offsetHeight || 0) + "px");
+  const ustAyarla = () => {
+    const h = document.querySelector("header");
+    document.documentElement.style.setProperty("--ust", (h && getComputedStyle(h).position !== "fixed" ? h.offsetHeight : 0) + "px");
+  };
   ustAyarla();
   window.addEventListener("resize", ustAyarla);
 
