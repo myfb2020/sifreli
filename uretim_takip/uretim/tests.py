@@ -1769,7 +1769,7 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.assertTrue(any(p["ad"] == "1. ara bant (sol)" for p in parcali.parcalar(y)))
         self.assertEqual(parcali.temizle({"duzen": "halkali", "halka_sayisi": 2}, k)["a1_gen"], 0)
         h455 = parcali.hazir_degerler("IPS-455")  # katalogdaki orta renkli düz bant ara banda çevrilir
-        self.assertEqual((h455["halka_sayisi"], h455["a1_gen"]), (2, 10))
+        self.assertEqual((h455["halka_sayisi"], h455["a1_gen"]), (2, 15))
         # atölye kuralı: lazer desenli çerçeveli halıda nakış olmaz (nakışlı halka düz olur, panel/nakışlı şerit kalkar)
         y = parcali.temizle({"duzen": "halkali", "en": 160, "boy": 230, "halka_sayisi": 2, "h1_tur": "desenli",
                              "h1_desen": "DB003", "h2_tur": "nakisli", "orta": "panel"}, k)
@@ -1869,13 +1869,14 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
 
         k = {"DB015", "DB006"}
         # madalyonlu orta: parçalar halıyı tam doldurur, madalyon çerçevesi + nakış
-        v = parcali.temizle({**parcali.hazir_degerler("IPS-449"), "madalyon": "nakisli", "madalyon_motif": "61.01"}, k)
+        v = parcali.temizle({**parcali.hazir_degerler("IPS-449"), "madalyon": "nakisli", "madalyon_motif": "61.01",
+                             "madalyon_cerceve": "altin"}, k)
         ps = parcali.parcalar(v)
         self.assertAlmostEqual(sum(parcali.alan(p["poli"]) for p in ps), 160 * 230, delta=10)
         md = next(p for p in ps if p["ad"] == "Madalyon")
         self.assertEqual((md["tur"], len(md["motifler"])), ("nakis", 1))
         self.assertEqual(len([p for p in ps if p["ad"].startswith("Madalyon çerçevesi")]), 2)
-        self.assertEqual(v["h1_desen"], "DB015")
+        self.assertEqual((v["h2_desen"], v["a2_gen"]), ("DB015", 15))  # fotoğraftan: krem dış bant + Grek + ara bant
         # her katalog hazırı geçerli ve çizilebilir yapıda
         for kod in parcali.HAZIR:
             v = parcali.temizle(parcali.hazir_degerler(kod), k)

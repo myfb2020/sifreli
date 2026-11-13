@@ -445,12 +445,55 @@ FOTO_RENK.update({
 })
 
 
+# 2026-11-13: İpek peluş (IPS) modelleri fotoğrafa göre yeniden (kullanıcı: seçince şablona gidenler). Bordür yeri ve
+# genişliği, ara bant, ince iç çerçeve, madalyon rengi/çapı katalog fotoğrafından; Grek bant = DB015.
+def _I(zemin, kenar, *h, mad=None, cap=24, cerceve="", **ek):
+    d = _yapi(zemin, kenar, *h, alt="krem", **ek)
+    if mad:
+        d.update(madalyon="duz", madalyon_malzeme=mad, madalyon_cap=cap, madalyon_cerceve=cerceve)
+    return d
+
+
+_KR, _BY, _SY, _GR, _TB, _PM = "pelus_krem", "pelus_beyaz", "pelus_siyah", "pelus_gri", "pelus_taba", "pelus_pembe"
+FOTO_RENK.update({
+    "IPS-435": _I(_KR, A, ("desenli", 12, A, G), mad=A, cap=24),
+    "IPS-440": _I(_GR, A, ("duz", 10, _KR, ""), ("desenli", 12, A, G), mad=_KR, cap=34, cerceve=A),
+    "IPS-442": _I(_SY, A, ("desenli", 15, A, "LZ07"), ("duz", 3, _BY, ""), a1_gen=10),
+    "IPS-448": _I(_KR, A, ("duz", 8, _KR, ""), ("desenli", 12, A, G), ("duz", 3, _BY, ""), a2_gen=20, mad=A, cap=18),
+    "IPS-449": _I(_KR, A, ("duz", 10, _KR, ""), ("desenli", 12, A, G), ("duz", 3, _BY, ""), a2_gen=15, mad=A, cap=20),
+    "IPS-451": _I(_GR, A, ("duz", 3, _BY, ""), ("desenli", 12, A, G), mad=_KR, cap=34, cerceve=A),
+    "IPS-452": _I(_KR, GU, ("desenli", 10, GU, G), mad=GU, cap=22),
+    "IPS-453": _I(_GR, GU, ("desenli", 10, GU, G), ("duz", 3, GU, ""), a1_gen=10),
+    "IPS-455": _I(_SY, A, ("duz", 10, A, ""), ("duz", 3, _KR, ""), a1_gen=15),
+    "IPS-457": _I(_SY, A, ("desenli", 14, A, G), ("duz", 4, _BY, ""), a1_gen=15, mad=_BY, cap=26, cerceve=A),
+    "IPS-458": _I(_SY, A, ("desenli", 14, A, G), ("duz", 4, _BY, ""), a1_gen=15, mad=_BY, cap=34, cerceve=A),
+    "IPS-459": _I(_KR, A, ("duz", 12, _BY, ""), ("desenli", 10, A, G), ("duz", 1.5, A, ""), a2_gen=10),
+    "IPS-460": _I(_SY, GU, ("duz", 14, _GR, ""), ("desenli", 12, A, G), mad=_KR, cap=30, cerceve=A),
+    "IPS-463": _I(_KR, GU, ("desenli", 10, GU, G), ("duz", 14, _SY, ""), ("duz", 1.5, A, ""), mad=_PM, cap=26,
+                  cerceve=A),
+    "IPS-465": _I(_KR, A, ("desenli", 12, A, G), ("duz", 18, _SY, ""), ("desenli", 10, A, G), ("duz", 1.5, A, ""),
+                  a3_gen=10),
+    "IPS-467": _I(_TB, A, ("duz", 8, _TB, ""), ("desenli", 10, GU, G), ("duz", 3, _BY, ""), a2_gen=10, mad=_BY, cap=28,
+                  cerceve=GU),
+    "IPS-469": _I(_TB, A, ("duz", 8, _TB, ""), ("desenli", 20, A, G), sekil="oval"),
+    "IPS-470": _I(_KR, A, ("desenli", 12, A, G), mad=_KR, cap=24, cerceve=A),
+    "IPS-471": _I(_SY, GU, ("duz", 6, _SY, ""), ("desenli", 10, GU, G), ("duz", 2, _BY, ""), mad=_BY, cap=30,
+                  cerceve=GU),
+    "IPS-473": _I(_KR, A, ("duz", 12, _PM, ""), ("desenli", 10, A, G), mad=A, cap=20),
+    "IPS-481": _I(_KR, A, ("duz", 4, _SY, ""), ("desenli", 10, A, G), ("duz", 12, _SY, ""), ("duz", 2, _BY, ""),
+                  mad=GU, cap=24),
+    "IPS-482": _I(_KR, A, ("duz", 16, _PM, ""), ("desenli", 10, A, G), ("duz", 1.5, A, ""), sekil="oval"),
+    "IPS-484": _I(_SY, GU, ("desenli", 14, GU, G), sekil="oval", en=200, boy=200, mad=_BY, cap=40, cerceve=GU),
+    "IPS-485": _I(_SY, GU, ("desenli", 16, GU, G), sekil="oval", en=200, boy=200, mad=_BY, cap=44, cerceve=GU),
+})
+
+
 # Bayiye açık (🎨 tasarla) modeller: çizimi katalog fotoğrafına yeterince benzeyenler (2026-11-10, kullanıcı: kötü
 # görünen bayiye gösterilmesin). Öteki modeller bayide yalnız fotoğrafıyla "olduğu gibi sipariş".
 BAYIDE_GIZLI = {
     "BNA-004", "BNA-006", "BNA-008", "BNA-016", "BNA-021",  # Bienca baskısı / desen fotoğraftan çok farklı
-    "IPS-439", "IPS-454", "IPS-456", "IPS-461", "IPS-462", "IPS-466", "IPS-468", "IPS-475", "IPS-477", "IPS-478",
-    "IPS-483",  # mermer / varak yaprak / leopar / çapraz köşe: elimizdeki dokularla olmuyor
+    "IPS-439", "IPS-454", "IPS-456", "IPS-461", "IPS-462", "IPS-466", "IPS-468", "IPS-469", "IPS-475", "IPS-476", "IPS-477", "IPS-478",
+    "IPS-483",  # mermer / varak yaprak / leopar / çapraz köşe / marka logolu bant: elimizdekilerle olmuyor
 }
 SECILI_MODELLER[:] = [k for k in dict.fromkeys(list(FOTO_RENK) + [k for k in KATALOG_DEGER if k.startswith("IPS")])
                       if k not in BAYIDE_GIZLI]
