@@ -1876,7 +1876,7 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         md = next(p for p in ps if p["ad"] == "Madalyon")
         self.assertEqual((md["tur"], len(md["motifler"])), ("nakis", 1))
         self.assertEqual(len([p for p in ps if p["ad"].startswith("Madalyon çerçevesi")]), 2)
-        self.assertEqual((v["h2_desen"], v["a2_gen"]), ("DB015", 15))  # fotoğraftan: krem dış bant + Grek + ara bant
+        self.assertEqual((v["h2_desen"], v["a2_gen"]), ("DB015", 20))  # fotoğraftan: krem dış bant + Grek + ara bant (2026-11-16 ölçü)
         # her katalog hazırı geçerli ve çizilebilir yapıda
         for kod in parcali.HAZIR:
             v = parcali.temizle(parcali.hazir_degerler(kod), k)

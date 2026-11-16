@@ -150,20 +150,45 @@ def fotograf_yerlesimi(kod, v, px):
     model = [h["d"] + h["gen"] for h in pc.halkalar(v)]
     xk = _dugumler(kenar["sol"], kenar["sag"], model, foto.width, fx, px, W)
     yk = _dugumler(kenar["ust"], kenar["alt"], model, foto.height, fy, px, H)
-    yerlesik = _esnet(foto, xk, yk, (W, H))
-    # madalyon: orta esneyince yamulmasın; fotoğraftaki madalyon yuvarlak kalarak ortaya konur
-    if ref.get("orta") == "duz" and ref.get("madalyon") != "yok":
+    madalyonlu = ref.get("orta") == "duz" and ref.get("madalyon") != "yok"
+    if madalyonlu:
+        # madalyon esnetilmeden önce fotoğraftan alınır (yeri yakındaki zeminle kapatılır), sonra esnemiş halının
+        # ortasına yuvarlak ve gerçek ölçüsünde konur
+        n = len(model)
         r = ref["madalyon_cap"] / 2 + (pc.MADALYON_CERCEVE if ref.get("madalyon_cerceve") else 0) + 1.5
-        cx = (xk[0][len(model)] + xk[0][-len(model) - 1]) / 2
-        cy = (yk[0][len(model)] + yk[0][-len(model) - 1]) / 2
-        kes = foto.crop((round(cx - r * fx), round(cy - r * fy), round(cx + r * fx), round(cy + r * fy)))
+        cx, cy = (xk[0][n] + xk[0][n + 1]) / 2, (yk[0][n] + yk[0][n + 1]) / 2
+        kutu = (round(cx - r * fx), round(cy - r * fy), round(cx + r * fx), round(cy + r * fy))
+        madalyon = foto.crop(kutu)
+        foto = _madalyonu_sil(foto, kutu, (xk[0][n], yk[0][n], xk[0][n + 1], yk[0][n + 1]))
+    yerlesik = _esnet(foto, xk, yk, (W, H))
+    if madalyonlu:
         cap = max(2, round(2 * r * px))
-        kes = kes.resize((cap, cap), Image.BICUBIC)
-        maske = Image.new("L", (cap * 2, cap * 2), 0)
-        ImageDraw.Draw(maske).ellipse((0, 0, cap * 2 - 1, cap * 2 - 1), fill=255)
-        maske = maske.resize((cap, cap), Image.LANCZOS)
-        yerlesik.paste(kes, ((W - cap) // 2, (H - cap) // 2), maske)
+        yerlesik.paste(madalyon.resize((cap, cap), Image.BICUBIC), ((W - cap) // 2, (H - cap) // 2), _daire(cap))
     return yerlesik, kose_cm
+
+
+def _daire(cap):
+    maske = Image.new("L", (cap * 2, cap * 2), 0)
+    ImageDraw.Draw(maske).ellipse((0, 0, cap * 2 - 1, cap * 2 - 1), fill=255)
+    return maske.resize((cap, cap), Image.LANCZOS)
+
+
+def _madalyonu_sil(foto, kutu, zemin):
+    """Madalyonun yerini zeminin başka bir yerinden (yukarı / aşağı / yana kaydırılmış) bir parçayla kapatır."""
+    x0, y0, x1, y1 = kutu
+    g, y = x1 - x0, y1 - y0
+    zx0, zy0, zx1, zy1 = zemin
+    adaylar = [(0, -round(y * 1.15)), (0, round(y * 1.15)), (-round(g * 1.15), 0), (round(g * 1.15), 0)]
+    for dx, dy in adaylar:
+        if zx0 <= x0 + dx and x1 + dx <= zx1 and zy0 <= y0 + dy and y1 + dy <= zy1:
+            break
+    else:
+        return foto  # zemin dar: madalyon olduğu gibi kalır (üstüne yenisi konur)
+    sonuc = foto.copy()
+    yama = foto.crop((x0 + dx, y0 + dy, x1 + dx, y1 + dy))
+    maske = _daire(max(g, y)).resize((g, y)).filter(ImageFilter.GaussianBlur(max(1, g / 40)))
+    sonuc.paste(yama, (x0, y0), maske)
+    return sonuc
 
 
 def bilesik(v, uzun_kenar=900):
