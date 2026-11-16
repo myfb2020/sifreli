@@ -116,57 +116,60 @@ def renklenecekler(v, b):
     return sonuc
 
 
+def _yerel_ortalama(resim_L, maske, r):
+    """Maskeli bölgede yerel (r piksel yarıçaplı) ortalama: maske dışı pikseller hesaba girmez."""
+    from PIL import ImageMath
+
+    pay = Image.composite(resim_L, Image.new("L", resim_L.size, 0), maske).filter(ImageFilter.GaussianBlur(r))
+    payda = maske.filter(ImageFilter.GaussianBlur(r))
+    return ImageMath.lambda_eval(lambda a: a["convert"](a["p"] * 255 / (a["q"] + 0.5), "L"),
+                                 p=pay.convert("F"), q=payda.convert("F"))
+
+
 def _yeniden_renkle(foto, bolge, eski_mal, yeni_mal, px):
-    """Fotoğraftaki desenli bordürde malzeme (desen delikleri dışı) yeni malzemenin dokusuyla değiştirilir; delikler,
-    ışık ve kabartma fotoğraftan kalır. Malzeme / delik ayrımı parlaklık eşiğiyle (Otsu); hangi küme malzeme,
-    eski malzemenin rengine yakınlıkla."""
+    """Fotoğraftaki desenli bordürde malzeme (desen delikleri dışı) yeni malzemenin dokusuyla değiştirilir; delikler
+    ve kabartma fotoğraftan kalır. Malzeme / delik ayrımı YEREL eşikle (fotoğraftaki ışık farkı bordürün bir yanını
+    öbür yanından ayırmasın); hangi küme malzeme, eski malzemenin gerçek doku rengine yakınlıkla. Yeni rengin
+    parlaklığı da yerel ortalamaya göre düzlenir: bordür baştan sona aynı tonda olur."""
+    from . import hali_gorsel as hg
     from . import parcali_gorsel as pg
 
-    kutu = bolge.getbbox()
-    if not kutu:
+    if not bolge.getbbox():
         return foto
+    W, H = foto.size
     L = foto.convert("L")
-    h = L.histogram(mask=bolge)
-    top = sum(h)
-    if top < 50:
-        return foto
-    # Otsu eşiği
-    toplam = sum(i * c for i, c in enumerate(h))
-    w0 = s0 = 0
-    en_iyi, esik = -1, 128
-    for t in range(256):
-        w0 += h[t]
-        if w0 == 0 or w0 == top:
-            continue
-        s0 += t * h[t]
-        m0, m1 = s0 / w0, (toplam - s0) / (top - w0)
-        ara = w0 * (top - w0) * (m0 - m1) ** 2
-        if ara > en_iyi:
-            en_iyi, esik = ara, t
-    koyu = ImageChops.multiply(L.point(lambda q: 255 if q <= esik else 0), bolge)
-    acik = ImageChops.multiply(L.point(lambda q: 255 if q > esik else 0), bolge)
-    hedef = pc.MALZEME_HEX.get(eski_mal, "#888888").lstrip("#")
-    hedef = tuple(int(hedef[i:i + 2], 16) for i in (0, 2, 4))
+    yerel = _yerel_ortalama(L, bolge, max(3, px * 4))
+    acik = ImageChops.multiply(ImageChops.subtract(L, yerel).point(lambda q: 255 if q > 0 else 0), bolge)
+    koyu = ImageChops.subtract(bolge, acik)
+    acik = acik.filter(ImageFilter.MedianFilter(3))
+    koyu = ImageChops.subtract(bolge, acik)
+
+    def doku(ad, boyut=(64, 64)):
+        if ad in ("altin", "gumus"):
+            return hg.malzeme(ad, boyut, 3)
+        return pg.malzeme_dokusu(ad, boyut, 3)
+
+    hedef = ImageStat.Stat(doku(eski_mal)).mean
 
     def uzak(m):
         if not m.getbbox():
             return 10 ** 9
-        c = ImageStat.Stat(foto, m).mean
-        return sum((a - b) ** 2 for a, b in zip(c, hedef))
+        return sum((a - b) ** 2 for a, b in zip(ImageStat.Stat(foto, m).mean, hedef))
 
     malzeme = acik if uzak(acik) <= uzak(koyu) else koyu
-    if sum(malzeme.histogram()[255:]) < 0.15 * top:  # küme çok küçük: ayrım güvenilmez, bütün bölge malzeme
+    top = max(1, sum(bolge.histogram()[128:]))
+    if sum(malzeme.histogram()[128:]) < 0.2 * top:  # küme çok küçük: ayrım güvenilmez, bütün bölge malzeme
         malzeme = bolge
-    doku = pg.malzeme_dokusu(yeni_mal, foto.size, px)
-    if yeni_mal in ("altin", "gumus"):
-        from . import hali_gorsel as hg
-        doku = hg.malzeme(yeni_mal, foto.size, px)
-    # fotoğraftaki ışık / kabartma: piksel parlaklığı / malzemenin ortalama parlaklığı
-    ort = max(1.0, ImageStat.Stat(L, malzeme).mean[0])
-    isik = L.point(lambda q: max(0, min(255, round(128 * max(0.6, min(1.45, q / ort))))))
-    doku = ImageChops.multiply(doku, Image.merge("RGB", (isik,) * 3)).point(lambda q: min(255, q * 2))
-    malzeme = malzeme.filter(ImageFilter.GaussianBlur(max(0.4, px * 0.08)))
-    return Image.composite(doku, foto, malzeme)
+    yeni = doku(yeni_mal, foto.size) if yeni_mal not in ("altin", "gumus") else hg.malzeme(yeni_mal, foto.size, px)
+    # kabartma / gölge: pikselin malzemenin yerel ortalamasına oranı (geniş ışık farkı silinir)
+    mort = _yerel_ortalama(L, malzeme, max(3, px * 6))
+    from PIL import ImageMath
+    isik = ImageMath.lambda_eval(
+        lambda a: a["convert"](a["min"](a["max"](a["l"] * 128 / (a["m"] + 1), 80), 185), "L"),
+        l=L.convert("F"), m=mort.convert("F"))
+    yeni = ImageChops.multiply(yeni, Image.merge("RGB", (isik,) * 3)).point(lambda q: min(255, q * 2))
+    malzeme = malzeme.filter(ImageFilter.GaussianBlur(max(0.4, px * 0.06)))
+    return Image.composite(yeni, foto, malzeme)
 
 
 def _grup(p):
@@ -298,6 +301,13 @@ def fotograf_yerlesimi(kod, v, px):
         zg, za = foto.width - _deger(d["sag"][-1][0], .5) * fx, foto.height - _deger(d["alt"][-1][0], .5) * fy
         r = ref["madalyon_cap"] / 2 + (pc.MADALYON_CERCEVE if ref.get("madalyon_cerceve") else 0) + 1.5
         cx, cy = (zs + zg) / 2, (zu + za) / 2
+        olcum = HALKA.get(kod, {}).get("madalyon")
+        if olcum:  # fotoğrafta ölçülmüş madalyon merkezi (zemin ortasında değilse içeriği kayık görünüyordu)
+            mx, my, mr = olcum
+            if v["en"] > v["boy"]:  # yatay: fotoğraf çevrildi
+                mx, my = my, mx
+            cx, cy = mx * fx, my * fy
+            r = max(r, mr + 1.5)
         kutu = (round(cx - r * fx), round(cy - r * fy), round(cx + r * fx), round(cy + r * fy))
         madalyon = foto.crop(kutu)
         foto = _madalyonu_sil(foto, kutu, (zs, zu, zg, za))

@@ -84,8 +84,10 @@ def studyo(request):
         modeller = KatalogModeli.objects.filter(kod__startswith=on + "-").exclude(resim="").order_by("kod")
         if yalniz_secili:  # bayi yalnız gerçekçi çizimi hazır modelleri görür
             modeller = modeller.filter(kod__in=parcali.SECILI_MODELLER)
+        # "bu modelden başla" yönetici dahil herkese yalnız fotoğrafa göre kurulmuş (seçili) modellerde (2026-11-16:
+        # öteki modellerde çizim katalog fotoğrafına benzemiyor, madalyon logosu kayboluyordu)
         seriler.append({"on": on, "ad": ad, "modeller": [{"kod": m.kod, "resim": m.resim.url,
-                                                          "duzenlenir": m.kod in parcali.HAZIR} for m in modeller]})
+                                                          "duzenlenir": m.kod in parcali.SECILI_MODELLER} for m in modeller]})
     seriler = [sr for sr in seriler if sr["modeller"]]
     motifler = [{"kod": k, "ad": a, "olcu": f"{e:g}×{b:g}"} for k, a, e, b, _ in parcali.NAKIS_MOTIFLERI]
     halkalar = [{"no": i, "tur": veri[f"h{i}_tur"], "gen": veri[f"h{i}_gen"], "malzeme": veri[f"h{i}_malzeme"],
