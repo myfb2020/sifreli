@@ -260,7 +260,7 @@ def _poli_maske(boyut, poli):
     return m
 
 
-def ciz(v, uzun_kenar=900, arka=(252, 251, 249)):
+def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
     px = uzun_kenar / max(v["en"], v["boy"])
     W, H = int(round(v["en"] * px)), int(round(v["boy"] * px))
     boyut = (W, H)
@@ -364,7 +364,7 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249)):
         dis = _poli_maske(boyut, olc(pc.dis_hat(v)))
     else:
         dis = Image.new("L", boyut, 0)
-        ImageDraw.Draw(dis).rounded_rectangle((0, 0, W - 1, H - 1), radius=max(3, int(px * 3)), fill=255)
+        ImageDraw.Draw(dis).rounded_rectangle((0, 0, W - 1, H - 1), radius=max(3, int(px * kose_cm)), fill=255)
     b = max(3, int(px * 2.2))
     # resim kenarına dayanan hat süzgeçte aşınmaz (kenar piksel uzatılır): önce siyah pay eklenir
     genis = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b * 2 + 1))
@@ -543,8 +543,9 @@ def ornek(ad, boy=120):
 
 
 def jpeg(v, uzun_kenar=900):
+    from . import foto_temel  # katalog modelinde değişmeyen parçalar katalog fotoğrafından (2026-11-16)
     t = io.BytesIO()
-    ciz(v, uzun_kenar).save(t, "JPEG", quality=85)
+    (foto_temel.bilesik(v, uzun_kenar) or ciz(v, uzun_kenar)).save(t, "JPEG", quality=85)
     return t.getvalue()
 
 

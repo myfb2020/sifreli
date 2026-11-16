@@ -2911,3 +2911,47 @@ class KartelaStudyoTesti(TasarimStudyosuTesti):
         self.assertContains(sayfa, 'data-grup="RNO"')
         self.assertContains(sayfa, "Bienca BN01 Gümüş &amp; altın varak")
         self.assertNotContains(self.client.get(reverse("bayi_siparis") + "?tur=suni"), "Renklerini değiştir")
+
+
+class FotoTemelTesti(TestCase):
+    """Katalog modelinde değişmeyen parçalar katalog fotoğrafından, değişen parça çizimden (2026-11-16)."""
+
+    def setUp(self):
+        from . import foto_temel, parcali
+        from .parcali_views import _desen_kodlari
+
+        self.ft, self.pc = foto_temel, parcali
+        self.temizle = lambda d: parcali.temizle(d, _desen_kodlari())
+
+    def test_yalniz_degisen_bordur(self):
+        b = self.pc.hazir_degerler("BNA-001")
+        v = self.temizle({**b, "h1_malzeme": "bienca_bn04"})
+        self.assertEqual(self.ft.degisenler(v, self.ft.referans("BNA-001", v["en"], v["boy"])), {("h", 1)})
+        v2 = self.temizle({**b, "zemin": "bienca_bn03"})
+        self.assertIn("zemin", self.ft.degisenler(v2, self.ft.referans("BNA-001", v2["en"], v2["boy"])))
+        self.assertNotIn(("h", 1), self.ft.degisenler(v2, self.ft.referans("BNA-001", v2["en"], v2["boy"])))
+
+    def test_orta_fotograftan_kalir(self):
+        """Bordür rengi değişince halının ortası (zemin) değişmemiş hâliyle aynı kalır."""
+        b = self.pc.hazir_degerler("IPS-452")
+        ayni = self.ft.bilesik(self.temizle(b), 400)
+        degisik = self.ft.bilesik(self.temizle({**b, "h1_malzeme": "altin"}), 400)
+        self.assertIsNotNone(degisik)
+        W, H = ayni.size
+        nokta = (W // 2 - W // 6, H // 2 - H // 6)  # zeminde, madalyonun dışında
+        self.assertEqual(ayni.getpixel(nokta), degisik.getpixel(nokta))
+        kenar = (W // 2, int(H * 0.08))  # üst bordürün içi
+        self.assertNotEqual(ayni.getpixel(kenar), degisik.getpixel(kenar))
+
+    def test_yapi_degisince_butun_halı_cizilir(self):
+        b = self.pc.hazir_degerler("IPS-452")
+        self.assertIsNone(self.ft.bilesik(self.temizle({**b, "h1_gen": 16}), 300))
+        self.assertIsNone(self.ft.bilesik(self.temizle({**b, "halka_sayisi": 2}), 300))
+        self.assertIsNone(self.ft.bilesik(self.temizle({**b, "katalog": ""}), 300))
+
+    def test_olcu_degisince_de_fotograf(self):
+        b = self.pc.hazir_degerler("PCH-002")
+        for en, boy in ((200, 300), (300, 200)):
+            r = self.ft.bilesik(self.temizle({**b, "en": en, "boy": boy, "h2_malzeme": "gumus"}), 300)
+            self.assertIsNotNone(r)
+            self.assertEqual(r.width > r.height, en > boy)
