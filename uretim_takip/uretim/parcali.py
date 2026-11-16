@@ -179,7 +179,9 @@ IPLIKLER = [("altin", "Altın", "#c9a75e"), ("gumus", "Gümüş", "#c2c5c9"), ("
             ("beyaz", "Beyaz", "#f1ede4"), ("kahve", "Kahve", "#6b5440"), ("siyah", "Siyah", "#1e1d1c")]
 IPLIK_HEX = {k: h for k, _, h in IPLIKLER}
 MOTIF_PAY = 2  # motifin iki yanında kalan en az pay (cm)
-GIZLI_DESENLER = {"DB002", "DB007", "DB010", "DB011"}  # suni deri tasarımda gösterilmeyen lazer desenleri
+# suni deri tasarımda gösterilmeyen lazer desenleri; DB012 / DB014 yalnız köşeye motif koyar, bordür boş görünür
+# (2026-11-16, bayi denemesi: bayi desensiz bordür sanıyordu)
+GIZLI_DESENLER = {"DB002", "DB007", "DB010", "DB011", "DB012", "DB014"}
 MADALYONLAR = [("yok", "Yok"), ("duz", "Düz"), ("nakisli", "Nakışlı")]
 
 
@@ -500,6 +502,8 @@ BAYIDE_GIZLI = {
     "BNA-006", "BNA-008", "BNA-016", "BNA-021",  # Bienca baskısı / desen fotoğraftan çok farklı
     "IPS-439", "IPS-454", "IPS-456", "IPS-461", "IPS-462", "IPS-466", "IPS-468", "IPS-469", "IPS-475", "IPS-477",
     "IPS-483",  # mermer / varak yaprak / leopar / çapraz köşe / marka logolu bant: elimizdekilerle olmuyor
+    # 2026-11-16 (kullanıcı): açılışı katalog fotoğrafına benzemeyen, fotoğraf esaslı olmayan modeller
+    "BNA-017", "BNA-025", "RNO-002", "IPS-467", "IPS-471",
 }
 SECILI_MODELLER[:] = [k for k in dict.fromkeys(list(FOTO_RENK) + [k for k in KATALOG_DEGER if k.startswith("IPS")])
                       if k not in BAYIDE_GIZLI]

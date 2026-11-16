@@ -76,7 +76,7 @@ def degisenler(v, b):
         on = f"h{no}_"
         tur = v.get(on + "tur")
         if fark(on + "tur", on + "malzeme") or (tur == "desenli" and fark(on + "desen", "desen_alti")) or (
-                tur == "nakisli" and fark(on + "nakis", "iplik")) or (tur != "duz" and gen != eski[no]):
+                tur == "nakisli" and fark(on + "nakis", "iplik")) or (tur == "nakisli" and gen != eski[no]):
             d.add(("h", no))
     if fark("zemin"):
         d |= {"zemin"} | {("a", i) for i in range(1, pc.EN_COK_HALKA)}
@@ -99,6 +99,74 @@ def degisenler(v, b):
     if ilk and _grup_adi(ilk[0][0]) in d:
         d.add("kenar")  # dış bordür değişince fotoğraftaki eski bordür biye şeridinden görünmesin: biye de çizilir
     return d
+
+
+def renklenecekler(v, b):
+    """Yalnız malzemesi (rengi) değişen desenli bordürler: deseni fotoğraftan kalır, malzemesi yeniden renklenir
+    (2026-11-16, bayi denemesi: rengi değişen desenli bordür bizim desenimizle çiziliyor, şablon gibi görünüyordu)."""
+    eski = dict(_ogeler(b))
+    sonuc = {}
+    for no, _ in _ogeler(v):
+        if isinstance(no, str) or no not in eski:
+            continue
+        on = f"h{no}_"
+        if (v.get(on + "tur") == b.get(on + "tur") == "desenli" and v.get(on + "desen") == b.get(on + "desen")
+                and v.get("desen_alti") == b.get("desen_alti") and v.get(on + "malzeme") != b.get(on + "malzeme")):
+            sonuc[("h", no)] = (b[on + "malzeme"], v[on + "malzeme"])
+    return sonuc
+
+
+def _yeniden_renkle(foto, bolge, eski_mal, yeni_mal, px):
+    """Fotoğraftaki desenli bordürde malzeme (desen delikleri dışı) yeni malzemenin dokusuyla değiştirilir; delikler,
+    ışık ve kabartma fotoğraftan kalır. Malzeme / delik ayrımı parlaklık eşiğiyle (Otsu); hangi küme malzeme,
+    eski malzemenin rengine yakınlıkla."""
+    from . import parcali_gorsel as pg
+
+    kutu = bolge.getbbox()
+    if not kutu:
+        return foto
+    L = foto.convert("L")
+    h = L.histogram(mask=bolge)
+    top = sum(h)
+    if top < 50:
+        return foto
+    # Otsu eşiği
+    toplam = sum(i * c for i, c in enumerate(h))
+    w0 = s0 = 0
+    en_iyi, esik = -1, 128
+    for t in range(256):
+        w0 += h[t]
+        if w0 == 0 or w0 == top:
+            continue
+        s0 += t * h[t]
+        m0, m1 = s0 / w0, (toplam - s0) / (top - w0)
+        ara = w0 * (top - w0) * (m0 - m1) ** 2
+        if ara > en_iyi:
+            en_iyi, esik = ara, t
+    koyu = ImageChops.multiply(L.point(lambda q: 255 if q <= esik else 0), bolge)
+    acik = ImageChops.multiply(L.point(lambda q: 255 if q > esik else 0), bolge)
+    hedef = pc.MALZEME_HEX.get(eski_mal, "#888888").lstrip("#")
+    hedef = tuple(int(hedef[i:i + 2], 16) for i in (0, 2, 4))
+
+    def uzak(m):
+        if not m.getbbox():
+            return 10 ** 9
+        c = ImageStat.Stat(foto, m).mean
+        return sum((a - b) ** 2 for a, b in zip(c, hedef))
+
+    malzeme = acik if uzak(acik) <= uzak(koyu) else koyu
+    if sum(malzeme.histogram()[255:]) < 0.15 * top:  # küme çok küçük: ayrım güvenilmez, bütün bölge malzeme
+        malzeme = bolge
+    doku = pg.malzeme_dokusu(yeni_mal, foto.size, px)
+    if yeni_mal in ("altin", "gumus"):
+        from . import hali_gorsel as hg
+        doku = hg.malzeme(yeni_mal, foto.size, px)
+    # fotoğraftaki ışık / kabartma: piksel parlaklığı / malzemenin ortalama parlaklığı
+    ort = max(1.0, ImageStat.Stat(L, malzeme).mean[0])
+    isik = L.point(lambda q: max(0, min(255, round(128 * max(0.6, min(1.45, q / ort))))))
+    doku = ImageChops.multiply(doku, Image.merge("RGB", (isik,) * 3)).point(lambda q: min(255, q * 2))
+    malzeme = malzeme.filter(ImageFilter.GaussianBlur(max(0.4, px * 0.08)))
+    return Image.composite(doku, foto, malzeme)
 
 
 def _grup(p):
@@ -274,10 +342,26 @@ def bilesik(v, uzun_kenar=900):
     b = referans(kod, v["en"], v["boy"])
     if v.get("sekil") != b.get("sekil"):  # dikdörtgen ↔ oval: fotoğraf uymaz, bütün halı çizilir
         return None
+    if v.get("sekil") == "oval" and [no for no, _ in _ogeler(v)] != [no for no, _ in _ogeler(b)]:
+        return None  # ovalde bordür / ara bant eklenip çıkarılınca fotoğraf eğri kenarlarda bozuluyor: çizilir
     degisen = degisenler(v, b)
+    renkle = renklenecekler(v, b)
+    degisen = degisen - set(renkle)
+    ilk = _ogeler(v)[:1]
+    if ilk and _grup_adi(ilk[0][0]) not in degisen and v.get("kenar") == b.get("kenar") and \
+            v.get("kenar_renk") == b.get("kenar_renk"):
+        degisen.discard("kenar")  # dış bordür yalnız yeniden renklendiyse biye fotoğraftan kalır
     px = uzun_kenar / max(v["en"], v["boy"])
     W, H = int(round(v["en"] * px)), int(round(v["boy"] * px))
     foto, kose_cm = fotograf_yerlesimi(kod, v, px)
+    if renkle:
+        olc0 = lambda poli: [(x * px, y * px) for x, y in poli]  # noqa: E731
+        for grup, (eski_mal, yeni_mal) in renkle.items():
+            bolge = Image.new("L", (W, H), 0)
+            for p in pc.parcalar(v):
+                if _grup(p) == grup:
+                    ImageDraw.Draw(bolge).polygon(olc0(p["poli"]), fill=255)
+            foto = _yeniden_renkle(foto, bolge, eski_mal, yeni_mal, px)
     oval = v.get("sekil") == "oval"
     tuval = pg.ciz(v, uzun_kenar, kose_cm=3 if oval else kose_cm)
     pay = (tuval.width - W) // 2
@@ -317,9 +401,11 @@ def bilesik(v, uzun_kenar=900):
             if delik.getbbox():
                 foto = _boyunca_doldur(foto, ImageChops.subtract(maske, ImageChops.lighter(*bozuk)), delik, px, yon)
     if ara.getbbox():
-        # kaynak zeminin kenarından en az 3 cm içeride (kenarda komşu bordürün izi olabilir)
-        ic_zemin = zemin.filter(ImageFilter.MinFilter(2 * max(1, round(px * 3)) + 1))
-        foto = _doldur(foto, ic_zemin, ara, px, mesafeler=(10, 15, 20, 25, 30, 40, 50, 60, 75, 90, 110))
+        # yeni ara bant zemin malzemesindendir: fotoğraftaki zeminin temiz bir parçası (madalyon ve bordürlerden
+        # uzak) aynalanarak döşenir; kaydırarak doldurma madalyon / bordür parçalarını da kopyalıyordu
+        doku = _zemin_dokusu(foto, zemin, px, (W, H))
+        if doku is not None:
+            foto = Image.composite(doku, foto, ara)
         maske = ImageChops.lighter(maske, ara)
     # biye / lanfel şeridi: kenar değişmediyse fotoğraftan, değiştiyse çizimden
     serit = ImageChops.subtract(dis, _ic_hat(dis, max(3, int(px * 2.2)), W, H))
@@ -330,6 +416,34 @@ def bilesik(v, uzun_kenar=900):
     maske = ImageChops.multiply(maske, dis).filter(ImageFilter.GaussianBlur(max(0.6, px * 0.25)))
     maske = ImageChops.multiply(maske, dis)  # yumuşatma halının dışına taşmasın
     tuval.paste(foto, (pay, pay), maske)
+    return tuval
+
+
+def _zemin_dokusu(foto, zemin, px, boyut):
+    """Zeminin üst bölümünden (madalyonun üstü) temiz bir parça, aynalı döşenerek bütün tuvali kaplar."""
+    ic = zemin.filter(ImageFilter.MinFilter(2 * max(1, round(px * 3)) + 1))
+    kutu = ic.getbbox()
+    if not kutu:
+        return None
+    x0, y0, x1, y1 = kutu
+    w, h = x1 - x0, y1 - y0
+    p = (round(x0 + 0.15 * w), round(y0 + 0.06 * h), round(x1 - 0.15 * w), round(y0 + 0.26 * h))
+    if p[2] - p[0] < 8 or p[3] - p[1] < 8:
+        return None
+    parca = foto.crop(p)
+    if ImageStat.Stat(ic.crop(p)).mean[0] < 200:  # parça zeminin dışına taşıyor (dar / oval zemin)
+        p = (round(x0 + 0.3 * w), round(y0 + 0.3 * h), round(x1 - 0.3 * w), round(y0 + 0.4 * h))
+        parca = foto.crop(p)
+    pw, ph = parca.size
+    ikili = Image.new("RGB", (pw * 2, ph * 2))
+    ikili.paste(parca, (0, 0))
+    ikili.paste(ImageOps.mirror(parca), (pw, 0))
+    ikili.paste(ImageOps.flip(parca), (0, ph))
+    ikili.paste(ImageOps.flip(ImageOps.mirror(parca)), (pw, ph))
+    tuval = Image.new("RGB", boyut)
+    for y in range(0, boyut[1], ikili.height):
+        for x in range(0, boyut[0], ikili.width):
+            tuval.paste(ikili, (x, y))
     return tuval
 
 

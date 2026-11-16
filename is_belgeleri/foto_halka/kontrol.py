@@ -29,10 +29,17 @@ def kontrol_resmi(kod):
     foto = foto.resize((round(v["en"] * K), round(v["boy"] * K)))
     d = ImageDraw.Draw(foto)
     W, H = foto.size
-    olcu = ft._kenar_olculeri(kod, v)
+    olcu = ft._kenar_olculeri(kod, v)  # her sınır kenar boyunca (baş, son): eğik çizgi olarak çizilir
+    renk = [(255, 0, 0), (0, 160, 255), (0, 200, 0), (255, 0, 255), (255, 160, 0)]
     for i in range(len(olcu["sol"])):
-        d.rectangle((olcu["sol"][i] * K, olcu["ust"][i] * K, W - olcu["sag"][i] * K, H - olcu["alt"][i] * K),
-                    outline=(255, 0, 0))
+        r = renk[i % len(renk)]
+        (sa, sb), (ga, gb) = olcu["sol"][i], olcu["sag"][i]
+        (ua, ub), (aa, ab) = olcu["ust"][i], olcu["alt"][i]
+        d.line((sa * K, 0, sb * K, H), fill=r, width=1)
+        d.line((W - ga * K, 0, W - gb * K, H), fill=r, width=1)
+        d.line((0, ua * K, W, ub * K), fill=r, width=1)
+        d.line((0, H - aa * K, W, H - ab * K), fill=r, width=1)
+    olcu = {k: [(a + b) / 2 for a, b in x] for k, x in olcu.items()}
     if v.get("orta") == "duz" and v.get("madalyon") != "yok":
         n = len(olcu["sol"])
         cx = ((olcu["sol"][-1] if n else 0) + v["en"] - (olcu["sag"][-1] if n else 0)) / 2
