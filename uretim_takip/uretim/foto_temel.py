@@ -22,6 +22,7 @@ from . import parcali as pc
 
 _KLASOR = Path(__file__).parent
 FOTO_KLASORU = _KLASOR / "katalog_tohum" / "model"
+DUZ_KLASORU = _KLASOR / "tasarim_varlik" / "foto_duz"  # kullanıcının çektiği fotoğraflar, düzleştirilmiş (halı tam kare)
 KUTU = json.loads((_KLASOR / "tasarim_varlik" / "foto_kutu.json").read_text())
 # fotoğrafta her kenarda bordür sınırları (cm, kenardan içeri; fotoğraf katalog ölçüsüne oturtulmuş olarak): sayı
 # (kenar boyunca aynı) ya da [baş, son]; sol / sağ kenarda baş = üst uç, üst / alt kenarda baş = sol uç
@@ -34,7 +35,9 @@ KALINTI_ESIK = 22  # piksel eski parça rengine komşusundan bu kadar yakınsa k
 
 def uygun_mu(kod):
     """Bu model fotoğraf esaslı gösterilebilir mi (fotoğrafı var, bordür sınırları fotoğrafta ölçüldü)."""
-    return kod in KUTU and kod in HALKA and kod in pc.FOTO_RENK and (FOTO_KLASORU / f"{kod}.jpg").exists()
+    if kod not in HALKA or kod not in pc.FOTO_RENK:
+        return False
+    return (DUZ_KLASORU / f"{kod}.jpg").exists() or (kod in KUTU and (FOTO_KLASORU / f"{kod}.jpg").exists())
 
 
 def referans(kod, en=None, boy=None):
@@ -190,6 +193,10 @@ def _grup(p):
 @lru_cache(maxsize=8)
 def _foto(kod):
     """Fotoğraftaki halı (kutusundan kesilmiş) ve köşe yarıçapı (fotoğraf pikseli)."""
+    duz = DUZ_KLASORU / f"{kod}.jpg"
+    if duz.exists():  # düzleştirilmiş fotoğraf: bütün resim halı, köşeler keskin
+        resim = Image.open(duz).convert("RGB")
+        return resim, round(resim.width / 160)
     resim = Image.open(FOTO_KLASORU / f"{kod}.jpg").convert("RGB")
     x0, y0, x1, y1, _ = KUTU[kod]
     return resim.crop((x0, y0, x1, y1)), round(resim.width * KOSE_ORANI)
@@ -401,7 +408,8 @@ def bilesik(v, uzun_kenar=900):
         cizilen = cizilen.filter(ImageFilter.MaxFilter(2 * max(1, round(px * ORTUSME_CM)) + 1))
         maske = ImageChops.subtract(maske, cizilen)
         # eski bordürden kalan kayık kenar: fotoğrafta komşu parçanın renginden doldurulur
-        foto = _doldur(foto, maske, ImageChops.multiply(_kalintilar(v, degisen, foto, px, (W, H)), maske), px)
+        for kalinti, bolge in _kalintilar(v, degisen, foto, px, (W, H)):
+            foto = _doldur(foto, ImageChops.multiply(maske, bolge), ImageChops.multiply(kalinti, maske), px)
     bozuk = _bos_seritler(kod, b, v, px, (W, H))
     if bozuk[0].getbbox() or bozuk[1].getbbox():
         # yeni eklenen bordür / ara bant fotoğrafta yok: o sütun ve satırlarda dıştaki bordürler tek piksel sütunundan
@@ -479,15 +487,21 @@ def _boyunca_doldur(foto, gecerli, delik, px, yon):
     """Delik, yon 0'da yatay (sütun deliği), 1'de dikey kaydırılmış geçerli pikselle doldurulur."""
     W, H = foto.size
     sonuc = foto
-    for cm in (8, -8, 15, -15, 25, -25, 40, -40, 60, -60):
-        s = round(px * cm)
-        dx, dy = (s, 0) if yon == 0 else (0, s)
-        kaynak, uygun = _kaydir(foto, -dx, -dy), _kaydir(gecerli, -dx, -dy)
-        tamam = ImageChops.multiply(delik, uygun.point(lambda q: 255 if q > 200 else 0))
-        sonuc = Image.composite(kaynak, sonuc, tamam)
-        delik = ImageChops.subtract(delik, tamam)
-        if not delik.getbbox():
-            break
+    # doku halının ortasına doğru alınır: dışa doğru kaydırmak köşedeki öteki kenarın bandını (gönye / uç uca
+    # birleşen bordür) kopyalıyordu
+    yari = Image.new("L", (W, H), 0)
+    yari.paste(255, (0, 0, W // 2, H) if yon == 0 else (0, 0, W, H // 2))
+    for isaret, bolge in ((1, yari), (-1, ImageOps.invert(yari))):
+        kalan = ImageChops.multiply(delik, bolge)
+        for cm in (8, 15, 25, 40, 60):
+            if not kalan.getbbox():
+                break
+            s = isaret * round(px * cm)
+            dx, dy = (s, 0) if yon == 0 else (0, s)
+            kaynak, uygun = _kaydir(foto, -dx, -dy), _kaydir(gecerli, -dx, -dy)
+            tamam = ImageChops.multiply(kalan, uygun.point(lambda q: 255 if q > 200 else 0))
+            sonuc = Image.composite(kaynak, sonuc, tamam)
+            kalan = ImageChops.subtract(kalan, tamam)
     return sonuc
 
 
@@ -508,22 +522,32 @@ def _ic_sekil(v, d, px, boyut):
 
 def _kalintilar(v, degisen, foto, px, boyut):
     """Fotoğraftaki eski bordürün kayık / eğri kenarından kalanlar: değişen bordürün iki yanında, komşu parçanın
-    (zemin, öteki bordür) renk dağılımına uymayan pikseller (eski bordürün rengi, desen delikleri)."""
-    sonuc = Image.new("L", boyut, 0)
-    ogeler = [(h["d"], h["gen"], _grup_adi(h["no"])) for h in pc.halkalar(v)]
-    D = sum(g for _, g, _ in ogeler)
-    if "zemin" in degisen:
-        ogeler.append((D, 10 ** 4, "zemin"))
+    (zemin, öteki bordür) renk dağılımına uymayan pikseller (eski bordürün rengi, desen delikleri).
+    Sonuç: [(kalıntı maskesi, komşu parçanın bölgesi)]; kalıntı yalnız kendi parçasının dokusuyla doldurulur (dar bir
+    bantta öteki parçanın — ör. siyah desenli bordürün — dokusu kopyalanmasın)."""
+    sonuc = []
+    parcalar = [(h["d"], h["d"] + h["gen"], _grup_adi(h["no"])) for h in pc.halkalar(v)]
+    D = parcalar[-1][1] if parcalar else 0.0
+    parcalar.append((D, 10 ** 4, "zemin"))
     sekil = lambda d: _ic_sekil(v, d, px, boyut)  # noqa: E731
     fark = lambda a, b: ImageChops.subtract(a, b)  # noqa: E731
-    for d, gen, grup in ogeler:
+    for j, (d, e, grup) in enumerate(parcalar):
         if grup not in degisen:
             continue
-        for bant, komsu in (((d - KALINTI_CM, d - ORTUSME_CM), (d - KALINTI_CM - 3, d - KALINTI_CM)),
-                            ((d + gen + ORTUSME_CM, d + gen + KALINTI_CM),
-                             (d + gen + KALINTI_CM, d + gen + KALINTI_CM + 3))):
-            if bant[1] <= 0:
+        yanlar = []
+        if j > 0:  # içe doğru: dıştaki komşu [ks, d]
+            ks = parcalar[j - 1][0]
+            yanlar.append((ks, d, (max(d - KALINTI_CM, ks), d - ORTUSME_CM), True))
+        if j + 1 < len(parcalar):  # dışa doğru: içteki komşu [e, ke]
+            ke = parcalar[j + 1][1]
+            yanlar.append((e, ke, (e + ORTUSME_CM, min(e + KALINTI_CM, ke)), False))
+        for ks, ke, bant, ic in yanlar:
+            if bant[1] - bant[0] < 0.2:
                 continue
+            # komşunun renk örneği: kalıntı bandının ötesi, yalnız komşu parçanın içinden (dar parçada bütün parçası)
+            komsu = (max(ks + 0.3, bant[0] - 3), bant[0]) if ic else (bant[1], min(ke - 0.3, bant[1] + 3))
+            if komsu[1] - komsu[0] < 0.8:
+                komsu = (ks + 0.3, ke - 0.3) if ke < 10 ** 3 else komsu
             yer, km = fark(sekil(bant[0]), sekil(bant[1])), fark(sekil(komsu[0]), sekil(komsu[1]))
             if not yer.getbbox() or not km.getbbox():
                 continue
@@ -533,13 +557,17 @@ def _kalintilar(v, degisen, foto, px, boyut):
             uzak = ImageChops.difference(foto, Image.new("RGB", boyut, ort)).convert("L")
             esik = max(KALINTI_ESIK, 2.5 * sapma)
             aykiri = uzak.point(lambda q: 255 if q > esik else 0)
-            eski = ImageStat.Stat(foto, fark(sekil(d + 0.7), sekil(d + gen - 0.7))).mean if gen > 1.4 else None
+            gen = e - d
+            eski = ImageStat.Stat(foto, fark(sekil(d + 0.7), sekil(e - 0.7))).mean if 1.4 < gen < 10 ** 3 else None
             if eski:  # desenli zeminde: rengi eski bordüre zeminden belirgin biçimde yakın pikseller de kalıntı
                 yakin = ImageChops.difference(foto, Image.new("RGB", boyut, tuple(round(c) for c in eski))).convert("L")
                 aykiri = ImageChops.lighter(aykiri, ImageChops.subtract(uzak, yakin).point(
                     lambda q: 255 if q > KALINTI_ESIK else 0))
             aykiri = ImageChops.multiply(aykiri, yer).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(5))
-            sonuc = ImageChops.lighter(sonuc, ImageChops.multiply(aykiri, yer))
+            aykiri = ImageChops.multiply(aykiri, yer)
+            if aykiri.getbbox():
+                bolge = fark(sekil(ks), sekil(ke)) if ke < 10 ** 3 else sekil(ks)
+                sonuc.append((aykiri, bolge))
     return sonuc
 
 
@@ -569,7 +597,7 @@ def _doldur(foto, gecerli, delik, px, mesafeler=None):
     yon = {"sol": (1, 0), "sag": (-1, 0), "ust": (0, 1), "alt": (0, -1)}
     sonuc = foto
     if mesafeler is None:  # kalıntı: önce içeri, sonra dışarı; iki uzaklıkta
-        mesafeler = [(KALINTI_CM + 1.5) * k for k in (1, -1, 2, -2)]
+        mesafeler = [(KALINTI_CM + 1.5) * k for k in (1, -1, 2, -2)] + [2.5, -2.5, 1.5, -1.5]  # dar parça: yakından
     for kat in mesafeler:
         s = round(px * abs(kat))
         for ad, (ux, uy) in yon.items():

@@ -417,7 +417,7 @@
     } else if (fotoKalsin && katalogResmi()) {
       bekleyenAdres = null; resim.src = katalogResmi();  // "bu modelden başla": bayi bir şey değiştirene kadar modelin kendi fotoğrafı
     } else {
-      resimYukle(resimAdresi + `?s=3&b=${resimBoyu}&` + q);
+      resimYukle(resimAdresi + `?s=4&b=${resimBoyu}&` + q);
     }
     try {
       const j = await (await fetch(veriAdresi + "?" + q)).json();
@@ -474,7 +474,7 @@
   const buyukResim = document.getElementById("buyuk-resim");
   function ac() {
     buyukResim.src = (!secimKutusu.hidden && secilen) ? secilen.dataset.resim
-      : form.querySelector('[name="aynen"]').value ? katalogResmi() : resimAdresi + "?s=3&b=1200&" + sorgu();
+      : form.querySelector('[name="aynen"]').value ? katalogResmi() : resimAdresi + "?s=4&b=1200&" + sorgu();
     buyukIc.classList.remove("yakin");
     buyuk.hidden = false; document.body.style.overflow = "hidden";
     history.pushState({ buyuk: 1 }, "");
@@ -550,7 +550,7 @@
     liste.forEach((f) => {
       const d = document.createElement("button");
       d.type = "button"; d.className = "hazir";
-      d.innerHTML = `<img src="${resimAdresi}?s=3&b=240&${new URLSearchParams(f.v)}" alt="" loading="lazy"><span>${kac(f.baslik)}</span>`;
+      d.innerHTML = `<img src="${resimAdresi}?s=4&b=240&${new URLSearchParams(f.v)}" alt="" loading="lazy"><span>${kac(f.baslik)}</span>`;
       d.addEventListener("click", () => { fotoKalsin = false; uygula(f.v, ""); secimiIsaretle(d); });
       kap.appendChild(d);
     });

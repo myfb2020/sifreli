@@ -78,7 +78,13 @@ def _kartela_dokusu(ad, boyut, px):
     ince = kaynak.resize((w, max(12, round(kaynak.height * w / kaynak.width))), Image.LANCZOS).convert("L")
     ince = ImageChops.subtract(ince, ince.filter(ImageFilter.GaussianBlur(3)), 1, 128)  # yalnız dokuma ayrıntısı
     kes = min(8, ince.width // 4, ince.height // 4)  # bulanıklaştırmanın kenarda bıraktığı parlak şerit kesilir
-    ince = ince.crop((kes, kes, ince.width - kes, ince.height - kes)).point(lambda q: round(128 + (q - 128) * 0.7))
+    ince = ince.crop((kes, kes, ince.width - kes, ince.height - kes))
+    # satır / sütun ortalaması 128'e çekilir: karonun üst-alt ve sağ-sol kenarı aynı tonda kalır (tekrar yerinde
+    # yatay / dikey çizgi görünmesin)
+    for boy in ((1, ince.height), (ince.width, 1)):
+        ortalama = ince.resize(boy, Image.BOX).resize(ince.size, Image.NEAREST)
+        ince = ImageChops.add(ImageChops.subtract(ince, ortalama, 1, 128), Image.new("L", ince.size, 0), 1, 0)
+    ince = ince.point(lambda q: round(128 + (q - 128) * 0.7))
     doku = Image.new("L", boyut, 128)
     for sira, y in enumerate(range(0, boyut[1], ince.height)):
         kay = (sira * ince.width // 3) % ince.width  # tuğla gibi kaydırılır: tekrar sırası görünmesin

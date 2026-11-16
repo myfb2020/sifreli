@@ -22,7 +22,7 @@ for l in open(f"{K}/sonuc.jsonl"):
     kod, notlar = k["kod"], list(k["sorunlar"])
     if k.get("gonderim") != "gönderildi":
         notlar.append(f"sipariş: {k.get('gonderim')}")
-    ims = [("katalog", Image.open(f"uretim/katalog_tohum/model/{kod}.jpg").convert("RGB"))]
+    ims = [("katalog", ft._foto(kod)[0])]
     son_v = None
     for a in k["adimlar"]:
         v = _temizle(QueryDict(a["q"]))

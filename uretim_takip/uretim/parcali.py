@@ -350,6 +350,8 @@ KATALOG_DEGER = {
     "RNO-003": _k("pelus_gri", ("desenli", 14, A, "DB004")),
     "RNO-004": _k("pelus_krem", ("duz", 3, A, ""), ("desenli", 10, "bienca_gri", "DB001")),
     "RNO-005": _k("pelus_krem", ("duz", 16, "pelus_krem", ""), ("desenli", 8, "bienca_gri", "DB013")),
+    # kullanıcının çektiği Rono fotoğrafları (2026-11-16; değerler FOTO_RENK'te)
+    **{k: _k("beyaz_keten") for k in ("RNO-007", "RNO-009", "RNO-010", "RNO-011", "RNO-012")},
 }
 HAZIRLAR = [(k, dict(KATALOG_SERILERI)[k[:3]], d) for k, d in KATALOG_DEGER.items()]
 HAZIR = {k: d for k, _, d in HAZIRLAR}
@@ -430,6 +432,17 @@ FOTO_RENK = {
 # 2026-11-10: Peluche (PCH) modelleri fotoğrafa göre yeniden: geniş lazer bordür (LZ), beyaz zemin pelus_krem (beyaz
 # peluş dokusu varak gibi parlıyordu), düz beyaz dış bant, altın / gümüş biye
 _P = lambda zemin, kenar, *h, **ek: _yapi(zemin, kenar, *h, alt="krem", **ek)  # noqa: E731
+# 2026-11-16: kullanıcının çektiği Rono fotoğrafları (tasarim_varlik/foto_duz, düzleştirilmiş; köşeler gönye)
+FOTO_RENK.update({
+    "RNO-007": _yapi("beyaz_keten", "gri_keten", ("duz", 3.5, "gri_keten", ""), ("desenli", 17, "antrasit_keten", "LZ04"),
+                     ("duz", 5.5, "gri_keten", ""), alt="gumus_sim"),
+    "RNO-009": _yapi("beyaz_keten", "altin", ("duz", 6.5, "altin", ""), ("desenli", 13.5, "altin", "LZ03"),
+                     ("duz", 4, "altin", ""), alt="altin_sim"),
+    "RNO-010": _yapi("kahve_keten", "kahve_keten", ("duz", 14, "kahve_keten", ""), ("duz", 14, "bienca_bn02", "")),
+    "RNO-011": _yapi("krem_keten", "krem_keten", ("duz", 20, "bienca_bn03", "")),
+    "RNO-012": _yapi("gri_keten", "gri_keten", ("duz", 10, "gri_keten", ""), ("duz", 13, "antrasit_keten", ""),
+                     ("duz", 13, "antrasit_keten", ""), a1_gen=0, a2_gen=15, a3_gen=10),
+})
 FOTO_RENK.update({
     "PCH-002": _P("pelus_siyah", "altin", ("duz", 20, "pelus_siyah", ""), ("desenli", 13, "altin", "LZ04"),
                   madalyon="duz", madalyon_malzeme="altin", madalyon_cap=22),
