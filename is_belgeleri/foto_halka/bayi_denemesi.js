@@ -12,11 +12,15 @@ const sorgu = () => { const f = document.getElementById('studyo'); const v = new
   const ac = async (kod) => { await p.goto('http://127.0.0.1:8765/tasarim/parcali/?hazir=' + kod, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(700); };
   const yaz = async (kod, islem, secilen) => { await p.waitForTimeout(700); console.log(JSON.stringify({ kod, islem, secilen, q: await p.evaluate(sorgu) })); };
   const tikla = async (kap, secici) => {  // kap içinde görünür, seçili olmayan ilk seçeneğe gerçek tıklama
-    const t = p.locator(kap + ' button.tumu'); if (await t.count()) { for (let i = 0; i < await t.count(); i++) if (await t.nth(i).isVisible()) await t.nth(i).click(); }
+    // "Tümünü göster" düğmesi ızgaranın hemen ardında (içinde değil): kısaltılmış listede kartela renkleri gizli kalır
+    const t = p.locator(`${kap} + button.tumu, ${kap} button.tumu`);
+    for (let i = 0; i < await t.count(); i++) if (await t.nth(i).isVisible() && (await t.nth(i).textContent()).includes('Tümünü')) await t.nth(i).click();
     const e = p.locator(`${kap} ${secici}:visible:not(:has(input:checked)):not(:has(input:disabled))`).first();
-    if (!(await e.count())) return null;
+    if (!(await e.count())) { console.log(JSON.stringify({ kod: simdiki, islem: 'SECENEK_YOK', kap })); return null; }
     const v = await e.locator('input').getAttribute('value'); await e.click(); return v; };
+  let simdiki = '';
   for (const kod of kodlar) {
+    simdiki = kod;
     await ac(kod); await yaz(kod, 'ilk', null);
     const n = parseInt(await p.inputValue('#halka_sayisi'), 10) || 0;
     const madalyon = await p.evaluate(() => (document.querySelector('[name=madalyon]:checked') || {}).value);
