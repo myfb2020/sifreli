@@ -1,49 +1,40 @@
 """Katalog modelinde fotoğraf esas (2026-11-16, kullanıcı: "seçilen model üzerinden yalnız seçilen bordürün rengi ve
 modeli değişsin").
 
-Bayi katalogdaki bir modelden başlayıp renk / desen değiştirince halı baştan çizilmez: bayinin dokunmadığı parçalar
-(zemin, madalyon, öteki bordürler, biye) katalog fotoğrafından gelir, yalnız değişen parça çizilir. Fotoğraf çizimin
-ölçüsüne oturtulur: bordürler gerçek cm genişliğini korur (kenarlar boyuna uzar), orta esner, madalyon yuvarlak kalır. Halının yapısı değiştiyse (bordür eklendi / çıkarıldı, genişlik, şekil, orta türü) fotoğraf
-artık uymaz: o zaman bütün halı çizilir (None döner).
+Bayi katalogdaki bir modelden başlayıp renk / desen / ölçü değiştirince halı baştan çizilmez: bayinin dokunmadığı
+parçalar (zemin, madalyon, öteki bordürler, biye) katalog fotoğrafından gelir, yalnız değişen parça çizilir.
+Fotoğraf çizimin ölçüsüne oturtulur: bordürler gerçek cm genişliğini korur (kenarlar boyuna uzar), orta esner,
+madalyon yuvarlak kalır. Ara bant / düz bordür genişliği değişince fotoğraftaki bant esnetilir; yeni eklenen bordür
+çizilir, çıkarılan bordür fotoğraftan silinir. Yalnız dikdörtgen ↔ oval değişince bütün halı çizilir (None döner).
 
-Fotoğraftaki halı kutusu: tasarim_varlik/foto_kutu.json (is_belgeleri/katalog_beyaz/kutu_cikar.py); fotoğraf
-kayık / perspektifli olduğundan her kenarın bordür sınırları ayrı ölçülür (foto_halka.json) ve fotoğraf parça parça
-esnetilerek bu sınırlar çizimdeki yerlerine oturtulur.
+Fotoğraftaki halı kutusu: tasarim_varlik/foto_kutu.json (is_belgeleri/katalog_beyaz/kutu_cikar.py). Fotoğraflar
+eğik / perspektifli çekildiğinden her bordür sınırı her kenarda ayrı ölçülür ve kenar boyunca eğik bir doğru olarak
+tutulur (foto_halka.json; is_belgeleri/foto_halka/): fotoğraf bir ağ ile esnetilerek bu sınırlar çizimdeki düz
+yerlerine oturtulur.
 """
 import json
 from functools import lru_cache
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps, ImageStat
 
 from . import parcali as pc
 
 _KLASOR = Path(__file__).parent
 FOTO_KLASORU = _KLASOR / "katalog_tohum" / "model"
 KUTU = json.loads((_KLASOR / "tasarim_varlik" / "foto_kutu.json").read_text())
-# fotoğrafta her kenarda bordür sınırları (cm, kenardan içeri; fotoğraf katalog ölçüsüne oturtulmuş olarak), gözle
-# ölçüldü: is_belgeleri/foto_halka/kontrol.py ile kırmızı çizgiler fotoğraftaki sınırların üstüne düşmeli
+# fotoğrafta her kenarda bordür sınırları (cm, kenardan içeri; fotoğraf katalog ölçüsüne oturtulmuş olarak): sayı
+# (kenar boyunca aynı) ya da [baş, son]; sol / sağ kenarda baş = üst uç, üst / alt kenarda baş = sol uç
 HALKA = json.loads((_KLASOR / "tasarim_varlik" / "foto_halka.json").read_text())
 KOSE_ORANI = 0.0225  # beyaz_zemin.py: köşe yarıçapı fotoğraf genişliği × 0.045, iki kat büyük maskede → yarısı
-ARKA = (252, 251, 249)
-
-# halının yapısı: bunlardan biri değişince fotoğraf uymaz, bütün halı çizilir
-_YAPI = ("duzen", "sekil", "orta", "halka_sayisi", "serit_yon", "serit_adet", "serit", "aralik", "motif_adet",
-         "panel_en", "panel_boy")
+ORTUSME_CM = 1.0  # değişen parça komşusunun üstüne bu kadar taşar: fotoğraftaki eski parçanın kenarı görünmesin
+KALINTI_CM = 3.5  # bunun içinde fotoğrafta eski parçanın rengine benzeyen kalıntı aranır (eğri / kayık kenar)
+KALINTI_ESIK = 22  # piksel eski parça rengine komşusundan bu kadar yakınsa kalıntı sayılır
 
 
 def uygun_mu(kod):
     """Bu model fotoğraf esaslı gösterilebilir mi (fotoğrafı var, bordür sınırları fotoğrafta ölçüldü)."""
     return kod in KUTU and kod in HALKA and kod in pc.FOTO_RENK and (FOTO_KLASORU / f"{kod}.jpg").exists()
-
-
-def _yapi(v):
-    n = int(v.get("halka_sayisi") or 0)
-    y = [v.get(a) for a in _YAPI]
-    y += [v.get(f"h{i}_gen") for i in range(1, n + 1)] + [v.get(f"a{i}_gen") for i in range(1, n)]
-    mad = v.get("orta") == "duz" and v.get("madalyon") != "yok"
-    y += [mad, v.get("madalyon_cap") if mad else None, bool(v.get("madalyon_cerceve")) if mad else None]
-    return y
 
 
 def referans(kod, en=None, boy=None):
@@ -56,37 +47,63 @@ def referans(kod, en=None, boy=None):
     return pc.temizle(d, _desen_kodlari())
 
 
+def _ogeler(v):
+    """Kenardan içeri bordür / ara bantlar: [(kimlik, genişlik cm)] (kimlik 1, 2… ya da 'a1'…)."""
+    return [(h["no"], h["gen"]) for h in pc.halkalar(v)]
+
+
+def _grup_adi(no):
+    return ("a", int(no[1:])) if isinstance(no, str) else ("h", no)
+
+
+def _madalyonlu(v):
+    return v.get("orta") == "duz" and v.get("madalyon") != "yok"
+
+
 def degisenler(v, b):
-    """Bayinin değiştirdiği parça grupları: ('h', i) bordür, ('a', i) ara bant, 'zemin', 'madalyon', 'mcerceve',
-    'serit', 'panel', 'kenar'."""
+    """Bayinin değiştirdiği (çizimden gelecek) parça grupları: ('h', i) bordür, ('a', i) ara bant, 'zemin',
+    'madalyon', 'mcerceve', 'serit', 'panel', 'kenar'. Genişliği değişen düz bordür / ara bant fotoğraftan
+    esnetilir; desenli / nakışlı bordürün genişliği değişince deseni bozulmasın diye çizilir."""
     d = set()
     fark = lambda *a: any(v.get(x) != b.get(x) for x in a)  # noqa: E731
-    for i in range(1, int(v.get("halka_sayisi") or 0) + 1):
-        on = f"h{i}_"
+    eski = dict(_ogeler(b))
+    for no, gen in _ogeler(v):
+        if no not in eski:  # yeni eklenen bordür / ara bant
+            d.add(_grup_adi(no))
+            continue
+        if isinstance(no, str):
+            continue
+        on = f"h{no}_"
         tur = v.get(on + "tur")
         if fark(on + "tur", on + "malzeme") or (tur == "desenli" and fark(on + "desen", "desen_alti")) or (
-                tur == "nakisli" and fark(on + "nakis", "iplik")):
-            d.add(("h", i))
+                tur == "nakisli" and fark(on + "nakis", "iplik")) or (tur != "duz" and gen != eski[no]):
+            d.add(("h", no))
     if fark("zemin"):
         d |= {"zemin"} | {("a", i) for i in range(1, pc.EN_COK_HALKA)}
-    if v.get("madalyon") != "yok" and (fark("madalyon", "madalyon_malzeme") or (
-            v.get("madalyon") == "nakisli" and fark("madalyon_motif", "iplik"))):
-        d.add("madalyon")
-    if fark("madalyon_cerceve"):
-        d.add("mcerceve")
-    if fark("serit_tur", "serit_malzeme", "serit_desen") or (v.get("serit_tur") == "nakisli" and fark("nakis", "iplik")):
-        d.add("serit")
-    if fark("panel_malzeme", "nakis", "iplik"):
-        d.add("panel")
+    if fark("orta"):
+        d |= {"zemin", "serit", "panel", "madalyon", "mcerceve"}
+    serit_alan = ("serit_tur", "serit_malzeme", "serit_desen", "serit_yon", "serit_adet", "serit", "aralik")
+    if v.get("orta") == "serit" and fark(*serit_alan, *(("nakis", "iplik") if v.get("serit_tur") == "nakisli" else ())):
+        d |= {"serit", "zemin"}
+    if v.get("orta") == "panel" and fark("panel_malzeme", "nakis", "iplik", "motif_adet", "panel_en", "panel_boy"):
+        d |= {"panel", "zemin"}
+    if _madalyonlu(v):
+        if not _madalyonlu(b) or bool(v.get("madalyon_cerceve")) != bool(b.get("madalyon_cerceve")) or fark(
+                "madalyon", "madalyon_malzeme") or (v.get("madalyon") == "nakisli" and fark("madalyon_motif", "iplik")):
+            d |= {"madalyon", "mcerceve"}
+        elif fark("madalyon_cerceve"):
+            d.add("mcerceve")
     if fark("kenar", "kenar_renk"):
         d.add("kenar")
+    ilk = _ogeler(v)[:1]
+    if ilk and _grup_adi(ilk[0][0]) in d:
+        d.add("kenar")  # dış bordür değişince fotoğraftaki eski bordür biye şeridinden görünmesin: biye de çizilir
     return d
 
 
 def _grup(p):
     if p.get("halka") is not None:
-        no = p["halka"]
-        return ("a", int(no[1:])) if isinstance(no, str) else ("h", no)
+        return _grup_adi(p["halka"])
     ad = p["ad"]
     if ad.startswith("Madalyon çerçevesi"):
         return "mcerceve"
@@ -107,31 +124,86 @@ def _foto(kod):
     return resim.crop((x0, y0, x1, y1)), round(resim.width * KOSE_ORANI)
 
 
+def _cizgi(d):
+    """Ölçü: sayı (kenar boyunca aynı) ya da [baş, son] (kenarın iki ucunda; arası doğru)."""
+    return (float(d), float(d)) if isinstance(d, (int, float)) else (float(d[0]), float(d[1]))
+
+
+def _deger(c, t):
+    return c[0] + (c[1] - c[0]) * t
+
+
 def _kenar_olculeri(kod, ref):
-    """Fotoğrafta her kenarda bordür sınırları (fotoğraf cm'i, kenardan içeri); ölçülmemişse modelin kendi sınırları."""
+    """Fotoğrafta her kenarda bordür sınırları ((baş, son) cm); ölçülmemişse modelin kendi sınırları."""
     model = [h["d"] + h["gen"] for h in pc.halkalar(ref)]
     olcu = HALKA.get(kod, {})
-    return {k: (olcu[k] if len(olcu.get(k, [])) == len(model) else model) for k in ("sol", "sag", "ust", "alt")}
+    sonuc = {}
+    for k in ("sol", "sag", "ust", "alt"):
+        cizgiler, onceki = [], (0.0, 0.0)
+        for d in (olcu[k] if len(olcu.get(k, [])) == len(model) else model):
+            c = _cizgi(d)
+            onceki = (max(c[0], onceki[0] + 0.5), max(c[1], onceki[1] + 0.5))  # sınırlar iç içe geçmesin
+            cizgiler.append(onceki)
+        sonuc[k] = cizgiler
+    return sonuc
+
+
+def _eslestir(ref_oge, hedef_oge, sinirlar):
+    """Bir kenarda [(fotoğraf çizgisi, çizimde cm)] düğümleri, dış kenardan zeminin başına. Fotoğrafta olmayan
+    (yeni) bordür / ara bant fotoğrafta sıfır genişlik alır (çizimden gelir); çizimde olmayan (çıkarılan) bordürün
+    fotoğraftaki yeri sıfıra iner."""
+    yer, onceki = {}, (0.0, 0.0)
+    for (no, _), son in zip(ref_oge, sinirlar):
+        yer[no] = (onceki, son)
+        onceki = son
+    foto_zemin = onceki
+    dugum, simdi, t = [((0.0, 0.0), 0.0)], (0.0, 0.0), 0.0
+    for no, gen in hedef_oge:
+        if no in yer:
+            bas, son = yer[no]
+            if bas != simdi:
+                dugum.append((bas, t))
+            t += gen
+            dugum.append((son, t))
+            simdi = son
+        else:
+            t += gen
+            dugum.append((simdi, t))
+    if simdi != foto_zemin:
+        dugum.append((foto_zemin, t))
+    return dugum
+
+
+def _eksen(bas, son, kaynak_uz, k_kaynak, hedef_uz, px):
+    """Bir eksenin düğümleri: [(t → kaynak px, hedef px)]; t öteki eksendeki konum (0–1)."""
+    dugum = [(lambda t, c=c: _deger(c, t) * k_kaynak, round(cm * px)) for c, cm in bas]
+    a, b = round(bas[-1][1] * px), hedef_uz - round(son[-1][1] * px)
+    ca, cb = bas[-1][0], son[-1][0]
+    n = max(2, round((b - a) / px / 20))  # orta her 20 cm'de bölünür (eğik kenarlar izlensin)
+    for i in range(1, n):
+        f = i / n
+        dugum.append((lambda t, f=f: (1 - f) * _deger(ca, t) * k_kaynak + f * (kaynak_uz - _deger(cb, t) * k_kaynak),
+                      round(a + (b - a) * f)))
+    dugum += [(lambda t, c=c: kaynak_uz - _deger(c, t) * k_kaynak, hedef_uz - round(cm * px))
+              for c, cm in reversed(son)]
+    return dugum
 
 
 def _esnet(foto, xk, yk, hedef):
-    """Parça parça doğrusal esnetme: kaynak düğümler (xk[0], yk[0]) hedef düğümlere (xk[1], yk[1]) oturur."""
+    """Fotoğrafı ağ ile esnetir: çizimdeki her düğüm fotoğraftaki karşılığından gelir; fotoğrafta eğik duran
+    bordür sınırları çizimde düz oturur."""
+    W, H = hedef
+    kaynak = [[(xk[i][0](yk[j][1] / H), yk[j][0](xk[i][1] / W)) for j in range(len(yk))] for i in range(len(xk))]
     veri = []
-    for i in range(len(xk[1]) - 1):
-        for j in range(len(yk[1]) - 1):
-            kutu = (xk[1][i], yk[1][j], xk[1][i + 1], yk[1][j + 1])
+    for i in range(len(xk) - 1):
+        for j in range(len(yk) - 1):
+            kutu = (xk[i][1], yk[j][1], xk[i + 1][1], yk[j + 1][1])
             if kutu[2] <= kutu[0] or kutu[3] <= kutu[1]:
                 continue
-            x0, x1, y0, y1 = xk[0][i], xk[0][i + 1], yk[0][j], yk[0][j + 1]
-            veri.append((kutu, (x0, y0, x0, y1, x1, y1, x1, y0)))
+            (x0, y0), (x1, y1) = kaynak[i][j], kaynak[i][j + 1]
+            (x2, y2), (x3, y3) = kaynak[i + 1][j + 1], kaynak[i + 1][j]
+            veri.append((kutu, (x0, y0, x1, y1, x2, y2, x3, y3)))
     return foto.transform(hedef, Image.Transform.MESH, veri, Image.BICUBIC)
-
-
-def _dugumler(kenar_bas, kenar_son, model, uzunluk, k_kaynak, k_hedef, hedef_uz):
-    """Bir eksende kaynak (fotoğraf px) ve hedef (çizim px) düğümleri; içte kalan sınırlar sırayla."""
-    kaynak = [0.0] + [d * k_kaynak for d in kenar_bas] + [uzunluk - d * k_kaynak for d in reversed(kenar_son)] + [uzunluk]
-    hedef = [0] + [round(d * k_hedef) for d in model] + [hedef_uz - round(d * k_hedef) for d in reversed(model)] + [hedef_uz]
-    return kaynak, hedef
 
 
 def fotograf_yerlesimi(kod, v, px):
@@ -147,22 +219,23 @@ def fotograf_yerlesimi(kod, v, px):
     W, H = int(round(v["en"] * px)), int(round(v["boy"] * px))
     fx, fy = foto.width / ref_en, foto.height / ref_boy  # fotoğrafta cm başına piksel
     kose_cm = kose_px / min(fx, fy)
-    model = [h["d"] + h["gen"] for h in pc.halkalar(v)]
-    xk = _dugumler(kenar["sol"], kenar["sag"], model, foto.width, fx, px, W)
-    yk = _dugumler(kenar["ust"], kenar["alt"], model, foto.height, fy, px, H)
-    madalyonlu = ref.get("orta") == "duz" and ref.get("madalyon") != "yok"
-    if madalyonlu:
+    ro, ho = _ogeler(ref), _ogeler(v)
+    d = {k: _eslestir(ro, ho, kenar[k]) for k in kenar}
+    xk = _eksen(d["sol"], d["sag"], foto.width, fx, W, px)
+    yk = _eksen(d["ust"], d["alt"], foto.height, fy, H, px)
+    if _madalyonlu(ref):
         # madalyon esnetilmeden önce fotoğraftan alınır (yeri yakındaki zeminle kapatılır), sonra esnemiş halının
-        # ortasına yuvarlak ve gerçek ölçüsünde konur
-        n = len(model)
+        # ortasına yuvarlak konur; çapı değiştiyse büyütülür / küçültülür, kaldırıldıysa konmaz
+        zs, zu = _deger(d["sol"][-1][0], .5) * fx, _deger(d["ust"][-1][0], .5) * fy
+        zg, za = foto.width - _deger(d["sag"][-1][0], .5) * fx, foto.height - _deger(d["alt"][-1][0], .5) * fy
         r = ref["madalyon_cap"] / 2 + (pc.MADALYON_CERCEVE if ref.get("madalyon_cerceve") else 0) + 1.5
-        cx, cy = (xk[0][n] + xk[0][n + 1]) / 2, (yk[0][n] + yk[0][n + 1]) / 2
+        cx, cy = (zs + zg) / 2, (zu + za) / 2
         kutu = (round(cx - r * fx), round(cy - r * fy), round(cx + r * fx), round(cy + r * fy))
         madalyon = foto.crop(kutu)
-        foto = _madalyonu_sil(foto, kutu, (xk[0][n], yk[0][n], xk[0][n + 1], yk[0][n + 1]))
+        foto = _madalyonu_sil(foto, kutu, (zs, zu, zg, za))
     yerlesik = _esnet(foto, xk, yk, (W, H))
-    if madalyonlu:
-        cap = max(2, round(2 * r * px))
+    if _madalyonlu(ref) and _madalyonlu(v):
+        cap = max(2, round(2 * r * px * v["madalyon_cap"] / ref["madalyon_cap"]))
         yerlesik.paste(madalyon.resize((cap, cap), Image.BICUBIC), ((W - cap) // 2, (H - cap) // 2), _daire(cap))
     return yerlesik, kose_cm
 
@@ -199,7 +272,7 @@ def bilesik(v, uzun_kenar=900):
     if v.get("duzen") != "halkali" or not uygun_mu(kod):
         return None
     b = referans(kod, v["en"], v["boy"])
-    if _yapi(v) != _yapi(b):
+    if v.get("sekil") != b.get("sekil"):  # dikdörtgen ↔ oval: fotoğraf uymaz, bütün halı çizilir
         return None
     degisen = degisenler(v, b)
     px = uzun_kenar / max(v["en"], v["boy"])
@@ -209,22 +282,23 @@ def bilesik(v, uzun_kenar=900):
     tuval = pg.ciz(v, uzun_kenar, kose_cm=3 if oval else kose_cm)
     pay = (tuval.width - W) // 2
 
-    # fotoğraftan gelecek yerler: değişmeyen parçalar
-    maske = Image.new("L", (W, H), 0)
-    c = ImageDraw.Draw(maske)
+    # fotoğraftan gelecek yerler: değişmeyen parçalar; değişen parça komşusunun üstüne ORTUSME_CM taşar
+    maske, cizilen = Image.new("L", (W, H), 0), Image.new("L", (W, H), 0)
     olc = lambda poli: [(x * px, y * px) for x, y in poli]  # noqa: E731
     for p in pc.parcalar(v):
-        if _grup(p) not in degisen:
-            c.polygon(olc(p["poli"]), fill=255)
+        ImageDraw.Draw(cizilen if _grup(p) in degisen else maske).polygon(olc(p["poli"]), fill=255)
     dis = Image.new("L", (W, H), 0)
     if oval:
         ImageDraw.Draw(dis).polygon(olc(pc.dis_hat(v)), fill=255)
     else:
         ImageDraw.Draw(dis).rounded_rectangle((0, 0, W - 1, H - 1), radius=max(3, int(px * kose_cm)), fill=255)
+    if cizilen.getbbox():
+        cizilen = cizilen.filter(ImageFilter.MaxFilter(2 * max(1, round(px * ORTUSME_CM)) + 1))
+        maske = ImageChops.subtract(maske, cizilen)
+        # eski bordürden kalan kayık kenar: fotoğrafta komşu parçanın renginden doldurulur
+        foto = _doldur(foto, maske, ImageChops.multiply(_kalintilar(v, degisen, foto, px, (W, H)), maske), px)
     # biye / lanfel şeridi: kenar değişmediyse fotoğraftan, değiştiyse çizimden
-    b_px = max(3, int(px * 2.2))
-    ic = _ic_hat(dis, b_px, W, H)
-    serit = ImageChops.subtract(dis, ic)
+    serit = ImageChops.subtract(dis, _ic_hat(dis, max(3, int(px * 2.2)), W, H))
     if "kenar" in degisen:
         maske = ImageChops.subtract(maske, serit)
     else:
@@ -235,9 +309,113 @@ def bilesik(v, uzun_kenar=900):
     return tuval
 
 
+def _ic_sekil(v, d, px, boyut):
+    """Halının d cm içeriden geçen eşinin içi (maske)."""
+    m = Image.new("L", boyut, 0)
+    if d < 0:
+        d = 0
+    W, H = boyut
+    if v.get("sekil") == "oval":
+        poli = pc.stadyum_ofset(v["en"], v["boy"], d) if 2 * d < min(v["en"], v["boy"]) else []
+        if len(poli) >= 3:
+            ImageDraw.Draw(m).polygon([(x * px, y * px) for x, y in poli], fill=255)
+    elif 2 * d * px < min(W, H):
+        ImageDraw.Draw(m).rectangle((d * px, d * px, W - 1 - d * px, H - 1 - d * px), fill=255)
+    return m
+
+
+def _kalintilar(v, degisen, foto, px, boyut):
+    """Fotoğraftaki eski bordürün kayık / eğri kenarından kalanlar: değişen bordürün iki yanında, komşu parçanın
+    (zemin, öteki bordür) renk dağılımına uymayan pikseller (eski bordürün rengi, desen delikleri)."""
+    sonuc = Image.new("L", boyut, 0)
+    ogeler = [(h["d"], h["gen"], _grup_adi(h["no"])) for h in pc.halkalar(v)]
+    D = sum(g for _, g, _ in ogeler)
+    if "zemin" in degisen:
+        ogeler.append((D, 10 ** 4, "zemin"))
+    sekil = lambda d: _ic_sekil(v, d, px, boyut)  # noqa: E731
+    fark = lambda a, b: ImageChops.subtract(a, b)  # noqa: E731
+    for d, gen, grup in ogeler:
+        if grup not in degisen:
+            continue
+        for bant, komsu in (((d - KALINTI_CM, d - ORTUSME_CM), (d - KALINTI_CM - 3, d - KALINTI_CM)),
+                            ((d + gen + ORTUSME_CM, d + gen + KALINTI_CM),
+                             (d + gen + KALINTI_CM, d + gen + KALINTI_CM + 3))):
+            if bant[1] <= 0:
+                continue
+            yer, km = fark(sekil(bant[0]), sekil(bant[1])), fark(sekil(komsu[0]), sekil(komsu[1]))
+            if not yer.getbbox() or not km.getbbox():
+                continue
+            ist = ImageStat.Stat(foto, km)
+            ort = tuple(round(c) for c in ist.mean)
+            sapma = sum(ist.stddev) / 3
+            uzak = ImageChops.difference(foto, Image.new("RGB", boyut, ort)).convert("L")
+            esik = max(KALINTI_ESIK, 2.5 * sapma)
+            aykiri = uzak.point(lambda q: 255 if q > esik else 0)
+            eski = ImageStat.Stat(foto, fark(sekil(d + 0.7), sekil(d + gen - 0.7))).mean if gen > 1.4 else None
+            if eski:  # desenli zeminde: rengi eski bordüre zeminden belirgin biçimde yakın pikseller de kalıntı
+                yakin = ImageChops.difference(foto, Image.new("RGB", boyut, tuple(round(c) for c in eski))).convert("L")
+                aykiri = ImageChops.lighter(aykiri, ImageChops.subtract(uzak, yakin).point(
+                    lambda q: 255 if q > KALINTI_ESIK else 0))
+            aykiri = ImageChops.multiply(aykiri, yer).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(5))
+            sonuc = ImageChops.lighter(sonuc, ImageChops.multiply(aykiri, yer))
+    return sonuc
+
+
+def _kaydir(resim, dx, dy):
+    """Resmi (dx, dy) kaydırır; dışarıda kalan yer boş (siyah) olur."""
+    t = Image.new(resim.mode, resim.size, 0)
+    t.paste(resim, (dx, dy))
+    return t
+
+
+def _doldur(foto, gecerli, delik, px):
+    """Kalıntı pikselleri fotoğrafın komşu yerinden doldurulur: önce aynı parçanın biraz ötesindeki gerçek doku
+    (halının kenarına dik kaydırılarak, dokusu ve rengi korunur), olmazsa çevrenin yumuşak ortalaması."""
+    if not delik.getbbox():
+        return foto
+    from PIL import ImageMath
+
+    W, H = foto.size
+    gecerli = ImageChops.subtract(gecerli, delik)
+    # her piksel en yakın kenara göre: sol, sağ, üst, alt üçgen bölgeler
+    bolgeler = {}
+    for ad, poli in (("sol", [(0, 0), (W / 2, H / 2), (0, H)]), ("sag", [(W, 0), (W / 2, H / 2), (W, H)]),
+                     ("ust", [(0, 0), (W / 2, H / 2), (W, 0)]), ("alt", [(0, H), (W / 2, H / 2), (W, H)])):
+        m = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(m).polygon([(round(x), round(y)) for x, y in poli], fill=255)
+        bolgeler[ad] = m
+    yon = {"sol": (1, 0), "sag": (-1, 0), "ust": (0, 1), "alt": (0, -1)}
+    sonuc = foto
+    for kat in (1, -1, 2, -2):  # önce içeri, sonra dışarı; iki uzaklıkta
+        s = round(px * (KALINTI_CM + 1.5) * abs(kat))
+        for ad, (ux, uy) in yon.items():
+            bolge = ImageChops.multiply(delik, bolgeler[ad])
+            if not bolge.getbbox():
+                continue
+            dx, dy = ux * s * (1 if kat > 0 else -1), uy * s * (1 if kat > 0 else -1)
+            # piksel (x, y) kaynağını (x + dx, y + dy)'den alır: kaynak resmi (-dx, -dy) kaydırılır
+            kaynak, uygun = _kaydir(foto, -dx, -dy), _kaydir(gecerli, -dx, -dy)
+            tamam = ImageChops.multiply(bolge, uygun.point(lambda q: 255 if q > 200 else 0))
+            sonuc = Image.composite(kaynak, sonuc, tamam)
+            delik = ImageChops.subtract(delik, tamam)
+        if not delik.getbbox():
+            return sonuc
+    for r in (px * 0.8, px * 2, px * 5):  # kalan: çevrenin yumuşak ortalaması
+        mL = gecerli.filter(ImageFilter.GaussianBlur(r))
+        m = mL.convert("F")
+        kanal = []
+        for k in foto.split():
+            c = Image.composite(k, Image.new("L", foto.size, 0), gecerli).filter(ImageFilter.GaussianBlur(r)).convert("F")
+            kanal.append(ImageMath.lambda_eval(lambda a: a["convert"](a["c"] * 255 / (a["m"] + 0.01), "L"), c=c, m=m))
+        tamam = ImageChops.multiply(delik, mL.point(lambda q: 255 if q > 8 else 0))
+        sonuc = Image.composite(Image.merge("RGB", kanal), sonuc, tamam)
+        delik = ImageChops.subtract(delik, tamam)
+        if not delik.getbbox():
+            break
+    return sonuc
+
+
 def _ic_hat(dis, b, W, H):
     """Dış hattın b piksel içeriden geçen eşi (resim kenarına dayanan hat da aşınır)."""
-    from PIL import ImageOps
-
     genis = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b * 2 + 1))
     return genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H))

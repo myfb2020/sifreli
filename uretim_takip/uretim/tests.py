@@ -2926,7 +2926,8 @@ class FotoTemelTesti(TestCase):
     def test_yalniz_degisen_bordur(self):
         b = self.pc.hazir_degerler("BNA-001")
         v = self.temizle({**b, "h1_malzeme": "bienca_bn04"})
-        self.assertEqual(self.ft.degisenler(v, self.ft.referans("BNA-001", v["en"], v["boy"])), {("h", 1)})
+        # dış bordür değişince biye de çizilir (eski bordür biyenin yanından görünmesin)
+        self.assertEqual(self.ft.degisenler(v, self.ft.referans("BNA-001", v["en"], v["boy"])), {("h", 1), "kenar"})
         v2 = self.temizle({**b, "zemin": "bienca_bn03"})
         self.assertIn("zemin", self.ft.degisenler(v2, self.ft.referans("BNA-001", v2["en"], v2["boy"])))
         self.assertNotIn(("h", 1), self.ft.degisenler(v2, self.ft.referans("BNA-001", v2["en"], v2["boy"])))
@@ -2943,11 +2944,30 @@ class FotoTemelTesti(TestCase):
         kenar = (W // 2, int(H * 0.08))  # üst bordürün içi
         self.assertNotEqual(ayni.getpixel(kenar), degisik.getpixel(kenar))
 
-    def test_yapi_degisince_butun_halı_cizilir(self):
-        b = self.pc.hazir_degerler("IPS-452")
-        self.assertIsNone(self.ft.bilesik(self.temizle({**b, "h1_gen": 16}), 300))
-        self.assertIsNone(self.ft.bilesik(self.temizle({**b, "halka_sayisi": 2}), 300))
+    def test_yapi_degisince_de_fotograf(self):
+        """Ara bant / bordür genişliği, bordür ekleme-çıkarma, madalyon çapı değişince de fotoğraf esas kalır;
+        yalnız şekil (dikdörtgen ↔ oval) değişince ya da katalog modeli yoksa bütün halı çizilir."""
+        b = self.pc.hazir_degerler("IPS-476")
+        for d in ({"a1_gen": 5}, {"a1_gen": 25}, {"h1_gen": 12}, {"halka_sayisi": 1}, {"halka_sayisi": 3},
+                  {"madalyon": "yok"}, {"madalyon_cap": 50}):
+            self.assertIsNotNone(self.ft.bilesik(self.temizle({**b, **d}), 300), d)
+        self.assertIsNone(self.ft.bilesik(self.temizle({**b, "sekil": "oval"}), 300))
         self.assertIsNone(self.ft.bilesik(self.temizle({**b, "katalog": ""}), 300))
+
+    def test_ara_bant_degisince_ozet(self):
+        b = self.pc.hazir_degerler("IPS-476")
+        v = self.temizle({**b, "a1_gen": 25})
+        d = self.ft.degisenler(v, self.ft.referans("IPS-476", v["en"], v["boy"]))
+        self.assertNotIn("zemin", d)  # ara bant fotoğraftan esnetilir, zemin çizilmez
+        self.assertNotIn(("h", 2), d)
+
+    def test_sinirlar_ic_ice_gecmez(self):
+        for kod in self.ft.HALKA:
+            ref = self.ft.referans(kod)
+            for kenar, cizgiler in self.ft._kenar_olculeri(kod, ref).items():
+                for a, b in zip(cizgiler, cizgiler[1:]):
+                    self.assertGreater(b[0], a[0], (kod, kenar))
+                    self.assertGreater(b[1], a[1], (kod, kenar))
 
     def test_olcu_degisince_de_fotograf(self):
         b = self.pc.hazir_degerler("PCH-002")
