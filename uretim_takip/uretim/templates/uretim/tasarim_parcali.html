@@ -10,8 +10,10 @@
   <input type="hidden" name="hazir" value="{{ v.hazir }}">
   <input type="hidden" name="katalog" value="{{ v.katalog }}">
   <input type="hidden" name="aynen" value="{{ v.aynen }}">
-  <input type="hidden" name="pay" value="{{ v.pay|floatformat:'-1' }}">
+  <input type="hidden" name="pay" value="{{ v.pay|stringformat:"g" }}">
   <input type="hidden" name="halka_sayisi" id="halka_sayisi" value="{{ v.halka_sayisi }}">
+  {# desen altı ekranda seçilmez; modelin kendi değeri korunur (yoksa sunucu varsayılanı koyar ve desenli bordür değişmiş sayılır) #}
+  <input type="hidden" name="desen_alti" value="{{ v.desen_alti }}">
   <div class="studyo-onizleme kart">
     <img id="onizleme" alt="Halı önizlemesi" src="{% url 'parcali_onizleme_resmi' %}?b=700">
     <div id="aynen-not" class="aynen-not" hidden>📷 Katalog modeli <b id="aynen-kod"></b> olduğu gibi sipariş edilecek. <button type="button" class="btn kucuk ikincil" id="aynen-birak">Değiştirmek istiyorum</button></div>
@@ -34,8 +36,8 @@
       <h2>1. Şekil ve ölçü</h2>
       <div class="secim-izgara">{% for k, ad in sekiller %}<label class="secim buyuk-secim"><input type="radio" name="sekil" value="{{ k }}"{% if v.sekil == k %} checked{% endif %}><span>{% if k == "oval" %}⬭{% else %}▭{% endif %} {{ ad }}</span></label>{% endfor %}</div>
       <div class="iki-sutun">
-        <p><label for="en">En (cm)</label><input id="en" name="en" type="number" min="60" max="400" step="5" value="{{ v.en|floatformat:'-1' }}"></p>
-        <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" min="60" max="600" step="5" value="{{ v.boy|floatformat:'-1' }}"></p>
+        <p><label for="en">En (cm)</label><input id="en" name="en" type="number" min="60" max="400" step="5" value="{{ v.en|stringformat:"g" }}"></p>
+        <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" min="60" max="600" step="5" value="{{ v.boy|stringformat:"g" }}"></p>
       </div>
       <p class="soluk" style="margin-top:0">Oval seçip eni ve boyu eşit yazarsanız halı yuvarlak olur.</p>
       <label class="alt-baslik">Katalogdan model seçin</label>
@@ -71,7 +73,7 @@
         <div class="yerinde-uyari" data-uyari-halka="{{ r.no }}" hidden></div>
         <p class="soluk nakis-kural" hidden style="margin:2px 0">Lazer desenli çerçeve olduğu için nakışlı bordür seçilemez.</p>
         <div class="secim-izgara">{% for k, ad in halka_turleri %}<label class="secim"><input type="radio" name="h{{ r.no }}_tur" value="{{ k }}"{% if r.tur == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
-        <p><label for="h{{ r.no }}_gen">Genişlik (cm)</label><input id="h{{ r.no }}_gen" name="h{{ r.no }}_gen" type="number" min="0" max="50" step="1" value="{{ r.gen|floatformat:'-1' }}"></p>
+        <p><label for="h{{ r.no }}_gen">Genişlik (cm)</label><input id="h{{ r.no }}_gen" name="h{{ r.no }}_gen" type="number" min="0" max="50" step="0.5" value="{{ r.gen|stringformat:"g" }}"></p>
         <label class="alt-baslik">Malzeme</label>
         {% include "uretim/_malzeme_secimi.html" with alan=r.ad_malzeme secili=r.malzeme %}
         <div data-kosul="h{{ r.no }}_tur=desenli">
@@ -106,7 +108,7 @@
         <label class="alt-baslik">Ortada madalyon (yuvarlak parça)</label>
         <div class="secim-izgara">{% for k, ad in madalyonlar %}<label class="secim"><input type="radio" name="madalyon" value="{{ k }}"{% if v.madalyon == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
         <div data-kosul="madalyon=duz,nakisli">
-          <p><label for="madalyon_cap">Madalyon çapı (cm)</label><input id="madalyon_cap" name="madalyon_cap" type="number" min="15" max="80" step="1" value="{{ v.madalyon_cap|floatformat:'-1' }}"></p>
+          <p><label for="madalyon_cap">Madalyon çapı (cm)</label><input id="madalyon_cap" name="madalyon_cap" type="number" min="15" max="80" step="1" value="{{ v.madalyon_cap|stringformat:"g" }}"></p>
           <label class="alt-baslik">Madalyon malzemesi</label>
           {% include "uretim/_malzeme_secimi.html" with alan="madalyon_malzeme" secili=v.madalyon_malzeme %}
           <label class="alt-baslik">Madalyon çerçevesi (3 cm halka)</label>
@@ -129,7 +131,7 @@
         <div class="secim-izgara">{% for k, ad in serit_yonleri %}<label class="secim"><input type="radio" name="serit_yon" value="{{ k }}"{% if v.serit_yon == k %} checked{% endif %}><span>{{ ad }}</span></label>{% endfor %}</div>
         <div class="iki-sutun">
           <p><label for="serit_adet">Şerit sayısı (1–3)</label><input id="serit_adet" name="serit_adet" type="number" min="1" max="3" step="1" value="{{ v.serit_adet }}"></p>
-          <p><label for="serit">Şerit genişliği (cm)</label><input id="serit" name="serit" type="number" min="8" max="60" step="1" value="{{ v.serit|floatformat:'-1' }}"></p>
+          <p><label for="serit">Şerit genişliği (cm)</label><input id="serit" name="serit" type="number" min="8" max="60" step="1" value="{{ v.serit|stringformat:"g" }}"></p>
         </div>
         <label class="alt-baslik">Şerit malzemesi</label>
         {% include "uretim/_malzeme_secimi.html" with alan="serit_malzeme" secili=v.serit_malzeme %}
@@ -177,6 +179,7 @@
   <div class="buyuk-not">Yakınlaştırmak için resme dokunun · ✕ ile düzenlemeye dönün</div>
 </div>
 {{ hazir_json|json_script:"hazir-veri" }}
+{{ kendi_zemin|json_script:"kendi-zemin" }}
 {{ h.uyarilar|json_script:"ilk-uyarilar" }}
 
 <style>
@@ -275,6 +278,7 @@
   const form = document.getElementById("studyo");
   const resim = document.getElementById("onizleme");
   const hazirlar = JSON.parse(document.getElementById("hazir-veri").textContent);
+  const kendiZemin = JSON.parse(document.getElementById("kendi-zemin").textContent);
   const resimAdresi = "{% url 'parcali_onizleme_resmi' %}";
   const veriAdresi = "{% url 'parcali_onizleme' %}";
   const siparisAlanlari = ["adet", "istenen_tarih", "notlar", "csrfmiddlewaretoken"];
@@ -369,7 +373,9 @@
       const zemin = izgara.dataset.alan === "zemin";
       izgara.querySelectorAll("label.mal").forEach((l) => {
         const g = l.dataset.grup;
-        l.hidden = kartelali && (zemin ? g !== on : !kartelaGrup.includes(g));
+        // modelin katalogdaki kendi zemini (ör. BNA-010 kahve Rono, BNA-014 lacivert peluş) kartela dışında olsa da seçilebilir
+        const kendi = zemin && l.querySelector("input").value === kendiZemin[form.querySelector('[name="katalog"]').value];
+        l.hidden = kartelali && !kendi && (zemin ? g !== on : !kartelaGrup.includes(g));
         if (!l.hidden && !ilk) ilk = l;
         if (l.querySelector("input").checked) secili = l;
       });

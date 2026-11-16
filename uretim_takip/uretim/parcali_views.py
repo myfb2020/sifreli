@@ -98,7 +98,7 @@ def studyo(request):
         "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "nakis_motifleri": motifler,
         "iplikler": parcali.IPLIKLER,
         "kenarlar": parcali.KENARLAR, "kenar_renkleri": [(k, ad, _grup(k)) for k, ad in parcali.kenar_secenekleri()], "desenler": desenler,
-        "seriler": seriler, "madalyonlar": parcali.MADALYONLAR, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "en_cok_halka": parcali.EN_COK_HALKA,
+        "seriler": seriler, "madalyonlar": parcali.MADALYONLAR, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "kendi_zemin": {k: d["zemin"] for k, d in parcali.FOTO_RENK.items()}, "en_cok_halka": parcali.EN_COK_HALKA,
     })
 
 

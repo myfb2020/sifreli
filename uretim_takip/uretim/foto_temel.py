@@ -285,8 +285,19 @@ def bilesik(v, uzun_kenar=900):
     # fotoğraftan gelecek yerler: değişmeyen parçalar; değişen parça komşusunun üstüne ORTUSME_CM taşar
     maske, cizilen = Image.new("L", (W, H), 0), Image.new("L", (W, H), 0)
     olc = lambda poli: [(x * px, y * px) for x, y in poli]  # noqa: E731
+    # bitişik bordürlerin arasına yeni eklenen ara bant zemin malzemesindendir: zemin değişmediyse fotoğraftaki
+    # zeminin dokusundan doldurulur (çizim dokusu fotoğraftaki zeminden farklı görünür)
+    eski = {no for no, _ in _ogeler(b)}
+    yeni_ara = set() if "zemin" in degisen else {
+        _grup_adi(no) for no, _ in _ogeler(v) if isinstance(no, str) and no not in eski}
+    ara, zemin = Image.new("L", (W, H), 0), Image.new("L", (W, H), 0)
     for p in pc.parcalar(v):
-        ImageDraw.Draw(cizilen if _grup(p) in degisen else maske).polygon(olc(p["poli"]), fill=255)
+        g = _grup(p)
+        hedef = ara if g in yeni_ara else cizilen if g in degisen else maske
+        ImageDraw.Draw(hedef).polygon(olc(p["poli"]), fill=255)
+        if g == "zemin" and g not in degisen:
+            ImageDraw.Draw(zemin).polygon(olc(p["poli"]), fill=255)
+    degisen = degisen - yeni_ara
     dis = Image.new("L", (W, H), 0)
     if oval:
         ImageDraw.Draw(dis).polygon(olc(pc.dis_hat(v)), fill=255)
@@ -297,6 +308,19 @@ def bilesik(v, uzun_kenar=900):
         maske = ImageChops.subtract(maske, cizilen)
         # eski bordürden kalan kayık kenar: fotoğrafta komşu parçanın renginden doldurulur
         foto = _doldur(foto, maske, ImageChops.multiply(_kalintilar(v, degisen, foto, px, (W, H)), maske), px)
+    bozuk = _bos_seritler(kod, b, v, px, (W, H))
+    if bozuk[0].getbbox() or bozuk[1].getbbox():
+        # yeni eklenen bordür / ara bant fotoğrafta yok: o sütun ve satırlarda dıştaki bordürler tek piksel sütunundan
+        # uzar (çizgi çizgi); aynı bordürün boyunca kaydırılmış gerçek dokusuyla doldurulur
+        for yon, serit in enumerate(bozuk):
+            delik = ImageChops.multiply(ImageChops.subtract(serit, ara), maske)
+            if delik.getbbox():
+                foto = _boyunca_doldur(foto, ImageChops.subtract(maske, ImageChops.lighter(*bozuk)), delik, px, yon)
+    if ara.getbbox():
+        # kaynak zeminin kenarından en az 3 cm içeride (kenarda komşu bordürün izi olabilir)
+        ic_zemin = zemin.filter(ImageFilter.MinFilter(2 * max(1, round(px * 3)) + 1))
+        foto = _doldur(foto, ic_zemin, ara, px, mesafeler=(10, 15, 20, 25, 30, 40, 50, 60, 75, 90, 110))
+        maske = ImageChops.lighter(maske, ara)
     # biye / lanfel şeridi: kenar değişmediyse fotoğraftan, değiştiyse çizimden
     serit = ImageChops.subtract(dis, _ic_hat(dis, max(3, int(px * 2.2)), W, H))
     if "kenar" in degisen:
@@ -307,6 +331,40 @@ def bilesik(v, uzun_kenar=900):
     maske = ImageChops.multiply(maske, dis)  # yumuşatma halının dışına taşmasın
     tuval.paste(foto, (pay, pay), maske)
     return tuval
+
+
+def _bos_seritler(kod, b, v, px, boyut):
+    """Fotoğrafta karşılığı olmayan (yeni eklenen öğenin) sütunları ve satırları: (sütun maskesi, satır maskesi)."""
+    W, H = boyut
+    sutun, satir = Image.new("L", boyut, 0), Image.new("L", boyut, 0)
+    ref = referans(kod)
+    dugum = _eslestir(_ogeler(ref), _ogeler(v), _kenar_olculeri(kod, ref)["sol"])
+    for (k0, t0), (k1, t1) in zip(dugum, dugum[1:]):
+        if k0 == k1 and t1 > t0:
+            a, z = round(t0 * px), round(t1 * px)
+            c = ImageDraw.Draw(sutun)
+            c.rectangle((a, 0, z, H), fill=255)
+            c.rectangle((W - z, 0, W - a, H), fill=255)
+            c = ImageDraw.Draw(satir)
+            c.rectangle((0, a, W, z), fill=255)
+            c.rectangle((0, H - z, W, H - a), fill=255)
+    return sutun, satir
+
+
+def _boyunca_doldur(foto, gecerli, delik, px, yon):
+    """Delik, yon 0'da yatay (sütun deliği), 1'de dikey kaydırılmış geçerli pikselle doldurulur."""
+    W, H = foto.size
+    sonuc = foto
+    for cm in (8, -8, 15, -15, 25, -25, 40, -40, 60, -60):
+        s = round(px * cm)
+        dx, dy = (s, 0) if yon == 0 else (0, s)
+        kaynak, uygun = _kaydir(foto, -dx, -dy), _kaydir(gecerli, -dx, -dy)
+        tamam = ImageChops.multiply(delik, uygun.point(lambda q: 255 if q > 200 else 0))
+        sonuc = Image.composite(kaynak, sonuc, tamam)
+        delik = ImageChops.subtract(delik, tamam)
+        if not delik.getbbox():
+            break
+    return sonuc
 
 
 def _ic_sekil(v, d, px, boyut):
@@ -368,9 +426,9 @@ def _kaydir(resim, dx, dy):
     return t
 
 
-def _doldur(foto, gecerli, delik, px):
-    """Kalıntı pikselleri fotoğrafın komşu yerinden doldurulur: önce aynı parçanın biraz ötesindeki gerçek doku
-    (halının kenarına dik kaydırılarak, dokusu ve rengi korunur), olmazsa çevrenin yumuşak ortalaması."""
+def _doldur(foto, gecerli, delik, px, mesafeler=None):
+    """Delik pikselleri fotoğrafın geçerli yerinden doldurulur: önce gerçek doku (halının kenarına dik, mesafeler cm
+    kadar kaydırılarak; artı = içeri, eksi = dışarı; dokusu ve rengi korunur), olmazsa çevrenin yumuşak ortalaması."""
     if not delik.getbbox():
         return foto
     from PIL import ImageMath
@@ -386,8 +444,10 @@ def _doldur(foto, gecerli, delik, px):
         bolgeler[ad] = m
     yon = {"sol": (1, 0), "sag": (-1, 0), "ust": (0, 1), "alt": (0, -1)}
     sonuc = foto
-    for kat in (1, -1, 2, -2):  # önce içeri, sonra dışarı; iki uzaklıkta
-        s = round(px * (KALINTI_CM + 1.5) * abs(kat))
+    if mesafeler is None:  # kalıntı: önce içeri, sonra dışarı; iki uzaklıkta
+        mesafeler = [(KALINTI_CM + 1.5) * k for k in (1, -1, 2, -2)]
+    for kat in mesafeler:
+        s = round(px * abs(kat))
         for ad, (ux, uy) in yon.items():
             bolge = ImageChops.multiply(delik, bolgeler[ad])
             if not bolge.getbbox():
@@ -395,6 +455,24 @@ def _doldur(foto, gecerli, delik, px):
             dx, dy = ux * s * (1 if kat > 0 else -1), uy * s * (1 if kat > 0 else -1)
             # piksel (x, y) kaynağını (x + dx, y + dy)'den alır: kaynak resmi (-dx, -dy) kaydırılır
             kaynak, uygun = _kaydir(foto, -dx, -dy), _kaydir(gecerli, -dx, -dy)
+            tamam = ImageChops.multiply(bolge, uygun.point(lambda q: 255 if q > 200 else 0))
+            sonuc = Image.composite(kaynak, sonuc, tamam)
+            delik = ImageChops.subtract(delik, tamam)
+        if not delik.getbbox():
+            return sonuc
+    # köşeler: dik kaydırmayla geçerli yere ulaşmayan noktalar çapraz (merkeze doğru) kaydırılır
+    for kat in mesafeler:
+        if kat <= 0:
+            continue
+        s = round(px * kat)
+        for (ux, uy), kutu in (((1, 1), (0, 0, W // 2, H // 2)), ((-1, 1), (W // 2, 0, W, H // 2)),
+                               ((1, -1), (0, H // 2, W // 2, H)), ((-1, -1), (W // 2, H // 2, W, H))):
+            bolge = Image.new("L", (W, H), 0)
+            bolge.paste(255, kutu)
+            bolge = ImageChops.multiply(delik, bolge)
+            if not bolge.getbbox():
+                continue
+            kaynak, uygun = _kaydir(foto, -ux * s, -uy * s), _kaydir(gecerli, -ux * s, -uy * s)
             tamam = ImageChops.multiply(bolge, uygun.point(lambda q: 255 if q > 200 else 0))
             sonuc = Image.composite(kaynak, sonuc, tamam)
             delik = ImageChops.subtract(delik, tamam)

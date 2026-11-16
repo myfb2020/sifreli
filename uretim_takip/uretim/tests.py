@@ -2975,3 +2975,97 @@ class FotoTemelTesti(TestCase):
             r = self.ft.bilesik(self.temizle({**b, "en": en, "boy": boy, "h2_malzeme": "gumus"}), 300)
             self.assertIsNotNone(r)
             self.assertEqual(r.width > r.height, en > boy)
+
+
+class BayiSecimDenetimi(FotoModelTesti):
+    """Bayiye açık her modelde sayfa tarayıcıdaki gibi okunur (virgüllü sayı geçersiz) ve her bordür / ara bant /
+    zemin / madalyon / kenar tek tek değiştirilir: sunucu yalnız değiştirilen parçayı 'değişti' saymalı (2026-11-16,
+    kullanıcı: RNO-001/003 şablona dönüyordu). Tarayıcıdaki deneme: is_belgeleri/foto_halka/bayi_denemesi.js."""
+
+    test_bayi_secili_modeli_parcali_studyoda_tasarlar = None
+    test_yeni_bayi_duzeni_ve_stüdyo_yalniz_yonetici = None
+
+    @staticmethod
+    def form_degerleri(html):
+        from html.parser import HTMLParser
+
+        class Okur(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.v, self.icinde = {}, False
+
+            def handle_starttag(self, tag, a):
+                a = dict(a)
+                if tag == "form" and a.get("id") == "studyo":
+                    self.icinde = True
+                if not self.icinde or tag != "input" or not a.get("name"):
+                    return
+                tur, ad, deger = a.get("type", "text"), a["name"], a.get("value", "")
+                if tur in ("radio", "checkbox"):
+                    if "checked" in a:
+                        self.v[ad] = deger
+                elif tur == "number":  # tarayıcı virgüllü sayıyı kabul etmez: boş gönderir
+                    try:
+                        float(deger)
+                        self.v[ad] = deger
+                    except ValueError:
+                        self.v[ad] = ""
+                else:
+                    self.v[ad] = deger
+
+            def handle_endtag(self, tag):
+                if tag == "form":
+                    self.icinde = False
+
+        o = Okur()
+        o.feed(html)
+        return o.v
+
+    def test_her_modelde_yalniz_secilen_parca_degisir(self):
+        from django.http import QueryDict
+        from urllib.parse import urlencode
+
+        from . import foto_temel as ft, parcali
+        from .parcali_views import _temizle
+
+        hatalar = []
+        with self.settings(STUDYO_BAYIYE_ACIK=False):
+            self.client.force_login(self.bayi_hesap)
+            for kod in parcali.SECILI_MODELLER:
+                if not ft.uygun_mu(kod):
+                    continue
+                form = self.form_degerleri(self.client.get(reverse("parcali_studyo") + f"?hazir={kod}").content.decode())
+                ref = ft.referans(kod)
+
+                def denetle(islem, degisiklik, beklenen):
+                    v = _temizle(QueryDict(urlencode({**form, **degisiklik})))
+                    d = ft.degisenler(v, ft.referans(kod, v["en"], v["boy"]))
+                    if d != beklenen:
+                        hatalar.append(f"{kod} {islem}: {sorted(map(str, d))} ≠ {sorted(map(str, beklenen))}")
+
+                adaylar = [k for k, _, _ in parcali.MALZEMELER] + [k for k, _ in parcali.kenar_secenekleri()]
+
+                def baska(alan):  # bu modelde seçilebilen, şimdikinden farklı bir değer (kartelalı seride kartela)
+                    for x in ["pelus_pembe", "pelus_lacivert"] + adaylar:
+                        if _temizle(QueryDict(urlencode({**form, alan: x})))[alan] != ref[alan]:
+                            return x
+                    raise AssertionError(f"{kod} {alan}: başka seçenek yok")
+
+                denetle("açılış", {}, set())
+                ogeler = ft._ogeler(ref)
+                ilk = ogeler[0][0] if ogeler else None
+                for no, _ in ogeler:
+                    if isinstance(no, str):
+                        denetle(f"{no} genişlik", {f"{no}_gen": "25"}, set())
+                        continue
+                    denetle(f"{no}. bordür rengi", {f"h{no}_malzeme": baska(f"h{no}_malzeme")}, {("h", no)} | ({"kenar"} if no == ilk else set()))
+                n = int(ref["halka_sayisi"])
+                for i in range(1, n):  # bitişik bordürlerin arasına ara bant
+                    if not ref.get(f"a{i}_gen"):
+                        denetle(f"a{i} ekle", {f"a{i}_gen": "10"}, {("a", i)})
+                denetle("zemin", {"zemin": baska("zemin")},
+                        {"zemin"} | {("a", i) for i in range(1, parcali.EN_COK_HALKA)})
+                if ref.get("madalyon") != "yok" and ref.get("orta") == "duz":
+                    denetle("madalyon", {"madalyon_malzeme": baska("madalyon_malzeme")}, {"madalyon", "mcerceve"})
+                denetle("kenar", {"kenar_renk": baska("kenar_renk")}, {"kenar"})
+        self.assertEqual(hatalar, [], "\n".join(hatalar[:40]))
