@@ -22,8 +22,17 @@ def lot_adresi(request, lot):
     return request.build_absolute_uri(yol)
 
 
+QR_KENAR = 2  # QR çevresindeki boş modül sayısı
+
+
 def qr_svg(veri, olcek=4):
-    return mark_safe(segno.make(veri, error="m").svg_inline(scale=olcek, border=2))
+    """QR (SVG). viewBox'lı: ekranda / etikette küçültülünce kırpılmaz, ölçeklenir (2026-11-17: etiket yazıcısında
+    QR'ın yalnız bir köşesi basılıyordu, telefon okumuyordu). Modül sayısı data-moduller'de: etiket yazıcısında her
+    modül tam 5 yazıcı noktası (0,625 mm, 203 dpi) olsun diye."""
+    qr = segno.make(veri, error="m")
+    svg = qr.svg_inline(scale=olcek, border=QR_KENAR, omitsize=True)
+    svg = svg.replace("<svg ", f'<svg data-moduller="{qr.symbol_size(border=QR_KENAR)[0]}" shape-rendering="crispEdges" ', 1)
+    return mark_safe(svg)
 
 
 @login_required

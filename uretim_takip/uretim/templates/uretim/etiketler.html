@@ -78,7 +78,9 @@
   body.kagit-yazici .etiket, body.kagit-yazici .etiket.ikinci {
     display:flex; box-sizing:border-box; width:var(--en); height:var(--boy); padding:1.5mm 1mm 1.5mm 1mm; gap:1mm;
     align-items:center; border-radius:2mm; overflow:hidden; background:#fff; color:#000; }
-  body.kagit-yazici .etiket-qr svg { width:calc(var(--boy) - 9mm); height:calc(var(--boy) - 9mm); }
+  .etiket-qr svg { display:block; }
+  body.kagit-yazici .etiket-qr { align-self:flex-start; margin-top:1mm; }  /* QR tam yazıcı noktasından başlasın */
+  body.kagit-yazici .etiket-qr svg { width:var(--qr, calc(var(--boy) - 7mm)); height:var(--qr, calc(var(--boy) - 7mm)); flex:none; }
   body.kagit-yazici .etiket-bilgi { font-size:5.6pt; line-height:1.3; min-width:0; flex:1; overflow:hidden; }
   body.kagit-yazici .etiket-bilgi div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   body.kagit-yazici .etiket-no { font-size:8.6pt; font-weight:800; margin-bottom:0.8mm; letter-spacing:-0.3pt; }
@@ -141,6 +143,12 @@
   const r = document.querySelector(`[name="kagit"][value="${secili}"]`);
   if (r) r.checked = true;
   document.querySelectorAll('[name="kagit"]').forEach((r) => r.addEventListener("change", () => { yaz("etiket-kagit", r.value); uygula(); }));
+  // QR: her modül tam 5 yazıcı noktası (203 dpi'de 0,625 mm); kesirli modül termal baskıda bulanıklaşır
+  document.querySelectorAll(".etiket-qr svg[data-moduller]").forEach((q) => {
+    let mm = q.dataset.moduller * 0.625;  // 5 nokta
+    if (mm > ayar.boy - 4) mm = q.dataset.moduller * 0.5;  // sığmazsa 4 nokta
+    q.style.setProperty("--qr", mm + "mm");
+  });
   uygula();
 })();
 </script>

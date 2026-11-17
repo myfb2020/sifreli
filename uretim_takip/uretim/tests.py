@@ -246,6 +246,10 @@ class QrVePwaTesti(TemelVeri):
         self.assertContains(yanit, self.ham.lot_no)
         self.assertContains(yanit, "<svg")
         self.assertContains(yanit, "Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)")
+        # QR viewBox'lı (küçültülünce kırpılmaz; eskiden etikette yalnız bir köşesi basılıyordu)
+        self.assertContains(yanit, 'viewBox="0 0')
+        self.assertContains(yanit, 'data-moduller="')
+        self.assertNotContains(yanit, '<svg width=')
         self.assertContains(yanit, "@page { size: ${ayar.boy}mm ${genislik}mm; margin: 0; }")  # çevrilmiş baskı
         self.assertContains(yanit, 'let yon = oku("etiket-yon", "0");')  # varsayılan: çevirme (Chrome ayarıyla düz çıkıyor)
         # Parametresiz: stokta malı kalan lotlar; tamamen kullanılan lot listelenmez
