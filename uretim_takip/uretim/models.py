@@ -9,6 +9,15 @@ SIFIR = Decimal("0")
 pozitif = [MinValueValidator(SIFIR)]
 
 
+STOK_ONEK = "BNN"  # stok lot numarası: BNN-2026-0001 (2026-11-17'ye kadar HD-…; eskiler BNN'ye çevrildi)
+
+
+def stok_no(no):
+    """Okutulan / yazılan stok numarası: büyük harf; eski HD-… etiketleri aynı numaralı BNN-…'ye gider."""
+    no = (no or "").strip().upper()
+    return f"{STOK_ONEK}-{no[3:]}" if no.startswith("HD-") else no
+
+
 def sonraki_numara(model, alan, onek):
     """ONEK-YIL-0001 biçiminde sıradaki numarayı üretir."""
     yil = timezone.localdate().year
@@ -392,7 +401,7 @@ class HamDeriGirisi(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.lot_no:
-            self.lot_no = sonraki_numara(HamDeriGirisi, "lot_no", "HD")
+            self.lot_no = sonraki_numara(HamDeriGirisi, "lot_no", STOK_ONEK)
         super().save(*args, **kwargs)
 
     @property
@@ -731,7 +740,7 @@ class UretimLotu(models.Model):
 
     @property
     def kaynak_listesi(self):
-        """Malzemenin alındığı stok lotları, ör. 'HD-2026-0001, HD-2026-0004'; etiketsiz eski stok da yazılır."""
+        """Malzemenin alındığı stok lotları, ör. 'BNN-2026-0001, BNN-2026-0004'; etiketsiz eski stok da yazılır."""
         parcalar = [k.ham_deri.lot_no for k in self.kaynaklar.all()]
         if self.eski_stok_turu_id:
             parcalar.append(f"Eski stok ({self.eski_stok_turu})")

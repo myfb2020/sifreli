@@ -19,7 +19,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 from .models import (
     Asama, DeriTuru, HaliTuru, HamDeriGirisi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
-    m2_hesapla, pin_dogrulayici, rota_adimlari, sonraki_asamalar,
+    m2_hesapla, pin_dogrulayici, rota_adimlari, sonraki_asamalar, stok_no,
 )
 
 
@@ -228,6 +228,7 @@ class Aktarici:
     def ham_deri(self, s):
         self._zorunlu(s, "Tedarikçi", "Deri Türü")
         lot_no = kod(s.get("Lot No"), "Lot No")
+        lot_no = stok_no(lot_no) if lot_no else lot_no  # eski HD-… numaraları BNN-…
         h = HamDeriGirisi.objects.filter(lot_no=lot_no).first() if lot_no else None
         yeni = h is None
         h = h or HamDeriGirisi(lot_no=lot_no)
@@ -280,7 +281,7 @@ class Aktarici:
     def lot(self, s, satir_no):
         self._zorunlu(s, "Stok Lot No", "Başlangıç kg", "Başlangıç m²")
         ham_no = kod(s["Stok Lot No"], "Stok Lot No")
-        ham = HamDeriGirisi.objects.filter(lot_no=ham_no).first()
+        ham = HamDeriGirisi.objects.filter(lot_no=stok_no(ham_no)).first()
         if ham is None:
             raise SatirHatasi(f"“{ham_no}” numaralı stok lotu bulunamadı (Stok Lotları sayfasında veya sistemde olmalı)")
         siparis = None
@@ -355,7 +356,7 @@ SAYFALAR = [
         Sutun("Not", False),
     ], "musteri", ("musteri",)),
     Sayfa("Stok Lotları", "Stoğa gelen ham deri partileri. Tedarikçi ve deri türü sistemde yoksa otomatik eklenir.", [
-        Sutun("Lot No", False, "Boş bırakılırsa sistem numara verir (HD-2026-0001). Eski numaralarınızı yazarsanız onlar kullanılır.", "HD-2026-0001"),
+        Sutun("Lot No", False, "Boş bırakılırsa sistem numara verir (BNN-2026-0001). Eski numaralarınızı yazarsanız onlar kullanılır.", "HD-2026-0001"),
         Sutun("Tarih", False, "Giriş tarihi (boşsa bugün)", "01.10.2026"),
         Sutun("Tedarikçi", True, "", "Anadolu Deri Ltd."),
         Sutun("Deri Türü", True, "Malzeme türü: Keçe, Süet, Rono, Suni deri, Kuzu…", "Süet", ("Malzeme Türü",)),
@@ -385,7 +386,7 @@ SAYFALAR = [
     ], "siparis", ("siparis",)),
     Sayfa("Devam Eden İşler", "Sistemi kurarken üretimde yarım kalan işler. Stok lotu ve sipariş numaraları yukarıdaki sayfalarda ya da sistemde bulunmalı.", [
         Sutun("İş No", False, "Boş bırakılırsa sistem numara verir (IS-2026-0001)", "IS-2026-0001", ("Lot No",)),
-        Sutun("Stok Lot No", True, "Malzemenin alındığı stok lotu (Stok Lotları sayfasındaki Lot No)", "HD-2026-0001", ("Ham Deri Lot No",)),
+        Sutun("Stok Lot No", True, "Malzemenin alındığı stok lotu (Stok Lotları sayfasındaki Lot No)", "BNN-2026-0001", ("Ham Deri Lot No",)),
         Sutun("Sipariş No", False, "", "SP-2026-0001"),
         Sutun("Başlangıç kg", True, "", "320"),
         Sutun("Başlangıç m²", True, "", "55"),

@@ -50,7 +50,7 @@ class TemelVeri(TestCase):
 class NumaralamaTesti(TemelVeri):
     def test_numaralar_sirali_uretilir(self):
         yil = timezone.localdate().year
-        self.assertEqual(self.ham.lot_no, f"HD-{yil}-0001")
+        self.assertEqual(self.ham.lot_no, f"BNN-{yil}-0001")
         a, b = self.yeni_lot(), self.yeni_lot()
         self.assertEqual(a.lot_no, f"IS-{yil}-0001")
         self.assertEqual(b.lot_no, f"IS-{yil}-0002")
@@ -256,6 +256,14 @@ class QrVePwaTesti(TemelVeri):
         self.yeni_lot(baslangic_kg=Decimal("100"), baslangic_m2=Decimal("20"))
         self.assertNotContains(self.client.get(reverse("etiketler")), self.ham.lot_no)
 
+    def test_eski_hd_etiketi_bnn_stoguna_gider(self):
+        no = self.ham.lot_no
+        self.assertTrue(no.startswith("BNN-"))
+        eski = "HD-" + no[4:]
+        self.assertRedirects(self.client.get(reverse("qr_yonlendir", args=[eski])), reverse("stok_detay", args=[self.ham.pk]))
+        self.assertRedirects(self.client.get(reverse("qr_tara"), {"lot_no": eski.lower()}),
+                             reverse("qr_yonlendir", args=[eski]), fetch_redirect_response=False)
+
     def test_stok_etiketi_okutulunca_stok_sayfasi_acilir(self):
         yanit = self.client.get(reverse("qr_yonlendir", args=[self.ham.lot_no.lower()]))
         self.assertRedirects(yanit, reverse("stok_detay", args=[self.ham.pk]))
@@ -351,11 +359,11 @@ class ExcelAktarimTesti(TestCase):
         rapor = ice_aktar(self.tam_dosya(), kaydet=True)
         self.assertTrue(rapor.kaydedildi, rapor.hatalar)
         self.assertTrue(Personel.objects.get(ad_soyad="Ayşe Demir").pin_dogru_mu("0789"))
-        hd = HamDeriGirisi.objects.get(lot_no="HD-ESKI-1")
+        hd = HamDeriGirisi.objects.get(lot_no="BNN-ESKI-1")  # eski HD-… numarası BNN-…
         self.assertEqual((hd.kg, hd.m2), (Decimal("640.00"), Decimal("110.50")))
-        otomatik = HamDeriGirisi.objects.exclude(lot_no="HD-ESKI-1").get()
+        otomatik = HamDeriGirisi.objects.exclude(lot_no="BNN-ESKI-1").get()
         self.assertEqual(otomatik.kg, Decimal("1250.75"))
-        self.assertTrue(otomatik.lot_no.startswith("HD-"))
+        self.assertTrue(otomatik.lot_no.startswith("BNN-"))
         lot = UretimLotu.objects.get(lot_no="L-15")
         self.assertEqual(lot.son_asama.ad, "Tabaklama")
         self.assertEqual(lot.durum, "bekliyor")
@@ -718,7 +726,7 @@ class YeniIsAkisiTesti(TemelVeri):
         stok = HamDeriGirisi.objects.get(tedarikci__ad="Ege Deri")
         self.assertRedirects(yanit, reverse("stok_detay", args=[stok.pk]))
         self.assertEqual((stok.kg, stok.m2), (Decimal("480.50"), Decimal("82.00")))
-        self.assertTrue(stok.lot_no.startswith("HD-"))
+        self.assertTrue(stok.lot_no.startswith("BNN-"))
 
 
 class RolMenuTesti(TestCase):

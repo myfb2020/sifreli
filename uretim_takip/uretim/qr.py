@@ -1,6 +1,6 @@
 """Stok lotu etiketleri için QR kod üretimi ve okutulan QR'ın doğru ekrana yönlendirilmesi.
 
-QR kodun içinde lotun adresi (…/q/HD-2026-0001/) bulunur. Böylece telefonun kendi kamera
+QR kodun içinde lotun adresi (…/q/BNN-2026-0001/) bulunur. Böylece telefonun kendi kamera
 uygulamasıyla okutulduğunda da doğrudan ilgili ekran açılır.
 """
 
@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils.formats import localize
 from django.utils.safestring import mark_safe
 
-from .models import HamDeriGirisi, Malzeme, UretimLotu
+from .models import HamDeriGirisi, Malzeme, UretimLotu, stok_no
 
 
 def lot_adresi(request, lot):
@@ -42,7 +42,7 @@ def qr_yonlendir(request, lot_no):
     Eski sürümde işlere basılmış etiketler (UL-…) de çalışmaya devam eder.
     """
     lot_no = lot_no.upper()
-    stok = HamDeriGirisi.objects.filter(lot_no=lot_no).first()
+    stok = HamDeriGirisi.objects.filter(lot_no=stok_no(lot_no)).first()  # eski HD-… etiketleri de
     if stok:
         return redirect("stok_detay", pk=stok.pk)
     malzeme = Malzeme.objects.filter(kod=lot_no).first()
@@ -62,7 +62,7 @@ def qr_tara(request):
     # Kamera kullanılamazsa numara elle girilir.
     lot_no = request.GET.get("lot_no", "").strip().upper()
     if lot_no:
-        if (HamDeriGirisi.objects.filter(lot_no=lot_no).exists() or Malzeme.objects.filter(kod=lot_no).exists()
+        if (HamDeriGirisi.objects.filter(lot_no=stok_no(lot_no)).exists() or Malzeme.objects.filter(kod=lot_no).exists()
                 or UretimLotu.objects.filter(lot_no=lot_no).exists()):
             return redirect("qr_yonlendir", lot_no=lot_no)
         return render(request, "uretim/qr_tara.html", {"hata": f"“{lot_no}” numaralı stok lotu ya da malzeme bulunamadı.", "lot_no": lot_no})

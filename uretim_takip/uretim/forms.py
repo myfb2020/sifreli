@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from .models import (
     sayi_metni,
     NEDENLER, Asama, DeriTuru, HaliTuru, HamDeriGirisi, KatalogModeli, LazerDeseni, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
-    m2_hesapla, pin_dogrulayici,
+    m2_hesapla, pin_dogrulayici, stok_no,
 )
 
 
@@ -170,7 +170,7 @@ class IslemBitirForm(PinliForm):
 
     cesit = forms.ChoiceField(label="Kullanılan malzeme", required=False)
     rulo_no = forms.CharField(label="veya rulonun etiketi", required=False, max_length=20,
-                              widget=forms.TextInput(attrs={"autocapitalize": "characters", "placeholder": "HD-…"}))
+                              widget=forms.TextInput(attrs={"autocapitalize": "characters", "placeholder": "BNN-…"}))
     kesim_en = ondalik_alan("Kullanılan en (cm)", required=False)
     kesim_boy = ondalik_alan("Kullanılan boy (cm)", required=False)
     cikis_en = ondalik_alan("Çıkan en (cm)", required=False)
@@ -234,7 +234,7 @@ class IslemBitirForm(PinliForm):
         rulo_no = (veri.get("rulo_no") or "").strip().upper()
         rulo = None
         if rulo_no:
-            rulo = HamDeriGirisi.objects.filter(lot_no=rulo_no).first()
+            rulo = HamDeriGirisi.objects.filter(lot_no=stok_no(rulo_no)).first()
             if rulo is None:
                 self.add_error("rulo_no", f"“{rulo_no}” numaralı stok lotu bulunamadı.")
         secildi = bool(rulo_no or veri.get("cesit"))
@@ -519,7 +519,7 @@ class KaynakSatirForm(forms.Form):
             if veri.get("kg") or veri.get("m2"):
                 self.add_error("stok_no", "Stok lot numarasını girin.")
             return veri
-        stok = HamDeriGirisi.objects.filter(lot_no=no).first()
+        stok = HamDeriGirisi.objects.filter(lot_no=stok_no(no)).first()
         if stok is None:
             malzeme = Malzeme.objects.filter(kod=no).first()
             if malzeme is not None:
