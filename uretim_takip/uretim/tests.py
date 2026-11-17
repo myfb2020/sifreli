@@ -246,6 +246,12 @@ class QrVePwaTesti(TemelVeri):
         self.assertContains(yanit, self.ham.lot_no)
         self.assertContains(yanit, "<svg")
         self.assertContains(yanit, "Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)")
+        # etikette tedarikçi / tarih / miktar yok, kalite var (deri tek tek satılıyor)
+        self.assertNotContains(yanit, f">{self.ham.tedarikci}<")
+        self.assertNotContains(yanit, "Giriş:")
+        self.ham.kalite = "A"
+        self.ham.save()
+        self.assertContains(self.client.get(reverse("etiketler"), {"stok": self.ham.pk}), "A kalite")
         # QR viewBox'lı (küçültülünce kırpılmaz; eskiden etikette yalnız bir köşesi basılıyordu)
         self.assertContains(yanit, 'viewBox="0 0')
         self.assertContains(yanit, 'data-moduller="')

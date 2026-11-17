@@ -48,6 +48,7 @@
         <div class="etiket-no">{{ e.no }}</div>
         {% if e.baslik %}<div><b>{{ e.baslik }}</b></div>{% endif %}
         {% for satir in e.satirlar %}<div>{{ satir }}</div>{% endfor %}
+        {% if e.kalite %}<div class="etiket-kalite">{{ e.kalite }}</div>{% endif %}
       </div>
     </div>
     {% endfor %}
@@ -81,9 +82,12 @@
   .etiket-qr svg { display:block; }
   body.kagit-yazici .etiket-qr { align-self:flex-start; margin-top:1mm; }  /* QR tam yazıcı noktasından başlasın */
   body.kagit-yazici .etiket-qr svg { width:var(--qr, calc(var(--boy) - 7mm)); height:var(--qr, calc(var(--boy) - 7mm)); flex:none; }
-  body.kagit-yazici .etiket-bilgi { font-size:5.6pt; line-height:1.3; min-width:0; flex:1; overflow:hidden; }
-  body.kagit-yazici .etiket-bilgi div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  body.kagit-yazici .etiket-no { font-size:8.6pt; font-weight:800; margin-bottom:0.8mm; letter-spacing:-0.3pt; }
+  body.kagit-yazici .etiket-bilgi { font-size:6.6pt; line-height:1.3; min-width:0; flex:1; overflow:hidden; }
+  body.kagit-yazici .etiket-bilgi div { overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow-wrap:anywhere; }
+  body.kagit-yazici .etiket-bilgi .etiket-no { display:block; white-space:nowrap; }
+  .etiket-kalite { font-weight:800; }
+  body.kagit-yazici .etiket-kalite { font-size:8pt; margin-top:0.6mm; }
+  body.kagit-yazici .etiket-no { font-size:7.8pt; font-weight:800; margin-bottom:0.8mm; letter-spacing:-0.3pt; }
   @media print {
     body.kagit-yazici .etiket-izgara { gap:0; }
     body.kagit-yazici .etiket-sira { height:var(--boy); break-after:page; page-break-after:always; overflow:hidden; }

@@ -9,7 +9,6 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.formats import localize
 from django.utils.safestring import mark_safe
 
 from .models import HamDeriGirisi, Malzeme, UretimLotu, stok_no
@@ -93,11 +92,11 @@ def etiketler(request):
         else:
             stoklar = [s for s in stoklar if s.kalan_kg > 0 or s.kalan_m2 > 0]
         for s in stoklar:
-            satirlar = [s.cesit_metni, str(s.tedarikci),
-                        (f"{s.giris_metni} = " if s.giris_metni else "") + f"{localize(s.m2)} m²"
-                        + (f" · {localize(s.kg)} kg" if s.kg else "") + (f" · {s.adet} adet" if s.adet else ""),
-                        f"Giriş: {s.tarih:%d.%m.%Y}"]
-            etiket_listesi.append({"no": s.lot_no, "satirlar": satirlar, "qr": qr_svg(lot_adresi(request, s))})
+            # Deri tek tek de satıldığı için etikette yalnız malzeme ve kalite (kullanıcı 2026-11-18): tedarikçi, giriş
+            # tarihi, adet ve m² programda kalır, etikete basılmaz.
+            kalite = f"{s.kalite} kalite" if s.kalite in ("A", "B", "C") else ""
+            etiket_listesi.append({"no": s.lot_no, "satirlar": [s.cesit_metni], "kalite": kalite,
+                                   "qr": qr_svg(lot_adresi(request, s))})
     if malzeme_idleri:
         for m in Malzeme.objects.filter(pk__in=malzeme_idleri).order_by("kod"):
             etiket_listesi.append({"no": m.kod, "baslik": m.ad,

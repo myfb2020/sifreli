@@ -118,6 +118,7 @@ Formlar `forms.py`, ekranlar `templates/uretim/`, menü `../templates/base.html`
 - İş kolu: programı çok müşterili yapmak (firma adı/logo/istasyon/ürün ayardan).
 
 ## Günlük (en yeni üstte, bir satır)
+- 2026-11-18: Stok etiketi sadeleşti (kullanıcı: deri tek tek satılıyor, müşteri görür): etikette yalnız QR + BNN no + `cesit_metni` (2 satıra kadar) + kalite A/B/C ise kalın 'A kalite' (Karışık yazılmaz); tedarikçi, giriş tarihi, adet, m² etikette YOK (programda var). No 7,8pt (BNN uzun). 203 dpi QR denemesi 8/8.
 - 2026-11-17 (5): Deri satışı (migration 0044; kullanıcı: adet, yalnız miktar, bir fişte birden çok stok, yalnız stoktan düşsün): yukarıdaki 2 Stok dalı. Test `DeriSatisiTesti` (165 test). Büro rehberine bir satır; büro yine 3 sayfa (`#buro footer` margin).
 - 2026-11-17 (4): Stok numarası HD → **BNN** (kullanıcı onayı; `models.STOK_ONEK`, migration 0043 eski HD-… → BNN-… aynı sıra; `stok_no()` qr_yonlendir/qr_tara/stok_bilgi/rulo_no/yeni iş/Excel aktarmada eski HD numarasını çevirir). 163 test. Bekleyen: deri satışı stoktan düşme (plan sunuldu).
 - 2026-11-17 (3): QR okunmuyordu: segno SVG'de viewBox yoktu, CSS küçültünce QR KIRPILIYORDU (etikette yalnız sol üst köşe). `qr.qr_svg` artık `omitsize=True` (viewBox) + `data-moduller` + crispEdges; etiket yazıcısında QR = modül × 0,625 mm (203 dpi'de 5 nokta, sığmazsa 4), üstten 1 mm. Doğrulama: PDF → pdftoppm 203 dpi gri/siyah-beyaz → OpenCV QRCodeDetector (scratchpad qrv venv, `qr_den.py`) 4/4 okundu (öncesi 0/4). Kurulum kâğıdına Dithering: None.
