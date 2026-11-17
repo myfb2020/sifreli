@@ -16,7 +16,7 @@
     <label><input type="radio" name="kagit" value="yazici" checked> 🏷 Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)</label>
     <label><input type="radio" name="kagit" value="a4"> 📄 A4 kâğıt</label>
   </div>
-  <p class="soluk" data-kagit="yazici">Her sırada aynı etiketten 2 tane çıkar: biri rulonun kartına, öteki rulonun iç ucuna (keçe tarafına) yedek. Yazdır penceresinde yazıcı olarak <b>PC43t</b>'yi seçin, <b>Kenar boşlukları: Yok</b>, <b>Ölçek: %100</b>.</p>
+  <p class="soluk" data-kagit="yazici">Her sırada aynı etiketten 2 tane çıkar: biri rulonun kartına, öteki rulonun iç ucuna (keçe tarafına) yedek. Yazdır penceresinde: yazıcı <b>PC43t</b>, <b>Düzen: Dikey</b>, kâğıt boyutu sürücüde tanımladığınız <b>104 × 30</b>, <b>Kenar boşlukları: Yok</b>, <b>Ölçek: Varsayılan</b>. Önizlemede bir şeritte yan yana iki etiket görünmeli; etiket dönük görünürse Düzen'i değiştirin.</p>
   <details data-kagit="yazici">
     <summary>Etiket ölçüsü ayarı (baskı kayıyorsa)</summary>
     <div class="olcu-ayar">
@@ -97,7 +97,7 @@
     const genislik = Math.round((+ayar.sol + 2 * ayar.en + +ayar.ara + 0.5) * 2) / 2;
     document.getElementById("sayfa-olcusu").textContent = `${genislik} × ${ayar.boy} mm`;
     sayfaStili.textContent = kagit === "yazici"
-      ? `@page { size: ${genislik}mm ${ayar.boy}mm; margin: 0; }`
+      ? "@page { margin: 0; }"  /* ölçüyü sürücüdeki kâğıt verir; programdan verilince Chrome sayfayı yatay sayıp sürücü 90° çeviriyordu */
       : "@page { size: A4; margin: 10mm; }";
   }
   kutular.forEach((k) => {
