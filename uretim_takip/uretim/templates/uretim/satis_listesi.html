@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block baslik %}Deri satışları{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">Deri satışları</h1>
+  {% if perms.uretim.add_derisatisi %}<a class="btn" href="{% url 'satis_yeni' %}">💰 Yeni satış</a>{% endif %}
+</div>
+{% with stok_sekme="satis" %}{% include "uretim/_stok_sekmeleri.html" %}{% endwith %}
+<form class="filtre" method="get">
+  <label>Başlangıç <input type="date" name="bas" value="{{ bas }}"></label>
+  <label>Bitiş <input type="date" name="bit" value="{{ bit }}"></label>
+  <input name="ara" value="{{ ara }}" placeholder="Fiş / müşteri / stok no / irsaliye">
+  <button class="btn kucuk" type="submit">Filtrele</button>
+  <a class="btn kucuk ikincil" href="?{{ sorgu }}{% if sorgu %}&amp;{% endif %}excel=1">📊 Excel</a>
+</form>
+<div class="kart tablo-kap">
+  <table>
+    <tr><th>Fiş</th><th>Tarih</th><th>Müşteri</th><th>Stoklar</th><th>İrsaliye / fatura</th><th class="sayi">Adet</th><th class="sayi">m²</th></tr>
+    {% for f in fisler %}
+    <tr{% if f.iptal %} class="soluk"{% endif %}>
+      <td><a href="{% url 'satis_detay' f.pk %}"><b>{{ f.fis_no }}</b></a>{% if f.iptal %} <span class="rozet iptal">İptal</span>{% endif %}</td>
+      <td>{{ f.tarih|date:"d.m.Y" }}</td>
+      <td>{{ f.musteri }}</td>
+      <td>{% for d in f.satirlar %}{{ d.ham_deri.lot_no }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+      <td>{{ f.belge_no }}</td>
+      <td class="sayi">{{ f.toplam_adet|default:"" }}</td>
+      <td class="sayi">{{ f.toplam_m2|floatformat:"-2" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="soluk">Satış kaydı yok.</td></tr>
+    {% endfor %}
+    {% if fisler %}<tr><td colspan="5"><b>Toplam</b> <span class="soluk">(iptaller hariç)</span></td><td class="sayi"><b>{{ toplam_adet }}</b></td><td class="sayi"><b>{{ toplam_m2|floatformat:"-2" }}</b></td></tr>{% endif %}
+  </table>
+</div>
+{% endblock %}

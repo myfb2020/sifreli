@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block baslik %}Yeni deri satışı{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px"><a href="{% url 'satis_listesi' %}">← Deri satışları</a></p>
+<div class="kart" style="max-width:720px">
+  <h1>💰 Yeni satış</h1>
+  {% for h in hatalar %}<div class="mesaj error">{{ h }}</div>{% endfor %}
+  <form method="post" class="dikey" id="satis-formu">
+    {% csrf_token %}
+    <div class="iki-sutun-form">
+      <p><label for="musteri">Müşteri</label>
+        <select id="musteri" name="musteri"><option value="">— Seçin —</option>{% for m in musteriler %}<option value="{{ m.pk }}"{% if veri.musteri == m.pk|stringformat:"s" %} selected{% endif %}>{{ m.ad }}</option>{% endfor %}</select></p>
+      <p><label for="yeni_musteri">veya yeni müşteri adı</label><input id="yeni_musteri" name="yeni_musteri" maxlength="120" value="{{ veri.yeni_musteri|default:'' }}"></p>
+    </div>
+    <div class="iki-sutun-form">
+      <p><label for="tarih">Tarih</label><input id="tarih" name="tarih" type="date" value="{{ veri.tarih|default:bugun }}"></p>
+      <p><label for="belge_no">İrsaliye / fatura no <span class="soluk">(isteğe bağlı)</span></label><input id="belge_no" name="belge_no" maxlength="40" value="{{ veri.belge_no|default:'' }}"></p>
+    </div>
+
+    <h2 style="margin-top:12px">Satılan mallar</h2>
+    <p class="soluk">Etiketi 📷 ile okutun ya da stok numarasını (BNN-…) yazın, satılan <b>adedi</b> girin. Adeti olmayan stokta (rulo) m² yazılır.</p>
+    <div id="satirlar">
+      {% for s in satirlar %}
+      <div class="satis-satir kaynak-no">
+        <span class="tara-grup"><input class="stok-no" name="stok_no" value="{{ s.stok_no }}" placeholder="BNN-…" autocapitalize="characters" aria-label="Stok no"><button type="button" class="btn tara-dugme" aria-label="Etiketi okut">📷</button></span>
+        <label class="miktar adet-kutu">Adet <input name="adet" type="number" min="1" step="1" inputmode="numeric" value="{{ s.adet }}"></label>
+        <label class="miktar m2-kutu" hidden>m² <input name="m2" type="number" min="0" step="0.01" inputmode="decimal" value="{{ s.m2 }}"></label>
+        <button type="button" class="btn kucuk ikincil satir-sil" aria-label="Satırı sil">✕</button>
+        <div class="stok-ozet soluk"></div>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn ikincil" id="satir-ekle">+ Başka stok ekle</button>
+
+    <p style="margin-top:12px"><label for="aciklama">Not <span class="soluk">(isteğe bağlı)</span></label><input id="aciklama" name="aciklama" maxlength="300" value="{{ veri.aciklama|default:'' }}"></p>
+    <button class="btn buyuk" type="submit" style="width:100%">💰 Satışı kaydet (stoktan düş)</button>
+  </form>
+</div>
+
+<div id="tarama-perde" class="tarama-perde" hidden>
+  <div class="kart" style="max-width:480px;width:100%">
+    <div id="tarama-durum" class="mesaj info">Kamera açılıyor…</div>
+    <div id="kamera-kap" class="kamera-kap"><video id="kamera" playsinline muted></video><div class="nisangah"></div></div>
+    <button type="button" class="btn ikincil" id="tarama-kapat" style="width:100%;margin-top:12px">Kapat</button>
+  </div>
+</div>
+<style>
+  .satis-satir { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--cizgi); }
+  .satis-satir .tara-grup { flex:1 1 220px; }
+  .satis-satir .miktar { display:flex; align-items:center; gap:6px; margin:0; font-weight:600; }
+  .satis-satir .miktar input { width:96px; }
+  .satis-satir .miktar[hidden] { display:none; }
+  .satis-satir .stok-ozet { flex-basis:100%; font-size:14px; }
+</style>
+{% load static %}
+<script src="{% static 'uretim/vendor/jsQR.js' %}"></script>
+<script src="{% static 'uretim/tarayici.js' %}"></script>
+<script>
+(function () {
+  const kap = document.getElementById("satirlar");
+  const kac = (t) => String(t).replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";");
+  const perde = document.getElementById("tarama-perde");
+  let tarayici = null;
+
+  async function ozet(satir) {
+    const girdi = satir.querySelector(".stok-no"), yaz = satir.querySelector(".stok-ozet");
+    const no = girdi.value.trim().toUpperCase();
+    if (!no) { yaz.textContent = ""; return; }
+    try {
+      const y = await fetch("{% url 'stok_bilgi' 'NO' %}".replace("NO", encodeURIComponent(no)));
+      const v = await y.json();
+      if (!v.bulundu) { yaz.innerHTML = '<span class="uyari">Bu numarada stok yok</span>'; return; }
+      const adetli = v.kalan_adet !== null && v.kalan_adet !== undefined;
+      satir.querySelector(".adet-kutu").hidden = !adetli;
+      satir.querySelector(".m2-kutu").hidden = adetli;
+      yaz.innerHTML = `<b>${kac(v.lot_no)}</b> · ${kac(v.deri_turu)} · ${kac(v.tedarikci)}<br>Stokta: <b>${adetli ? v.kalan_adet + " adet · " : ""}${kac(v.kalan_m2)} m²</b>`;
+    } catch (e) { yaz.textContent = ""; }
+  }
+  function hazirla(satir) {
+    const girdi = satir.querySelector(".stok-no");
+    girdi.addEventListener("change", () => ozet(satir));
+    if (girdi.value) ozet(satir);
+    satir.querySelector(".tara-dugme").addEventListener("click", () => {
+      perde.hidden = false;
+      tarayici = QrTarayici.baslat({
+        video: document.getElementById("kamera"), durum: document.getElementById("tarama-durum"),
+        kap: document.getElementById("kamera-kap"),
+        onKod: (kod) => { girdi.value = kod; kapat(); ozet(satir); const a = satir.querySelector(".miktar:not([hidden]) input"); if (a) a.focus(); },
+      });
+    });
+    satir.querySelector(".satir-sil").addEventListener("click", () => {
+      if (kap.querySelectorAll(".satis-satir").length > 1) satir.remove();
+      else { satir.querySelectorAll("input").forEach((i) => { i.value = ""; }); satir.querySelector(".stok-ozet").textContent = ""; }
+    });
+  }
+  function kapat() { if (tarayici) tarayici.durdur(); tarayici = null; perde.hidden = true; }
+  kap.querySelectorAll(".satis-satir").forEach(hazirla);
+  document.getElementById("satir-ekle").addEventListener("click", () => {
+    const yeni = kap.querySelector(".satis-satir").cloneNode(true);
+    yeni.querySelectorAll("input").forEach((i) => { i.value = ""; });
+    yeni.querySelector(".stok-ozet").textContent = "";
+    yeni.querySelector(".adet-kutu").hidden = false; yeni.querySelector(".m2-kutu").hidden = true;
+    kap.appendChild(yeni); hazirla(yeni); yeni.querySelector(".stok-no").focus();
+  });
+  document.getElementById("tarama-kapat").addEventListener("click", kapat);
+})();
+</script>
+{% endblock %}

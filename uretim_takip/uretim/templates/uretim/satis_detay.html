@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block baslik %}{{ satis.fis_no }}{% endblock %}
+{% block icerik %}
+<p style="margin:0 0 8px"><a href="{% url 'satis_listesi' %}">← Deri satışları</a></p>
+<h1>{{ satis.fis_no }}{% if satis.iptal %} <span class="rozet iptal">İptal</span>{% endif %}</h1>
+<div class="kart">
+  <table>
+    <tr><th>Müşteri</th><td><b>{{ satis.musteri }}</b></td></tr>
+    <tr><th>Tarih</th><td>{{ satis.tarih|date:"d.m.Y" }}</td></tr>
+    {% if satis.belge_no %}<tr><th>İrsaliye / fatura</th><td>{{ satis.belge_no }}</td></tr>{% endif %}
+    {% if satis.aciklama %}<tr><th>Not</th><td>{{ satis.aciklama }}</td></tr>{% endif %}
+    <tr><th>Giren</th><td>{{ satis.kullanici|default:"" }} · {{ satis.olusturma|date:"d.m.Y H:i" }}</td></tr>
+    {% if satis.iptal %}<tr><th>İptal</th><td>{{ satis.iptal_eden|default:"" }} · {{ satis.iptal_zamani|date:"d.m.Y H:i" }}{% if satis.iptal_nedeni %} · {{ satis.iptal_nedeni }}{% endif %}<br><span class="soluk">Mallar stoğa geri döndü.</span></td></tr>{% endif %}
+  </table>
+</div>
+<div class="kart tablo-kap">
+  <h2>Satılan mallar</h2>
+  <table>
+    <tr><th>Stok no</th><th>Malzeme</th><th>Tedarikçi</th><th class="sayi">Adet</th><th class="sayi">m²</th><th class="sayi">kg</th></tr>
+    {% for d in satirlar %}
+    <tr><td><a href="{% url 'stok_detay' d.ham_deri.pk %}">{{ d.ham_deri.lot_no }}</a></td><td>{{ d.ham_deri.cesit_metni }}</td><td>{{ d.ham_deri.tedarikci }}</td>
+        <td class="sayi">{{ d.satilan_adet|default:"" }}</td><td class="sayi">{{ d.satilan_m2|floatformat:"-2" }}</td><td class="sayi">{% if d.kg %}{{ d.satilan_kg|floatformat:"-2" }}{% endif %}</td></tr>
+    {% endfor %}
+    <tr><td colspan="3"><b>Toplam</b></td><td class="sayi"><b>{{ satis.toplam_adet|default:"" }}</b></td><td class="sayi"><b>{{ satis.toplam_m2|floatformat:"-2" }}</b></td><td></td></tr>
+  </table>
+</div>
+{% if user.is_superuser and not satis.iptal %}
+<details class="kart">
+  <summary>Satışı iptal et (yanlış giriş)</summary>
+  <form method="post" class="dikey" style="margin-top:8px">{% csrf_token %}
+    <p><label for="neden">Neden</label><input id="neden" name="neden" maxlength="200" placeholder="Örn. yanlış stok okutuldu"></p>
+    <button class="btn" type="submit" onclick="return confirm('Satış iptal edilsin, mallar stoğa geri dönsün mü?')">Satışı iptal et</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

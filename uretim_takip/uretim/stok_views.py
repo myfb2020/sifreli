@@ -71,7 +71,7 @@ def stok_bilgi(request, lot_no):
         return JsonResponse({"bulundu": False, "malzeme": malzeme.ad if malzeme else None}, status=404)
     return JsonResponse({
         "bulundu": True, "lot_no": stok.lot_no, "deri_turu": stok.cesit_metni, "kalite": stok.get_kalite_display(),
-        "tedarikci": str(stok.tedarikci), "kalan_kg": str(stok.kalan_kg), "kalan_m2": str(stok.kalan_m2),
+        "tedarikci": str(stok.tedarikci), "kalan_kg": str(stok.kalan_kg), "kalan_m2": str(stok.kalan_m2), "kalan_adet": stok.kalan_adet,
     })
 
 

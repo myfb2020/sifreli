@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    DuzeltmeKaydi, TamirKaydi, DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, LotOlcusu, MalzemeHareketi, SistemAyari, SiparisKalemi,
+    DuzeltmeKaydi, TamirKaydi, DeriDuzeltme, DeriSatisi, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, LotOlcusu, MalzemeHareketi, SistemAyari, SiparisKalemi,
     UretimLotu, sayi_metni,
 )
 
@@ -702,6 +702,67 @@ def deri_duzelt(*, ham_deri, neden, kg, m2, kullanici=None, aciklama=""):
         fark_kg, fark_m2 = -kg, -m2
     return DeriDuzeltme.objects.create(ham_deri=ham_deri, neden=neden, kg=fark_kg, m2=fark_m2,
                                        kullanici=kullanici, aciklama=aciklama)
+
+
+# --- Deri satışı ---------------------------------------------------------------
+
+
+@transaction.atomic
+def deri_sat(*, musteri, satirlar, tarih=None, belge_no="", aciklama="", kullanici=None):
+    """Stoktan satış fişi: satirlar = [(stok lotu, adet, m2)]. Adeti olan stokta adet (m² ve kg bir derinin ortalamasıyla),
+    adetsiz stokta (rulo) m² düşülür. Aynı stok iki satırda geçerse toplanır."""
+    toplam = {}
+    for stok, adet, m2 in satirlar:
+        onceki = toplam.get(stok.pk, (0, Decimal(0)))
+        toplam[stok.pk] = (onceki[0] + (adet or 0), onceki[1] + (m2 or Decimal(0)))
+    if not toplam:
+        raise ValidationError("En az bir stok satırı girin.")
+    kilitli = {h.pk: h for h in HamDeriGirisi.objects.select_for_update().filter(pk__in=toplam)}
+    hatalar, dusumler = [], []
+    for pk, (adet, m2) in toplam.items():
+        stok = kilitli[pk]
+        if stok.adet:
+            if adet < 1:
+                hatalar.append(f"{stok.lot_no}: satılan adedi yazın.")
+                continue
+            if adet > stok.kalan_adet:
+                hatalar.append(f"{stok.lot_no}: stokta {stok.kalan_adet} adet var, {adet} adet satılamaz.")
+                continue
+            dus_m2 = min((stok.m2 * adet / stok.adet).quantize(Decimal("0.01")), stok.kalan_m2)
+            dus_kg = min((stok.kg * adet / stok.adet).quantize(Decimal("0.01")), max(stok.kalan_kg, Decimal(0)))
+        else:
+            if m2 <= 0:
+                hatalar.append(f"{stok.lot_no}: bu stokta adet yok, satılan m²'yi yazın.")
+                continue
+            if m2 > stok.kalan_m2:
+                hatalar.append(f"{stok.lot_no}: stokta {stok.kalan_m2} m² var.")
+                continue
+            dus_m2 = m2
+            dus_kg = (stok.kg * m2 / stok.m2).quantize(Decimal("0.01")) if stok.m2 else Decimal(0)
+            dus_kg = min(dus_kg, max(stok.kalan_kg, Decimal(0)))
+        dusumler.append((stok, adet if stok.adet else 0, dus_m2, dus_kg))
+    if hatalar:
+        raise ValidationError(hatalar)
+    satis = DeriSatisi.objects.create(musteri=musteri, tarih=tarih or timezone.localdate(), belge_no=belge_no,
+                                      aciklama=aciklama, kullanici=kullanici)
+    for stok, adet, m2, kg in dusumler:
+        DeriDuzeltme.objects.create(ham_deri=stok, neden="satis", satis=satis, adet=-adet, m2=-m2, kg=-kg,
+                                    kullanici=kullanici, aciklama=f"{satis.fis_no} · {musteri}"[:200])
+    return satis
+
+
+@transaction.atomic
+def deri_satis_iptal(*, satis, kullanici, neden=""):
+    """Yönetici: satış fişini iptal eder; düşülen mal ters kayıtla stoğa döner (geçmiş kalır)."""
+    satis = DeriSatisi.objects.select_for_update().get(pk=satis.pk)
+    if satis.iptal:
+        raise ValidationError("Bu satış zaten iptal edilmiş.")
+    for d in satis.satirlar():
+        DeriDuzeltme.objects.create(ham_deri=d.ham_deri, neden="satisiptal", satis=satis, adet=-d.adet, m2=-d.m2,
+                                    kg=-d.kg, kullanici=kullanici, aciklama=f"{satis.fis_no} iptal: {neden}"[:200])
+    satis.iptal, satis.iptal_eden, satis.iptal_zamani, satis.iptal_nedeni = True, kullanici, timezone.now(), neden[:200]
+    satis.save(update_fields=["iptal", "iptal_eden", "iptal_zamani", "iptal_nedeni"])
+    return satis
 
 
 # --- Fason (pres / lamine) ----------------------------------------------------

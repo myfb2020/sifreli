@@ -444,6 +444,22 @@ class HamDeriGirisi(models.Model):
     def kalan_m2(self):
         return self.m2 - self.kullanilan_m2 + self.duzeltme_m2
 
+    @property
+    def birim_m2(self):
+        """Bir adedin (bir derinin) ortalama m²'si; adet yazılmamışsa None."""
+        return (self.m2 / self.adet) if self.adet else None
+
+    @property
+    def satilan_adet(self):
+        return -(self.duzeltmeler.filter(neden__in=["satis", "satisiptal"]).aggregate(t=models.Sum("adet"))["t"] or 0)
+
+    @property
+    def kalan_adet(self):
+        """Kalan deri sayısı (kalan m² / bir derinin m²'si; üretime verilen ve satılanlar düşmüş); adetsiz stokta None."""
+        if not self.adet or not self.m2:
+            return None
+        return max(0, int((self.kalan_m2 + Decimal("0.01")) / self.birim_m2))
+
     def aktif_isler(self):
         """Bu stok lotundan malzeme almış, bitmemiş işler."""
         return (
@@ -1035,12 +1051,58 @@ class FasonIsi(models.Model):
         return round(self.fire_m2 / self.katman_m2 * 100, 1)
 
 
+class DeriSatisi(models.Model):
+    """Stoktan deri satışı (satış fişi SF-…): bir fişte birden çok stok lotu; her satır stoktan düşen bir DeriDuzeltme
+    (neden 'satis'). İptalde ters kayıt ('satisiptal') eklenir, geçmiş kalır."""
+
+    fis_no = models.CharField("fiş no", max_length=20, unique=True, blank=True)
+    musteri = models.ForeignKey(Musteri, on_delete=models.PROTECT, related_name="deri_satislari", verbose_name="müşteri")
+    tarih = models.DateField(default=timezone.localdate)
+    belge_no = models.CharField("irsaliye / fatura no", max_length=40, blank=True)
+    aciklama = models.CharField("not", max_length=300, blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+                                  verbose_name="giren")
+    olusturma = models.DateTimeField(default=timezone.now)
+    iptal = models.BooleanField(default=False)
+    iptal_eden = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    iptal_zamani = models.DateTimeField(null=True, blank=True)
+    iptal_nedeni = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["-tarih", "-fis_no"]
+        verbose_name = "deri satışı"
+        verbose_name_plural = "deri satışları"
+
+    def __str__(self):
+        return f"{self.fis_no} – {self.musteri}"
+
+    def save(self, *args, **kwargs):
+        if not self.fis_no:
+            self.fis_no = sonraki_numara(DeriSatisi, "fis_no", "SF")
+        super().save(*args, **kwargs)
+
+    def satirlar(self):
+        return self.hareketler.filter(neden="satis").select_related("ham_deri__deri_turu", "ham_deri__tedarikci")
+
+    @property
+    def toplam_adet(self):
+        return -sum(d.adet for d in self.satirlar())
+
+    @property
+    def toplam_m2(self):
+        return -sum((d.m2 for d in self.satirlar()), SIFIR)
+
+
 class DeriDuzeltme(models.Model):
     """Stok lotunun kalan miktarına elle yapılan düzeltme. Eksi: stoktan düşer, artı: stoğa eklenir."""
 
     ham_deri = models.ForeignKey(HamDeriGirisi, on_delete=models.CASCADE, related_name="duzeltmeler",
                                  verbose_name="stok lotu")
-    neden = models.CharField(max_length=10, choices=NEDENLER + [("fason", "Fasona gönderildi")])
+    neden = models.CharField(max_length=10, choices=NEDENLER + [("fason", "Fasona gönderildi"), ("satis", "Satış"),
+                                                                ("satisiptal", "Satış iptali")])
+    satis = models.ForeignKey(DeriSatisi, on_delete=models.CASCADE, null=True, blank=True, related_name="hareketler",
+                              verbose_name="satış fişi")
+    adet = models.IntegerField(default=0, help_text="Satışta düşülen deri sayısı (eksi).")
     fason = models.ForeignKey(FasonIsi, on_delete=models.CASCADE, null=True, blank=True, related_name="gonderimler",
                               verbose_name="fason işi")
     kg = models.DecimalField(max_digits=10, decimal_places=2, default=SIFIR)
@@ -1057,6 +1119,19 @@ class DeriDuzeltme(models.Model):
 
     def __str__(self):
         return f"{self.ham_deri.lot_no} {self.get_neden_display()} {self.kg} kg / {self.m2} m²"
+
+    # satış fişinde gösterilen (artı) miktarlar
+    @property
+    def satilan_adet(self):
+        return -self.adet
+
+    @property
+    def satilan_m2(self):
+        return -self.m2
+
+    @property
+    def satilan_kg(self):
+        return -self.kg
 
 
 class Malzeme(models.Model):

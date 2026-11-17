@@ -3124,3 +3124,66 @@ class BayiSecimDenetimi(FotoModelTesti):
                     denetle("madalyon", {"madalyon_malzeme": baska("madalyon_malzeme")}, {"madalyon", "mcerceve"})
                 denetle("kenar", {"kenar_renk": baska("kenar_renk")}, {"kenar"})
         self.assertEqual(hatalar, [], "\n".join(hatalar[:40]))
+
+
+class DeriSatisiTesti(TemelVeri):
+    """Stoktan deri satışı (2026-11-17, kullanıcı: deri de satıyoruz; adetle, bir fişte birden çok stok)."""
+
+    def setUp(self):
+        from .hesaplar import ofis_grubu
+        from .models import HesapAyari
+        self.ofis = get_user_model().objects.create_user("satis-ofis", password="x", is_staff=True)
+        self.ofis.groups.add(ofis_grubu())
+        self.yonetici = get_user_model().objects.create_superuser("satis-yonetici", password="x")
+        self.tablet = get_user_model().objects.create_user("satis-tablet", password="x")
+        HesapAyari.objects.create(kullanici=self.tablet)
+        tur = DeriTuru.objects.get(ad="Kuzu")
+        self.deri = HamDeriGirisi.objects.create(tedarikci=self.ham.tedarikci, deri_turu=tur, adet=10, kg=Decimal("50"),
+                                                 m2=Decimal("25"))  # deri başına 2,5 m²
+        self.rulo = HamDeriGirisi.objects.create(tedarikci=self.ham.tedarikci, deri_turu=tur, kg=Decimal("0"),
+                                                 m2=Decimal("42"))
+
+    def _post(self, **ek):
+        veri = {"musteri": "", "yeni_musteri": "Deri Alıcı", "tarih": "2026-11-17", "belge_no": "IRS-12",
+                "stok_no": [self.deri.lot_no, "hd-" + self.rulo.lot_no[4:]], "adet": ["3", ""], "m2": ["", "10"]}
+        veri.update(ek)
+        return self.client.post(reverse("satis_yeni"), veri)
+
+    def test_satis_stoktan_duser_ve_iptal_geri_ekler(self):
+        from .models import DeriSatisi
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("satis_yeni") + f"?stok={self.deri.pk}"), self.deri.lot_no)
+        yanit = self._post()
+        satis = DeriSatisi.objects.get()
+        self.assertRedirects(yanit, reverse("satis_detay", args=[satis.pk]))
+        self.assertEqual((str(satis.musteri), satis.belge_no, satis.fis_no[:3]), ("Deri Alıcı", "IRS-12", "SF-"))
+        self.assertEqual((satis.toplam_adet, satis.toplam_m2), (3, Decimal("17.50")))
+        self.deri.refresh_from_db()
+        self.assertEqual((self.deri.kalan_adet, self.deri.kalan_m2, self.deri.kalan_kg, self.deri.satilan_adet),
+                         (7, Decimal("17.50"), Decimal("35.00"), 3))
+        self.assertEqual(self.rulo.kalan_m2, Decimal("32.00"))  # eski HD numarası da okundu
+        sayfa = self.client.get(reverse("stok_detay", args=[self.deri.pk]))
+        self.assertContains(sayfa, "7 kaldı")
+        self.assertContains(sayfa, reverse("satis_detay", args=[satis.pk]))
+        # liste, toplam ve Excel
+        liste = self.client.get(reverse("satis_listesi"))
+        self.assertContains(liste, satis.fis_no)
+        self.assertEqual(self.client.get(reverse("satis_listesi"), {"excel": "1"})["Content-Type"],
+                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        # stokta olandan fazlası satılamaz
+        hatali = self._post(**{"stok_no": [self.deri.lot_no], "adet": ["8"], "m2": [""]})
+        self.assertContains(hatali, "stokta 7 adet var")
+        self.assertEqual(DeriSatisi.objects.count(), 1)
+        # ofis iptal edemez, yönetici iptal eder: mallar geri döner, fiş kalır
+        self.assertEqual(self.client.post(reverse("satis_detay", args=[satis.pk]), {"neden": "x"}).status_code, 403)
+        self.client.force_login(self.yonetici)
+        self.client.post(reverse("satis_detay", args=[satis.pk]), {"neden": "yanlış okutma"})
+        satis.refresh_from_db()
+        self.assertTrue(satis.iptal)
+        self.assertEqual((self.deri.kalan_adet, self.deri.kalan_m2, self.rulo.kalan_m2), (10, Decimal("25.00"), Decimal("42.00")))
+        self.assertEqual(satis.toplam_adet, 3)  # fişte ne satıldığı görünmeye devam eder
+
+    def test_tablet_satis_yapamaz(self):
+        self.client.force_login(self.tablet)
+        self.assertEqual(self.client.get(reverse("satis_yeni")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("satis_listesi")).status_code, 403)
