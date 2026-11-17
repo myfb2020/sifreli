@@ -19,7 +19,8 @@
     <tr>
       <td><a href="{% url 'lot_detay' l.pk %}"><b>{{ l.lot_no }}</b></a></td>
       <td>{% for k in l.kaynaklar.all %}{{ k.ham_deri.lot_no }}{% if not forloop.last %}, {% endif %}{% endfor %}<br><span class="soluk">{% for k in l.kaynaklar.all %}{% ifchanged k.ham_deri.deri_turu %}{{ k.ham_deri.deri_turu }} {% endifchanged %}{% endfor %}</span></td>
-      <td>{{ l.siparis.siparis_no|default:"–" }}</td>
+      <td>{{ l.siparis.siparis_no|default:"–" }}{% if l.siparis %}<br><span class="soluk">{% if l.siparis.katalog_modeli %}{{ l.siparis.katalog_modeli.kod }}{% else %}{{ l.siparis.urun|truncatechars:40 }}{% endif %}</span>{% endif %}
+        {% if l.olcu_var %}<br><b>{{ l.olcu_metni }}</b>{% if l.adet > 1 %} <span class="soluk">({{ l.adet }} halı)</span>{% endif %}{% endif %}</td>
       <td>{{ l.son_asama.ad|default:"Başlamadı" }}</td>
       <td><span class="rozet {{ l.durum }}">{{ l.konum_metni }}</span></td>
       <td class="sayi">{{ l.baslangic_m2 }}</td>

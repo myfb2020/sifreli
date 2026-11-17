@@ -45,7 +45,7 @@ def bayi_ana(request):
     siparisler = (
         Siparis.objects.filter(musteri=bayi)
         .select_related("katalog_modeli", "renk", "tasarim")
-        .prefetch_related(Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama", "kalem")),
+        .prefetch_related(Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama", "kalem").prefetch_related("olculer__kalem")),
                           "kalemler", "tamirler", "fotograflar")
         .order_by("-tarih", "-pk")
     )

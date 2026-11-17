@@ -159,9 +159,17 @@
       <h2>5. Siparişi gönder</h2>
       <div class="yerinde-uyari" data-uyari-adim="5" hidden></div>
       {% if form.non_field_errors %}<div class="mesaj error">{{ form.non_field_errors|join:" " }}</div>{% endif %}
-      {% for alan in form %}
+      <label class="alt-baslik">Ölçüler ve adet</label>
+      <div class="olcu-listesi" id="olcu-listesi">
+        <div class="olcu-sat ana"><span><b id="ana-olcu">{{ v.en|stringformat:"g" }} × {{ v.boy|stringformat:"g" }} cm</b> <small class="soluk">(1. adımdaki ölçü)</small></span>
+          <label>Adet {{ form.adet }}</label>{% for e in form.adet.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</div>
+        {% for en, boy, adet in ek_satirlar %}<div class="olcu-sat"><input name="ek_en" type="number" min="60" max="400" step="1" value="{{ en }}" aria-label="En (cm)"> × <input name="ek_boy" type="number" min="60" max="600" step="1" value="{{ boy }}" aria-label="Boy (cm)"> cm <label>Adet <input name="ek_adet" type="number" min="1" max="999" value="{{ adet }}"></label><button type="button" class="btn kucuk ikincil olcu-sil" aria-label="Ölçüyü sil">✕</button></div>{% endfor %}
+      </div>
+      <button type="button" class="btn ikincil" id="olcu-ekle">+ Başka ölçü ekle</button>
+      <p class="soluk" style="margin-top:4px">Aynı tasarımı başka ölçülerde de istiyorsanız ekleyin; hepsi tek siparişte, atölyede tek iş emrinde üretilir.</p>
+      {% for alan in form %}{% if alan.name != "adet" %}
       <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}{% for e in alan.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
-      {% endfor %}
+      {% endif %}{% endfor %}
       <button class="btn buyuk" type="submit" style="width:100%">📤 Siparişi gönder</button>
       <p class="soluk">Siparişiniz onaylanınca üretime alınır; kesim ve nakış listesini atölye hazırlar.</p>
     </section>
@@ -207,6 +215,11 @@
   .sayac { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
   .sayac .btn { width:44px; font-size:20px; padding:4px 0; }
   .alt-baslik { display:block; font-weight:600; margin:12px 0 6px; }
+  .olcu-listesi { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+  .olcu-sat { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:6px 8px; border:1px solid #e6ddd2; border-radius:8px; background:#fff; }
+  .olcu-sat.ana { justify-content:space-between; }
+  .olcu-sat input { width:84px !important; }
+  .olcu-sat label { display:flex; align-items:center; gap:6px; margin:0; font-weight:normal; }
   .secim-izgara { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
   .secim, .mal, .desen { position:relative; }
   .secim input, .mal input, .desen input { position:absolute; opacity:0; pointer-events:none; width:auto !important; }
@@ -281,7 +294,7 @@
   const kendiZemin = JSON.parse(document.getElementById("kendi-zemin").textContent);
   const resimAdresi = "{% url 'parcali_onizleme_resmi' %}";
   const veriAdresi = "{% url 'parcali_onizleme' %}";
-  const siparisAlanlari = ["adet", "istenen_tarih", "notlar", "csrfmiddlewaretoken"];
+  const siparisAlanlari = ["adet", "istenen_tarih", "notlar", "csrfmiddlewaretoken", "ek_en", "ek_boy", "ek_adet"];
   const enCok = {{ en_cok_halka }};
   const kac = (t) => String(t).replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";");
   const deger = (ad) => (form.querySelector(`[name="${ad}"]:checked`) || form.querySelector(`[name="${ad}"]:not([type=radio])`) || {}).value;
@@ -291,6 +304,22 @@
     document.documentElement.style.setProperty("--ust", (h && getComputedStyle(h).position !== "fixed" ? h.offsetHeight : 0) + "px");
   };
   ustAyarla(); window.addEventListener("resize", ustAyarla);
+
+  // 5. adım: aynı tasarımın başka ölçüleri
+  const olcuListesi = document.getElementById("olcu-listesi");
+  const anaOlcu = () => { document.getElementById("ana-olcu").textContent = `${deger("en")} × ${deger("boy")} cm`; };
+  document.getElementById("olcu-ekle").addEventListener("click", () => {
+    const d = document.createElement("div");
+    d.className = "olcu-sat";
+    d.innerHTML = '<input name="ek_en" type="number" min="60" max="400" step="1" aria-label="En (cm)"> × '
+      + '<input name="ek_boy" type="number" min="60" max="600" step="1" aria-label="Boy (cm)"> cm '
+      + '<label>Adet <input name="ek_adet" type="number" min="1" max="999" value="1"></label>'
+      + '<button type="button" class="btn kucuk ikincil olcu-sil" aria-label="Ölçüyü sil">✕</button>';
+    olcuListesi.appendChild(d);
+    d.querySelector("input").focus();
+  });
+  olcuListesi.addEventListener("click", (e) => { if (e.target.classList.contains("olcu-sil")) e.target.closest(".olcu-sat").remove(); });
+  ["en", "boy"].forEach((ad) => form.querySelector(`[name="${ad}"]`).addEventListener("input", anaOlcu));
 
   // seçim listelerinde "Tümünü göster"
   form.querySelectorAll(".mal-izgara, .desen-izgara, .motif-izgara").forEach((iz) => {
@@ -308,6 +337,7 @@
     return liste.split(",").includes(deger(ad));
   }
   function goster() {
+    anaOlcu();
     const n = parseInt(document.getElementById("halka_sayisi").value, 10) || 0;
     form.querySelectorAll(".halka").forEach((h) => { h.hidden = parseInt(h.dataset.halka, 10) > n; });
     document.getElementById("halka-yok").hidden = n > 0;

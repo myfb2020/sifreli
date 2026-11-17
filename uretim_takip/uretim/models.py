@@ -515,7 +515,7 @@ class Siparis(models.Model):
 
     def kalemleri_yansit(self):
         """Ölçü satırlarından siparişin özetini (en, boy, adet, toplam m²) günceller."""
-        kalemler = list(self.kalemler.all())
+        kalemler = list(SiparisKalemi.objects.filter(siparis=self))  # önbellekte silinmiş satır kalmasın
         if not kalemler:
             if self.en_cm or self.boy_cm:
                 self.en_cm = self.boy_cm = None
@@ -570,8 +570,8 @@ class Siparis(models.Model):
             kayit = self.tamirler.order_by("-tarih").first()
             durum = (kayit.onceki_durum if kayit else "") or "sevk"
         lotlar = [l for l in self.lotlar.all() if l.durum != "iptal" and l.tur != "tamir"]
-        hazir = sum(1 for l in lotlar if l.durum == "tamamlandi")
-        toplam = len(lotlar)
+        hazir = sum(l.adet or 1 for l in lotlar if l.durum == "tamamlandi")  # halı sayısı (bir işte birden çok halı)
+        toplam = sum(l.adet or 1 for l in lotlar)
         etiketler = {"onay": "Onay bekliyor", "acik": "Sipariş alındı", "uretimde": "Üretimde", "tamamlandi": "Hazır",
                      "sevk": "Sevk edildi", "iptal": "İptal"}
         istasyonlar = []
@@ -784,13 +784,38 @@ class UretimLotu(models.Model):
     def acik_islem(self):
         return self.islemler.filter(bitis__isnull=True).first()
 
+    def olcu_satirlari(self):
+        """Bu işteki halılar ölçü ölçü: [(ölçü satırı, adet)]. Yeni işler bütün ölçüleri tek işte taşır
+        (LotOlcusu); eski işler tek ölçü satırına bağlıdır."""
+        satirlar = [(o.kalem, o.adet) for o in self.olculer.all() if o.adet]
+        if satirlar:
+            return sorted(satirlar, key=lambda s: (s[0].sira, s[0].pk))
+        if self.kalem_id:
+            return [(self.kalem, self.adet)]
+        return []
+
+    @property
+    def olcu_var(self):
+        return bool(self.olcu_satirlari())
+
+    @property
+    def net_m2(self):
+        """İşteki halıların toplam net m²'si (ölçülerden); ölçü yoksa None."""
+        satirlar = self.olcu_satirlari()
+        if not satirlar:
+            return None
+        return sum((k.tek_m2 * a for k, a in satirlar), SIFIR)
+
     @property
     def olcu_metni(self):
-        """Bu işin ölçüsü: ölçü satırından ('160 × 230 cm ×2'), yoksa siparişten."""
-        if self.kalem_id:
-            # bölünmüş işte ölçü satırının toplam adedi değil, bu işteki halı sayısı
-            k = self.kalem
-            return f"{sayi_metni(k.en_cm)} × {sayi_metni(k.boy_cm)} cm" + (f" ×{self.adet}" if self.adet > 1 else "")
+        """Bu işin ölçüsü: '160 × 230 cm ×2' ya da birden çok ölçüde '160 × 230 ×2 · 200 × 300 cm'; yoksa siparişten."""
+        satirlar = self.olcu_satirlari()
+        if len(satirlar) > 1:
+            return " · ".join(f"{sayi_metni(k.en_cm)} × {sayi_metni(k.boy_cm)}" + (f" ×{a}" if a > 1 else "")
+                              for k, a in satirlar) + " cm"
+        if satirlar:
+            k, a = satirlar[0]
+            return f"{sayi_metni(k.en_cm)} × {sayi_metni(k.boy_cm)} cm" + (f" ×{a}" if a > 1 else "")
         return self.siparis.olcu_metni if self.siparis_id else ""
 
     @property
@@ -800,6 +825,24 @@ class UretimLotu(models.Model):
     @property
     def toplam_fire_m2(self):
         return self.baslangic_m2 - (self.mevcut_m2 or SIFIR)
+
+
+class LotOlcusu(models.Model):
+    """Bir işte hangi ölçüden kaç halı olduğu: aynı modelin bütün ölçüleri tek işte (iş emrinde) gider."""
+
+    lot = models.ForeignKey(UretimLotu, on_delete=models.CASCADE, related_name="olculer", verbose_name="iş")
+    kalem = models.ForeignKey(SiparisKalemi, on_delete=models.CASCADE, related_name="lot_olculeri",
+                              verbose_name="ölçü satırı")
+    adet = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["kalem__sira", "pk"]
+        verbose_name = "işteki ölçü"
+        verbose_name_plural = "işteki ölçüler"
+        constraints = [models.UniqueConstraint(fields=["lot", "kalem"], name="is_basina_olcu_tek")]
+
+    def __str__(self):
+        return f"{self.lot} – {self.kalem.olcu_metni(cm=False)} ×{self.adet}"
 
 
 class LotKaynagi(models.Model):

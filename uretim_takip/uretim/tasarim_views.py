@@ -115,9 +115,31 @@ class GonderForm(forms.Form):
                              widget=forms.Textarea(attrs={"rows": 2}))
 
 
+def ek_olculer(post):
+    """Bayinin 5. adımda eklediği başka ölçüler: [(en, boy, adet)] ya da hata metni (str)."""
+    satirlar = []
+    for en, boy, adet in zip(post.getlist("ek_en"), post.getlist("ek_boy"), post.getlist("ek_adet")):
+        if not (en or boy):
+            continue
+        try:
+            en, boy = Decimal(str(en).replace(",", ".")), Decimal(str(boy).replace(",", "."))
+            adet = int(adet or 1)
+        except (ValueError, ArithmeticError):
+            return "Ek ölçüleri sayı olarak yazın."
+        if not (60 <= en <= 400 and 60 <= boy <= 600):
+            return "Ek ölçülerde en 60–400 cm, boy 60–600 cm arası olmalı."
+        if not 1 <= adet <= 999:
+            return "Ek ölçülerde adet 1–999 arası olmalı."
+        satirlar.append((en.quantize(Decimal("0.1")), boy.quantize(Decimal("0.1")), adet))
+    if len(satirlar) > 10:
+        return "En çok 10 ek ölçü eklenebilir."
+    return satirlar
+
+
 @transaction.atomic
-def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""):
-    """Bayinin tasarımı: 'Onay bekliyor' durumunda sipariş + tasarım kaydı."""
+def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar="", ek=()):
+    """Bayinin tasarımı: 'Onay bekliyor' durumunda sipariş + tasarım kaydı. ek: aynı tasarımın başka ölçüleri
+    [(en, boy, adet)] — sipariş ölçü satırları olur, onaylanınca hepsi tek iş emrinde üretime girer."""
     teslim = istenen_tarih or timezone.localdate() + timedelta(days=21)
     if parcali_mi(veri):
         desen_kodu = parcali.ana_desen(veri)
@@ -136,6 +158,19 @@ def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""
         lazer_deseni=LazerDeseni.objects.filter(kod=desen_kodu).first() if desen_kodu else None, notlar=notlar,
         katalog_modeli=KatalogModeli.objects.filter(kod=katalog).first() if katalog else None,
     )
+    if ek:
+        ana_en = veri["cap"] if veri.get("duzen") == "yuvarlak" else veri["en"]
+        ana_boy = veri["cap"] if veri.get("duzen") == "yuvarlak" else veri["boy"]
+        satirlar = [(Decimal(str(ana_en)), Decimal(str(ana_boy)), adet), *ek]
+        oran = Decimal(str(m2)) / (Decimal(str(ana_en)) * Decimal(str(ana_boy)) / 10000)  # oval / yuvarlak alan payı
+        for sira, (en, boy, n) in enumerate(satirlar, 1):
+            SiparisKalemi.objects.create(siparis=siparis, sira=sira, en_cm=en, boy_cm=boy, adet=n)
+        adet = sum(n for _, _, n in satirlar)
+        siparis.adet = adet
+        siparis.toplam_m2 = (sum((en * boy * n / 10000 for en, boy, n in satirlar), Decimal(0)) * oran).quantize(
+            Decimal("0.01"))
+        siparis.urun = siparis.urun.replace(olcu, siparis.olcu_metni) if parcali_mi(veri) else siparis.urun
+        siparis.save(update_fields=["adet", "toplam_m2", "urun"])
     tasarim = Tasarim.objects.create(musteri=bayi, kullanici=kullanici, veri=veri, adet=adet, istenen_tarih=istenen_tarih,
                                      notlar=notlar, siparis=siparis)
     from . import bildirim

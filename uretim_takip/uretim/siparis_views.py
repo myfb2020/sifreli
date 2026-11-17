@@ -24,7 +24,7 @@ SEKMELER = [
 
 def _lotlu(qs):
     return qs.select_related("musteri", "deri_turu", "hali_turu", "katalog_modeli__seri", "lazer_deseni", "tasarim").prefetch_related(
-        Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama", "kalem")), "fotograflar", "kalemler"
+        Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama", "kalem").prefetch_related("olculer__kalem")), "fotograflar", "kalemler"
     )
 
 
@@ -56,7 +56,7 @@ def siparis_listesi(request):
 @permission_required("uretim.view_siparis", raise_exception=True)
 def siparis_detay(request, pk):
     siparis = get_object_or_404(_lotlu(Siparis.objects.all()), pk=pk)
-    lotlar = siparis.lotlar.select_related("son_asama", "kalem").prefetch_related("kaynaklar__ham_deri__deri_turu").order_by("lot_no")
+    lotlar = siparis.lotlar.select_related("son_asama", "kalem").prefetch_related("kaynaklar__ham_deri__deri_turu", "olculer__kalem").order_by("lot_no")
     from .tasarim_views import onay_formu
 
     return render(request, "uretim/siparis_detay.html", {

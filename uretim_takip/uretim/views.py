@@ -137,11 +137,13 @@ def islem_bitir(request, pk):
         messages.info(request, "Bu işlem zaten bitirilmiş.")
         return redirect("lot_detay", pk=islem.lot_id)
 
-    ilk_adim = servisler.ilk_adim_mi(islem)
+    # ana malzeme işe bir kez girilir: bölünen işin ikinci parçası bitirilirken yeniden sorulmaz
+    ilk_adim = servisler.ilk_adim_mi(islem) and not servisler.malzeme_girildi(islem.lot)
     form = IslemBitirForm(
         request.POST if request.method == "POST" else None, initial={"personel": islem.personel}, personel=hesap_personeli(request.user),
         ilk_adim=ilk_adim, stok_zorunlu=SistemAyari.yukle().stok_zorunlu,
         cesitler=servisler.stoktaki_cesitler() if ilk_adim else (), lazer=islem.asama.lazer_mi, adet=islem.lot.adet,
+        olculer=islem.lot.olcu_satirlari(),
     )
     # Malzeme bölümü gönderilmediyse (eski açık sayfa) malzeme kullanılmadı sayılır.
     malzeme_verisi = request.POST if "malzeme-TOTAL_FORMS" in request.POST else None
@@ -159,6 +161,8 @@ def islem_bitir(request, pk):
             form.add_error(None, hata)
         else:
             biten = v.get("biten_adet")
+            if isinstance(biten, dict):
+                biten = sum(biten.values())
             if biten and biten < islem.lot.adet:
                 messages.success(request, f"{islem.lot} – {biten} halı “{islem.asama.ad}” istasyonunda bitti ve sıradaki "
                                           f"istasyona geçti; {islem.lot.adet - biten} halı burada devam ediyor.")
@@ -174,7 +178,8 @@ def islem_bitir(request, pk):
 @login_required
 def lot_listesi(request):
     durum = request.GET.get("durum", "aktif")
-    lotlar = UretimLotu.objects.select_related("siparis__musteri", "son_asama").prefetch_related("kaynaklar__ham_deri__deri_turu")
+    lotlar = UretimLotu.objects.select_related("siparis__musteri", "siparis__katalog_modeli", "son_asama", "kalem").prefetch_related(
+        "kaynaklar__ham_deri__deri_turu", "olculer__kalem")
     if durum == "aktif":
         lotlar = lotlar.exclude(durum__in=["tamamlandi", "iptal"])
     elif durum in dict(UretimLotu.DURUM):

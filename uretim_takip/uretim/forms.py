@@ -179,9 +179,18 @@ class IslemBitirForm(PinliForm):
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
     biten_adet = forms.IntegerField(label="Kaç halı bitti?", required=False, min_value=1)
 
-    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), lazer=False, adet=1, **kwargs):
+    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), lazer=False, adet=1, olculer=(), **kwargs):
         super().__init__(*args, **kwargs)
-        if adet > 1:
+        self.olcu_alanlari = []
+        if len(olculer) > 1:  # bir işte birden çok ölçü: her ölçüden kaç halı bittiği ayrı sorulur
+            del self.fields["biten_adet"]
+            for kalem, n in olculer:
+                ad = f"biten_{kalem.pk}"
+                self.fields[ad] = forms.IntegerField(
+                    label=f"{sayi_metni(kalem.en_cm)} × {sayi_metni(kalem.boy_cm)} cm ({n} halı)", min_value=0,
+                    max_value=n, initial=n, widget=forms.NumberInput(attrs={"max": n, "min": 0, "inputmode": "numeric"}))
+                self.olcu_alanlari.append((ad, kalem.pk))
+        elif adet > 1:
             self.fields["biten_adet"].max_value = adet
             self.fields["biten_adet"].initial = adet
             self.fields["biten_adet"].widget.attrs.update({"max": adet, "inputmode": "numeric"})
@@ -208,6 +217,11 @@ class IslemBitirForm(PinliForm):
     def clean(self):
         veri = super().clean()
         veri["cikis_olcu"] = None
+        if self.olcu_alanlari:
+            biten = {k: veri.get(ad) or 0 for ad, k in self.olcu_alanlari}
+            if not sum(biten.values()):
+                self.add_error(None, "En az bir halının bittiğini yazın.")
+            veri["biten_adet"] = biten
         if self.lazer:
             cen, cboy = veri.get("cikis_en"), veri.get("cikis_boy")
             if bool(cen) != bool(cboy):

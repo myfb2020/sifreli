@@ -86,7 +86,7 @@ def calisilanlar(asama=None):
     kalemler = [
         Kalem("calisilan", f"i{i.pk}", i.asama, simdi - i.baslangic, i.asama.azami_sure_saat, lot=i.lot, islem=i,
               siparis=i.lot.siparis)
-        for i in qs.select_related("lot__kalem").prefetch_related("lot__siparis__fotograflar", "lot__siparis__kalemler",
+        for i in qs.select_related("lot__kalem").prefetch_related("lot__siparis__fotograflar", "lot__siparis__kalemler", "lot__olculer__kalem",
                                                                   "lot__is_notlari__asama", "lot__is_notlari__personel")
     ]
     return sorted(kalemler, key=oncelik)
@@ -111,7 +111,7 @@ def gelenler(asama=None):
         UretimLotu.objects.filter(durum="bekliyor")
         .select_related("son_asama", "kalem", "siparis__musteri", "siparis__katalog_modeli", "siparis__lazer_deseni",
                         "siparis__tasarim")
-        .prefetch_related("siparis__kalemler", "siparis__fotograflar", "is_notlari__asama", "is_notlari__personel")
+        .prefetch_related("siparis__kalemler", "olculer__kalem", "siparis__fotograflar", "is_notlari__asama", "is_notlari__personel")
         .annotate(son_bitis=Max("islemler__bitis"))
     )
     for lot in lotlar:

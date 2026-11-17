@@ -8,7 +8,8 @@
     {% with s=islem.lot.siparis %}
     <tr><th>İş</th><td><b>{{ islem.lot }}</b>{% if s %} · {{ s.siparis_no }} · {{ s.musteri }}{% endif %}
       {% if islem.lot.kaynak_listesi %}<br><span class="soluk">Stok: {{ islem.lot.kaynak_listesi }}</span>{% endif %}</td></tr>
-    {% if s %}<tr><th>Ölçü</th><td><b>{{ s.olcu_metni|default:"–" }}</b>{% if s.adet > 1 %} × {{ s.adet }} adet{% endif %}{% if s.toplam_m2 %} · {{ s.toplam_m2|floatformat:"-2" }} m²{% endif %}</td></tr>{% endif %}
+    {% if islem.lot.olcu_var %}<tr><th>Ölçü</th><td><b>{{ islem.lot.olcu_metni }}</b>{% if islem.lot.adet > 1 %} · {{ islem.lot.adet }} halı{% endif %}</td></tr>
+    {% elif s %}<tr><th>Ölçü</th><td><b>{{ s.olcu_metni|default:"–" }}</b>{% if s.adet > 1 %} × {{ s.adet }} adet{% endif %}{% if s.toplam_m2 %} · {{ s.toplam_m2|floatformat:"-2" }} m²{% endif %}</td></tr>{% endif %}
     {% endwith %}
     <tr><th>Aşama</th><td>{{ islem.asama.ad }}</td></tr>
     <tr><th>Başlatan</th><td>{{ islem.personel }} – {{ islem.baslangic|date:"d.m.Y H:i" }}</td></tr>
@@ -18,6 +19,11 @@
     {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
     {% for alan in form %}{% if alan.name == "personel" or alan.name == "pin" %}{% include "uretim/_alan.html" %}{% endif %}{% endfor %}
     {% if form.biten_adet %}<div class="kart" style="background:#fbf6ea;margin:10px 0">{% include "uretim/_alan.html" with alan=form.biten_adet %}</div>{% endif %}
+    {% if form.olcu_alanlari %}<div class="kart" style="background:#fbf6ea;margin:10px 0">
+      <b>Hangi ölçüden kaç halı bitti?</b>
+      <p class="soluk" style="margin:4px 0 8px">Hepsi bittiyse dokunmayın. Bitenler sıradaki istasyona geçer, kalanlar burada devam eder.</p>
+      {% for alan in form %}{% if alan.name|slice:":6" == "biten_" %}{% include "uretim/_alan.html" %}{% endif %}{% endfor %}
+    </div>{% endif %}
     {% if ilk_adim %}
     <h2 style="margin-top:16px">Kullanılan malzeme {% if not form.stok_zorunlu %}<span class="soluk" style="font-weight:normal;font-size:14px">(isteğe bağlı)</span>{% endif %}</h2>
     <p class="soluk">Bu iş için rulodan ne kadar kullandığınızı yazın; m²'si stoktan düşülür, fire kendiliğinden hesaplanır.</p>

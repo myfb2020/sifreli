@@ -11,7 +11,7 @@ from django.urls import reverse
 from . import parcali, parcali_gorsel
 from .models import KatalogModeli, LazerDeseni, Tasarim
 from .tasarim_views import (
-    GonderForm, _bayi_gerekli, _boyut, _desen_kodlari, _jpeg, _tasarim_erisim, tasarim_gonder, tasarim_temizle,
+    GonderForm, _bayi_gerekli, ek_olculer, _boyut, _desen_kodlari, _jpeg, _tasarim_erisim, tasarim_gonder, tasarim_temizle,
 )
 
 
@@ -66,8 +66,11 @@ def studyo(request):
         return redirect(request.path)
     if request.method == "POST":
         veri = _temizle(request.POST)
+        ek = ek_olculer(request.POST)
+        if isinstance(ek, str):
+            form.add_error(None, ek)
         if form.is_valid():
-            tasarim = tasarim_gonder(bayi=bayi, kullanici=request.user, veri=veri, **form.cleaned_data)
+            tasarim = tasarim_gonder(bayi=bayi, kullanici=request.user, veri=veri, ek=ek, **form.cleaned_data)
             messages.success(request, f"Tasarımınız gönderildi ({tasarim.siparis.siparis_no}). "
                                       "Onaylanınca üretime alınacak; durumunu bu sayfadan izleyebilirsiniz.")
             return redirect("bayi_ana")
@@ -94,7 +97,9 @@ def studyo(request):
                  "desen": veri[f"h{i}_desen"], "nakis": veri[f"h{i}_nakis"], "ara": veri.get(f"a{i}_gen", 0),
                  "ad_malzeme": f"h{i}_malzeme", "ad_desen": f"h{i}_desen", "ad_nakis": f"h{i}_nakis"} for i in range(1, parcali.EN_COK_HALKA + 1)]
     return render(request, "uretim/tasarim_parcali.html", {
-        "form": form, "v": veri, "h": bayi_hesap(veri), "halkalar": halkalar, "malzemeler": _gruplu_malzemeler(),
+        "form": form, "v": veri, "h": bayi_hesap(veri), "halkalar": halkalar,
+        "ek_satirlar": list(zip(request.POST.getlist("ek_en"), request.POST.getlist("ek_boy"), request.POST.getlist("ek_adet")))
+        if request.method == "POST" else [], "malzemeler": _gruplu_malzemeler(),
         "ara_secenek": parcali.ARA_SECENEK,
         "sekiller": parcali.SEKILLER, "halka_turleri": parcali.HALKA_TURLERI, "orta_turleri": parcali.ORTA_TURLERI,
         "serit_turleri": parcali.SERIT_TURLERI, "serit_yonleri": parcali.SERIT_YONLERI, "nakis_motifleri": motifler,

@@ -1830,9 +1830,22 @@ class ParcaliHalkaliTesti(TasarimStudyosuTesti):
         self.client.force_login(self.bayi_hesap)
         yanit = self.client.post(reverse("parcali_studyo"), {
             **{a: str(d) for a, d in P1.items()}, "orta": "serit",
-            "serit_tur": "desenli", "serit_adet": "2", "serit_desen": "DB003", "adet": "1"})
+            "serit_tur": "desenli", "serit_adet": "2", "serit_desen": "DB003", "adet": "1",
+            "ek_en": ["200", ""], "ek_boy": ["300", ""], "ek_adet": ["2", "1"]})
         self.assertRedirects(yanit, reverse("bayi_ana"))
         t = Tasarim.objects.get()
+        # aynı tasarım başka ölçüde: ölçü satırları, onaylanınca tek iş emri
+        sp = t.siparis
+        self.assertEqual((sp.kalemler.count(), sp.adet, t.adet), (2, 3, 3))
+        self.assertIn("200 × 300 ×2", sp.olcu_metni)
+        self.assertIn("200 × 300 ×2", sp.urun)
+        sp.durum = "acik"
+        sp.save(update_fields=["durum"])
+        servisler.siparis_islerini_ac(sp)
+        self.assertEqual((sp.lotlar.count(), sp.lotlar.get().adet), (1, 3))
+        hatali = self.client.post(reverse("parcali_studyo"), {**{a: str(d) for a, d in P1.items()}, "adet": "1",
+                                                              "ek_en": ["20"], "ek_boy": ["300"], "ek_adet": ["1"]})
+        self.assertContains(hatali, "Ek ölçülerde en 60–400 cm")
         self.assertEqual((t.veri["duzen"], t.siparis.lazer_deseni.kod), ("halkali", "DB003"))
         self.assertEqual(self.client.get(reverse("parcali_studyo"), {"kaynak": t.pk}).status_code, 200)
         self.client.force_login(self.ofis)
@@ -2163,30 +2176,48 @@ class BirinciGuncellemeTesti(TemelVeri):
                              hali_turu=HaliTuru.objects.get(ad="Suni deri halı").pk, **ek)
         return self.client.post(reverse("siparis_yeni"), veri)
 
-    def test_cok_olculu_siparis_her_olcuye_is(self):
+    def test_cok_olculu_siparis_tek_is_emri(self):
         yanit = self._yeni((None, "160", "230", "2"), (None, "200", "300", ""), (None, "", "", ""))
         sp = Siparis.objects.get(urun="Peluş")
         self.assertRedirects(yanit, reverse("siparis_detay", args=[sp.pk]))
         self.assertEqual([k.olcu_metni() for k in sp.kalemler.all()], ["160 × 230 cm ×2", "200 × 300 cm"])
         self.assertEqual((sp.adet, sp.toplam_m2), (3, Decimal("13.36")))
         self.assertEqual(sp.olcu_metni, "160 × 230 ×2 · 200 × 300 cm")
-        lotlar = list(sp.lotlar.order_by("kalem__sira"))
-        self.assertEqual([l.baslangic_m2 for l in lotlar], [Decimal("7.36"), Decimal("6.00")])
-        # iki iş de lazerin gelen işlerinde, kendi ölçüsüyle; "yeni sipariş" satırı yok
+        # bütün ölçüler TEK işte (iş emri): ölçüler ve adetler yan yana
+        lot = sp.lotlar.get()
+        self.assertEqual((lot.adet, lot.baslangic_m2, lot.olcu_metni), (3, Decimal("13.36"), "160 × 230 ×2 · 200 × 300 cm"))
         gelen = [k for k in uyarilar.gelenler(self.lazer) if k.siparis == sp]
-        self.assertEqual(sorted(k.tur for k in gelen), ["gelen", "gelen"])
+        self.assertEqual([k.tur for k in gelen], ["gelen"])
         self.client.force_login(self.telefon)
         ekran = self.client.get(reverse("istasyon_parca", args=[self.lazer.pk]))
-        self.assertContains(ekran, "160 × 230 cm ×2")
-        # lazer bitirirken net m² o işin ölçüsünden
-        islem = servisler.islem_baslat(lot=lotlar[1], asama=self.lazer, personel=self.ayse)
-        servisler.islem_bitir(islem=islem, personel=self.ayse, kesim={"m2": Decimal("7"), "rulo": self.ham})
-        islem.refresh_from_db()
-        self.assertEqual((islem.giris_m2, islem.cikis_m2), (Decimal("7.00"), Decimal("6.00")))
+        self.assertContains(ekran, "160 × 230 ×2 · 200 × 300 cm")
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("lot_listesi")), "160 × 230 ×2 · 200 × 300 cm")
         # "Yeni iş" ekranından aynı sipariş seçilirse yeni iş açılmaz, bekleyen iş başlar
-        islem2 = servisler.yeni_is_baslat(personel=self.ayse, siparis=sp, asama=self.lazer, kaynaklar=[])
-        self.assertEqual(islem2.lot, lotlar[0])
-        self.assertEqual(sp.lotlar.count(), 2)
+        islem = servisler.yeni_is_baslat(personel=self.ayse, siparis=sp, asama=self.lazer, kaynaklar=[])
+        self.assertEqual(islem.lot, lot)
+        # bitirirken her ölçüden kaç halı bittiği sorulur; malzeme bütün iş için bir kez girilir
+        sayfa = self.client.get(reverse("islem_bitir", args=[islem.pk]))
+        self.assertContains(sayfa, "Hangi ölçüden kaç halı bitti?")
+        self.assertContains(sayfa, "200 × 300 cm (1 halı)")
+        k1, k2 = sp.kalemler.all()
+        servisler.islem_bitir(islem=islem, personel=self.ayse, kesim={"m2": Decimal("15"), "rulo": self.ham},
+                              biten_adet={k1.pk: 1, k2.pk: 1})
+        lot.refresh_from_db()
+        giden = lot.bolunenler.get()
+        self.assertEqual((giden.olcu_metni, giden.durum), ("160 × 230 · 200 × 300 cm", "bekliyor"))
+        self.assertEqual((lot.olcu_metni, lot.adet, lot.durum), ("160 × 230 cm", 1, "islemde"))
+        self.assertEqual(giden.islemler.get().cikis_m2, Decimal("9.68"))  # bitenlerin net m²'si; fark fire
+        kalan = lot.islemler.get(bitis__isnull=True)
+        self.assertNotContains(self.client.get(reverse("islem_bitir", args=[kalan.pk])), "rulodan ne kadar kullandığınızı")
+        servisler.islem_bitir(islem=kalan, personel=self.ayse)
+        lot.refresh_from_db()
+        self.assertEqual((lot.durum, lot.bolunenler.count()), ("bekliyor", 1))
+        with self.assertRaises(ValidationError):
+            servisler.islem_bitir(islem=servisler.islem_baslat(lot=giden, asama=giden.siradaki_asama, personel=self.ayse),
+                                  personel=self.ayse, biten_adet={k1.pk: 2})
+        # bayi iki halının hazır olmadığını sayıyla görür
+        self.assertEqual(sp.bayi_durumu()["toplam"], 3)
 
     def test_yonetici_islem_geri_al(self):
         self._yeni((None, "100", "150", "1"))
@@ -2240,17 +2271,26 @@ class BirinciGuncellemeTesti(TemelVeri):
         sp.refresh_from_db()
         self.assertEqual(sp.urun, "Peluş krem")
         self.assertEqual([k.olcu_metni() for k in sp.kalemler.all()], ["120 × 180 cm", "50 × 50 cm ×4"])
-        self.assertEqual(sorted(l.baslangic_m2 for l in sp.lotlar.all()), [Decimal("1.00"), Decimal("2.16")])
+        lot = sp.lotlar.get()  # ölçüler değişince başlamamış iş güncellenir (tek iş)
+        self.assertEqual((lot.baslangic_m2, lot.adet, lot.olcu_metni), (Decimal("3.16"), 5, "120 × 180 · 50 × 50 ×4 cm"))
         self.assertEqual(sp.fotograflar.count(), 3)
         self.assertFalse(sp.fotograflar.filter(pk=f1.pk).exists())
         # başlamış işin satırı silinemez
         k1 = sp.kalemler.first()
-        servisler.islem_baslat(lot=k1.lotlar.first(), asama=self.lazer, personel=self.ahmet)
+        servisler.islem_baslat(lot=lot, asama=self.lazer, personel=self.ahmet)
         k3 = sp.kalemler.last()
         veri = self._olculer((k1.pk, "", "", ""), (k3.pk, "50", "50", "4"), musteri=sp.musteri.pk, urun="X",
                              teslim_tarihi="2026-12-20", hali_turu=sp.hali_turu_id)
         self.assertContains(self.client.post(reverse("siparis_duzenle", args=[sp.pk]), veri), "silinemez")
         self.assertEqual(sp.kalemler.count(), 2)
+        # adedi de değiştirilemez; yeni ölçü satırı yeni iş açar
+        veri = self._olculer((k1.pk, "120", "180", "1"), (k3.pk, "50", "50", "6"), musteri=sp.musteri.pk, urun="X",
+                             teslim_tarihi="2026-12-20", hali_turu=sp.hali_turu_id)
+        self.assertContains(self.client.post(reverse("siparis_duzenle", args=[sp.pk]), veri), "değiştirilemez")
+        veri = self._olculer((k1.pk, "120", "180", "1"), (k3.pk, "50", "50", "4"), (None, "60", "90", "2"),
+                             musteri=sp.musteri.pk, urun="X", teslim_tarihi="2026-12-20", hali_turu=sp.hali_turu_id)
+        self.client.post(reverse("siparis_duzenle", args=[sp.pk]), veri)
+        self.assertEqual(sorted(l.olcu_metni for l in sp.lotlar.all()), ["120 × 180 · 50 × 50 ×4 cm", "60 × 90 cm ×2"])
 
     def test_istasyon_notu(self):
         lot = self.yeni_lot(siparis=self.siparis)
@@ -2462,7 +2502,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.client.post(reverse("siparis_onay", args=[sp.pk]), {"islem": "onayla", "onay-hali_turu": HaliTuru.objects.get(ad="Suni deri halı").pk,
                                                                  "onay-teslim_tarihi": "2026-12-20"})
         sp.refresh_from_db()
-        self.assertEqual(sp.lotlar.count(), 2)
+        self.assertEqual(sp.lotlar.count(), 1)  # iki ölçü tek iş emrinde
         lot = sp.lotlar.first()
         servisler.islem_baslat(lot=lot, asama=lot.siradaki_asama, personel=self.ahmet)
         # ofisin girdiği sipariş de bayide görünür

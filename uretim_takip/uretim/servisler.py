@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import (
-    DuzeltmeKaydi, TamirKaydi, DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, MalzemeHareketi, SistemAyari, SiparisKalemi,
+    DuzeltmeKaydi, TamirKaydi, DeriDuzeltme, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, LotOlcusu, MalzemeHareketi, SistemAyari, SiparisKalemi,
     UretimLotu, sayi_metni,
 )
 
@@ -19,40 +19,89 @@ from .models import (
 def kalemleri_kaydet(siparis, satirlar):
     """Siparişin ölçü satırlarını verilen listeye eşitler: [(kalem ya da None, en, boy, adet), ...].
 
-    Başlamış işi olan satır silinemez (ValidationError); ölçüsü değişen, henüz başlamamış işin m²'si güncellenir.
+    Başlamış işteki satır silinemez, ölçüsü / adedi değiştirilemez (ValidationError; yeni satır eklenir); henüz
+    başlamamış işin ölçüleri ve m²'si güncellenir.
     """
     eldekiler = {k.pk: k for k in siparis.kalemler.all()}
     tutulan = {k.pk for k, *_ in satirlar if k is not None}
     for pk, kalem in eldekiler.items():
         if pk in tutulan:
             continue
-        if kalem.lotlar.filter(islemler__isnull=False).exists():
+        if _kalem_basladi(kalem):
             raise ValidationError(f"{kalem.olcu_metni()} satırının işi başlamış; bu satır silinemez.")
         kalem.lotlar.all().delete()
-        kalem.delete()
+        isler = list(kalem.lot_olculeri.values_list("lot_id", flat=True))
+        kalem.delete()  # yeni işlerdeki ölçü kaydı da silinir
+        UretimLotu.objects.filter(pk__in=isler, olculer__isnull=True, islemler__isnull=True).delete()  # boş kalan iş
+        for lot in UretimLotu.objects.filter(pk__in=isler, islemler__isnull=True).distinct():
+            _is_ozetle(lot)
     for sira, (kalem, en, boy, adet) in enumerate(satirlar, 1):
         if kalem is None:
             kalem = SiparisKalemi(siparis=siparis)
         degisti = (kalem.en_cm, kalem.boy_cm, kalem.adet) != (en, boy, adet)
+        if degisti and kalem.pk and kalem.lot_olculeri.filter(lot__islemler__isnull=False).exists():
+            raise ValidationError(f"{kalem.olcu_metni()} satırının işi başlamış; ölçüsü / adedi değiştirilemez. "
+                                  "Ek halı için yeni ölçü satırı ekleyin.")
         kalem.sira, kalem.en_cm, kalem.boy_cm, kalem.adet = sira, en, boy, adet
         kalem.save()
-        if degisti:
+        if degisti:  # eski düzende (her ölçü satırına bir iş) başlamamış işin m²'si
             kalem.lotlar.filter(islemler__isnull=True).update(baslangic_m2=kalem.m2, mevcut_m2=kalem.m2)
     siparis.kalemleri_yansit()
     siparis_islerini_ac(siparis)
 
 
+def _kalem_basladi(kalem):
+    return (kalem.lotlar.filter(islemler__isnull=False).exists()
+            or kalem.lot_olculeri.filter(lot__islemler__isnull=False).exists())
+
+
+def _bekleyen_is(siparis):
+    """Siparişin henüz başlamamış, ölçü taşıyan (yeni düzen) üretim işi."""
+    return (siparis.lotlar.filter(tur="uretim", islemler__isnull=True, olculer__isnull=False)
+            .exclude(durum="iptal").distinct().order_by("pk").first())
+
+
+def _is_ozetle(lot):
+    """İşin adedi ve m²'si ölçülerinden (başlamamış işte)."""
+    lot.adet = sum(o.adet for o in lot.olculer.all()) or 1
+    lot.baslangic_m2 = lot.mevcut_m2 = lot.net_m2 or Decimal(0)
+    lot.save(update_fields=["adet", "baslangic_m2", "mevcut_m2"])
+
+
 def siparis_islerini_ac(siparis):
-    """Açık / üretimdeki siparişin işi olmayan her ölçü satırı için iş açar (ilk istasyona 'gelen iş' düşer)."""
+    """Açık / üretimdeki siparişin işe girmemiş halıları için iş açar: aynı modelin bütün ölçüleri TEK işte
+    (iş emrinde) gider (ilk istasyona 'gelen iş' düşer). Başlamamış iş varsa ölçüleri ona eklenir / güncellenir."""
     if siparis.durum not in ("acik", "uretimde"):
         return []
     if not siparis.kalemler.exists() and siparis.en_cm and siparis.boy_cm and not siparis.lotlar.exists():
         # Tasarım stüdyosundan gelen, ölçüsü siparişte yazılı sipariş: tek satıra çevrilir.
         SiparisKalemi.objects.create(siparis=siparis, en_cm=siparis.en_cm, boy_cm=siparis.boy_cm, adet=siparis.adet or 1)
+    bekleyen = _bekleyen_is(siparis)
     acilan = []
-    for kalem in siparis.kalemler.filter(lotlar__isnull=True):
-        acilan.append(UretimLotu.objects.create(siparis=siparis, kalem=kalem, baslangic_kg=Decimal(0),
-                                                baslangic_m2=kalem.m2, adet=kalem.adet or 1))
+    for kalem in SiparisKalemi.objects.filter(siparis=siparis).order_by("sira", "pk"):  # önbellekteki silinmişler değil
+        if kalem.lotlar.exists():  # eski düzen: bu satırın kendi işi var
+            continue
+        olculer = list(kalem.lot_olculeri.select_related("lot"))
+        fark = kalem.adet - sum(o.adet for o in olculer)
+        if fark < 0 and bekleyen is not None:  # adet azaldı: başlamamış işten düşülür
+            o = next((o for o in olculer if o.lot_id == bekleyen.pk), None)
+            if o is not None:
+                o.adet = max(0, o.adet + fark)
+                o.save(update_fields=["adet"]) if o.adet else o.delete()
+        elif fark > 0:
+            if bekleyen is None:
+                bekleyen = UretimLotu.objects.create(siparis=siparis, baslangic_kg=Decimal(0), baslangic_m2=Decimal(0),
+                                                     adet=fark)
+                acilan.append(bekleyen)
+            o, yeni = LotOlcusu.objects.get_or_create(lot=bekleyen, kalem=kalem, defaults={"adet": fark})
+            if not yeni:
+                o.adet += fark
+                o.save(update_fields=["adet"])
+    if bekleyen is not None:
+        if bekleyen.olculer.exists():
+            _is_ozetle(bekleyen)  # ölçüsü değişen satır da m²'yi değiştirir
+        elif bekleyen not in acilan:
+            bekleyen.delete()
     return acilan
 
 
@@ -95,6 +144,12 @@ def islem_baslat(*, lot, asama, personel, aciklama="", makine=None, giris_olcu=N
         lot.siparis.durum = "uretimde"
         lot.siparis.save(update_fields=["durum"])
     return islem
+
+
+def malzeme_girildi(lot):
+    """İşin (bölünmüşse bütün parçalarının) ana malzemesi girildi mi: malzeme iş başına bir kez girilir."""
+    kok = lot.ana_lot or lot
+    return LotKaynagi.objects.filter(uretim_lotu__in=[kok.pk, *kok.bolunenler.values_list("pk", flat=True)]).exists()
 
 
 def ilk_adim_mi(islem):
@@ -161,7 +216,16 @@ def _bol(islem, adet):
     """Açık işlemdeki işin 'adet' halısını yeni bir işe ayırır (IS-…/2): yeni iş aynı istasyonda, aynı anda başlamış
     sayılır ve hemen bitirilecek işlem onun olur; kalan halılar eski işte, işlem açık kalarak devam eder."""
     lot = UretimLotu.objects.select_for_update().get(pk=islem.lot_id)
-    oran = Decimal(adet) / Decimal(lot.adet)
+    olculer = {o.kalem_id: o for o in lot.olculer.select_related("kalem")}
+    giden = {}
+    if olculer:  # ölçü ölçü: {ölçü satırı: biten adet}; m² payı ölçülere göre
+        giden = {k: n for k, n in adet.items() if n} if isinstance(adet, dict) else {next(iter(olculer)): adet}
+        adet = sum(giden.values())
+        toplam = lot.net_m2
+        oran = (sum((olculer[k].kalem.tek_m2 * n for k, n in giden.items()), Decimal(0)) / toplam if toplam
+                else Decimal(adet) / Decimal(lot.adet))
+    else:
+        oran = Decimal(adet) / Decimal(lot.adet)
     kalan = Decimal(1) - oran
     kok = lot.ana_lot or lot
     sira = kok.bolunenler.count() + 2
@@ -175,6 +239,11 @@ def _bol(islem, adet):
         deger = getattr(lot, alan)
         if deger is not None:
             setattr(lot, alan, (deger * kalan).quantize(Decimal("0.01")))
+    for k, n in giden.items():
+        LotOlcusu.objects.create(lot=yeni, kalem_id=k, adet=n)
+        o = olculer[k]
+        o.adet -= n
+        o.save(update_fields=["adet"]) if o.adet else o.delete()
     lot.adet -= adet
     lot.save(update_fields=["adet", "baslangic_kg", "baslangic_m2", "mevcut_kg", "mevcut_m2"])
     kopya = IslemKaydi.objects.create(
@@ -199,19 +268,32 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
     islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama", "lot__siparis").get(pk=islem.pk)
     if islem.bitis is not None:
         raise ValidationError("Bu işlem zaten bitirilmiş.")
-    if biten_adet is not None:
+    if isinstance(biten_adet, dict):  # birden çok ölçülü iş: {ölçü satırı: biten adet}
+        eldeki = {o.kalem_id: o.adet for o in islem.lot.olculer.all()}
+        for k, n in biten_adet.items():
+            if k not in eldeki or n < 0 or n > eldeki[k]:
+                raise ValidationError("Biten halı sayısı o ölçüdeki halı sayısını aşamaz.")
+        toplam = sum(biten_adet.values())
+        if toplam < 1:
+            raise ValidationError("En az bir halının bittiğini yazın.")
+        if toplam < islem.lot.adet:  # yalnız bitenler sıradaki istasyona geçer, kalanlar burada sürer
+            islem = IslemKaydi.objects.select_related("lot", "asama", "lot__siparis").get(pk=_bol(islem, biten_adet).pk)
+    elif biten_adet is not None:
         if biten_adet < 1 or biten_adet > islem.lot.adet:
             raise ValidationError(f"Biten halı sayısı 1 ile {islem.lot.adet} arasında olmalı.")
         if biten_adet < islem.lot.adet:  # yalnız bitenler sıradaki istasyona geçer, kalanlar burada sürer
             islem = IslemKaydi.objects.select_related("lot", "asama", "lot__siparis").get(pk=_bol(islem, biten_adet).pk)
-    if kesim is None and ilk_adim_mi(islem) and SistemAyari.yukle().stok_zorunlu and not islem.lot.kaynaklar.exists():
+    if (kesim is None and ilk_adim_mi(islem) and SistemAyari.yukle().stok_zorunlu
+            and not malzeme_girildi(islem.lot)):
         raise ValidationError("Kullanılan malzemeyi ve ölçüsünü girin (stok okutma zorunlu).")
     if kesim is not None:
         islem.stok_dusumu = [*malzeme_dus(lot=islem.lot, m2=kesim["m2"], rulo=kesim.get("rulo"), cesit=kesim.get("cesit")),
                              ["baslangic", str(islem.lot.baslangic_m2)]]
         lot = islem.lot
         kullanilan = sum((k.m2 for k in lot.kaynaklar.all()), Decimal(0))
-        if lot.kalem_id:
+        if lot.olculer.exists():
+            net = lot.net_m2
+        elif lot.kalem_id:
             net = lot.kalem.m2
         else:
             net = lot.siparis.tek_m2 if lot.siparis_id else None
