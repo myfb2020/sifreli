@@ -1,28 +1,121 @@
 {% extends "base.html" %}
 {% block baslik %}Etiketler{% endblock %}
 {% block icerik %}
-<div class="yazdirma-gizle" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+<div class="yazdirma-gizle" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
   <h1 style="margin:0;margin-right:auto">Etiketler ({{ etiketler|length }})</h1>
   <form method="get" class="filtre" style="margin:0">
     {% for ad, degerler in request.GET.lists %}{% if ad != "kopya" %}{% for d in degerler %}<input type="hidden" name="{{ ad }}" value="{{ d }}">{% endfor %}{% endif %}{% endfor %}
-    <label>Her etiketten <input type="number" name="kopya" value="{{ kopya }}" min="1" max="50" style="width:70px"> adet</label>
+    <label>Her etiketten <input type="number" name="kopya" value="{{ kopya }}" min="1" max="50" style="width:70px"> <span id="kopya-birim">adet</span></label>
     <button class="btn kucuk ikincil" type="submit">Uygula</button>
   </form>
-  <button class="btn" onclick="window.print()">🖨 Yazdır</button>
+  <button class="btn" type="button" onclick="window.print()">🖨 Yazdır</button>
 </div>
-<p class="soluk yazdirma-gizle">Etiketi yazdırıp malın üzerine yapıştırın: rulonun / destenin ya da bidonun, kolinin, iplik kolisi gibi malzemenin üzerine. Islak aşamalardan geçecek mallar için suya dayanıklı etiket kullanın.</p>
+
+<div class="kart yazdirma-gizle etiket-ayar">
+  <div class="secim-satir">
+    <label><input type="radio" name="kagit" value="yazici" checked> 🏷 Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)</label>
+    <label><input type="radio" name="kagit" value="a4"> 📄 A4 kâğıt</label>
+  </div>
+  <p class="soluk" data-kagit="yazici">Her sırada aynı etiketten 2 tane çıkar: biri rulonun kartına, öteki rulonun iç ucuna (keçe tarafına) yedek. Yazdır penceresinde yazıcı olarak <b>PC43t</b>'yi seçin, <b>Kenar boşlukları: Yok</b>, <b>Ölçek: %100</b>.</p>
+  <details data-kagit="yazici">
+    <summary>Etiket ölçüsü ayarı (baskı kayıyorsa)</summary>
+    <div class="olcu-ayar">
+      <label>Etiket eni (mm) <input type="number" step="0.5" min="20" max="110" data-ayar="en"></label>
+      <label>Etiket boyu (mm) <input type="number" step="0.5" min="15" max="100" data-ayar="boy"></label>
+      <label>İki etiket arası (mm) <input type="number" step="0.5" min="0" max="20" data-ayar="ara"></label>
+      <label>Soldan pay (mm) <input type="number" step="0.5" min="0" max="20" data-ayar="sol"></label>
+      <button type="button" class="btn kucuk ikincil" id="ayar-sifirla">Varsayılan</button>
+    </div>
+    <p class="soluk">Bu ayar yalnız bu bilgisayarda saklanır. Yazıcı sürücüsünde kâğıt ölçüsünü de <b id="sayfa-olcusu">104 × 30 mm</b> yapın.</p>
+  </details>
+  <p class="soluk" data-kagit="a4" hidden>Etiketi yazdırıp malın üzerine yapıştırın. Islak aşamalardan geçecek mallar için suya dayanıklı etiket kullanın.</p>
+</div>
+
 <div class="etiket-izgara">
   {% for e in etiketler %}
-  <div class="etiket">
-    <div class="etiket-qr">{{ e.qr }}</div>
-    <div class="etiket-bilgi">
-      <div class="etiket-no">{{ e.no }}</div>
-      {% if e.baslik %}<div><b>{{ e.baslik }}</b></div>{% endif %}
-      {% for satir in e.satirlar %}<div>{{ satir }}</div>{% endfor %}
+  <div class="etiket-sira">
+    {% for _ in "12" %}
+    <div class="etiket{% if not forloop.first %} ikinci{% endif %}">
+      <div class="etiket-qr">{{ e.qr }}</div>
+      <div class="etiket-bilgi">
+        <div class="etiket-no">{{ e.no }}</div>
+        {% if e.baslik %}<div><b>{{ e.baslik }}</b></div>{% endif %}
+        {% for satir in e.satirlar %}<div>{{ satir }}</div>{% endfor %}
+      </div>
     </div>
+    {% endfor %}
   </div>
   {% empty %}
   <p class="soluk">Yazdırılacak etiket yok.</p>
   {% endfor %}
 </div>
+
+<style id="sayfa-stili"></style>
+<style>
+  .etiket-ayar .secim-satir { display:flex; flex-wrap:wrap; gap:8px 20px; margin-bottom:6px; }
+  .etiket-ayar .secim-satir label { display:flex; align-items:center; gap:6px; font-weight:600; margin:0; }
+  .etiket-ayar .secim-satir input { width:auto; }
+  .olcu-ayar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:end; margin-top:8px; }
+  .olcu-ayar label { display:flex; flex-direction:column; font-size:13px; margin:0; }
+  .olcu-ayar input { width:90px; }
+  .etiket-sira { display:contents; }
+  .etiket.ikinci { display:none; }
+  /* etiket yazıcısı: gerçek ölçüde (mm) */
+  body.kagit-yazici .etiket-izgara { display:flex; flex-direction:column; gap:6mm; }
+  body.kagit-yazici .etiket-sira { display:flex; gap:var(--ara); padding-left:var(--sol); }
+  body.kagit-yazici .etiket, body.kagit-yazici .etiket.ikinci {
+    display:flex; box-sizing:border-box; width:var(--en); height:var(--boy); padding:1.5mm 1mm 1.5mm 1mm; gap:1mm;
+    align-items:center; border-radius:2mm; overflow:hidden; background:#fff; color:#000; }
+  body.kagit-yazici .etiket-qr svg { width:calc(var(--boy) - 9mm); height:calc(var(--boy) - 9mm); }
+  body.kagit-yazici .etiket-bilgi { font-size:5.6pt; line-height:1.3; min-width:0; flex:1; overflow:hidden; }
+  body.kagit-yazici .etiket-bilgi div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  body.kagit-yazici .etiket-no { font-size:8.6pt; font-weight:800; margin-bottom:0.8mm; letter-spacing:-0.3pt; }
+  @media print {
+    body.kagit-yazici .etiket-izgara { gap:0; }
+    body.kagit-yazici .etiket-sira { height:var(--boy); break-after:page; page-break-after:always; overflow:hidden; }
+    body.kagit-yazici .etiket-sira:last-child { break-after:auto; page-break-after:auto; }
+    body.kagit-yazici .etiket { border:0 !important; }
+  }
+</style>
+<script>
+(function () {
+  const VARSAYILAN = { en: 50, boy: 30, ara: 3, sol: 0.5 };
+  const oku = (k, v) => { try { const d = localStorage.getItem(k); return d === null ? v : d; } catch (e) { return v; } };
+  const yaz = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* özel pencere */ } };
+  let ayar = Object.assign({}, VARSAYILAN);
+  try { Object.assign(ayar, JSON.parse(oku("etiket-ayar", "{}"))); } catch (e) { /* bozuk kayıt */ }
+  const kutular = document.querySelectorAll("[data-ayar]");
+  const sayfaStili = document.getElementById("sayfa-stili");
+
+  function uygula() {
+    const kagit = document.querySelector('[name="kagit"]:checked').value;
+    document.body.classList.toggle("kagit-yazici", kagit === "yazici");
+    document.querySelectorAll("[data-kagit]").forEach((e) => { e.hidden = e.dataset.kagit !== kagit; });
+    document.getElementById("kopya-birim").textContent = kagit === "yazici" ? "sıra (her sırada 2 etiket)" : "adet";
+    const s = document.documentElement.style;
+    ["en", "boy", "ara", "sol"].forEach((k) => s.setProperty("--" + k, ayar[k] + "mm"));
+    const genislik = Math.round((+ayar.sol + 2 * ayar.en + +ayar.ara + 0.5) * 2) / 2;
+    document.getElementById("sayfa-olcusu").textContent = `${genislik} × ${ayar.boy} mm`;
+    sayfaStili.textContent = kagit === "yazici"
+      ? `@page { size: ${genislik}mm ${ayar.boy}mm; margin: 0; }`
+      : "@page { size: A4; margin: 10mm; }";
+  }
+  kutular.forEach((k) => {
+    k.value = ayar[k.dataset.ayar];
+    k.addEventListener("input", () => {
+      const d = parseFloat(String(k.value).replace(",", "."));
+      if (!isNaN(d)) { ayar[k.dataset.ayar] = d; yaz("etiket-ayar", JSON.stringify(ayar)); uygula(); }
+    });
+  });
+  document.getElementById("ayar-sifirla").addEventListener("click", () => {
+    ayar = Object.assign({}, VARSAYILAN); yaz("etiket-ayar", "{}");
+    kutular.forEach((k) => { k.value = ayar[k.dataset.ayar]; }); uygula();
+  });
+  const secili = oku("etiket-kagit", "yazici");
+  const r = document.querySelector(`[name="kagit"][value="${secili}"]`);
+  if (r) r.checked = true;
+  document.querySelectorAll('[name="kagit"]').forEach((r) => r.addEventListener("change", () => { yaz("etiket-kagit", r.value); uygula(); }));
+  uygula();
+})();
+</script>
 {% endblock %}

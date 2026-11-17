@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etiket Yazıcısı Kurulumu</title>
+<style>
+  :root { --ana:#7a4b2a; --yazi:#2b2522; --soluk:#6f655d; --cizgi:#e3d9cf; --uyari:#a3261b; --zemin:#ffffff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --yazi:#efe8e1; --soluk:#b9aea4; --cizgi:#4a403a; --zemin:#1d1a18; --ana:#d39a6a; } }
+  @page { size:A4; margin:12mm 13mm; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--zemin); color:var(--yazi); font:10.5pt/1.42 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .sayfa { max-width:190mm; margin:0 auto; padding:16px; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid var(--ana); padding-bottom:6px; margin-bottom:10px; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:17pt; margin:0; color:var(--ana); }
+  header .alt { color:var(--soluk); font-size:9.5pt; }
+  h2 { font-size:12pt; margin:12px 0 4px; display:flex; gap:8px; align-items:baseline; }
+  h2 .no { background:var(--ana); color:#fff; border-radius:50%; min-width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:10pt; }
+  ol, ul { margin:2px 0 6px; padding-left:20px; }
+  li { margin:2px 0; }
+  .komut { font-family:Consolas, "DejaVu Sans Mono", monospace; font-size:9.5pt; background:#f3ece4; color:#2b2522; padding:1px 5px; border-radius:4px; }
+  .kutu { border:1px solid var(--cizgi); border-radius:8px; padding:8px 11px; margin:8px 0; }
+  .uyari { color:var(--uyari); font-weight:600; }
+  table { border-collapse:collapse; width:100%; font-size:9.8pt; margin:4px 0; }
+  td { border-bottom:1px solid var(--cizgi); padding:3px 5px; vertical-align:top; }
+  td:first-child { font-weight:600; white-space:nowrap; width:36%; }
+  @media print { body { background:#fff; color:#2b2522; font-size:9.2pt; line-height:1.3; } .sayfa { padding:0; } h2 { margin:8px 0 3px; } p { margin:5px 0; } .kutu { margin:6px 0; padding:6px 10px; } td { padding:2px 5px; } }
+</style>
+</head>
+<body>
+<section class="sayfa">
+  <header>
+    <h1>🏷 Etiket yazıcısı kurulumu · Intermec PC43t</h1>
+    <div class="alt">BIENNA FUR Üretim Takip · bir kez yapılır, ~15 dakika</div>
+  </header>
+  <p>Yazıcı Windows bilgisayara <b>USB</b> ile bağlanır. Stok etiketi programdan, tarayıcının <b>🖨 Yazdır</b> düğmesiyle basılır. Etiket <b>5 × 3 cm</b>, rulo <b>yan yana 2 etiket</b>. Her sırada aynı etiketten 2 tane çıkar: biri rulonun kartına, öteki rulonun iç ucuna (keçe tarafına) yedek.</p>
+
+  <h2><span class="no">1</span> Sürücüyü indirin</h2>
+  <ul>
+    <li>Gereken: <b>Honeywell (Intermec) Windows yazıcı sürücüsü</b>. Ücretsizdir; <b>Seagull Scientific</b> (BarTender'ın firması) hazırlar.</li>
+    <li>Google'da <span class="komut">Seagull Honeywell printer driver</span> diye aratın, <b>seagullscientific.com</b> sitesindeki <b>Drivers → Honeywell</b> sayfasından son sürümü indirin. Ya da Honeywell'in destek sitesinde <b>PC43t → Software / Drivers</b>.</li>
+    <li><b>BarTender programını satın almanız gerekmez.</b> Yalnız "driver" (sürücü) dosyası yeter. Etiketi bizim program çizer.</li>
+  </ul>
+
+  <h2><span class="no">2</span> Kurun</h2>
+  <ol>
+    <li>Yazıcıya ribbonu ve etiket rulosunu takın, kapağı kapatın. USB kablosunu bilgisayara takın, yazıcıyı açın.</li>
+    <li>İndirdiğiniz dosyayı çalıştırın → <b>Install printer drivers</b> (Yazıcı sürücüsü kur). Bağlantı olarak <b>USB</b>, model listesinden <b>Honeywell PC43t</b>'yi seçin. Modelde <b>203 dpi</b> ve <b>300 dpi</b> diye iki seçenek varsa, yazıcının altındaki etikette yazan dpi değerini seçin.</li>
+    <li>Kurulum bitince Windows'ta <b>Ayarlar → Bluetooth ve cihazlar → Yazıcılar</b> listesinde "Honeywell PC43t" görünür.</li>
+  </ol>
+
+  <h2><span class="no">3</span> Sürücüde kâğıt ve ribbon ayarı</h2>
+  <p>Yazıcılar listesinde <b>Honeywell PC43t → Yazdırma tercihleri</b> (Printing Preferences):</p>
+  <table>
+    <tr><td>Sayfa / Stock (Kâğıt)</td><td><b>Yeni</b> (New) → ad: <b>Bienna 2'li</b>, genişlik <b>104 mm</b>, yükseklik <b>30 mm</b>. Bunu seçili bırakın.</td></tr>
+    <tr><td>Ortam türü (Media type)</td><td><b>Boşluklu etiket</b> (Labels with gaps)</td></tr>
+    <tr><td>Baskı yöntemi (Method)</td><td><b>Thermal transfer</b> (ribbon takılı olduğu için)</td></tr>
+    <tr><td>Koyuluk (Darkness)</td><td>Orta değer. QR soluk çıkarsa biraz artırın, dağılıyorsa azaltın.</td></tr>
+  </table>
+  <p>Kaydedip kapatın. Sonra yazıcının ön yüzündeki <b>mavi düğmeye</b> bir kez basın: yazıcı bir etiket ilerletip boşlukta durmalı. Etiketin ortasında duruyorsa yazıcı menüsünden <b>ortam kalibrasyonu</b> (Media calibration) yapın.</p>
+
+  <h2><span class="no">4</span> Programdan basın</h2>
+  <ol>
+    <li><b>Stok</b> → malın sayfası → <b>🏷 Etiket bas</b>. Birden çok mal için stok listesinde <b>🏷 Listedekilerin etiketleri</b>.</li>
+    <li>Sayfada <b>🏷 Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)</b> seçili olsun (bir kez seçince hatırlar).</li>
+    <li><b>🖨 Yazdır</b> → açılan pencerede:
+      <table>
+        <tr><td>Hedef</td><td><b>Honeywell PC43t</b></td></tr>
+        <tr><td>Kâğıt boyutu</td><td><b>Bienna 2'li</b> (104 × 30 mm)</td></tr>
+        <tr><td>Kenar boşlukları</td><td><b>Yok</b></td></tr>
+        <tr><td>Ölçek</td><td><b>Varsayılan / %100</b></td></tr>
+        <tr><td>Üstbilgiler ve altbilgiler</td><td><b>Kapalı</b> (tarih/adres yazmasın)</td></tr>
+      </table>
+    </li>
+    <li>İlk etiketi telefonla okutun: stok sayfası açılmalı.</li>
+  </ol>
+
+  <div class="kutu">
+    <b>Baskı kayıyorsa:</b> etiket sayfasında <b>Etiket ölçüsü ayarı</b>'nı açın. Yazı sağdaki etikete taşıyorsa <b>İki etiket arası</b>'nı, tümü sağa/sola kaymışsa <b>Soldan pay</b>'ı 0,5 mm'lik adımlarla değiştirip yeniden deneyin. Ayar o bilgisayarda saklanır.
+  </div>
+  <p class="uyari">Bu yazıcı yalnız bağlı olduğu bilgisayardan basar. Telefondan ya da tabletten basmak için ileride "yazdırma köprüsü" kurulabilir.</p>
+</section>
+</body>
+</html>

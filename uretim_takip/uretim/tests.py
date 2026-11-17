@@ -245,6 +245,8 @@ class QrVePwaTesti(TemelVeri):
         yanit = self.client.get(reverse("etiketler"), {"stok": self.ham.pk})
         self.assertContains(yanit, self.ham.lot_no)
         self.assertContains(yanit, "<svg")
+        self.assertContains(yanit, "Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)")
+        self.assertContains(yanit, "@page { size: ${genislik}mm ${ayar.boy}mm; margin: 0; }")
         # Parametresiz: stokta malı kalan lotlar; tamamen kullanılan lot listelenmez
         self.yeni_lot(baslangic_kg=Decimal("100"), baslangic_m2=Decimal("20"))
         self.assertNotContains(self.client.get(reverse("etiketler")), self.ham.lot_no)
@@ -933,8 +935,8 @@ class MalzemeEtiketiTesti(TemelVeri):
         self.assertEqual(self.krom.kod, "MZ-0001")
         self.assertEqual(Malzeme.objects.create(ad="İplik").kod, "MZ-0002")
         yanit = self.client.get(reverse("etiketler"), {"malzeme": self.krom.pk, "kopya": "3"})
-        self.assertContains(yanit, "MZ-0001", count=3)
-        self.assertContains(yanit, "Krom tuzu", count=3)
+        self.assertContains(yanit, "MZ-0001", count=6)  # her sırada 2 etiket (etiket yazıcısı: kart + yedek)
+        self.assertContains(yanit, "Krom tuzu", count=6)
         from django.test import RequestFactory
 
         from .qr import lot_adresi
@@ -942,7 +944,7 @@ class MalzemeEtiketiTesti(TemelVeri):
         # Malzeme etiketi istenince deri lotları basılmaz
         self.assertNotContains(yanit, self.ham.lot_no)
         self.assertEqual(self.client.get(reverse("etiketler"), {"malzeme": self.krom.pk, "kopya": "999"})
-                         .content.decode().count('class="etiket-no"'), 50)
+                         .content.decode().count('class="etiket-no"'), 100)
 
     def test_malzeme_etiketi_okutulunca_malzeme_sayfasi(self):
         self.assertRedirects(self.client.get(reverse("qr_yonlendir", args=["mz-0001"])),
