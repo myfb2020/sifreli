@@ -16,7 +16,14 @@
     <label><input type="radio" name="kagit" value="yazici" checked> 🏷 Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)</label>
     <label><input type="radio" name="kagit" value="a4"> 📄 A4 kâğıt</label>
   </div>
-  <p class="soluk" data-kagit="yazici">Her sırada aynı etiketten 2 tane çıkar: biri rulonun kartına, öteki rulonun iç ucuna (keçe tarafına) yedek. Yazdır penceresinde: yazıcı <b>PC43t</b>, <b>Düzen: Dikey</b>, kâğıt boyutu sürücüde tanımladığınız <b>104 × 30</b>, <b>Kenar boşlukları: Yok</b>, <b>Ölçek: Varsayılan</b>. Önizlemede bir şeritte yan yana iki etiket görünmeli; etiket dönük görünürse Düzen'i değiştirin.</p>
+  <p class="soluk" data-kagit="yazici">Her sırada aynı etiketten 2 tane çıkar: biri rulonun kartına, öteki rulonun iç ucuna (keçe tarafına) yedek. Yazdır penceresinde: yazıcı <b>PC43t</b>, kâğıt <b>104 × 30</b>, <b>Kenar boşlukları: Yok</b>, <b>Ölçek: Varsayılan</b>, üstbilgi/altbilgi kapalı.</p>
+  <div class="yon-satir" data-kagit="yazici">
+    <b>Baskı yönü:</b>
+    <label><input type="radio" name="yon" value="90"> ↻ Çevir (önerilen)</label>
+    <label><input type="radio" name="yon" value="270"> ↺ Öbür yöne çevir</label>
+    <label><input type="radio" name="yon" value="0"> Çevirme</label>
+    <span class="soluk">Chrome önizlemesinde etiket yan yatmış görünür, bu doğrudur: yazıcı sürücüsü düz çevirir. Etiket baş aşağı çıkarsa "Öbür yöne çevir"i seçin.</span>
+  </div>
   <details data-kagit="yazici">
     <summary>Etiket ölçüsü ayarı (baskı kayıyorsa)</summary>
     <div class="olcu-ayar">
@@ -33,7 +40,7 @@
 
 <div class="etiket-izgara">
   {% for e in etiketler %}
-  <div class="etiket-sira">
+  <div class="etiket-sira"><div class="sira-ic">
     {% for _ in "12" %}
     <div class="etiket{% if not forloop.first %} ikinci{% endif %}">
       <div class="etiket-qr">{{ e.qr }}</div>
@@ -44,7 +51,7 @@
       </div>
     </div>
     {% endfor %}
-  </div>
+  </div></div>
   {% empty %}
   <p class="soluk">Yazdırılacak etiket yok.</p>
   {% endfor %}
@@ -58,11 +65,16 @@
   .olcu-ayar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:end; margin-top:8px; }
   .olcu-ayar label { display:flex; flex-direction:column; font-size:13px; margin:0; }
   .olcu-ayar input { width:90px; }
-  .etiket-sira { display:contents; }
+  .etiket-sira, .sira-ic { display:contents; }
+  .yon-satir { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; margin:4px 0 8px; }
+  .yon-satir label { display:flex; align-items:center; gap:5px; margin:0; font-weight:normal; }
+  .yon-satir input { width:auto; }
+  .yon-satir .soluk { flex-basis:100%; font-size:13px; }
   .etiket.ikinci { display:none; }
   /* etiket yazıcısı: gerçek ölçüde (mm) */
   body.kagit-yazici .etiket-izgara { display:flex; flex-direction:column; gap:6mm; }
-  body.kagit-yazici .etiket-sira { display:flex; gap:var(--ara); padding-left:var(--sol); }
+  body.kagit-yazici .etiket-sira { display:block; }
+  body.kagit-yazici .sira-ic { display:flex; gap:var(--ara); padding-left:var(--sol); width:var(--gen); box-sizing:border-box; }
   body.kagit-yazici .etiket, body.kagit-yazici .etiket.ikinci {
     display:flex; box-sizing:border-box; width:var(--en); height:var(--boy); padding:1.5mm 1mm 1.5mm 1mm; gap:1mm;
     align-items:center; border-radius:2mm; overflow:hidden; background:#fff; color:#000; }
@@ -75,6 +87,13 @@
     body.kagit-yazici .etiket-sira { height:var(--boy); break-after:page; page-break-after:always; overflow:hidden; }
     body.kagit-yazici .etiket-sira:last-child { break-after:auto; page-break-after:auto; }
     body.kagit-yazici .etiket { border:0 !important; }
+    /* çevrilmiş baskı: sayfa dik (boy × genişlik), sıra 90° / 270° döner; sürücü sayfayı etikete çevirince düz çıkar */
+    body.kagit-yazici.yon-90 .etiket-sira, body.kagit-yazici.yon-270 .etiket-sira {
+      position:relative; width:var(--boy); height:var(--gen); }
+    body.kagit-yazici.yon-90 .sira-ic, body.kagit-yazici.yon-270 .sira-ic {
+      position:absolute; left:0; top:0; height:var(--boy); transform-origin:0 0; }
+    body.kagit-yazici.yon-90 .sira-ic { transform:translateX(var(--boy)) rotate(90deg); }
+    body.kagit-yazici.yon-270 .sira-ic { transform:translateY(var(--gen)) rotate(-90deg); }
   }
 </style>
 <script>
@@ -82,6 +101,7 @@
   const VARSAYILAN = { en: 50, boy: 30, ara: 3, sol: 0.5 };
   const oku = (k, v) => { try { const d = localStorage.getItem(k); return d === null ? v : d; } catch (e) { return v; } };
   const yaz = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* özel pencere */ } };
+  let yon = oku("etiket-yon", "90");
   let ayar = Object.assign({}, VARSAYILAN);
   try { Object.assign(ayar, JSON.parse(oku("etiket-ayar", "{}"))); } catch (e) { /* bozuk kayıt */ }
   const kutular = document.querySelectorAll("[data-ayar]");
@@ -95,10 +115,13 @@
     const s = document.documentElement.style;
     ["en", "boy", "ara", "sol"].forEach((k) => s.setProperty("--" + k, ayar[k] + "mm"));
     const genislik = Math.round((+ayar.sol + 2 * ayar.en + +ayar.ara + 0.5) * 2) / 2;
+    s.setProperty("--gen", genislik + "mm");
     document.getElementById("sayfa-olcusu").textContent = `${genislik} × ${ayar.boy} mm`;
-    sayfaStili.textContent = kagit === "yazici"
-      ? "@page { margin: 0; }"  /* ölçüyü sürücüdeki kâğıt verir; programdan verilince Chrome sayfayı yatay sayıp sürücü 90° çeviriyordu */
-      : "@page { size: A4; margin: 10mm; }";
+    ["yon-90", "yon-270"].forEach((c) => document.body.classList.toggle(c, kagit === "yazici" && c === "yon-" + yon));
+    // Chrome enine uzun sayfayı (104 × 30) dik sayar, sürücü de baskıyı 90° çevirir (kullanıcı denemesi). Çevrilmiş
+    // baskıda sayfa baştan dik verilir, içerik çevrilir; sürücü çevirince etiket düz çıkar.
+    sayfaStili.textContent = kagit !== "yazici" ? "@page { size: A4; margin: 10mm; }"
+      : yon === "0" ? "@page { margin: 0; }" : `@page { size: ${ayar.boy}mm ${genislik}mm; margin: 0; }`;
   }
   kutular.forEach((k) => {
     k.value = ayar[k.dataset.ayar];
@@ -111,6 +134,9 @@
     ayar = Object.assign({}, VARSAYILAN); yaz("etiket-ayar", "{}");
     kutular.forEach((k) => { k.value = ayar[k.dataset.ayar]; }); uygula();
   });
+  const yonSecim = document.querySelector(`[name="yon"][value="${yon}"]`) || document.querySelector('[name="yon"][value="90"]');
+  yonSecim.checked = true;
+  document.querySelectorAll('[name="yon"]').forEach((r) => r.addEventListener("change", () => { yon = r.value; yaz("etiket-yon", yon); uygula(); }));
   const secili = oku("etiket-kagit", "yazici");
   const r = document.querySelector(`[name="kagit"][value="${secili}"]`);
   if (r) r.checked = true;

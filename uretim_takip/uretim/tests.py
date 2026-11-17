@@ -246,7 +246,7 @@ class QrVePwaTesti(TemelVeri):
         self.assertContains(yanit, self.ham.lot_no)
         self.assertContains(yanit, "<svg")
         self.assertContains(yanit, "Etiket yazıcısı (5 × 3 cm, yan yana 2 etiket)")
-        self.assertContains(yanit, '"@page { margin: 0; }"')
+        self.assertContains(yanit, "@page { size: ${ayar.boy}mm ${genislik}mm; margin: 0; }")  # çevrilmiş baskı
         # Parametresiz: stokta malı kalan lotlar; tamamen kullanılan lot listelenmez
         self.yeni_lot(baslangic_kg=Decimal("100"), baslangic_m2=Decimal("20"))
         self.assertNotContains(self.client.get(reverse("etiketler")), self.ham.lot_no)
