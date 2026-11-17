@@ -19,10 +19,10 @@
   <p class="soluk" data-kagit="yazici">Her sırada aynı etiketten 2 tane çıkar: biri rulonun kartına, öteki rulonun iç ucuna (keçe tarafına) yedek. Yazdır penceresinde: yazıcı <b>PC43t</b>, kâğıt <b>104 × 30</b>, <b>Kenar boşlukları: Yok</b>, <b>Ölçek: Varsayılan</b>, üstbilgi/altbilgi kapalı.</p>
   <div class="yon-satir" data-kagit="yazici">
     <b>Baskı yönü:</b>
-    <label><input type="radio" name="yon" value="90"> ↻ Çevir (önerilen)</label>
+    <label><input type="radio" name="yon" value="90"> ↻ Çevir</label>
     <label><input type="radio" name="yon" value="270"> ↺ Öbür yöne çevir</label>
-    <label><input type="radio" name="yon" value="0"> Çevirme</label>
-    <span class="soluk">Chrome önizlemesinde etiket yan yatmış görünür, bu doğrudur: yazıcı sürücüsü düz çevirir. Etiket baş aşağı çıkarsa "Öbür yöne çevir"i seçin.</span>
+    <label><input type="radio" name="yon" value="0"> Çevirme (Chrome ayarı yeterliyse)</label>
+    <span class="soluk">Etiket düz çıkıyorsa "Çevirme" kalsın. Yazıcı etiketi yan yatmış basarsa "Çevir"i seçin (önizlemede yan yatmış görünür, sürücü düz basar); baş aşağı çıkarsa "Öbür yöne çevir".</span>
   </div>
   <details data-kagit="yazici">
     <summary>Etiket ölçüsü ayarı (baskı kayıyorsa)</summary>
@@ -101,7 +101,7 @@
   const VARSAYILAN = { en: 50, boy: 30, ara: 3, sol: 0.5 };
   const oku = (k, v) => { try { const d = localStorage.getItem(k); return d === null ? v : d; } catch (e) { return v; } };
   const yaz = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* özel pencere */ } };
-  let yon = oku("etiket-yon", "90");
+  let yon = oku("etiket-yon", "0");
   let ayar = Object.assign({}, VARSAYILAN);
   try { Object.assign(ayar, JSON.parse(oku("etiket-ayar", "{}"))); } catch (e) { /* bozuk kayıt */ }
   const kutular = document.querySelectorAll("[data-ayar]");
@@ -134,7 +134,7 @@
     ayar = Object.assign({}, VARSAYILAN); yaz("etiket-ayar", "{}");
     kutular.forEach((k) => { k.value = ayar[k.dataset.ayar]; }); uygula();
   });
-  const yonSecim = document.querySelector(`[name="yon"][value="${yon}"]`) || document.querySelector('[name="yon"][value="90"]');
+  const yonSecim = document.querySelector(`[name="yon"][value="${yon}"]`) || document.querySelector('[name="yon"][value="0"]');
   yonSecim.checked = true;
   document.querySelectorAll('[name="yon"]').forEach((r) => r.addEventListener("change", () => { yon = r.value; yaz("etiket-yon", yon); uygula(); }));
   const secili = oku("etiket-kagit", "yazici");
