@@ -1150,7 +1150,7 @@ def _halkali_yerel(v):
         if tur == "nakis" and g < motif_kisa(kod) + 2:  # motif sığmaz: nakışsız kalır, uyarı verilir
             tur = "serit"
         ara = _aralik(v, kod)
-        ek = {"halka": no, "desen_anahtar": ("h", no) if h["desen"] else None, "nakis": h["nakis"]}
+        ek = {"halka": no, "desen_anahtar": ("h", no) if h["desen"] else None, "nakis": h["nakis"], "ara": bool(h.get("ara"))}
         if not oval:
             for yon, (x, y, w, hh) in (("sol", (d, d, g, L - 2 * d)), ("sağ", (S - d - g, d, g, L - 2 * d)),
                                         ("üst", (d + g, d, S - 2 * d - 2 * g, g)), ("alt", (d + g, L - d - g, S - 2 * d - 2 * g, g))):

@@ -116,6 +116,13 @@ def renklenecekler(v, b):
         if (v.get(on + "tur") == b.get(on + "tur") == "desenli" and v.get(on + "desen") == b.get(on + "desen")
                 and v.get("desen_alti") == b.get("desen_alti") and v.get(on + "malzeme") != b.get(on + "malzeme")):
             sonuc[("h", no)] = (b[on + "malzeme"], v[on + "malzeme"])
+    # madalyonun yalnız malzemesi değiştiyse fotoğraftaki madalyon (rozet, motif…) yeniden renklenir; eskiden düz
+    # renkli daire çiziliyordu, delik gibi görünüyordu (2026-11-18)
+    if (_madalyonlu(v) and _madalyonlu(b) and v.get("madalyon") == b.get("madalyon")
+            and v.get("madalyon_malzeme") != b.get("madalyon_malzeme")
+            and not (v.get("madalyon") == "nakisli" and (v.get("madalyon_motif") != b.get("madalyon_motif")
+                                                          or v.get("iplik") != b.get("iplik")))):
+        sonuc["madalyon"] = (b["madalyon_malzeme"], v["madalyon_malzeme"])
     return sonuc
 
 
@@ -172,6 +179,15 @@ def _yeniden_renkle(foto, bolge, eski_mal, yeni_mal, px):
         l=L.convert("F"), m=mort.convert("F"))
     yeni = ImageChops.multiply(yeni, Image.merge("RGB", (isik,) * 3)).point(lambda q: min(255, q * 2))
     malzeme = malzeme.filter(ImageFilter.GaussianBlur(max(0.4, px * 0.06)))
+    delik = ImageChops.subtract(bolge, malzeme)
+    if delik.getbbox():
+        # yeni malzeme deliklerdeki renge yakınsa desen kayboluyordu (2026-11-18, ör. gri bordür / koyu alt):
+        # gerçek lazer kesiğindeki gibi deliklere hafif derinlik gölgesi
+        y_ort = ImageStat.Stat(yeni.convert("L"), malzeme.point(lambda q: 255 if q > 128 else 0)).mean[0]
+        d_ort = ImageStat.Stat(L, delik.point(lambda q: 255 if q > 128 else 0)).mean[0]
+        if abs(y_ort - d_ort) < 45:
+            golgeli = foto.point(lambda q: int(q * 0.72)) if y_ort >= d_ort else foto.point(lambda q: min(255, int(q * 1.25)))
+            foto = Image.composite(golgeli, foto, delik)
     return Image.composite(yeni, foto, malzeme)
 
 
@@ -364,6 +380,8 @@ def bilesik(v, uzun_kenar=900):
     degisen = degisenler(v, b)
     renkle = renklenecekler(v, b)
     degisen = degisen - set(renkle)
+    if "madalyon" in renkle and v.get("madalyon_cerceve") == b.get("madalyon_cerceve"):
+        degisen.discard("mcerceve")  # yalnız madalyonun malzemesi değişti: çerçevesi fotoğraftan kalır
     ilk = _ogeler(v)[:1]
     if ilk and _grup_adi(ilk[0][0]) not in degisen and v.get("kenar") == b.get("kenar") and \
             v.get("kenar_renk") == b.get("kenar_renk"):

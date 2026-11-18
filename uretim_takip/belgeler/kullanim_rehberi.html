@@ -132,7 +132,7 @@
   <li><b>Fason:</b> Stok → Fason → <b class="d">📤 Fasona gönder</b> (giden rulolar okutulur, stoktan düşer). Mal gelince <b class="d">Teslim al</b>: yeni lot açılır, fire görünür.</li>
   <li><b>Malzemeler</b> (iplik, yapıştırıcı…): Stok → Malzemeler → <b class="d">📥 Gelen malzemeyi gir</b>.</li>
   <li><b>Sayım farkı / fire:</b> lot ya da malzeme sayfasında <b class="d">Düzeltme</b>. <b>Deri satışı:</b> Stok → <b class="d">💰 Satış</b>: müşteri, etiketleri okutun, adet → stoktan düşer.</li>
-  <li>Lazerci bitirirken malzemeyi ve en × boyu yazar; m² <b>en eski rulodan</b> düşer, fire hesaplanır.</li>
+  <li>Lazerci bitirirken malzemeleri (birden çoksa satır satır) ve en × boyu yazar; m² <b>en eski rulodan</b> düşer, fire hesaplanır.</li>
   <li>Pano'daki <b class="d">Stok okutma zorunlu</b> düğmesi şimdilik <b>kapalı</b>; herkes alışınca yönetici açar.</li>
 </ul>
 
@@ -161,8 +161,7 @@
 
 <h2>Ekranda ne var?</h2>
 <table>
-  <tr><th style="width:34%">📥 Gelen işler</th><td>Size gelen, başlanmayı bekleyen işler. Yeni iş gelince <b>kırmızı bant</b> çıkar ve ses gelir.</td></tr>
-  <tr><th>🔧 Bu istasyonda çalışılan</th><td>Şu an sizde yapılan işler. Bir sorun görürseniz <b class="d">📝 Not</b> ile yazın; sonraki istasyonlar ve ofis görür.</td></tr>
+  <tr><th style="width:34%">🔧 Devam eden · 📥 Bekleyen</th><td>Üstteki iki düğme: basılan liste görünür. <b>Devam eden</b> = sizde yapılan işler (sorun varsa <b class="d">📝 Not</b>). <b>Bekleyen</b> = size gelen işler; yeni iş gelince <b>kırmızı bant</b>, ses ve düğmede <b>YENİ</b>.</td></tr>
   <tr><th>Resim</th><td>Siparişin fotoğrafı, katalog modeli ya da bayi tasarımı. <b>Dokunun, büyüsün</b>; ✕ ile kapatın.</td></tr>
   <tr><th>Sıra</th><td>Ölçü, teslim günü ve not yazar. <b>⚡ ACİL</b> işler en üstte, sonra teslimi yakın olanlar. Sıraya göre çalışın.</td></tr>
   <tr><th>Kırmızı satır</th><td>Süre aşıldı: iş çok bekledi ya da çok uzun sürüyor. Ofise haber verin.</td></tr>
@@ -170,15 +169,15 @@
 
 <h2>İşe başlamak</h2>
 <ol class="buyuk-adim">
-  <li>Gelen işlerden işinizi bulun (resme ve sipariş numarasına bakın) → <b class="d">▶ Başlat</b>.<br><span class="kucuk">İlk istasyonda (örn. lazer) bu düğmenin adı <b>🆕 İşi başlat</b>'tır.</span></li>
+  <li><b class="d">📥 Bekleyen</b>'e basın, işinizi bulun (resme ve sipariş numarasına bakın) → <b class="d">▶ Başlat</b>.<br><span class="kucuk">İlk istasyonda (örn. lazer) bu düğmenin adı <b>🆕 İşi başlat</b>'tır.</span></li>
   <li><b>Makineyi</b> seçin (örn. Lazer 1, Zig-zag 2). <span class="kucuk">Kendi telefonunuzda ad ve PIN sorulmaz; ortak tablette adınızı seçip PIN'inizi girin.</span></li>
-  <li><b class="d">Başlat</b>'a basın. İş "Bu istasyonda çalışılan" listesine geçer.</li>
+  <li><b class="d">Başlat</b>'a basın. İş <b>🔧 Devam eden</b> listesine geçer, ekran oraya döner.</li>
 </ol>
 
 <h2>İşi bitirmek</h2>
 <ol class="buyuk-adim">
-  <li>"Bu istasyonda çalışılan" listesinde işinizde <b class="d">■ Bitir</b>.</li>
-  <li><b>İlk istasyonda</b> (lazer, nakış ya da kaplama): malzemeyi seçin (ya da rulo kartını 📷 okutun), kullanılan <b>en × boyu (cm)</b> yazın; m² stoktan düşer. <span class="kucuk">Lazerde ayrıca isteğe bağlı: giren / çıkan en × boy ve fire (m²).</span></li>
+  <li><b class="d">🔧 Devam eden</b> listesinde işinizde <b class="d">■ Bitir</b>.</li>
+  <li><b>İlk istasyonda</b> (lazer, nakış ya da kaplama): malzemeyi seçin (ya da rulo kartını 📷 okutun), kullanılan <b>en × boyu (cm)</b> yazın; m² stoktan düşer. Birden çok malzemeyi <b class="d">+ Malzeme ekle</b> ile ayrı satırlara yazın. <span class="kucuk">Lazerde ayrıca isteğe bağlı: giren / çıkan en × boy ve fire (m²).</span></li>
   <li>Diğer istasyonlarda bir şey yazmanız gerekmez. <b>"Kaç halı bitti?"</b> sorulursa: hepsi bittiyse dokunmayın, bir kısmı bittiyse sayısını yazın (bitenler sıradakine geçer).</li>
   <li><b class="d">Bitir</b>. İş kendiliğinden sıradaki istasyonun ekranına düşer.</li>
 </ol>

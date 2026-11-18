@@ -33,12 +33,20 @@ def _keten(boyut, renk, seed):
     return Image.composite(koyu, taban, dokuma.point(lambda p: max(0, 150 - p) // 2))
 
 
-def _kadife(boyut, renk):
+@lru_cache(maxsize=12)
+def _kadife(boyut, renk, px=4.0):
+    """Kadife: geniş, yumuşak ışık dalgası (tüy yönü) + ince gren. 2026-11-18: eskiden rastgele açık lekeler
+    (+45) siyah kadifede gri leke gibi görünüyordu ve her çizimde değişiyordu."""
     taban = Image.new("RGB", boyut, _hex(renk))
-    parlak = Image.new("RGB", boyut, tuple(min(255, c + 45) for c in _hex(renk)))
+    koyu = sum(_hex(renk)) / 3 < 70
+    parlak = Image.new("RGB", boyut, tuple(min(255, c + (16 if koyu else 22)) for c in _hex(renk)))
     w, h = boyut
-    leke = Image.effect_noise((max(2, w // 25), max(2, h // 25)), 70).resize(boyut, Image.BICUBIC)
-    return Image.composite(parlak, taban, leke.point(lambda p: max(0, p - 150)))
+    adim = max(8, int(px * 30))  # ~30 cm'lik ışık dalgası
+    dalga = Image.effect_noise((max(3, w // adim + 2), max(3, h // adim + 2)), 40)
+    dalga = dalga.filter(ImageFilter.GaussianBlur(0.8)).resize(boyut, Image.BICUBIC)
+    dalga = dalga.point(lambda q: max(0, min(255, (q - 128) * 2 + 110)))
+    gren = Image.effect_noise(boyut, 18).filter(ImageFilter.GaussianBlur(0.6)).point(lambda q: max(0, q - 110))
+    return Image.composite(parlak, taban, ImageChops.add(dalga.point(lambda q: q // 2), gren.point(lambda q: q // 4)))
 
 
 def ImageStat_ort(resim):
@@ -46,23 +54,64 @@ def ImageStat_ort(resim):
 
 
 @lru_cache(maxsize=24)
-def _kartela_dokusu(ad, boyut, px):
-    """Rono / Bienca: atölye numune fotoğrafı (ışığı düzeltilmiş) gerçek ölçüsünde, ayna döşeme yerine
-    büyük yumuşak geçişli yamalarla. Bienca baskısı büyük ve tekrarsızdır: bütün halıyı tek parça kaplar."""
+def _yumusak_yama_maskesi(w, h, r):
+    m = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(m).rectangle([r, r, w - r, h - r], fill=255)
+    return m.filter(ImageFilter.GaussianBlur(r / 1.6))
+
+
+def _yamali_doldur(kaynak, boyut, anahtar, kontrast=1.3):
+    """Gerçek ölçüdeki malzeme fotoğrafını alana büyük, yumuşak kenarlı, bol örtüşen yamalarla döşer (rastgele yer,
+    ayna ve ters; satırlar kaydırmalı): ne dev leke (bütün halıya gerilmiş numune) ne kare kare tekrar görünür.
+    Örtüşmenin düşürdüğü açık-koyu farkı kontrast ile geri gelir."""
     import random
+    kw, kh = kaynak.size
+    if kw >= boyut[0] and kh >= boyut[1]:
+        return kaynak.crop((0, 0) + tuple(boyut))
+    pw, ph = max(8, int(kw * 0.9)), max(8, int(kh * 0.9))
+    ax, ay = max(4, pw // 2), max(4, ph // 2)
+    rast = random.Random(anahtar)  # aynı malzeme her çizimde aynı görünür
+    ort = kaynak.resize((1, 1), Image.BOX).getpixel((0, 0))
+    tuval = Image.new("RGB", tuple(boyut), ort)
+    maske = _yumusak_yama_maskesi(pw, ph, max(2, min(pw, ph) // 3))
+    for sira, y in enumerate(range(-ph // 3, boyut[1], ay)):
+        for x in range(-pw // 3 - (ax // 2 if sira % 2 else 0), boyut[0], ax):
+            sx, sy = rast.randint(0, kw - pw), rast.randint(0, kh - ph)
+            yama = kaynak.crop((sx, sy, sx + pw, sy + ph))
+            if rast.random() < 0.5:
+                yama = ImageOps.mirror(yama)
+            if rast.random() < 0.5:
+                yama = ImageOps.flip(yama)
+            tuval.paste(yama, (x + rast.randint(-ax // 3, ax // 3), y + rast.randint(-ay // 3, ay // 3)), maske)
+    ort = tuval.resize((1, 1), Image.BOX).getpixel((0, 0))
+    return Image.merge("RGB", [b.point(lambda q, o=o: max(0, min(255, round(o + (q - o) * kontrast))))
+                               for b, o in zip(tuval.split(), ort)])
+
+
+BIENCA_ZEMIN_KAT = 1.6  # zeminde Bienca baskısı numunenin ~1,6 katı ölçekte (katalog fotoğraflarındaki gibi)
+
+
+@lru_cache(maxsize=16)
+def _bienca_kaynak(ad, px, kat):
+    """Bienca numunesi (gerçek ölçünün 'kat' katı), fotoğraftaki geniş ışık-gölge farkı silinmiş."""
     kaynak = hg._doku(ad)
+    w = max(16, round(hg.DOKU_CM_OZEL.get(ad, 30) * kat * px))
+    b = kaynak.resize((w, max(16, round(kaynak.height * w / kaynak.width))), Image.LANCZOS)
+    gri = b.convert("L")
+    ort = max(1, gri.resize((1, 1), Image.BOX).getpixel((0, 0)))
+    genis = gri.filter(ImageFilter.GaussianBlur(max(4, b.width / 6)))
+    duz = genis.point(lambda q: max(0, min(255, round(128 * ort / max(q, 1)))))
+    return ImageChops.multiply(b, Image.merge("RGB", (duz,) * 3)).point(lambda q: min(255, q * 2))
+
+
+@lru_cache(maxsize=24)
+def _kartela_dokusu(ad, boyut, px, kat=BIENCA_ZEMIN_KAT):
+    """Rono / Bienca: atölye numune fotoğrafı (ışığı düzeltilmiş) gerçek ölçüsünde, ayna döşeme yerine
+    büyük yumuşak geçişli yamalarla. Bienca (2026-11-18): numune bütün halıya gerilince desen 5–7 kat büyüyüp dev
+    leke oluyordu → numune ~gerçek ölçüde yamalarla döşenir."""
     if ad.startswith("bienca"):
-        k = max(boyut[0] / kaynak.width, boyut[1] / kaynak.height)
-        b = kaynak.resize((max(1, round(kaynak.width * k)), max(1, round(kaynak.height * k))), Image.LANCZOS)
-        # numune fotoğrafındaki ışık-gölge (kıvrım, pencere ışığı) halıda gölge gibi görünür: geniş ölçekli
-        # parlaklık farkı silinir, desenin kendi açık-koyu tonu kalır
-        gri = b.convert("L")
-        ort = max(1, gri.resize((1, 1), Image.BOX).getpixel((0, 0)))
-        genis = gri.filter(ImageFilter.GaussianBlur(max(4, b.width / 8)))
-        duz = genis.point(lambda q: max(0, min(255, round(128 * ort / max(q, 1)))))
-        b = ImageChops.multiply(b, Image.merge("RGB", (duz,) * 3)).point(lambda q: min(255, q * 2))
-        return b.crop(((b.width - boyut[0]) // 2, (b.height - boyut[1]) // 2,
-                       (b.width - boyut[0]) // 2 + boyut[0], (b.height - boyut[1]) // 2 + boyut[1]))
+        return _yamali_doldur(_bienca_kaynak(ad, round(px, 3), kat), tuple(boyut), ad)
+    kaynak = hg._doku(ad)
     # Rono: numunenin genel rengi ve hafif eskitme tonları bütün parçayı tek kaplar (kare kare tekrar görünmez);
     # ince dokuma gerçek ölçüsünde üstüne işlenir
     gri = kaynak.convert("L")
@@ -95,18 +144,8 @@ def _kartela_dokusu(ad, boyut, px):
 
 @lru_cache(maxsize=12)
 def _bienca_ince(ad, boyut, px, bolum=3):
-    """Dar bant için Bienca: baskı 1/3 ölçekte, aynalı döşenir → büyük lekeler yerine ince eskitme."""
-    from PIL import ImageOps
-    kucuk = _kartela_dokusu(ad, (max(8, boyut[0] // bolum), max(8, boyut[1] // bolum)), px)
-    ikili = Image.new("RGB", (kucuk.width * 2, kucuk.height * 2))
-    ikili.paste(kucuk, (0, 0)); ikili.paste(ImageOps.mirror(kucuk), (kucuk.width, 0))
-    ikili.paste(ImageOps.flip(kucuk), (0, kucuk.height))
-    ikili.paste(ImageOps.flip(ImageOps.mirror(kucuk)), (kucuk.width, kucuk.height))
-    tuval = Image.new("RGB", boyut)
-    for y in range(0, boyut[1], ikili.height):
-        for x in range(0, boyut[0], ikili.width):
-            tuval.paste(ikili, (x, y))
-    return tuval
+    """Dar bant için Bienca: baskı numunenin gerçek ölçüsünde (zeminden daha ince eskitme)."""
+    return _kartela_dokusu(ad, boyut, px, kat=1.0)
 
 
 def _metal_parilti(boyut, guc=0.45):
@@ -147,17 +186,32 @@ def _pelus(ad, boyut, px):
     return ImageChops.multiply(taban, Image.merge("RGB", (ton,) * 3)).point(lambda q: min(255, q * 2))
 
 
+VARAKLAR = {"varak_altin", "varak_gumus", "varak_sampanya", "bakir_varak"}
+
+
+@lru_cache(maxsize=8)
+def _varak(ad, boyut, px):
+    """Varak (altın/gümüş/şampanya/bakır yaprak): eskiden küçük yamalar ızgara gibi dizildiği için kare kare tekrar
+    görünüyordu (2026-11-18) → numunenin 1,5 katı ölçekte büyük, örtüşen yamalar."""
+    kaynak = hg._doku(ad)
+    w = max(16, round(hg.DOKU_CM_OZEL.get(ad, 35) * 1.5 * px))
+    kaynak = kaynak.resize((w, max(16, round(kaynak.height * w / kaynak.width))), Image.LANCZOS)
+    return _yamali_doldur(kaynak, boyut, ad, kontrast=1.2)
+
+
 def malzeme_dokusu(ad, boyut, px):
     if ad.startswith("pelus_"):
         return _pelus(ad, boyut, round(px, 3))
     if (ad.startswith("bienca_bn") or ad.endswith("_keten")) and hg._var_mi(ad):
-        return _kartela_dokusu(ad, boyut, round(px, 3))
+        return _kartela_dokusu(ad, tuple(boyut), round(px, 3)).copy()
+    if ad in VARAKLAR and hg._var_mi(ad):
+        return _varak(ad, tuple(boyut), round(px, 3)).copy()
     if hg._var_mi(ad):
         return hg.doku_doldur(ad, boyut, px)
     if ad in cizim.BANT_HEX:
         return hg.malzeme(ad, boyut, px)
     if ad.endswith("_kadife"):
-        return _kadife(boyut, pc.MALZEME_HEX[ad])
+        return _kadife(tuple(boyut), pc.MALZEME_HEX[ad], round(px, 3)).copy()
     return _keten(boyut, pc.MALZEME_HEX[ad], ad)
 
 
@@ -303,8 +357,10 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
     for sira, p in enumerate(parcalar):
         poli = olc(p["poli"])
         maske = _poli_maske(boyut, poli)
-        if p.get("tur") != "zemin":
-            ton.paste(134 if p.get("yon") == "yatay" else 122 if p.get("yon") == "dikey" else 128 + (sira % 3 - 1) * 4,
+        if p.get("tur") != "zemin" and not p.get("ara"):
+            # 2026-11-18: fark eskiden ±6 idi; koyu kadife/antrasit zeminde parçalar kutu kutu görünüyordu.
+            # Ara bant zeminle aynı malzeme: zeminle aynı ton (ayrı kutu gibi görünmesin)
+            ton.paste(131 if p.get("yon") == "yatay" else 125 if p.get("yon") == "dikey" else 128 + (sira % 3 - 1) * 2,
                       (0, 0), maske)
         ince = p["malzeme"].startswith("bienca") and p.get("tur") != "zemin"
         if (p["malzeme"], ince) not in dokular:
@@ -353,11 +409,22 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
     dikis = Image.new("L", boyut, 0)
     cizgi = ImageDraw.Draw(dikis)
     kalin = max(1, int(px * 0.3))
+    egri = v.get("duzen") == "yuvarlak" or v.get("sekil") == "oval"
+    gruplar = {}
     for p in parcalar:
         if p.get("tur") == "zemin":  # zemin parçaları arası ek yeri (rulo, madalyon için sol/sağ) görüntüde gösterilmez
             continue  # 140 cm'lik rulo ek yeri: üretim bilgisi, görüntüde gösterilmez
+        if egri and p.get("halka"):  # ovalde bir bordürün yay parçaları: aralarındaki ek yeri çizilmez
+            gruplar.setdefault(p["halka"], []).append(p)
+            continue
         poli = olc(p["poli"])
         cizgi.line(poli + [poli[0]], fill=255, width=kalin)
+    for grup in gruplar.values():  # bordürün yalnız iç ve dış kenarı (2026-11-18: yay ekleri çizgi çizgi görünüyordu)
+        birlesik = Image.new("L", boyut, 0)
+        for p in grup:
+            birlesik.paste(255, (0, 0), _poli_maske(boyut, olc(p["poli"])))
+        birlesik = birlesik.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))  # yay arası boşluk kapanır
+        dikis = ImageChops.lighter(dikis, ImageChops.subtract(birlesik, birlesik.filter(ImageFilter.MinFilter(kalin * 2 + 1))))
     yumusak = dikis.filter(ImageFilter.GaussianBlur(max(1.5, px * 1.2)))
     resim = Image.composite(Image.new("RGB", boyut, (20, 16, 12)), resim, yumusak.point(lambda q: int(q * 0.55)))
     isik_kenar = ImageChops.offset(yumusak, -max(1, int(px * 0.6)), -max(1, int(px * 0.6)))
