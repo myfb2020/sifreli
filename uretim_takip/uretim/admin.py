@@ -146,10 +146,10 @@ class KatalogSerisiAdmin(admin.ModelAdmin):
 
 @admin.register(KatalogModeli)
 class KatalogModeliAdmin(admin.ModelAdmin):
-    list_display = ["kod", "resim_onizleme", "seri", "aktif"]
-    list_filter = ["seri", "aktif"]
+    list_display = ["kod", "resim_onizleme", "seri", "aktif", "bayiye_acik"]
+    list_filter = ["seri", "aktif", "bayiye_acik"]
     search_fields = ["kod"]
-    list_editable = ["aktif"]
+    list_editable = ["aktif", "bayiye_acik"]
 
     @admin.display(description="resim")
     def resim_onizleme(self, obj):

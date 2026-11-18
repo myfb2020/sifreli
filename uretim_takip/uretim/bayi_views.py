@@ -117,7 +117,8 @@ class BayiSiparisForm(forms.Form):
 
     def clean(self):
         veri = super().clean()
-        model = KatalogModeli.objects.filter(kod=veri.get("model", ""), aktif=True).select_related("seri__hali_turu").first()
+        model = (KatalogModeli.objects.filter(kod=veri.get("model", ""), aktif=True, bayiye_acik=True)
+                 .select_related("seri__hali_turu").first())
         if model is None:
             raise ValidationError("Katalogdan bir model seçin.")
         veri["model"] = model
@@ -209,7 +210,7 @@ def bayi_siparis(request):
     for seri in sorted(KatalogSerisi.objects.all(), key=lambda x: (_kucuk(x.ad) not in ("rono", "bienca"), x.sira, x.ad)):
         if seri_turu(seri) not in (tur, "ikisi"):
             continue
-        modeller = [m for m in seri.modeller.filter(aktif=True).order_by("kod") if m.resim]
+        modeller = [m for m in seri.modeller.filter(aktif=True, bayiye_acik=True).order_by("kod") if m.resim]
         if modeller:
             seriler.append({"seri": seri, "modeller": modeller})
     kartelalar = {g: list(Renk.objects.filter(grup=g, aktif=True)) for g, _ in Renk.GRUPLAR}

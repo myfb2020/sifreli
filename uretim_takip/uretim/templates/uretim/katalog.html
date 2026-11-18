@@ -19,7 +19,7 @@
   {% for m in modeller %}
   <div class="kart katalog-kart">
     {% if m.resim %}<a href="{{ m.resim.url }}" target="_blank"><img src="{{ m.resim.url }}" alt="{{ m.kod }}" loading="lazy"></a>{% endif %}
-    <div><b>{{ m.kod }}</b> <span class="soluk">{{ m.seri }}</span></div>
+    <div><b>{{ m.kod }}</b> <span class="soluk">{{ m.seri }}</span>{% if not m.bayiye_acik %} <span class="rozet" title="Bayinin Sipariş ver sayfasında görünmez">bayide gizli</span>{% endif %}</div>
     {% if perms.uretim.add_siparis %}<a class="btn kucuk" href="{% url 'siparis_yeni' %}?model={{ m.kod|urlencode }}">+ Sipariş aç</a>{% endif %}
   </div>
   {% empty %}

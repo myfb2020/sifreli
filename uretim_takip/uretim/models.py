@@ -316,6 +316,10 @@ class KatalogModeli(models.Model):
     seri = models.ForeignKey(KatalogSerisi, on_delete=models.PROTECT, related_name="modeller")
     resim = models.FileField(upload_to="katalog/model/", validators=[resim_dogrulayici], blank=True)
     aktif = models.BooleanField(default=True)
+    bayiye_acik = models.BooleanField(
+        "bayi sipariş sayfasında görünsün", default=True,
+        help_text="Kapalıysa model ofiste ve katalogda kalır, bayinin Sipariş ver sayfasında görünmez "
+                  "(ör. fotoğrafı kötü olan).")
     notlar = models.TextField(blank=True)
 
     class Meta:

@@ -2496,6 +2496,32 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.assertEqual(parcali.MALZEME_AD["kahve_keten"], "Rono RN06 Koyu kahve")
         self.assertEqual(parcali._sec("siyah_keten", parcali.MALZEMELER, "x"), "antrasit_keten")
 
+    def test_fotografi_kotu_model_bayide_gorunmez(self):
+        from .models import KatalogModeli
+        from . import parcali
+        # migration 0045: kesik/eğik/kopya fotoğraflı modeller bayide gizli; ofis katalogunda "bayide gizli" rozeti
+        gizli = set(KatalogModeli.objects.filter(bayiye_acik=False).values_list("kod", flat=True))
+        self.assertTrue({"BNA-027", "IPS-482", "IPS-484", "PCH-016", "IPS-468", "TOS-040"} <= gizli)
+        self.assertEqual(len(gizli), 18)
+        self.assertTrue(KatalogModeli.objects.get(kod="PCH-006").bayiye_acik)
+        for kod in ("IPS-482", "IPS-484", "PCH-016"):
+            self.assertNotIn(kod, parcali.SECILI_MODELLER)
+        self.assertIn("PCH-006", parcali.SECILI_MODELLER)
+        # gri zeminli Rono fotoğrafları beyaz zeminli dosyaya geçti
+        self.assertEqual(KatalogModeli.objects.get(kod="RNO-008").resim.name, "katalog/model/b/RNO-008.jpg")
+        self.client.force_login(self.bayi_hesap)
+        sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
+        self.assertContains(sayfa, 'data-kod="PCH-006"')
+        self.assertNotContains(sayfa, 'data-kod="PCH-016"')
+        self.assertNotContains(sayfa, 'data-kod="IPS-482"')
+        self.assertNotContains(self.client.get(reverse("bayi_siparis") + "?tur=deri"), 'data-kod="TOS-040"')
+        # adresle zorlansa da sipariş açılmaz
+        yanit = self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-482", renk_notu="Krem"))
+        self.assertContains(yanit, "Katalogdan bir model seçin")
+        self.assertFalse(Siparis.objects.filter(katalog_modeli__kod="IPS-482").exists())
+        self.client.force_login(self.yonetici)
+        self.assertContains(self.client.get(reverse("katalog") + "?ara=TOS-040"), "bayide gizli")
+
     def test_bayi_basit_siparis_ve_gorunum(self):
         from .models import Musteri, Renk
         bayi = Musteri.objects.get(ad="Ankara Bayi")

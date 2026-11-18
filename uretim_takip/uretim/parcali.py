@@ -517,6 +517,9 @@ BAYIDE_GIZLI = {
     "IPS-483",  # mermer / varak yaprak / leopar / çapraz köşe / marka logolu bant: elimizdekilerle olmuyor
     # 2026-11-16 (kullanıcı): açılışı katalog fotoğrafına benzemeyen, fotoğraf esaslı olmayan modeller
     "BNA-017", "BNA-025", "RNO-002", "IPS-467", "IPS-471",
+    # 2026-11-18 (kullanıcı): fotoğrafı kesik (IPS-482 ovalin yanları, IPS-484 yuvarlağın sağı) ya da başka modelle
+    # aynı fotoğraf (PCH-016 = PCH-006); bayi sipariş sayfasında da görünmez (KatalogModeli.bayiye_acik)
+    "IPS-482", "IPS-484", "PCH-016",
 }
 SECILI_MODELLER[:] = [k for k in dict.fromkeys(list(FOTO_RENK) + [k for k in KATALOG_DEGER if k.startswith("IPS")])
                       if k not in BAYIDE_GIZLI]
