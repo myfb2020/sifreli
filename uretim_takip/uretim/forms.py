@@ -166,20 +166,24 @@ class IslemBaslatForm(PinliForm):
 
 
 class IslemBitirForm(PinliForm):
-    """İşi bitirir. İlk istasyonda (lazer) kullanılan ana malzeme ve ölçüsü girilir; diğerlerinde yalnız Bitir."""
+    """İşi bitirir. İlk istasyonda (lazer) kullanılan ana malzemeler ve ölçüleri girilir (birden çok satır);
+    diğerlerinde yalnız Bitir."""
 
-    cesit = forms.ChoiceField(label="Kullanılan malzeme", required=False)
-    rulo_no = forms.CharField(label="veya rulonun etiketi", required=False, max_length=20,
-                              widget=forms.TextInput(attrs={"autocapitalize": "characters", "placeholder": "BNN-…"}))
-    kesim_en = ondalik_alan("Kullanılan en (cm)", required=False)
-    kesim_boy = ondalik_alan("Kullanılan boy (cm)", required=False)
+    SATIR_SAYISI = 8  # en çok bu kadar malzeme satırı; 1. satırın alan adları eklentisiz (eski sayfalar da çalışır)
+
     cikis_en = ondalik_alan("Çıkan en (cm)", required=False)
     cikis_boy = ondalik_alan("Çıkan boy (cm)", required=False)
     fire_m2 = ondalik_alan("Fire (m²)", required=False)
     aciklama = forms.CharField(label="Not (isteğe bağlı)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
     biten_adet = forms.IntegerField(label="Kaç halı bitti?", required=False, min_value=1)
 
-    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), lazer=False, adet=1, olculer=(), **kwargs):
+    @staticmethod
+    def satir_adlari(n):
+        ek = "" if n == 1 else f"_{n}"
+        return {"cesit": f"cesit{ek}", "rulo_no": f"rulo_no{ek}", "en": f"kesim_en{ek}", "boy": f"kesim_boy{ek}"}
+
+    def __init__(self, *args, ilk_adim=False, stok_zorunlu=False, cesitler=(), lazer=False, adet=1, olculer=(), ek=False,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.olcu_alanlari = []
         if len(olculer) > 1:  # bir işte birden çok ölçü: her ölçüden kaç halı bittiği ayrı sorulur
@@ -199,20 +203,41 @@ class IslemBitirForm(PinliForm):
         else:
             del self.fields["biten_adet"]
         self.ilk_adim = ilk_adim
+        self.ek = ilk_adim and ek  # işin malzemesi daha önce girildi: kalan halılar için isteğe bağlı ek malzeme
         self.lazer = lazer
         if lazer:
             self.fields["fire_m2"].help_text = "İsteğe bağlı. Boş bırakılırsa giren ve çıkan ölçüden hesaplanır."
         else:
             for alan in ("cikis_en", "cikis_boy", "fire_m2"):
                 del self.fields[alan]
-        self.stok_zorunlu = ilk_adim and stok_zorunlu
+        self.stok_zorunlu = ilk_adim and stok_zorunlu and not self.ek
+        self.malzeme_satirlari = []
         if ilk_adim:
-            self.fields["cesit"].choices = [("", "— Malzeme seçin —")] + list(cesitler)
-            self.fields["kesim_en"].help_text = "Rulonun eni ya da kestiğiniz parçanın eni."
-            self.fields["kesim_boy"].help_text = "Bu iş için rulodan kullandığınız toplam boy."
-        else:
-            for alan in ("cesit", "rulo_no", "kesim_en", "kesim_boy"):
-                del self.fields[alan]
+            secenekler = [("", "— Malzeme seçin —")] + list(cesitler)
+            for n in range(1, self.SATIR_SAYISI + 1):
+                a = self.satir_adlari(n)
+                self.fields[a["cesit"]] = forms.ChoiceField(label="Kullanılan malzeme", required=False,
+                                                            choices=secenekler)
+                self.fields[a["rulo_no"]] = forms.CharField(
+                    label="veya rulonun etiketi", required=False, max_length=20,
+                    widget=forms.TextInput(attrs={"autocapitalize": "characters", "placeholder": "BNN-…",
+                                                  "class": "rulo-no"}))
+                self.fields[a["en"]] = ondalik_alan("Kullanılan en (cm)", required=False)
+                self.fields[a["boy"]] = ondalik_alan("Kullanılan boy (cm)", required=False)
+                if n == 1:
+                    self.fields[a["en"]].help_text = "Rulonun eni ya da kestiğiniz parçanın eni."
+                    self.fields[a["boy"]].help_text = "Bu iş için rulodan kullandığınız toplam boy."
+                self.malzeme_satirlari.append({"no": n, **a})
+
+    def satirlar(self):
+        """Şablon için: [{no, cesit, rulo_no, en, boy (BoundField), dolu}], ilk satır her zaman görünür."""
+        sonuc = []
+        for s in self.malzeme_satirlari:
+            alanlar = {k: self[s[k]] for k in ("cesit", "rulo_no", "en", "boy")}
+            dolu = any(str(alanlar[k].value() or "").strip() for k in alanlar) or bool(
+                any(alanlar[k].errors for k in alanlar))
+            sonuc.append({"no": s["no"], **alanlar, "dolu": dolu or s["no"] == 1})
+        return sonuc
 
     def clean(self):
         veri = super().clean()
@@ -228,27 +253,40 @@ class IslemBitirForm(PinliForm):
                 self.add_error("cikis_boy" if cen else "cikis_en", "Eni ve boyu birlikte yazın (ya da ikisini de boş bırakın).")
             elif cen and cboy:
                 veri["cikis_olcu"] = (cen, cboy)
+        veri["kesim"] = None
         if not self.ilk_adim:
             return veri
-        en, boy = veri.get("kesim_en"), veri.get("kesim_boy")
-        rulo_no = (veri.get("rulo_no") or "").strip().upper()
-        rulo = None
-        if rulo_no:
-            rulo = HamDeriGirisi.objects.filter(lot_no=stok_no(rulo_no)).first()
-            if rulo is None:
-                self.add_error("rulo_no", f"“{rulo_no}” numaralı stok lotu bulunamadı.")
-        secildi = bool(rulo_no or veri.get("cesit"))
-        if secildi or en or boy or self.stok_zorunlu:
+        kesimler, hata = [], False
+        for s in self.malzeme_satirlari:
+            en, boy = veri.get(s["en"]), veri.get(s["boy"])
+            rulo_no = (veri.get(s["rulo_no"]) or "").strip().upper()
+            rulo = None
+            if rulo_no:
+                rulo = HamDeriGirisi.objects.filter(lot_no=stok_no(rulo_no)).first()
+                if rulo is None:
+                    self.add_error(s["rulo_no"], f"“{rulo_no}” numaralı stok lotu bulunamadı.")
+                    hata = True
+            secildi = bool(rulo_no or veri.get(s["cesit"]))
+            if not (secildi or en or boy):
+                continue
             if not secildi:
-                self.add_error("cesit", "Kullanılan malzemeyi seçin ya da rulonun etiketini okutun.")
+                self.add_error(s["cesit"], "Kullanılan malzemeyi seçin ya da rulonun etiketini okutun.")
             if not en:
-                self.add_error("kesim_en", "Eni yazın.")
+                self.add_error(s["en"], "Eni yazın.")
             if not boy:
-                self.add_error("kesim_boy", "Boyu yazın.")
-        veri["kesim"] = None
-        if secildi and en and boy and not self.errors:
-            veri["kesim"] = {"m2": (en * boy / 10000).quantize(Decimal("0.01")), "rulo": rulo,
-                             "cesit": None if rulo else veri.get("cesit")}
+                self.add_error(s["boy"], "Boyu yazın.")
+            if not (secildi and en and boy) or (rulo_no and rulo is None):
+                hata = True
+                continue
+            kesimler.append({"m2": (en * boy / 10000).quantize(Decimal("0.01")), "rulo": rulo,
+                             "cesit": None if rulo else veri.get(s["cesit"]), "satir": s["no"]})
+        if not kesimler and not hata and self.stok_zorunlu:
+            ilk = self.malzeme_satirlari[0]
+            self.add_error(ilk["cesit"], "Kullanılan malzemeyi seçin ya da rulonun etiketini okutun.")
+            self.add_error(ilk["en"], "Eni yazın.")
+            self.add_error(ilk["boy"], "Boyu yazın.")
+        if kesimler and not self.errors:
+            veri["kesim"] = kesimler
         return veri
 
 

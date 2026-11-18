@@ -137,11 +137,12 @@ def islem_bitir(request, pk):
         messages.info(request, "Bu işlem zaten bitirilmiş.")
         return redirect("lot_detay", pk=islem.lot_id)
 
-    # ana malzeme işe bir kez girilir: bölünen işin ikinci parçası bitirilirken yeniden sorulmaz
-    ilk_adim = servisler.ilk_adim_mi(islem) and not servisler.malzeme_girildi(islem.lot)
+    # ana malzeme ilk istasyonda girilir; bölünen işin kalan halıları bitirilirken isteğe bağlı "ek malzeme" sorulur
+    ilk_adim = servisler.ilk_adim_mi(islem)
+    ek = ilk_adim and servisler.malzeme_girildi(islem.lot)
     form = IslemBitirForm(
         request.POST if request.method == "POST" else None, initial={"personel": islem.personel}, personel=hesap_personeli(request.user),
-        ilk_adim=ilk_adim, stok_zorunlu=SistemAyari.yukle().stok_zorunlu,
+        ilk_adim=ilk_adim, ek=ek, stok_zorunlu=SistemAyari.yukle().stok_zorunlu,
         cesitler=servisler.stoktaki_cesitler() if ilk_adim else (), lazer=islem.asama.lazer_mi, adet=islem.lot.adet,
         olculer=islem.lot.olcu_satirlari(),
     )
@@ -172,7 +173,7 @@ def islem_bitir(request, pk):
     malzeme_kodlari = dict(Malzeme.objects.filter(aktif=True).values_list("kod", "pk"))
     return render(request, "uretim/islem_bitir.html",
                   {"form": form, "islem": islem, "malzemeler": malzemeler, "malzeme_kodlari": malzeme_kodlari,
-                   "ilk_adim": ilk_adim})
+                   "ilk_adim": ilk_adim, "ek": ek})
 
 
 @login_required

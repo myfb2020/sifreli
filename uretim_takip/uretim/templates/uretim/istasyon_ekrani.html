@@ -12,7 +12,29 @@
 <div id="yeni-is-bandi" class="yeni-is-bandi" hidden>🔔 Yeni iş geldi!</div>
 <div id="gecikme-bandi" class="mesaj error" {% if not geciken %}hidden{% endif %}>⏰ <span id="geciken-sayi">{{ geciken }}</span> iş süre sınırını aştı.</div>
 
+<div class="ist-sekmeler" role="tablist" aria-label="İş listesi">
+  <button type="button" role="tab" class="ist-sekme" data-sekme="calisilan" aria-selected="{% if sekme == 'calisilan' %}true{% else %}false{% endif %}">
+    🔧 Devam eden <span class="sekme-sayi" id="sayi-calisilan">{{ calisilan|length }}</span><span class="sekme-nokta" id="nokta-calisilan"{% if not calisilan_geciken %} hidden{% endif %} title="Süresi aşan iş var"></span>
+  </button>
+  <button type="button" role="tab" class="ist-sekme" data-sekme="gelen" aria-selected="{% if sekme == 'gelen' %}true{% else %}false{% endif %}">
+    📥 Bekleyen <span class="sekme-sayi" id="sayi-gelen">{{ gelen|length }}</span><span class="sekme-nokta" id="nokta-gelen"{% if not gelen_geciken %} hidden{% endif %} title="Süresi aşan iş var"></span>
+    <span class="sekme-yeni" id="yeni-gelen" hidden>YENİ</span>
+  </button>
+</div>
+<div id="sekmeli" data-sekme="{{ sekme }}">
 {% include "uretim/_istasyon_parca.html" %}
+</div>
+<style>
+  .ist-sekmeler { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:6px 0 14px; }
+  .ist-sekme { font-size:22px; font-weight:700; padding:18px 10px; border-radius:16px; border:2px solid var(--altin, #b08d57); background:#fff; color:var(--koyu, #1c1917); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .ist-sekme[aria-selected="true"] { background:var(--koyu, #1c1917); color:#fff; border-color:var(--koyu, #1c1917); }
+  .sekme-sayi { display:inline-block; min-width:38px; padding:2px 10px; border-radius:999px; background:var(--altin, #b08d57); color:#fff; font-size:20px; }
+  .sekme-nokta { width:14px; height:14px; border-radius:50%; background:var(--kirmizi, #b3261e); display:inline-block; }
+  .sekme-nokta[hidden], .sekme-yeni[hidden] { display:none; }
+  .sekme-yeni { background:var(--kirmizi, #b3261e); color:#fff; font-size:15px; padding:3px 8px; border-radius:8px; animation:yanip-son 1s ease-in-out infinite; }
+  #sekmeli[data-sekme="gelen"] #liste-calisilan, #sekmeli[data-sekme="calisilan"] #liste-gelen { display:none; }
+  @media (max-width:560px) { .ist-sekme { font-size:18px; padding:14px 6px; } .sekme-sayi { font-size:17px; min-width:30px; } }
+</style>
 
 <p class="soluk" style="text-align:center">Ekran her 20 saniyede bir kendini yeniler · son yenileme <span id="son-yenileme">{% now "H:i:s" %}</span></p>
 
@@ -24,6 +46,33 @@
   let ses = null;
 
   try { localStorage.setItem("istasyon", "{{ asama.pk }}"); } catch (e) {}
+
+  // Devam eden / Bekleyen: seçim bu tablette hatırlanır, 20 sn yenilemede değişmez
+  const SEKME_ANAHTARI = "istasyon-sekme-{{ asama.pk }}";
+  const sekmeli = document.getElementById("sekmeli");
+  const adresSekme = new URLSearchParams(location.search).get("sekme");
+  function sekmeSec(ad, kaydet) {
+    sekmeli.dataset.sekme = ad;
+    document.querySelectorAll(".ist-sekme").forEach((d) => d.setAttribute("aria-selected", d.dataset.sekme === ad ? "true" : "false"));
+    if (ad === "gelen") document.getElementById("yeni-gelen").hidden = true;
+    if (kaydet) { try { localStorage.setItem(SEKME_ANAHTARI, ad); } catch (e) {} }
+  }
+  if (adresSekme === "gelen" || adresSekme === "calisilan") {
+    sekmeSec(adresSekme, true);  // işi başlatıp dönünce "Devam eden"
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  } else {
+    let kayitli = null;
+    try { kayitli = localStorage.getItem(SEKME_ANAHTARI); } catch (e) {}
+    if (kayitli === "gelen" || kayitli === "calisilan") sekmeSec(kayitli, false);
+  }
+  document.querySelectorAll(".ist-sekme").forEach((d) => d.addEventListener("click", () => sekmeSec(d.dataset.sekme, true)));
+  function sayilariYaz(parca) {
+    for (const ad of ["gelen", "calisilan"]) {
+      document.getElementById("sayi-" + ad).textContent = parca.dataset[ad] || "0";
+      const g = parseInt(parca.dataset[ad === "gelen" ? "gelenGeciken" : "calisilanGeciken"] || "0", 10);
+      document.getElementById("nokta-" + ad).hidden = !g;
+    }
+  }
 
   function gorulenler() {
     // null: bu tablet bu istasyonu ilk kez açıyor (o anki işler için uyarı verilmez)
@@ -65,7 +114,9 @@
     parca.querySelectorAll("[data-anahtar]").forEach((satir) => {
       if (yeniler.includes(satir.dataset.anahtar)) satir.classList.add("yeni");
     });
+    sayilariYaz(parca);
     if (yeniler.length) {
+      if (sekmeli.dataset.sekme !== "gelen") document.getElementById("yeni-gelen").hidden = false;
       const bant = document.getElementById("yeni-is-bandi");
       bant.textContent = "🔔 " + yeniler.length + " yeni iş geldi!";
       bant.hidden = false;

@@ -25,14 +25,31 @@
       {% for alan in form %}{% if alan.name|slice:":6" == "biten_" %}{% include "uretim/_alan.html" %}{% endif %}{% endfor %}
     </div>{% endif %}
     {% if ilk_adim %}
+    <div id="malzemeler-kutu">
+    {% if ek %}
+    <h2 style="margin-top:16px">Ek malzeme <span class="soluk" style="font-weight:normal;font-size:14px">(isteğe bağlı)</span></h2>
+    <p class="soluk">Bu işin malzemesi daha önce girildi{% if islem.lot.kaynak_listesi %} ({{ islem.lot.kaynak_listesi }}){% endif %}. Kalan halılar için ayrıca malzeme kullandıysanız yazın; kullanmadıysanız boş bırakın.</p>
+    {% else %}
     <h2 style="margin-top:16px">Kullanılan malzeme {% if not form.stok_zorunlu %}<span class="soluk" style="font-weight:normal;font-size:14px">(isteğe bağlı)</span>{% endif %}</h2>
-    <p class="soluk">Bu iş için rulodan ne kadar kullandığınızı yazın; m²'si stoktan düşülür, fire kendiliğinden hesaplanır.</p>
-    {% include "uretim/_alan.html" with alan=form.cesit %}
-    <p><label for="{{ form.rulo_no.id_for_label }}">{{ form.rulo_no.label }}</label>
-      <span class="tara-grup">{{ form.rulo_no }}<button type="button" class="btn tara-dugme" id="rulo-tara" aria-label="Rulo etiketini okut">📷</button></span>
-      {% if form.rulo_no.errors %}<ul class="errorlist">{% for e in form.rulo_no.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</p>
-    <div class="iki-sutun-form">{% include "uretim/_alan.html" with alan=form.kesim_en %}{% include "uretim/_alan.html" with alan=form.kesim_boy %}</div>
-    <p id="kesim-m2" class="soluk"></p>
+    <p class="soluk">Bu iş için kullandığınız her malzemeyi ayrı satıra yazın; m²'si stoktan düşülür, fire kendiliğinden hesaplanır.</p>
+    {% endif %}
+    {% for s in form.satirlar %}
+    <div class="kesim-satir kart" data-no="{{ s.no }}" style="background:#faf8f4;margin:8px 0;padding:10px 12px"{% if not s.dolu %} hidden{% endif %}>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b>{{ s.no }}. malzeme</b>
+        {% if s.no > 1 %}<button type="button" class="btn ikincil kucuk satir-sil" aria-label="Bu satırı kaldır">✕ Kaldır</button>{% endif %}
+      </div>
+      {% include "uretim/_alan.html" with alan=s.cesit %}
+      <p><label for="{{ s.rulo_no.id_for_label }}">{{ s.rulo_no.label }}</label>
+        <span class="tara-grup">{{ s.rulo_no }}<button type="button" class="btn tara-dugme rulo-tara" aria-label="Rulo etiketini okut">📷</button></span>
+        {% if s.rulo_no.errors %}<ul class="errorlist">{% for e in s.rulo_no.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</p>
+      <div class="iki-sutun-form">{% include "uretim/_alan.html" with alan=s.en %}{% include "uretim/_alan.html" with alan=s.boy %}</div>
+      <p class="soluk satir-m2" style="margin:0"></p>
+    </div>
+    {% endfor %}
+    <button type="button" class="btn ikincil" id="malzeme-ekle" style="width:100%">+ Malzeme ekle</button>
+    <p id="kesim-m2" style="font-weight:600;margin:8px 0"></p>
+    </div>
     {% endif %}
     {% include "uretim/_alan.html" with alan=form.aciklama %}
     {% if form.fire_m2 %}
@@ -41,7 +58,7 @@
     <div class="iki-sutun-form">{% include "uretim/_alan.html" with alan=form.cikis_en %}{% include "uretim/_alan.html" with alan=form.cikis_boy %}</div>
     {% include "uretim/_alan.html" with alan=form.fire_m2 %}
     {% endif %}
-    <h2 style="margin-top:20px">Kullanılan malzemeler <span class="soluk" style="font-weight:normal;font-size:14px">(varsa)</span></h2>
+    <h2 style="margin-top:20px">Yardımcı malzemeler <span class="soluk" style="font-weight:normal;font-size:14px">(iplik, kimyasal, astar… varsa)</span></h2>
     <p class="soluk">Bu aşamada kimyasal, iplik, astar vb. kullandıysanız seçip miktarını girin; stoktan düşülür.</p>
     {{ malzemeler.management_form }}
     {% for m in malzemeler %}
@@ -67,13 +84,42 @@
 <style>.iki-sutun-form { display:grid; grid-template-columns:1fr 1fr; gap:10px; }</style>
 <script>
 (function () {
-  // Kullanılan en × boy → m²
-  const en = document.getElementById("id_kesim_en"), boy = document.getElementById("id_kesim_boy");
-  const yaz = () => {
-    const e = parseFloat((en.value || "").replace(",", ".")), b = parseFloat((boy.value || "").replace(",", "."));
-    document.getElementById("kesim-m2").textContent = e > 0 && b > 0 ? `= ${(e * b / 10000).toFixed(2).replace(".", ",")} m² stoktan düşülecek` : "";
-  };
-  if (en && boy) { en.addEventListener("input", yaz); boy.addEventListener("input", yaz); yaz(); }
+  // Malzeme satırları: her satırın m²'si + toplam; "+ Malzeme ekle" sıradaki gizli satırı açar, ✕ satırı boşaltıp gizler
+  const kutu = document.getElementById("malzemeler-kutu");
+  if (!kutu) return;
+  const sayi = (v) => parseFloat((v || "").replace(",", "."));
+  const satirlar = () => [...kutu.querySelectorAll(".kesim-satir")];
+  const metin = (x) => x.toFixed(2).replace(".", ",");
+  function hesapla() {
+    let toplam = 0, dolu = 0;
+    satirlar().forEach((s) => {
+      const k = s.querySelectorAll("input[name^=kesim_]");
+      const e = sayi(k[0].value), b = sayi(k[1].value);
+      const m2 = e > 0 && b > 0 ? e * b / 10000 : 0;
+      s.querySelector(".satir-m2").textContent = m2 ? `= ${metin(m2)} m²` : "";
+      if (m2) { toplam += m2; dolu++; }
+    });
+    document.getElementById("kesim-m2").textContent = toplam
+      ? (dolu > 1 ? `Toplam ${dolu} malzeme, ${metin(toplam)} m² stoktan düşülecek` : `= ${metin(toplam)} m² stoktan düşülecek`) : "";
+    const gizli = satirlar().filter((s) => s.hidden);
+    document.getElementById("malzeme-ekle").hidden = !gizli.length;
+  }
+  kutu.addEventListener("input", hesapla);
+  document.getElementById("malzeme-ekle").addEventListener("click", () => {
+    const s = satirlar().find((x) => x.hidden);
+    if (s) { s.hidden = false; s.querySelector("select").focus(); }
+    hesapla();
+  });
+  kutu.addEventListener("click", (e) => {
+    const sil = e.target.closest(".satir-sil");
+    if (!sil) return;
+    const s = sil.closest(".kesim-satir");
+    s.querySelectorAll("input").forEach((i) => { i.value = ""; });
+    s.querySelectorAll("select").forEach((i) => { i.value = ""; });
+    s.hidden = true;
+    hesapla();
+  });
+  hesapla();
 })();
 (function () {
   // Malzeme etiketindeki QR okutulunca o satırdaki listeden malzeme seçilir.
@@ -82,16 +128,16 @@
   let tarayici = null;
   function kapat() { if (tarayici) tarayici.durdur(); tarayici = null; perde.hidden = true; }
   document.getElementById("tarama-kapat").addEventListener("click", kapat);
-  const ruloDugme = document.getElementById("rulo-tara");
-  if (ruloDugme) ruloDugme.addEventListener("click", () => {
+  document.querySelectorAll(".rulo-tara").forEach((dugme) => dugme.addEventListener("click", () => {
+    const kutu = dugme.parentElement.querySelector("input");
     perde.hidden = false;
     document.getElementById("kamera-kap").hidden = false;
     tarayici = QrTarayici.baslat({
       video: document.getElementById("kamera"), durum: document.getElementById("tarama-durum"),
       kap: document.getElementById("kamera-kap"),
-      onKod: (kod) => { document.getElementById("id_rulo_no").value = kod; kapat(); },
+      onKod: (kod) => { kutu.value = kod; kapat(); kutu.dispatchEvent(new Event("input", { bubbles: true })); },
     });
-  });
+  }));
   document.querySelectorAll(".malzeme-tara").forEach((dugme) => dugme.addEventListener("click", () => {
     const secim = dugme.parentElement.querySelector("select");
     const durum = document.getElementById("tarama-durum");

@@ -1,7 +1,9 @@
 {% with U=user %}
-<div id="istasyon-parca" data-geciken="{{ geciken }}" data-anahtarlar="{% for k in gelen %}{{ k.anahtar }} {% endfor %}">
-  <div class="kart">
-    <h2>📥 Gelen işler ({{ gelen|length }})</h2>
+<div id="istasyon-parca" data-geciken="{{ geciken }}" data-anahtarlar="{% for k in gelen %}{{ k.anahtar }} {% endfor %}"
+     data-gelen="{{ gelen|length }}" data-calisilan="{{ calisilan|length }}"
+     data-gelen-geciken="{{ gelen_geciken }}" data-calisilan-geciken="{{ calisilan_geciken }}">
+  <div class="kart ist-liste" id="liste-gelen">
+    <h2>📥 Bekleyen işler ({{ gelen|length }})</h2>
     {% for k in gelen %}
     <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}" data-anahtar="{{ k.anahtar }}">
       <div class="ist-bilgi">
@@ -21,9 +23,9 @@
       </div>
       {% if not U.is_staff or U.is_superuser %}
         {% if k.tur == "siparis" %}
-          <a class="btn" href="{% url 'yeni_is' %}?siparis={{ k.siparis.pk }}&amp;geri={{ ekran_adresi|urlencode }}">🆕 İşi başlat</a>
+          <a class="btn" href="{% url 'yeni_is' %}?siparis={{ k.siparis.pk }}&amp;geri={{ ekran_devam_adresi|urlencode }}">🆕 İşi başlat</a>
         {% else %}
-          <a class="btn" href="{% url 'islem_baslat' %}?lot={{ k.lot.pk }}&amp;geri={{ ekran_adresi|urlencode }}">▶ Başlat</a>
+          <a class="btn" href="{% url 'islem_baslat' %}?lot={{ k.lot.pk }}&amp;geri={{ ekran_devam_adresi|urlencode }}">▶ Başlat</a>
         {% endif %}
       {% endif %}
     </div>
@@ -32,8 +34,8 @@
     {% endfor %}
   </div>
 
-  <div class="kart">
-    <h2>🔧 Bu istasyonda çalışılan ({{ calisilan|length }})</h2>
+  <div class="kart ist-liste" id="liste-calisilan">
+    <h2>🔧 Devam eden işler ({{ calisilan|length }})</h2>
     {% for k in calisilan %}
     <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}">
       <div class="ist-bilgi">

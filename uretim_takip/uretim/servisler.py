@@ -258,12 +258,15 @@ def _bol(islem, adet):
     return kopya
 
 
+@transaction.atomic
 def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", malzemeler=(), kesim=None, cikis_olcu=None,
                 fire_m2=None, biten_adet=None):
     """Aşamayı bitirir. malzemeler: [(malzeme, miktar), ...] bu aşamada kullanılan sarf malzemeleri.
 
-    kesim: ilk istasyonda kullanılan ana malzeme {"m2", "rulo" ya da "cesit"}; stoktan düşülür, işin başlangıç m²'si
-    kullanılan miktar, çıkışı siparişin net m²'si olur (aradaki fark fire). Çıkış verilmezse giriş aynen geçer.
+    kesim: ilk istasyonda kullanılan ana malzemeler [{"m2", "rulo" ya da "cesit"}, ...] (tek sözlük de olur); her biri
+    stoktan düşülür (biri yetmezse hiçbiri düşülmez), işin başlangıç m²'si kullanılanların toplamı, çıkışı işin net
+    m²'si olur (aradaki fark fire). Çıkış verilmezse giriş aynen geçer. Bölünmüş işin kalan halıları bitirilirken
+    girilen malzeme (ek malzeme) yalnız o işe yazılır.
     """
     islem = IslemKaydi.objects.select_for_update().select_related("lot", "asama", "lot__siparis").get(pk=islem.pk)
     if islem.bitis is not None:
@@ -286,18 +289,30 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
     if (kesim is None and ilk_adim_mi(islem) and SistemAyari.yukle().stok_zorunlu
             and not malzeme_girildi(islem.lot)):
         raise ValidationError("Kullanılan malzemeyi ve ölçüsünü girin (stok okutma zorunlu).")
-    if kesim is not None:
-        islem.stok_dusumu = [*malzeme_dus(lot=islem.lot, m2=kesim["m2"], rulo=kesim.get("rulo"), cesit=kesim.get("cesit")),
-                             ["baslangic", str(islem.lot.baslangic_m2)]]
+    if isinstance(kesim, dict):
+        kesim = [kesim]
+    if kesim:
+        dusulen = []
+        for k in kesim:
+            try:
+                dusulen += malzeme_dus(lot=islem.lot, m2=k["m2"], rulo=k.get("rulo"), cesit=k.get("cesit"))
+            except ValidationError as hata:
+                if len(kesim) > 1 and k.get("satir"):
+                    raise ValidationError(f"{k['satir']}. malzeme: {' '.join(hata.messages)}")
+                raise
+        islem.stok_dusumu = [*dusulen, ["baslangic", str(islem.lot.baslangic_m2)]]
         lot = islem.lot
         kullanilan = sum((k.m2 for k in lot.kaynaklar.all()), Decimal(0))
         if lot.olculer.exists():
             net = lot.net_m2
         elif lot.kalem_id:
-            net = lot.kalem.m2
+            # adet alanından önceki işlerde adet 1 ama satırın bütün halıları; bölünmüş/adetli işte halı sayısı kadar
+            net = lot.kalem.tek_m2 * lot.adet if (lot.adet > 1 or lot.ana_lot_id) else lot.kalem.m2
         else:
             net = lot.siparis.tek_m2 if lot.siparis_id else None
-            if net and lot.siparis.lotlar.count() == 1:
+            if net and (lot.adet > 1 or lot.ana_lot_id):
+                net = net * lot.adet
+            elif net and lot.siparis.lotlar.count() == 1:
                 net = net * (lot.siparis.adet or 1)
         lot.baslangic_m2 = kullanilan
         lot.save(update_fields=["baslangic_m2"])

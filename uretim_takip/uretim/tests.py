@@ -2230,7 +2230,10 @@ class BirinciGuncellemeTesti(TemelVeri):
         self.assertEqual((lot.olcu_metni, lot.adet, lot.durum), ("160 × 230 cm", 1, "islemde"))
         self.assertEqual(giden.islemler.get().cikis_m2, Decimal("9.68"))  # bitenlerin net m²'si; fark fire
         kalan = lot.islemler.get(bitis__isnull=True)
-        self.assertNotContains(self.client.get(reverse("islem_bitir", args=[kalan.pk])), "rulodan ne kadar kullandığınızı")
+        # kalan halılar bitirilirken malzeme yeniden zorunlu değil; isteğe bağlı "Ek malzeme" sorulur
+        sayfa = self.client.get(reverse("islem_bitir", args=[kalan.pk]))
+        self.assertContains(sayfa, "Ek malzeme")
+        self.assertNotContains(sayfa, "Kullanılan malzeme <")
         servisler.islem_bitir(islem=kalan, personel=self.ayse)
         lot.refresh_from_db()
         self.assertEqual((lot.durum, lot.bolunenler.count()), ("bekliyor", 1))
@@ -3193,3 +3196,197 @@ class DeriSatisiTesti(TemelVeri):
         self.client.force_login(self.tablet)
         self.assertEqual(self.client.get(reverse("satis_yeni")).status_code, 403)
         self.assertEqual(self.client.get(reverse("satis_listesi")).status_code, 403)
+
+
+class CokMalzemeTesti(TemelVeri):
+    """Lazerde bir işe birden çok malzeme (satır satır); hepsi ya düşülür ya hiçbiri; kalan halılarda ek malzeme."""
+
+    def setUp(self):
+        from .models import HesapAyari
+        self.lazer = Asama.objects.get(ad="Lazer kesim 1")
+        self.zigzag = Asama.objects.get(ad="Zig-zag")
+        self.telefon = get_user_model().objects.create_user("lazerci", password="x")
+        HesapAyari.objects.create(kullanici=self.telefon, personel=self.ahmet, istasyon=self.lazer)
+        t, tur = self.ham.tedarikci, self.ham.deri_turu
+        self.krem = HamDeriGirisi.objects.create(tedarikci=t, deri_turu=tur, renk="Krem", kg=0, m2=Decimal("10"))
+        self.altin = HamDeriGirisi.objects.create(tedarikci=t, deri_turu=tur, renk="Altın", kg=0, m2=Decimal("2"))
+        self.siyah = HamDeriGirisi.objects.create(tedarikci=t, deri_turu=tur, renk="Siyah", kg=0, m2=Decimal("8"))
+        self.sp = Siparis.objects.create(musteri=self.siparis.musteri, urun="Halı", en_cm=Decimal("100"),
+                                         boy_cm=Decimal("200"), teslim_tarihi=timezone.localdate())
+        self.client.force_login(self.telefon)
+
+    def _is(self, sp=None):
+        return servisler.yeni_is_baslat(personel=self.ahmet, siparis=sp or self.sp, asama=self.lazer, kaynaklar=[])
+
+    def _bitir(self, islem, veri):
+        return self.client.post(reverse("islem_bitir", args=[islem.pk]), veri)
+
+    def test_ekranda_satirlar_ve_ekle_dugmesi(self):
+        sayfa = self.client.get(reverse("islem_bitir", args=[self._is().pk]))
+        self.assertContains(sayfa, 'name="kesim_en"')
+        self.assertContains(sayfa, 'name="kesim_en_8"')
+        self.assertContains(sayfa, 'name="rulo_no_2"')
+        self.assertContains(sayfa, "+ Malzeme ekle")
+        self.assertContains(sayfa, "Yardımcı malzemeler")
+        self.assertContains(sayfa, 'class="kesim-satir kart" data-no="2"', html=False)
+        # yalnız 1. satır açık, öteki satırlar gizli
+        self.assertEqual(sayfa.content.decode().count('class="kesim-satir kart"'), 8)
+        self.assertEqual(sayfa.content.decode().count("hidden>\n      <div style=\"display:flex"), 7)
+
+    def test_iki_farkli_malzeme_ikisi_de_duser_fire_toplamdan(self):
+        islem = self._is()
+        yanit = self._bitir(islem, {
+            "cesit": servisler.cesit_anahtari(self.krem), "kesim_en": "140", "kesim_boy": "160",  # 2,24 m²
+            "rulo_no_2": self.altin.lot_no, "kesim_en_2": "50", "kesim_boy_2": "40",  # 0,20 m²
+            "cesit_3": "", "kesim_en_3": "", "kesim_boy_3": ""})  # boş satır sayılmaz
+        self.assertRedirects(yanit, reverse("pano"))
+        islem.refresh_from_db()
+        kaynak = {k.ham_deri_id: k.m2 for k in islem.lot.kaynaklar.all()}
+        self.assertEqual(kaynak, {self.krem.pk: Decimal("2.24"), self.altin.pk: Decimal("0.20")})
+        self.assertEqual((self.krem.kalan_m2, self.altin.kalan_m2), (Decimal("7.76"), Decimal("1.80")))
+        # giriş = iki malzemenin toplamı, çıkış = siparişin net m²'si → fire 0,44
+        self.assertEqual((islem.giris_m2, islem.cikis_m2), (Decimal("2.44"), Decimal("2.00")))
+        islem.lot.refresh_from_db()
+        self.assertEqual(islem.lot.baslangic_m2, Decimal("2.44"))
+        self.assertEqual(len([k for k in islem.stok_dusumu if k[0] != "baslangic"]), 2)
+        # iş sayfasında iki stok da görünür
+        self.assertIn(self.krem.lot_no, islem.lot.kaynak_listesi)
+        self.assertIn(self.altin.lot_no, islem.lot.kaynak_listesi)
+
+    def test_ayni_rulo_iki_satirda_toplanir(self):
+        islem = self._is()
+        self._bitir(islem, {"rulo_no": self.siyah.lot_no, "kesim_en": "100", "kesim_boy": "100",
+                            "rulo_no_2": self.siyah.lot_no.lower(), "kesim_en_2": "100", "kesim_boy_2": "50"})
+        self.assertEqual(islem.lot.kaynaklar.get().m2, Decimal("1.50"))
+        self.assertEqual(self.siyah.kalan_m2, Decimal("6.50"))
+
+    def test_bir_satir_yetmezse_hicbiri_dusulmez(self):
+        islem = self._is()
+        yanit = self._bitir(islem, {"rulo_no": self.krem.lot_no, "kesim_en": "100", "kesim_boy": "100",
+                                    "rulo_no_2": self.altin.lot_no, "kesim_en_2": "200", "kesim_boy_2": "200"})  # 4 m² > 2
+        self.assertEqual(yanit.status_code, 200)
+        self.assertContains(yanit, "2. malzeme:")
+        islem.refresh_from_db()
+        self.assertIsNone(islem.bitis)
+        self.assertFalse(islem.lot.kaynaklar.exists())
+        self.assertEqual((self.krem.kalan_m2, self.altin.kalan_m2), (Decimal("10"), Decimal("2")))
+        # girilenler kaybolmaz: 2. satır açık kalır
+        self.assertContains(yanit, f'value="{self.altin.lot_no}"')
+
+    def test_eksik_satir_hangi_satirsa_orada_hata(self):
+        islem = self._is()
+        yanit = self._bitir(islem, {"rulo_no": self.krem.lot_no, "kesim_en": "100", "kesim_boy": "100",
+                                    "cesit_2": servisler.cesit_anahtari(self.siyah), "kesim_en_2": "90"})
+        self.assertEqual(yanit.status_code, 200)
+        form = yanit.context["form"]
+        self.assertEqual(form.errors.get("kesim_boy_2"), ["Boyu yazın."])
+        self.assertNotIn("kesim_boy", form.errors)
+        yanit = self._bitir(islem, {"rulo_no_3": "BNN-1999-9999", "kesim_en_3": "10", "kesim_boy_3": "10"})
+        self.assertIn("rulo_no_3", yanit.context["form"].errors)
+        islem.refresh_from_db()
+        self.assertIsNone(islem.bitis)
+        self.assertFalse(islem.lot.kaynaklar.exists())
+
+    def test_stok_zorunluyken_en_az_bir_malzeme(self):
+        from .models import SistemAyari
+        islem = self._is()
+        ayar = SistemAyari.yukle()
+        ayar.stok_zorunlu = True
+        ayar.save()
+        self.assertEqual(self._bitir(islem, {}).status_code, 200)
+        self.assertEqual(self._bitir(islem, {"rulo_no_2": self.siyah.lot_no, "kesim_en_2": "50", "kesim_boy_2": "50"})
+                         .status_code, 302)
+
+    def test_geri_al_butun_malzemeleri_stoga_dondurur(self):
+        islem = self._is()
+        self._bitir(islem, {"rulo_no": self.krem.lot_no, "kesim_en": "100", "kesim_boy": "100",
+                            "rulo_no_2": self.altin.lot_no, "kesim_en_2": "50", "kesim_boy_2": "50"})
+        yonetici = get_user_model().objects.create_superuser("y_cm", password="x")
+        servisler.islem_geri_al(islem=islem, kullanici=yonetici)
+        islem.refresh_from_db()
+        self.assertIsNone(islem.bitis)
+        self.assertFalse(islem.lot.kaynaklar.exists())
+        self.assertEqual((self.krem.kalan_m2, self.altin.kalan_m2), (Decimal("10"), Decimal("2")))
+
+    def test_kalan_halilarda_ek_malzeme(self):
+        from .models import SistemAyari
+        ayar = SistemAyari.yukle()
+        ayar.stok_zorunlu = True
+        ayar.save()
+        sp = Siparis.objects.create(musteri=self.siparis.musteri, urun="Üçlü", en_cm=Decimal("100"),
+                                    boy_cm=Decimal("100"), adet=3, teslim_tarihi=timezone.localdate())
+        lot = UretimLotu.objects.create(siparis=sp, adet=3, baslangic_kg=0, baslangic_m2=Decimal("3"))
+        islem = servisler.islem_baslat(lot=lot, asama=self.lazer, personel=self.ahmet)
+        # 1 halı bitti, malzemesi girildi (1,2 m²)
+        yanit = self._bitir(islem, {"biten_adet": "1", "rulo_no": self.krem.lot_no, "kesim_en": "100",
+                                    "kesim_boy": "120"})
+        self.assertRedirects(yanit, reverse("pano"))
+        giden = lot.bolunenler.get()
+        self.assertEqual(giden.kaynaklar.get().m2, Decimal("1.20"))
+        self.assertEqual(giden.islemler.get().cikis_m2, Decimal("1.00"))  # 1 halının net m²'si
+        kalan = lot.islemler.get(bitis__isnull=True)
+        sayfa = self.client.get(reverse("islem_bitir", args=[kalan.pk]))
+        self.assertContains(sayfa, "Ek malzeme")
+        self.assertFalse(sayfa.context["form"].stok_zorunlu)
+        # kalan 2 halı: ek malzeme 2,5 m² (iki satır) → yalnız bu işe yazılır, fire = 2,5 − 2
+        yanit = self._bitir(kalan, {"rulo_no": self.krem.lot_no, "kesim_en": "100", "kesim_boy": "150",
+                                    "rulo_no_2": self.siyah.lot_no, "kesim_en_2": "100", "kesim_boy_2": "100"})
+        self.assertRedirects(yanit, reverse("pano"))
+        kalan.refresh_from_db()
+        self.assertEqual({k.ham_deri_id: k.m2 for k in lot.kaynaklar.all()},
+                         {self.krem.pk: Decimal("1.50"), self.siyah.pk: Decimal("1.00")})
+        self.assertEqual((kalan.giris_m2, kalan.cikis_m2), (Decimal("2.50"), Decimal("2.00")))
+        self.assertEqual(self.krem.kalan_m2, Decimal("7.30"))
+        # ek malzemesiz de bitirilebilir (stok zorunlu olsa bile)
+        lot2 = UretimLotu.objects.create(siparis=sp, adet=2, baslangic_kg=0, baslangic_m2=Decimal("2"))
+        i2 = servisler.islem_baslat(lot=lot2, asama=self.lazer, personel=self.ahmet)
+        self._bitir(i2, {"biten_adet": "1", "rulo_no": self.krem.lot_no, "kesim_en": "100", "kesim_boy": "100"})
+        k2 = lot2.islemler.get(bitis__isnull=True)
+        self.assertRedirects(self._bitir(k2, {}), reverse("pano"))
+
+    def test_sonraki_istasyonda_malzeme_sorulmaz(self):
+        islem = self._is()
+        self._bitir(islem, {"rulo_no": self.krem.lot_no, "kesim_en": "100", "kesim_boy": "200"})
+        i2 = servisler.islem_baslat(lot=islem.lot, asama=self.zigzag, personel=self.ahmet)
+        sayfa = self.client.get(reverse("islem_bitir", args=[i2.pk]))
+        self.assertNotContains(sayfa, 'name="kesim_en"')
+        self.assertNotContains(sayfa, "Ek malzeme")
+
+
+class IstasyonSekmeTesti(TemelVeri):
+    """İstasyon ekranında 🔧 Devam eden / 📥 Bekleyen düğmeleri: sayılar, ilk seçim, başlatınca Devam eden'e dönüş."""
+
+    def setUp(self):
+        self.lazer = Asama.objects.get(ad="Lazer kesim 1")
+        self.client.force_login(get_user_model().objects.create_user("tablet_sk", password="x"))
+
+    def test_bekleyen_varken_devam_eden_yoksa_bekleyen_acilir(self):
+        ekran = self.client.get(reverse("istasyon_ekrani", args=[self.lazer.pk]))
+        self.assertEqual(ekran.context["sekme"], "gelen")
+        self.assertContains(ekran, 'id="sekmeli" data-sekme="gelen"')
+        self.assertContains(ekran, '<span class="sekme-sayi" id="sayi-gelen">1</span>', html=False)
+        self.assertContains(ekran, '<span class="sekme-sayi" id="sayi-calisilan">0</span>', html=False)
+        # işi başlat bağlantısı ekrana "Devam eden" ile döner
+        self.assertContains(ekran, "geri=/istasyon/%d/%%3Fsekme%%3Dcalisilan" % self.lazer.pk)
+
+    def test_devam_eden_is_varsa_ilk_acilista_o_liste(self):
+        servisler.islem_baslat(lot=self.yeni_lot(siparis=self.siparis), asama=self.lazer, personel=self.ahmet)
+        ekran = self.client.get(reverse("istasyon_ekrani", args=[self.lazer.pk]))
+        self.assertEqual(ekran.context["sekme"], "calisilan")
+        self.assertContains(ekran, '<span class="sekme-sayi" id="sayi-calisilan">1</span>', html=False)
+        self.assertContains(ekran, "Devam eden işler (1)")
+        # adresle istenen liste
+        self.assertEqual(self.client.get(reverse("istasyon_ekrani", args=[self.lazer.pk]) + "?sekme=gelen")
+                         .context["sekme"], "gelen")
+        self.assertEqual(self.client.get(reverse("istasyon_ekrani", args=[self.lazer.pk]) + "?sekme=xyz")
+                         .context["sekme"], "calisilan")
+
+    def test_yenilenen_parca_sayilari_ve_gecikmeyi_tasir(self):
+        self.lazer.azami_bekleme_saat = Decimal("1")
+        self.lazer.save()
+        Siparis.objects.filter(pk=self.siparis.pk).update(olusturma=timezone.now() - timedelta(hours=3))
+        parca = self.client.get(reverse("istasyon_parca", args=[self.lazer.pk]))
+        self.assertContains(parca, 'data-gelen="1" data-calisilan="0"')
+        self.assertContains(parca, 'data-gelen-geciken="1" data-calisilan-geciken="0"')
+        self.assertContains(parca, 'id="liste-gelen"')
+        self.assertContains(parca, 'id="liste-calisilan"')
