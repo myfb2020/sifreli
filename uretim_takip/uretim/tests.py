@@ -3416,3 +3416,132 @@ class IstasyonSekmeTesti(TemelVeri):
         self.assertContains(parca, 'data-gelen-geciken="1" data-calisilan-geciken="0"')
         self.assertContains(parca, 'id="liste-gelen"')
         self.assertContains(parca, 'id="liste-calisilan"')
+
+
+class TopluStokTesti(TemelVeri):
+    """Rulo malzemelerde (Rono, keçe, süet, lamine…) aynı tür + renk + model + firmadan gelen mal eskisine eklenir;
+    deriler ayrı kalır; eski kayıtlar birleşir, eski etiketler çalışır."""
+
+    def setUp(self):
+        self.ofis = get_user_model().objects.create_superuser("ofis_ts", password="x")
+        self.client.force_login(self.ofis)
+        self.rono = DeriTuru.objects.get(ad="Rono")
+        self.firma_a = Tedarikci.objects.create(ad="Firma A")
+        self.firma_b = Tedarikci.objects.create(ad="Firma B")
+
+    def _gir(self, tur=None, firma=None, renk="RN03 Krem", miktar="20", **ek):
+        veri = {"tedarikci": (firma or self.firma_a).pk, "tarih": "2026-11-19", "deri_turu": (tur or self.rono).pk,
+                "renk": renk, "model": "", "kalite": "K", "giris_birimi": "mtul", "en_cm": "140",
+                "giris_miktari": miktar, **ek}
+        return self.client.post(reverse("stok_yeni"), veri, follow=True)
+
+    def test_turler_isaretli(self):
+        toplu = set(DeriTuru.objects.filter(toplu=True).values_list("ad", flat=True))
+        self.assertTrue({"Rono", "Suni deri", "Keçe", "Süet", "Halı tabanı (Keçe+Süet)"} <= toplu)
+        self.assertTrue(any(a.startswith("3'lü lamine") for a in toplu))
+        for deri in ("Kuzu", "Koyun", "Dana / inek", "Tavşan"):
+            self.assertNotIn(deri, toplu)
+
+    def test_ayni_renk_ayni_firma_eskisine_eklenir(self):
+        self._gir()  # 140 cm × 20 m = 28 m²
+        ilk = HamDeriGirisi.objects.get(deri_turu=self.rono)
+        self.assertEqual(ilk.gelisler.count(), 1)
+        yanit = self._gir(renk=" rn03 krem ", miktar="10")  # büyük/küçük harf ve boşluk farkı aynı sayılır
+        self.assertEqual(HamDeriGirisi.objects.filter(deri_turu=self.rono).count(), 1)
+        ilk.refresh_from_db()
+        self.assertEqual((ilk.m2, ilk.kalan_m2), (Decimal("42.00"), Decimal("42.00")))
+        self.assertEqual(ilk.gelisler.count(), 2)
+        self.assertContains(yanit, "28 m² vardı, 14 m² eklendi → 42 m²")
+        self.assertContains(yanit, f"aynı etiketi ({ilk.lot_no})")
+        self.assertContains(yanit, "Gelişler (2)")
+        self.assertEqual(ilk.giris_metni, "2 gelişte")
+
+    def test_baska_firma_baska_renk_ayri_kayit(self):
+        self._gir()
+        self._gir(firma=self.firma_b)
+        self._gir(renk="RN06 Koyu kahve")
+        self.assertEqual(HamDeriGirisi.objects.filter(deri_turu=self.rono).count(), 3)
+        # çeşit çeşit görünümde aynı renk iki firma tek satır, toplam
+        sayfa = self.client.get(reverse("stok_listesi"))
+        cesitler = {c["ad"]: c for c in sayfa.context["cesitler"]}
+        krem = cesitler["Rono · RN03 Krem"]
+        self.assertEqual((len(krem["satirlar"]), krem["kalan_m2"], krem["firmalar"]),
+                         (2, Decimal("56.00"), ["Firma A", "Firma B"]))
+        self.assertContains(self.client.get(reverse("stok_listesi") + "?gorunum=tek"), "Stok lotu")
+
+    def test_deri_her_zaman_ayri(self):
+        kuzu = DeriTuru.objects.get(ad="Kuzu")
+        once = HamDeriGirisi.objects.filter(deri_turu=kuzu).count()
+        self._gir(tur=kuzu, renk="Krem", kalite="A")
+        self._gir(tur=kuzu, renk="Krem", kalite="A")
+        self.assertEqual(HamDeriGirisi.objects.filter(deri_turu=kuzu).count(), once + 2)
+        self.assertFalse(HamDeriGirisi.objects.filter(deri_turu=kuzu).last().gelisler.exists())
+
+    def test_giris_ekrani_ust_uste_eklenecegini_bilir(self):
+        self._gir()
+        sayfa = self.client.get(reverse("stok_yeni"))
+        bilgi = sayfa.context["toplu"]
+        self.assertIn(self.rono.pk, bilgi["turler"])
+        anahtar = f"{self.rono.pk}|rn03 krem||{self.firma_a.pk}"
+        self.assertEqual(bilgi["kayitlar"][anahtar]["kalan"], "28")
+        self.assertContains(sayfa, 'id="toplu-bilgi"')
+
+    def test_fasondan_gelen_eskisine_eklenir_fire_dogru(self):
+        lamine = DeriTuru.objects.get(ad__startswith="3'lü lamine (Keçe+Süet+Rono")
+        keceler = []
+        for ad in ("Keçe", "Süet", "Rono"):
+            keceler.append(HamDeriGirisi.objects.create(tedarikci=self.firma_a, deri_turu=DeriTuru.objects.get(ad=ad),
+                                                        renk="Bej", kg=0, m2=Decimal("50")))
+        fasoncu = Tedarikci.objects.create(ad="Presçi")
+        sonuc = []
+        for m2 in ("10", "9"):
+            fason = servisler.fasona_gonder(fasoncu=fasoncu, hedef_tur=lamine,
+                                            kaynaklar=[(h, Decimal(0), Decimal(m2)) for h in keceler])
+            sonuc.append(servisler.fason_teslim_al(fason=fason, m2=Decimal(m2) - Decimal("0.5"), renk="Bej", model=""))
+            fason.refresh_from_db()
+            self.assertEqual(fason.fire_m2, Decimal("0.5"))  # fire bu fasonun miktarından, toplamdan değil
+        self.assertEqual(sonuc[0].pk, sonuc[1].pk)
+        lot = sonuc[0]
+        lot.refresh_from_db()
+        self.assertEqual(lot.m2, Decimal("18.0"))
+        self.assertEqual([g.kaynak for g in lot.gelisler.all()], ["fason", "fason"])
+        self.assertEqual(lot.fason_kaynaklari.count(), 2)
+        self.assertContains(self.client.get(reverse("stok_detay", args=[lot.pk])), "Gelişler (2)")
+
+    def test_eski_kayitlar_birlesir_eski_etiket_calisir(self):
+        from . import stok_birlestir
+        from .models import DeriDuzeltme, FasonIsi, IslemKaydi, LotKaynagi, StokGelisi, stok_bul
+        a = HamDeriGirisi.objects.create(tedarikci=self.firma_a, deri_turu=self.rono, renk="RN03 Krem", kg=0,
+                                         m2=Decimal("40"), tarih=timezone.localdate() - timedelta(days=10))
+        b = HamDeriGirisi.objects.create(tedarikci=self.firma_a, deri_turu=self.rono, renk="rn03 krem", kg=0,
+                                         m2=Decimal("20"))
+        c = HamDeriGirisi.objects.create(tedarikci=self.firma_b, deri_turu=self.rono, renk="RN03 Krem", kg=0,
+                                         m2=Decimal("30"))
+        lot = self.yeni_lot()
+        LotKaynagi.objects.create(uretim_lotu=lot, ham_deri=a, kg=0, m2=Decimal("3"))
+        LotKaynagi.objects.create(uretim_lotu=lot, ham_deri=b, kg=0, m2=Decimal("2"))
+        DeriDuzeltme.objects.create(ham_deri=b, neden="sayim", kg=0, m2=Decimal("-1"))
+        islem = servisler.islem_baslat(lot=lot, asama=Asama.objects.get(ad="Lazer kesim 1"), personel=self.ahmet)
+        IslemKaydi.objects.filter(pk=islem.pk).update(stok_dusumu=[[b.pk, "2"]])
+        M = {"DeriTuru": DeriTuru, "HamDeriGirisi": HamDeriGirisi, "StokGelisi": StokGelisi,
+             "LotKaynagi": LotKaynagi, "DeriDuzeltme": DeriDuzeltme, "FasonIsi": FasonIsi, "IslemKaydi": IslemKaydi}
+        self.assertEqual(stok_birlestir.birlestir(M), 1)
+        self.assertFalse(HamDeriGirisi.objects.filter(pk=b.pk).exists())
+        a.refresh_from_db()
+        self.assertEqual((a.m2, a.kalan_m2), (Decimal("60.00"), Decimal("54.00")))
+        self.assertEqual(LotKaynagi.objects.get(uretim_lotu=lot, ham_deri=a).m2, Decimal("5.00"))
+        self.assertEqual(stok_bul(b.lot_no), a)  # rulodaki eski etiket birleşmiş kayda gider
+        self.assertEqual(IslemKaydi.objects.get(pk=islem.pk).stok_dusumu, [[a.pk, "2"]])
+        c.refresh_from_db()
+        self.assertEqual(c.m2, Decimal("30"))  # başka firma ayrı kalır
+        self.assertRedirects(self.client.get(reverse("qr_yonlendir", args=[b.lot_no])), reverse("stok_detay", args=[a.pk]))
+        self.assertEqual(stok_birlestir.birlestir(M), 0)  # ikinci kez çalışınca bir şey değişmez
+
+    def test_yeni_tur_acarken_sorulur(self):
+        sayfa = self.client.get(reverse("admin:uretim_derituru_add"))
+        self.assertContains(sayfa, "Gelen mal eskisine eklensin mi?")
+        yanit = self.client.post(reverse("admin:uretim_derituru_add"), {"ad": "Bienca", "toplu": ""})
+        self.assertEqual(yanit.status_code, 200)  # seçmeden kaydedilmez
+        self.assertFalse(DeriTuru.objects.filter(ad="Bienca").exists())
+        self.client.post(reverse("admin:uretim_derituru_add"), {"ad": "Bienca", "toplu": "1"})
+        self.assertTrue(DeriTuru.objects.get(ad="Bienca").toplu)

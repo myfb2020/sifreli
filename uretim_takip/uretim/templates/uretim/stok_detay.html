@@ -42,8 +42,9 @@
     <table>
       <tr><th>Tedarikçi</th><td>{{ stok.tedarikci }}</td></tr>
       <tr><th>Malzeme</th><td>{{ stok.cesit_metni }}{% if stok.kalite != 'K' %} · {{ stok.get_kalite_display }}{% endif %}</td></tr>
-      {% if stok.fason_kaynagi %}<tr><th>Fasondan geldi</th><td><a href="{% url 'fason_detay' stok.fason_kaynagi.pk %}">{{ stok.fason_kaynagi.no }}</a> · {% for lot, kg, m2 in stok.fason_kaynagi.gidenler %}<a href="{% url 'stok_detay' lot.pk %}">{{ lot.lot_no }}</a> ({{ lot.deri_turu }}){% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>{% endif %}
-      <tr><th>Giriş tarihi</th><td>{{ stok.tarih|date:"d.m.Y" }}</td></tr>
+      {% for f in stok.fason_kaynaklari.all %}<tr><th>Fasondan geldi</th><td><a href="{% url 'fason_detay' f.pk %}">{{ f.no }}</a> · {% for lot, kg, m2 in f.gidenler %}<a href="{% url 'stok_detay' lot.pk %}">{{ lot.lot_no }}</a> ({{ lot.deri_turu }}){% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>{% endfor %}
+      <tr><th>{% if gelisler|length > 1 %}İlk giriş{% else %}Giriş tarihi{% endif %}</th><td>{{ stok.tarih|date:"d.m.Y" }}</td></tr>
+      {% if stok.deri_turu.toplu %}<tr><th>Stok şekli</th><td>Gelen mal bu kaydın üstüne eklenir (aynı renk, model ve firma); bütün rulolarda aynı etiket.</td></tr>{% endif %}
       {% if stok.adet %}<tr><th>Adet</th><td>{{ stok.adet }} geldi · <b>{{ stok.kalan_adet }} kaldı</b>{% if stok.satilan_adet %} · {{ stok.satilan_adet }} satıldı{% endif %}</td></tr>{% endif %}
       {% if stok.notlar %}<tr><th>Not</th><td>{{ stok.notlar|linebreaksbr }}</td></tr>{% endif %}
     </table>
@@ -52,13 +53,32 @@
     <h2>Miktar</h2>
     <table>
       <tr><th></th><th class="sayi">kg</th><th class="sayi">m²</th></tr>
-      <tr><td>Giriş{% if stok.giris_metni %}<br><span class="soluk">{{ stok.giris_metni }} geldi</span>{% endif %}</td><td class="sayi">{{ stok.kg }}</td><td class="sayi">{{ stok.m2 }}</td></tr>
+      <tr><td>{% if gelisler|length > 1 %}Toplam gelen{% else %}Giriş{% endif %}{% if stok.giris_metni %}<br><span class="soluk">{{ stok.giris_metni }} geldi</span>{% endif %}</td><td class="sayi">{{ stok.kg }}</td><td class="sayi">{{ stok.m2 }}</td></tr>
       <tr><td>Üretime verilen</td><td class="sayi">{{ stok.kullanilan_kg }}</td><td class="sayi">{{ stok.kullanilan_m2 }}</td></tr>
       {% if duzeltmeler %}<tr><td>Düzeltmeler</td><td class="sayi">{{ stok.duzeltme_kg }}</td><td class="sayi">{{ stok.duzeltme_m2 }}</td></tr>{% endif %}
       <tr><td><b>Kalan</b></td><td class="sayi"><b>{{ stok.kalan_kg }}</b></td><td class="sayi"><b>{{ stok.kalan_m2 }}</b></td></tr>
     </table>
   </div>
 </div>
+
+{% if gelisler %}
+<div class="kart tablo-kap" id="gelisler">
+  <h2>Gelişler ({{ gelisler|length }})</h2>
+  <table>
+    <tr><th>Tarih</th><th>Firma</th><th>Gelen</th><th class="sayi">m²</th><th>Not</th></tr>
+    {% for g in gelisler %}
+    <tr>
+      <td>{{ g.tarih|date:"d.m.Y" }}</td>
+      <td>{{ g.tedarikci }}</td>
+      <td>{{ g.giris_metni|default:"–" }}{% if g.kaynak == "fason" and g.fason %} · <a href="{% url 'fason_detay' g.fason.pk %}">{{ g.fason.no }}</a>{% endif %}{% if g.eski_lot_no %} <span class="soluk">(eski etiket {{ g.eski_lot_no }})</span>{% endif %}</td>
+      <td class="sayi">{{ g.m2 }}</td>
+      <td>{{ g.notlar|default:"" }}</td>
+    </tr>
+    {% endfor %}
+    <tr><td colspan="3"><b>Toplam gelen</b></td><td class="sayi"><b>{{ stok.m2 }}</b></td><td></td></tr>
+  </table>
+</div>
+{% endif %}
 
 <div class="kart tablo-kap">
   <h2>Bu lottan alınan malzemeler</h2>

@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from . import servisler, uyarilar
 from .views import geri_don
 from .forms import KaynakFormSet, StokGirisForm, YeniIsForm
-from .models import HamDeriGirisi, Malzeme, SistemAyari, UretimLotu, hesap_personeli, stok_no
+from .models import DeriTuru, HamDeriGirisi, Malzeme, SistemAyari, UretimLotu, hesap_personeli, sayi_metni, stok_anahtari, stok_bul
 
 
 @login_required
@@ -65,7 +65,7 @@ def cesit_onerileri():
 @login_required
 def stok_bilgi(request, lot_no):
     """Yeni iş ekranında okutulan stok lotunun özeti."""
-    stok = HamDeriGirisi.objects.filter(lot_no=stok_no(lot_no)).select_related("deri_turu", "tedarikci").first()
+    stok = stok_bul(lot_no)
     if stok is None:
         malzeme = Malzeme.objects.filter(kod=lot_no.upper()).first()
         return JsonResponse({"bulundu": False, "malzeme": malzeme.ad if malzeme else None}, status=404)
@@ -96,7 +96,30 @@ def stok_listesi(request):
     ozet = sorted(uyarilar.deri_ozeti().values(), key=lambda o: o["tur"].ad)
     for o in ozet:
         o["azaldi"] = o["tur"].min_kg is not None and o["kalan_kg"] < o["tur"].min_kg
-    return render(request, "uretim/stok_listesi.html", {"satirlar": satirlar, "durum": durum, "ara": ara, "ozet": ozet})
+    gorunum = "tek" if request.GET.get("gorunum") == "tek" else "cesit"
+    return render(request, "uretim/stok_listesi.html", {
+        "satirlar": satirlar, "durum": durum, "ara": ara, "ozet": ozet, "gorunum": gorunum,
+        "cesitler": cesit_cesit(satirlar)})
+
+
+def cesit_cesit(satirlar):
+    """Stok satırlarını çeşide toplar: tür + renk + model (derilerde kalite de ayrı); altında firma firma kayıtlar."""
+    from .stok_birlestir import kucuk
+    gruplar = {}
+    for r in satirlar:
+        s = r["stok"]
+        a = (s.deri_turu_id, kucuk(s.renk), kucuk(s.model), "" if s.deri_turu.toplu else s.kalite)
+        g = gruplar.setdefault(a, {"ad": s.cesit_metni + ("" if s.deri_turu.toplu or s.kalite == "K"
+                                                         else f" · {s.get_kalite_display()} kalite"),
+                                   "tur": s.deri_turu.ad, "kalan_m2": 0, "kalan_kg": 0, "satirlar": [], "firmalar": []})
+        g["kalan_m2"] += r["kalan_m2"]
+        g["kalan_kg"] += r["kalan_kg"]
+        g["satirlar"].append(r)
+        if str(s.tedarikci) not in g["firmalar"]:
+            g["firmalar"].append(str(s.tedarikci))
+    for g in gruplar.values():
+        g["firmalar"].sort()
+    return sorted(gruplar.values(), key=lambda g: (g["tur"], g["ad"]))
 
 
 @login_required
@@ -107,8 +130,9 @@ def stok_detay(request, pk):
     aktif = list(stok.aktif_isler())
     for lot in aktif:
         lot.acik = lot.acik_islem
+    gelisler = list(stok.gelisler.select_related("tedarikci", "fason"))
     return render(request, "uretim/stok_detay.html",
-                  {"stok": stok, "aktif": aktif, "cikislar": cikislar, "duzeltmeler": duzeltmeler})
+                  {"stok": stok, "aktif": aktif, "cikislar": cikislar, "duzeltmeler": duzeltmeler, "gelisler": gelisler})
 
 
 @login_required
@@ -116,7 +140,23 @@ def stok_detay(request, pk):
 def stok_yeni(request):
     form = StokGirisForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        stok = form.save()
-        messages.success(request, f"{stok.lot_no} stok lotu kaydedildi. Etiketini basıp malın üzerine yapıştırın.")
+        stok, eklendi, onceki = servisler.stok_girisi(form.save(commit=False), kullanici=request.user)
+        if eklendi:
+            gelen = stok.gelisler.last().m2
+            messages.success(request, f"{stok.cesit_metni} ({stok.tedarikci}): stokta {sayi_metni(onceki)} m² vardı, "
+                                      f"{sayi_metni(gelen)} m² eklendi → {sayi_metni(stok.kalan_m2)} m². Yeni rulolara "
+                                      f"aynı etiketi ({stok.lot_no}) basın.")
+        else:
+            messages.success(request, f"{stok.lot_no} stok lotu kaydedildi. Etiketini basıp malın üzerine yapıştırın.")
         return redirect("stok_detay", pk=stok.pk)
-    return render(request, "uretim/stok_yeni.html", {"form": form, **cesit_onerileri()})
+    return render(request, "uretim/stok_yeni.html", {"form": form, "toplu": toplu_bilgisi(), **cesit_onerileri()})
+
+
+def toplu_bilgisi():
+    """Giriş ekranı için: üstüne eklenen türler ve var olan kayıtlar ({'turler': [id], 'kayitlar': {anahtar: …}})."""
+    turler = list(DeriTuru.objects.filter(toplu=True).values_list("pk", flat=True))
+    kayitlar = {}
+    for h in HamDeriGirisi.objects.filter(deri_turu_id__in=turler).select_related("deri_turu").order_by("-tarih"):
+        a = "|".join(str(p) for p in stok_anahtari(h.deri_turu_id, h.renk, h.model, h.tedarikci_id))
+        kayitlar.setdefault(a, {"no": h.lot_no, "kalan": sayi_metni(h.kalan_m2)})
+    return {"turler": turler, "kayitlar": kayitlar}

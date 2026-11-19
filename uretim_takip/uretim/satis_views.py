@@ -13,7 +13,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 
 from . import servisler
-from .models import DeriSatisi, HamDeriGirisi, Musteri, sayi_metni, stok_no
+from .models import DeriSatisi, HamDeriGirisi, Musteri, sayi_metni, stok_bul, stok_no
 
 
 def _tarih(deger):
@@ -98,7 +98,7 @@ def satis_yeni(request):
             hatalar.append("Müşteriyi seçin ya da yeni müşterinin adını yazın.")
         kalemler = []
         for s in satirlar:
-            stok = HamDeriGirisi.objects.filter(lot_no=s["stok_no"]).first()
+            stok = stok_bul(s["stok_no"])
             if stok is None:
                 hatalar.append(f"“{s['stok_no']}” numaralı stok bulunamadı.")
                 continue

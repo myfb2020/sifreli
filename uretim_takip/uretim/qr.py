@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from .models import HamDeriGirisi, Malzeme, UretimLotu, stok_no
+from .models import HamDeriGirisi, Malzeme, UretimLotu, stok_bul, stok_no
 
 
 def lot_adresi(request, lot):
@@ -41,7 +41,7 @@ def qr_yonlendir(request, lot_no):
     Eski sürümde işlere basılmış etiketler (UL-…) de çalışmaya devam eder.
     """
     lot_no = lot_no.upper()
-    stok = HamDeriGirisi.objects.filter(lot_no=stok_no(lot_no)).first()  # eski HD-… etiketleri de
+    stok = stok_bul(lot_no)  # eski HD-… ve başka kayda eklenmiş eski etiketler de
     if stok:
         return redirect("stok_detay", pk=stok.pk)
     malzeme = Malzeme.objects.filter(kod=lot_no).first()
@@ -61,7 +61,7 @@ def qr_tara(request):
     # Kamera kullanılamazsa numara elle girilir.
     lot_no = request.GET.get("lot_no", "").strip().upper()
     if lot_no:
-        if (HamDeriGirisi.objects.filter(lot_no=stok_no(lot_no)).exists() or Malzeme.objects.filter(kod=lot_no).exists()
+        if (stok_bul(lot_no) is not None or Malzeme.objects.filter(kod=lot_no).exists()
                 or UretimLotu.objects.filter(lot_no=lot_no).exists()):
             return redirect("qr_yonlendir", lot_no=lot_no)
         return render(request, "uretim/qr_tara.html", {"hata": f"“{lot_no}” numaralı stok lotu ya da malzeme bulunamadı.", "lot_no": lot_no})

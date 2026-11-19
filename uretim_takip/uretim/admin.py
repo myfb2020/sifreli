@@ -4,7 +4,7 @@ from django.utils.html import format_html
 
 from .models import (
     Asama, DeriDuzeltme, DeriTuru, FasonIsi, KatalogModeli, KatalogSerisi, LazerDeseni, Tasarim, HaliTuru, HamDeriGirisi, IslemKaydi, Makine, OturumKaydi, RotaAdimi, LotKaynagi, Malzeme, MalzemeHareketi, Musteri, Personel,
-    Siparis, Tedarikci, UretimLotu,
+    Siparis, StokGelisi, Tedarikci, UretimLotu,
     pin_dogrulayici,
 )
 
@@ -96,10 +96,45 @@ class PersonelAdmin(admin.ModelAdmin):
 admin.site.register([Tedarikci, Musteri], admin.ModelAdmin)
 
 
+class DeriTuruForm(forms.ModelForm):
+    """Yeni malzeme türü açılırken 'gelen mal eskisine eklensin mi?' SORULUR (varsayılan seçili gelmez)."""
+
+    toplu = forms.TypedChoiceField(
+        label="Gelen mal eskisine eklensin mi?", coerce=lambda v: v == "1", required=True,
+        choices=[("", "— Seçin —"), ("1", "Evet: aynı renk + model + firmadan gelen mal eskisinin üstüne eklensin "
+                                           "(rulo malzeme: Rono, keçe, süet, lamine…)"),
+                 ("0", "Hayır: her gelen mal ayrı kayıt, ayrı etiket (deriler: parti parti, kalite kalite)")],
+        help_text=DeriTuru._meta.get_field("toplu").help_text)
+
+    class Meta:
+        model = DeriTuru
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.initial["toplu"] = "1" if self.instance.toplu else "0"
+        else:
+            self.initial["toplu"] = ""
+
+
 @admin.register(DeriTuru)
 class DeriTuruAdmin(admin.ModelAdmin):
-    list_display = ["ad", "bilesik", "min_m2", "min_kg"]
+    form = DeriTuruForm
+    list_display = ["ad", "bilesik", "toplu", "min_m2", "min_kg"]
     list_editable = ["bilesik", "min_m2", "min_kg"]
+
+
+class GelisInline(admin.TabularInline):
+    model = StokGelisi
+    fields = ["tarih", "tedarikci", "m2", "kg", "adet", "kaynak", "fason", "eski_lot_no", "notlar"]
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+    verbose_name_plural = "gelişler (eskisine eklenen mal)"
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class HareketInline(admin.TabularInline):
@@ -211,7 +246,7 @@ class HamDeriGirisiAdmin(admin.ModelAdmin):
     search_fields = ["lot_no"]
     date_hierarchy = "tarih"
     readonly_fields = ["lot_no"]
-    inlines = [CikisInline]
+    inlines = [GelisInline, CikisInline]
 
     @admin.display(description="kalan kg")
     def kalan_kg(self, obj):

@@ -27,7 +27,7 @@
     <table>
       <tr><td>Katman başına giden</td><td class="sayi">{{ fason.katman_m2 }} m²</td></tr>
       {% if fason.gelen_lot %}
-      <tr><td>Gelen</td><td class="sayi"><a href="{% url 'stok_detay' fason.gelen_lot.pk %}">{{ fason.gelen_lot.lot_no }}</a> · {{ fason.gelen_lot.m2 }} m²</td></tr>
+      <tr><td>Gelen</td><td class="sayi"><a href="{% url 'stok_detay' fason.gelen_lot.pk %}">{{ fason.gelen_lot.lot_no }}</a> · {{ fason.gelen_m2|default:fason.gelen_lot.m2 }} m²</td></tr>
       <tr><td><b>Fason firesi</b></td><td class="sayi"><b>{{ fason.fire_m2 }} m²</b> (%{{ fason.fire_yuzde }})</td></tr>
       {% endif %}
     </table>

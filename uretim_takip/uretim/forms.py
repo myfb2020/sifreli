@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from .models import (
     sayi_metni,
     NEDENLER, Asama, DeriTuru, HaliTuru, HamDeriGirisi, KatalogModeli, LazerDeseni, Makine, Malzeme, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
-    m2_hesapla, pin_dogrulayici, stok_no,
+    m2_hesapla, pin_dogrulayici, stok_bul, stok_no,
 )
 
 
@@ -262,7 +262,7 @@ class IslemBitirForm(PinliForm):
             rulo_no = (veri.get(s["rulo_no"]) or "").strip().upper()
             rulo = None
             if rulo_no:
-                rulo = HamDeriGirisi.objects.filter(lot_no=stok_no(rulo_no)).first()
+                rulo = stok_bul(rulo_no)
                 if rulo is None:
                     self.add_error(s["rulo_no"], f"“{rulo_no}” numaralı stok lotu bulunamadı.")
                     hata = True
@@ -557,7 +557,7 @@ class KaynakSatirForm(forms.Form):
             if veri.get("kg") or veri.get("m2"):
                 self.add_error("stok_no", "Stok lot numarasını girin.")
             return veri
-        stok = HamDeriGirisi.objects.filter(lot_no=stok_no(no)).first()
+        stok = stok_bul(no)
         if stok is None:
             malzeme = Malzeme.objects.filter(kod=no).first()
             if malzeme is not None:

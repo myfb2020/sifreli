@@ -241,6 +241,11 @@ class DeriTuru(models.Model):
         "birleşik malzeme", default=False,
         help_text="Fasonda birkaç malzeme preslenerek yapılır (ör. 3'lü lamine, halı tabanı).",
     )
+    toplu = models.BooleanField(
+        "gelen mal eskisine eklensin", default=False,
+        help_text="Rulo malzemeler (Rono, keçe, süet, lamine…): aynı renk + model + firmadan mal gelince yeni stok "
+                  "kaydı açılmaz, eskisinin üstüne eklenir (tek etiket numarası). Deriler parti parti kalır.",
+    )
     min_kg = models.DecimalField(
         "en az stok (kg)", max_digits=10, decimal_places=2, null=True, blank=True,
         help_text="Bu türün toplam stoğu bunun altına düşünce uyarı verilir.",
@@ -414,8 +419,14 @@ class HamDeriGirisi(models.Model):
         return " · ".join(p for p in (str(self.deri_turu), self.renk, self.model) if p)
 
     @property
+    def gelis_sayisi(self):
+        return self.gelisler.count() if self.pk else 0
+
+    @property
     def giris_metni(self):
-        """Ör. '120 ayak' ya da '50 metretül × 140 cm'. m² girişinde boş."""
+        """Ör. '120 ayak' ya da '50 metretül × 140 cm'. m² girişinde boş. Üstüne eklenmiş stokta geliş sayısı."""
+        if self.gelis_sayisi > 1:
+            return f"{self.gelis_sayisi} gelişte"
         if self.giris_birimi == "m2" or self.giris_miktari is None:
             return ""
         if self.giris_birimi == "mtul" and self.en_cm:
@@ -473,6 +484,66 @@ class HamDeriGirisi(models.Model):
             .distinct()
             .order_by("olusturma")
         )
+
+
+def stok_anahtari(tur_id, renk, model, tedarikci_id):
+    """Toplu (eskisine eklenen) malzemede aynı stok kaydı sayılanlar: tür + renk + model + firma."""
+    from .stok_birlestir import anahtar
+    return anahtar(tur_id, renk, model, tedarikci_id)
+
+
+def stok_bul(no):
+    """Etiketteki numaradan stok kaydı: eski HD-… numarası ve başka kayda eklenmiş (birleşmiş) eski numaralar da."""
+    no = stok_no(no)
+    if not no:
+        return None
+    stok = HamDeriGirisi.objects.filter(lot_no=no).first()
+    if stok is None:
+        gelis = StokGelisi.objects.filter(eski_lot_no=no).select_related("ham_deri").first()
+        stok = gelis.ham_deri if gelis else None
+    return stok
+
+
+class StokGelisi(models.Model):
+    """Toplu stokta (DeriTuru.toplu) her gelen mal: miktar stok kaydının üstüne eklenir, geçmişi burada kalır."""
+
+    KAYNAK = [("giris", "Mal girişi"), ("fason", "Fasondan geldi"), ("birlesme", "Eski kayıt eklendi")]
+
+    ham_deri = models.ForeignKey(HamDeriGirisi, on_delete=models.CASCADE, related_name="gelisler",
+                                 verbose_name="stok kaydı")
+    tarih = models.DateField(default=timezone.localdate)
+    tedarikci = models.ForeignKey(Tedarikci, on_delete=models.PROTECT, verbose_name="tedarikçi")
+    kg = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    m2 = models.DecimalField("m²", max_digits=10, decimal_places=2)
+    adet = models.PositiveIntegerField(null=True, blank=True)
+    giris_birimi = models.CharField("giriş birimi", max_length=5, choices=HamDeriGirisi.GIRIS_BIRIMLERI, default="m2")
+    giris_miktari = models.DecimalField("gelen miktar", max_digits=10, decimal_places=2, null=True, blank=True)
+    en_cm = models.DecimalField("rulo eni (cm)", max_digits=7, decimal_places=1, null=True, blank=True)
+    kaynak = models.CharField(max_length=8, choices=KAYNAK, default="giris")
+    fason = models.ForeignKey("FasonIsi", on_delete=models.SET_NULL, null=True, blank=True, related_name="gelisler")
+    eski_lot_no = models.CharField("eski stok no", max_length=20, blank=True, db_index=True,
+                                   help_text="Bu geliş önce ayrı kayıttı: eski etiketi okutulunca bu kayda gelir.")
+    notlar = models.TextField(blank=True)
+    kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True)
+    olusturma = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        ordering = ["tarih", "olusturma", "pk"]
+        verbose_name = "stok gelişi"
+        verbose_name_plural = "stok gelişleri"
+
+    def __str__(self):
+        return f"{self.ham_deri.lot_no} + {self.m2} m² ({self.tarih})"
+
+    @property
+    def giris_metni(self):
+        if self.giris_birimi == "m2" or self.giris_miktari is None:
+            return ""
+        if self.giris_birimi == "mtul" and self.en_cm:
+            return f"{sayi_metni(self.en_cm)} cm × {sayi_metni(self.giris_miktari)} m"
+        if self.giris_birimi == "plaka" and self.en_cm:
+            return f"{sayi_metni(self.en_cm)} × {sayi_metni(self.giris_miktari)} cm" + (f" × {self.adet}" if self.adet else "")
+        return f"{sayi_metni(self.giris_miktari)} {self.get_giris_birimi_display()}"
 
 
 class Siparis(models.Model):
@@ -1005,8 +1076,10 @@ class FasonIsi(models.Model):
     durum = models.CharField(max_length=8, choices=DURUMLAR, default="fasonda")
     gonderim = models.DateTimeField("gönderim", default=timezone.now)
     teslim = models.DateTimeField("teslim", null=True, blank=True)
-    gelen_lot = models.OneToOneField(HamDeriGirisi, on_delete=models.SET_NULL, null=True, blank=True,
-                                     related_name="fason_kaynagi", verbose_name="gelen stok lotu")
+    gelen_lot = models.ForeignKey(HamDeriGirisi, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name="fason_kaynaklari", verbose_name="gelen stok lotu")
+    gelen_m2 = models.DecimalField("gelen m²", max_digits=10, decimal_places=2, null=True, blank=True,
+                                   help_text="Fasondan gelen miktar (stok kaydı başka gelişlerle büyüyebilir).")
     notlar = models.TextField(blank=True)
     kullanici = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True,
                                   verbose_name="gönderen")
@@ -1046,7 +1119,7 @@ class FasonIsi(models.Model):
     def fire_m2(self):
         if self.gelen_lot is None:
             return None
-        return self.katman_m2 - self.gelen_lot.m2
+        return self.katman_m2 - (self.gelen_m2 if self.gelen_m2 is not None else self.gelen_lot.m2)
 
     @property
     def fire_yuzde(self):

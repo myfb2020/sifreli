@@ -21,16 +21,52 @@
 {% endif %}
 
 <div class="sekmeler alt-sekme">
-  <a class="sekme{% if durum == 'stokta' %} secili{% endif %}" href="?durum=stokta">Stokta olan</a>
-  <a class="sekme{% if durum == 'bitti' %} secili{% endif %}" href="?durum=bitti">Biten</a>
-  <a class="sekme{% if durum == 'hepsi' %} secili{% endif %}" href="?durum=hepsi">Hepsi</a>
+  <a class="sekme{% if durum == 'stokta' %} secili{% endif %}" href="?durum=stokta&amp;gorunum={{ gorunum }}">Stokta olan</a>
+  <a class="sekme{% if durum == 'bitti' %} secili{% endif %}" href="?durum=bitti&amp;gorunum={{ gorunum }}">Biten</a>
+  <a class="sekme{% if durum == 'hepsi' %} secili{% endif %}" href="?durum=hepsi&amp;gorunum={{ gorunum }}">Hepsi</a>
 </div>
 <form class="filtre" method="get">
   <input type="hidden" name="durum" value="{{ durum }}">
+  <input type="hidden" name="gorunum" value="{{ gorunum }}">
   <input name="ara" value="{{ ara }}" placeholder="Lot no, tedarikçi, tür, renk, model">
   <button class="btn kucuk" type="submit">Ara</button>
   {% if satirlar %}<a class="btn kucuk ikincil" href="{% url 'etiketler' %}?{% for r in satirlar %}stok={{ r.stok.pk }}{% if not forloop.last %}&amp;{% endif %}{% endfor %}">🏷 Listedekilerin etiketleri</a>{% endif %}
 </form>
+<div class="sekmeler alt-sekme" id="gorunum-sec">
+  <a class="sekme{% if gorunum == 'cesit' %} secili{% endif %}" href="?durum={{ durum }}&amp;ara={{ ara|urlencode }}&amp;gorunum=cesit">Çeşit çeşit</a>
+  <a class="sekme{% if gorunum == 'tek' %} secili{% endif %}" href="?durum={{ durum }}&amp;ara={{ ara|urlencode }}&amp;gorunum=tek">Tek tek (her kayıt)</a>
+</div>
+{% if gorunum == 'cesit' %}
+<div class="kart" id="cesitler">
+  {% for c in cesitler %}
+  <details class="cesit">
+    <summary>
+      <span class="cesit-ad"><b>{{ c.ad }}</b><br><span class="soluk">{{ c.firmalar|join:", " }} · {{ c.satirlar|length }} kayıt</span></span>
+      <span class="cesit-kalan"><b>{{ c.kalan_m2|floatformat:"-2" }} m²</b>{% if c.kalan_kg %}<br><span class="soluk">{{ c.kalan_kg|floatformat:"-2" }} kg</span>{% endif %}</span>
+    </summary>
+    {% for r in c.satirlar %}
+    <a class="cesit-kayit" href="{% url 'stok_detay' r.stok.pk %}">
+      <span><b>{{ r.stok.lot_no }}</b> · {{ r.stok.tedarikci }}<br><span class="soluk">{{ r.stok.tarih|date:"d.m.Y" }}{% if r.stok.giris_metni %} · {{ r.stok.giris_metni }}{% endif %}</span></span>
+      <span class="sayi">{{ r.kalan_m2 }} m²</span>
+    </a>
+    {% endfor %}
+  </details>
+  {% empty %}
+  <p class="soluk">Kayıt yok.</p>
+  {% endfor %}
+</div>
+<style>
+  #cesitler .cesit { border-bottom:1px solid var(--cizgi); }
+  #cesitler .cesit:last-child { border-bottom:0; }
+  #cesitler summary { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; padding:12px 4px; cursor:pointer; }
+  #cesitler summary::marker { content:""; }
+  #cesitler summary .cesit-ad::before { content:"▸ "; color:var(--altin); }
+  #cesitler details[open] summary .cesit-ad::before { content:"▾ "; }
+  #cesitler .cesit-kalan { text-align:right; white-space:nowrap; }
+  #cesitler .cesit-kayit { display:flex; justify-content:space-between; gap:12px; padding:8px 4px 8px 22px; color:inherit; text-decoration:none; border-top:1px dashed var(--cizgi); }
+  #cesitler .cesit-kayit .sayi { white-space:nowrap; }
+</style>
+{% else %}
 <div class="kart tablo-kap">
   <table>
     <tr><th>Stok lotu</th><th>Tarih</th><th>Malzeme</th><th>Tedarikçi</th><th class="sayi">Giriş</th><th class="sayi">Kalan</th><th style="min-width:120px">Kullanım</th></tr>
@@ -49,4 +85,5 @@
     {% endfor %}
   </table>
 </div>
+{% endif %}
 {% endblock %}

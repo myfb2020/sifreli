@@ -19,7 +19,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 
 from .models import (
     Asama, DeriTuru, HaliTuru, HamDeriGirisi, LotKaynagi, Musteri, Personel, Siparis, Tedarikci, UretimLotu,
-    m2_hesapla, pin_dogrulayici, rota_adimlari, sonraki_asamalar, stok_no,
+    m2_hesapla, pin_dogrulayici, rota_adimlari, sonraki_asamalar, stok_bul, stok_no,
 )
 
 
@@ -281,7 +281,7 @@ class Aktarici:
     def lot(self, s, satir_no):
         self._zorunlu(s, "Stok Lot No", "Başlangıç kg", "Başlangıç m²")
         ham_no = kod(s["Stok Lot No"], "Stok Lot No")
-        ham = HamDeriGirisi.objects.filter(lot_no=stok_no(ham_no)).first()
+        ham = stok_bul(ham_no)
         if ham is None:
             raise SatirHatasi(f"“{ham_no}” numaralı stok lotu bulunamadı (Stok Lotları sayfasında veya sistemde olmalı)")
         siparis = None

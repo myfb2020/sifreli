@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .models import (
     DuzeltmeKaydi, TamirKaydi, DeriDuzeltme, DeriSatisi, FasonIsi, HamDeriGirisi, IslemKaydi, IsNotu, LotKaynagi, LotOlcusu, MalzemeHareketi, SistemAyari, SiparisKalemi,
-    UretimLotu, sayi_metni,
+    StokGelisi, UretimLotu, sayi_metni, stok_anahtari,
 )
 
 
@@ -824,6 +824,47 @@ def fasona_gonder(*, fasoncu, hedef_tur, kaynaklar, kullanici=None, notlar=""):
     return fason
 
 
+# --- Toplu stok: rulo malzemede gelen mal eskisine eklenir ----------------------------
+
+
+def toplu_esi(tur, renk, model, tedarikci):
+    """Toplu türde aynı tür + renk + model + firmadan stok kaydı (yoksa None)."""
+    if not tur.toplu:
+        return None
+    aranan = stok_anahtari(tur.pk, renk, model, tedarikci.pk)
+    for h in (HamDeriGirisi.objects.select_for_update().filter(deri_turu=tur, tedarikci=tedarikci)
+              .order_by("tarih", "lot_no", "pk")):
+        if stok_anahtari(h.deri_turu_id, h.renk, h.model, h.tedarikci_id) == aranan:
+            return h
+    return None
+
+
+@transaction.atomic
+def stok_girisi(yeni, kullanici=None, kaynak="giris", fason=None):
+    """Kaydedilmemiş stok kaydını (HamDeriGirisi) stoğa alır. Toplu türde eşi varsa miktar onun üstüne eklenir,
+    geliş geçmişe yazılır. (stok kaydı, eklendi mi, önceki toplam m²) döner."""
+    es = toplu_esi(yeni.deri_turu, yeni.renk, yeni.model, yeni.tedarikci)
+    if es is None:
+        yeni.save()
+        if yeni.deri_turu.toplu:
+            StokGelisi.objects.create(
+                ham_deri=yeni, tarih=yeni.tarih, tedarikci=yeni.tedarikci, kg=yeni.kg or 0, m2=yeni.m2,
+                adet=yeni.adet, giris_birimi=yeni.giris_birimi, giris_miktari=yeni.giris_miktari, en_cm=yeni.en_cm,
+                kaynak=kaynak, fason=fason, notlar=yeni.notlar, kullanici=kullanici)
+        return yeni, False, None
+    onceki = es.kalan_m2
+    StokGelisi.objects.create(
+        ham_deri=es, tarih=yeni.tarih, tedarikci=yeni.tedarikci, kg=yeni.kg or 0, m2=yeni.m2, adet=yeni.adet,
+        giris_birimi=yeni.giris_birimi, giris_miktari=yeni.giris_miktari, en_cm=yeni.en_cm, kaynak=kaynak,
+        fason=fason, notlar=yeni.notlar, kullanici=kullanici)
+    es.m2 += yeni.m2
+    es.kg += yeni.kg or 0
+    if yeni.adet:
+        es.adet = (es.adet or 0) + yeni.adet
+    es.save(update_fields=["m2", "kg", "adet"])
+    return es, True, onceki
+
+
 def ust_katman(fason):
     """Gönderilenler arasında rengi/modeli belirleyen üst katman lotu (rono ya da suni deri); yoksa renkli ilk lot."""
     lotlar = [lot for lot, _, _ in fason.gidenler()]
@@ -842,17 +883,18 @@ def fason_teslim_al(*, fason, m2, kg=None, adet=None, renk=None, model=None, kul
     if m2 is None or m2 <= 0:
         raise ValidationError("Gelen m² miktarını girin.")
     ust = ust_katman(fason)
-    lot = HamDeriGirisi.objects.create(
+    lot, _, _ = stok_girisi(HamDeriGirisi(
         tedarikci=fason.fasoncu, deri_turu=fason.hedef_tur, m2=m2, kg=kg or 0, adet=adet,
         giris_birimi="m2", giris_miktari=m2,
         renk=renk if renk is not None else (ust.renk if ust else ""),
         model=model if model is not None else (ust.model if ust else ""),
         notlar=(f"{fason.no} fasondan geldi. {notlar}").strip(),
-    )
+    ), kullanici=kullanici, kaynak="fason", fason=fason)
     fason.durum = "teslim"
     fason.teslim = timezone.now()
     fason.gelen_lot = lot
-    fason.save(update_fields=["durum", "teslim", "gelen_lot"])
+    fason.gelen_m2 = m2
+    fason.save(update_fields=["durum", "teslim", "gelen_lot", "gelen_m2"])
     return lot
 
 

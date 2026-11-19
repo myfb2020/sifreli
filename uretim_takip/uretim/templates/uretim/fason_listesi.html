@@ -24,7 +24,7 @@
       <td>{{ f.hedef_tur }}</td>
       <td class="sayi">{{ f.katman_m2 }} m²</td>
       <td><span class="rozet {% if f.durum == 'teslim' %}tamamlandi{% elif f.durum == 'iptal' %}iptal{% else %}bekliyor{% endif %}">{{ f.get_durum_display }}</span></td>
-      <td class="sayi">{% if f.gelen_lot %}<a href="{% url 'stok_detay' f.gelen_lot.pk %}">{{ f.gelen_lot.m2 }} m²</a>{% else %}–{% endif %}</td>
+      <td class="sayi">{% if f.gelen_lot %}<a href="{% url 'stok_detay' f.gelen_lot.pk %}">{{ f.gelen_m2|default:f.gelen_lot.m2 }} m²</a>{% else %}–{% endif %}</td>
       <td class="sayi">{% if f.fire_m2 is not None %}{{ f.fire_m2 }} m² <span class="soluk">(%{{ f.fire_yuzde }})</span>{% else %}–{% endif %}</td>
     </tr>
     {% empty %}

@@ -11,6 +11,7 @@
     <button class="btn buyuk" type="submit" style="width:100%">Kaydet</button>
   </form>
 </div>
+{{ toplu|json_script:"toplu-bilgi" }}
 <datalist id="renk-onerileri">{% for r in renk_onerileri %}<option value="{{ r }}">{% endfor %}</datalist>
 <datalist id="model-onerileri">{% for m in model_onerileri %}<option value="{{ m }}">{% endfor %}</datalist>
 <script>
@@ -41,6 +42,30 @@
   [birim, miktar, en, adet].forEach((g) => g.addEventListener("input", guncelle));
   birim.addEventListener("change", guncelle);
   guncelle();
+})();
+(function () {
+  // Toplu (eskisine eklenen) malzeme: aynı tür + renk + model + firmadan kayıt varsa miktarın üstüne ekleneceği söylenir
+  const bilgi = JSON.parse(document.getElementById("toplu-bilgi").textContent);
+  const tur = document.getElementById("id_deri_turu"), firma = document.getElementById("id_tedarikci");
+  const yeniFirma = document.getElementById("id_yeni_tedarikci");
+  const renk = document.getElementById("id_renk"), model = document.getElementById("id_model");
+  const kutu = document.createElement("div");
+  kutu.id = "toplu-not";
+  kutu.className = "mesaj info";
+  tur.closest("p").after(kutu);
+  const kucuk = (m) => (m || "").trim().replace(/İ/g, "i").replace(/I/g, "ı").toLocaleLowerCase("tr-TR");
+  function yaz() {
+    const toplu = bilgi.turler.includes(parseInt(tur.value, 10));
+    kutu.hidden = !toplu;
+    if (!toplu) return;
+    const yeni = (yeniFirma && yeniFirma.value.trim()) || !firma.value;
+    const es = yeni ? null : bilgi.kayitlar[[tur.value, kucuk(renk.value), kucuk(model.value), firma.value].join("|")];
+    kutu.innerHTML = es
+      ? `➕ Bu malzeme bu firmadan stokta var (<b>${es.no}</b>, ${es.kalan} m²): gelen miktar <b>üstüne eklenecek</b>, yeni rulolara aynı etiket basılır.`
+      : "Bu malzemede gelen mal eskisine eklenir: aynı renk, model ve firmadan kayıt yok, yeni stok kaydı açılacak.";
+  }
+  [tur, firma, yeniFirma, renk, model].forEach((g) => g && ["input", "change"].forEach((o) => g.addEventListener(o, yaz)));
+  yaz();
 })();
 </script>
 {% endblock %}
