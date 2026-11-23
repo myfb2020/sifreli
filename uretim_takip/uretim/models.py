@@ -579,6 +579,14 @@ class Siparis(models.Model):
     toplam_m2 = models.DecimalField("toplam m²", max_digits=10, decimal_places=2, null=True, blank=True,
                                     help_text="En ve boy girilince kendiliğinden hesaplanır.")
     acil = models.BooleanField("⚡ acil", default=False, help_text="Acil siparişler istasyon ekranlarında en üstte durur.")
+    # 2026-11-23: ofis ve lazer ustasının elle belirlediği öncelik sırası (küçük önce); boşsa öncelikli değil.
+    # Bütün istasyonlarda ⚡ Öncelikli sekmesinde bu sırayla görünür (acil siparişler de o sekmede).
+    oncelik_sira = models.PositiveIntegerField("öncelik sırası", null=True, blank=True)
+    KENARLAR = [("", "Otomatik (sipariş yazısından)"), ("biye", "Biye"), ("lanfel", "Lanfel"),
+                ("kenar_dikisi", "Kenar dikişi")]
+    kenar = models.CharField("kenar istasyonu", max_length=12, choices=KENARLAR, blank=True,
+                             help_text="Boşsa siparişte yazandan bulunur (biye / lanfel / kenar dikişi); "
+                                       "bulunamazsa iş bütün kenar istasyonlarında görünür.")
     teslim_tarihi = models.DateField("teslim tarihi")
     durum = models.CharField(max_length=12, choices=DURUM, default="acik")
     sevk_tarihi = models.DateField("sevk tarihi", null=True, blank=True)
@@ -598,6 +606,26 @@ class Siparis(models.Model):
         if self.en_cm and self.boy_cm:
             self.toplam_m2 = (self.en_cm * self.boy_cm * (self.adet or 1) / 10000).quantize(Decimal("0.01"))
         super().save(*args, **kwargs)
+
+    # sipariş yazısında kenar istasyonunu bulmak için (küçük harf, Türkçe i/ı düzeltilmiş)
+    KENAR_SOZCUKLERI = {"biye": ("biye",), "lanfel": ("lanfel", "lanfer"), "kenar_dikisi": ("kenar dikiş", "kenar dikis")}
+
+    def kenar_turu(self):
+        """Kenar istasyonu: ofisin seçtiği; yoksa tasarımdaki kenar; yoksa sipariş yazısında (ürün, not, renk) geçen
+        tek kenar türü. Hiçbiri yoksa ya da birden çoğu geçiyorsa ''."""
+        if self.kenar:
+            return self.kenar
+        from django.core.exceptions import ObjectDoesNotExist
+        try:
+            tasarim = self.tasarim
+        except ObjectDoesNotExist:
+            tasarim = None
+        if tasarim is not None and (tasarim.veri or {}).get("kenar") in ("biye", "lanfel"):
+            return tasarim.veri["kenar"]
+        metin = " ".join([self.urun or "", self.notlar or "", self.renk_notu or ""])
+        metin = metin.replace("İ", "i").replace("I", "ı").lower()
+        bulunan = [tur for tur, sozler in self.KENAR_SOZCUKLERI.items() if any(s in metin for s in sozler)]
+        return bulunan[0] if len(bulunan) == 1 else ""
 
     @property
     def renk_metni(self):
@@ -1429,9 +1457,11 @@ class Tasarim(models.Model):
 
 
 class TamirKaydi(models.Model):
-    """Biten / sevk edilen siparişte iade, tamir, düzeltme. Yalnız ofis açar; bayi görmez; stoğa giriş yok."""
+    """İade, tamir, düzeltme: ofis açar (biten / sevk edilen siparişte) ya da istasyon (Zig-zag, Biye, Lanfel, Kenar dikişi)
+    kendi istasyonunda açar (müşteriden dönen ya da üretimde fark edilen hata). Bayi görmez; stoğa giriş yok."""
 
-    NEDENLER = [("iade", "Müşteri iadesi"), ("tamir", "Tamir"), ("duzeltme", "Düzeltme"), ("garanti", "Garanti")]
+    NEDENLER = [("iade", "Müşteri iadesi"), ("tamir", "Tamir"), ("duzeltme", "Düzeltme"), ("garanti", "Garanti"),
+                ("uretim", "Üretimde fark edildi")]
     no = models.CharField("tamir no", max_length=20, unique=True, blank=True)
     siparis = models.ForeignKey(Siparis, on_delete=models.CASCADE, related_name="tamirler", verbose_name="sipariş")
     kaynak_lot = models.ForeignKey(UretimLotu, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",

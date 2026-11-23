@@ -203,8 +203,8 @@ def siparis_acil(request, pk):
 def tamir_ac(request, pk):
     """İade / tamir / düzeltme kaydı ve tamir işi (yalnız ofis; bayi görmez; stoğa giriş yok)."""
     siparis = get_object_or_404(Siparis, pk=pk)
-    if siparis.durum not in ("tamamlandi", "sevk", "tamirde"):
-        messages.error(request, "Tamir / iade yalnız biten ya da sevk edilen siparişe açılır.")
+    if siparis.durum in ("onay", "iptal"):
+        messages.error(request, "Onay bekleyen ya da iptal edilen siparişe tamir açılmaz.")
         return redirect("siparis_detay", pk=pk)
     form = TamirForm(request.POST or None, request.FILES or None, siparis=siparis)
     if request.method == "POST" and form.is_valid():
@@ -222,3 +222,25 @@ def tamir_ac(request, pk):
                                       "ekranına düştü. Bayi bunu görmez.")
             return redirect("siparis_detay", pk=pk)
     return render(request, "uretim/tamir_ac.html", {"form": form, "siparis": siparis})
+
+
+@login_required
+@permission_required("uretim.view_siparis", raise_exception=True)
+def tamirler(request):
+    """🔧 Tamirler: ofisin ve istasyonların açtığı bütün tamir / iade kayıtları; + Yeni tamir (sipariş no ile)."""
+    from .models import TamirKaydi
+
+    no = request.GET.get("siparis_no", "").strip().upper()
+    if no:
+        siparis = Siparis.objects.filter(siparis_no=no).first()
+        if siparis is None:
+            messages.error(request, f"“{no}” numaralı sipariş bulunamadı.")
+        else:
+            return redirect("tamir_ac", pk=siparis.pk)
+    durum = request.GET.get("durum", "acik")
+    kayitlar = (TamirKaydi.objects.select_related("siparis__musteri", "lot", "hata_asama", "kullanici")
+                .prefetch_related("istasyonlar"))
+    if durum == "acik":
+        kayitlar = kayitlar.filter(bitis__isnull=True)
+    return render(request, "uretim/tamirler.html", {"kayitlar": kayitlar[:300], "durum": durum,
+                                                    "acik_sayi": TamirKaydi.objects.filter(bitis__isnull=True).count()})

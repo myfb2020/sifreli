@@ -96,7 +96,7 @@
     .mesaj.info { background:#e7eef7; color:#24476b; }
     form.dikey p { margin:0 0 14px; }
     form.dikey label { display:block; font-weight:600; margin-bottom:4px; }
-    form.dikey input, form.dikey select, form.dikey textarea { width:100%; padding:12px; font-size:18px;
+    form.dikey input, form.dikey select, form.dikey textarea { width:100%; padding:12px; font-size:18px; font-family:inherit;
            border:1px solid var(--cizgi); border-radius:8px; background:#fff; }
     .errorlist { color:var(--kirmizi); margin:4px 0; padding-left:18px; }
     .asama-seridi { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
@@ -241,6 +241,7 @@
   <small>Atölye</small>
   <a href="{% url 'stok_listesi' %}">📦 Stok</a>
   {% if user.is_staff and not user.is_superuser %}<a href="{% url 'lot_listesi' %}">☰ İşler</a>{% endif %}
+  {% if perms.uretim.view_siparis and user.is_staff %}<a href="{% url 'tamirler' %}">🔧 Tamirler</a>{% endif %}
   {% if user.is_superuser %}<a href="{% url 'duzeltmeler' %}">🛠 Düzeltmeler</a>{% endif %}
   {% if user.is_staff %}<a href="{% url 'rapor' %}">📈 Raporlar</a>
   <small>Yönetim</small>

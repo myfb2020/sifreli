@@ -12,12 +12,13 @@ STUDYO = ("/tasarim/", "/tasarim/parcali/")  # tasarım stüdyoları yalnız yö
 
 def _secili_model_tasarimi(request):
     """Bayi parçalı stüdyoyu yalnız gerçekçi çizimi hazır modellerle açar (Sipariş ver → 🎨 Tasarla)."""
-    from .parcali import SECILI_MODELLER
+    from .parcali import BAYI_VITRINI, SECILI_MODELLER
 
     if request.path != "/tasarim/parcali/":
         return False
     kod = request.POST.get("katalog") if request.method == "POST" else request.GET.get("hazir")
-    return (kod or "").upper() in SECILI_MODELLER
+    kod = (kod or "").upper()
+    return kod in SECILI_MODELLER and kod in BAYI_VITRINI
 
 
 def _eski_duzen():

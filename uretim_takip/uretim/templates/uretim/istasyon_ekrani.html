@@ -7,12 +7,18 @@
     <h1 style="margin:4px 0">{{ asama.ad }}</h1>
     <div class="soluk">{% if asama.azami_bekleme_saat %}Bekleme sınırı {{ asama.azami_bekleme_saat|floatformat:"-1" }} sa{% endif %}{% if asama.azami_bekleme_saat and asama.azami_sure_saat %} · {% endif %}{% if asama.azami_sure_saat %}çalışma sınırı {{ asama.azami_sure_saat|floatformat:"-1" }} sa{% endif %}</div>
   </div>
-  <button type="button" id="ses-ac" class="btn ikincil">🔔 Sesli uyarıyı aç</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    {% if tamir_istasyonu %}<a class="btn" href="{% url 'istasyon_tamir' asama.pk %}">🔧 Tamir</a>{% endif %}
+    <button type="button" id="ses-ac" class="btn ikincil">🔔 Sesli uyarıyı aç</button>
+  </div>
 </div>
 <div id="yeni-is-bandi" class="yeni-is-bandi" hidden>🔔 Yeni iş geldi!</div>
 <div id="gecikme-bandi" class="mesaj error" {% if not geciken %}hidden{% endif %}>⏰ <span id="geciken-sayi">{{ geciken }}</span> iş süre sınırını aştı.</div>
 
 <div class="ist-sekmeler" role="tablist" aria-label="İş listesi">
+  <button type="button" role="tab" class="ist-sekme" data-sekme="oncelikli" aria-selected="{% if sekme == 'oncelikli' %}true{% else %}false{% endif %}">
+    ⚡ Öncelikli <span class="sekme-sayi" id="sayi-oncelikli">{{ oncelikli|length }}</span><span class="sekme-nokta" id="nokta-oncelikli"{% if not oncelikli_geciken %} hidden{% endif %} title="Süresi aşan iş var"></span>
+  </button>
   <button type="button" role="tab" class="ist-sekme" data-sekme="calisilan" aria-selected="{% if sekme == 'calisilan' %}true{% else %}false{% endif %}">
     🔧 Devam eden <span class="sekme-sayi" id="sayi-calisilan">{{ calisilan|length }}</span><span class="sekme-nokta" id="nokta-calisilan"{% if not calisilan_geciken %} hidden{% endif %} title="Süresi aşan iş var"></span>
   </button>
@@ -25,15 +31,21 @@
 {% include "uretim/_istasyon_parca.html" %}
 </div>
 <style>
-  .ist-sekmeler { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:6px 0 14px; }
+  .ist-sekmeler { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:6px 0 14px; }
   .ist-sekme { font-size:22px; font-weight:700; padding:18px 10px; border-radius:16px; border:2px solid var(--altin, #b08d57); background:#fff; color:var(--koyu, #1c1917); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
   .ist-sekme[aria-selected="true"] { background:var(--koyu, #1c1917); color:#fff; border-color:var(--koyu, #1c1917); }
   .sekme-sayi { display:inline-block; min-width:38px; padding:2px 10px; border-radius:999px; background:var(--altin, #b08d57); color:#fff; font-size:20px; }
   .sekme-nokta { width:14px; height:14px; border-radius:50%; background:var(--kirmizi, #b3261e); display:inline-block; }
   .sekme-nokta[hidden], .sekme-yeni[hidden] { display:none; }
   .sekme-yeni { background:var(--kirmizi, #b3261e); color:#fff; font-size:15px; padding:3px 8px; border-radius:8px; animation:yanip-son 1s ease-in-out infinite; }
-  #sekmeli[data-sekme="gelen"] #liste-calisilan, #sekmeli[data-sekme="calisilan"] #liste-gelen { display:none; }
-  @media (max-width:560px) { .ist-sekme { font-size:18px; padding:14px 6px; } .sekme-sayi { font-size:17px; min-width:30px; } }
+  #sekmeli[data-sekme="gelen"] #liste-calisilan, #sekmeli[data-sekme="gelen"] #liste-oncelikli,
+  #sekmeli[data-sekme="calisilan"] #liste-gelen, #sekmeli[data-sekme="calisilan"] #liste-oncelikli,
+  #sekmeli[data-sekme="oncelikli"] #liste-gelen, #sekmeli[data-sekme="oncelikli"] #liste-calisilan { display:none; }
+  .ist-sekme[data-sekme="oncelikli"] .sekme-sayi { background:var(--kirmizi, #b3261e); }
+  .oncelik-dugmeleri { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .oncelik-dugmeleri .btn { min-width:44px; font-size:18px; }
+  .oncelik-rozet { background:#fde8c8; color:#8a4b0a; }
+  @media (max-width:560px) { .ist-sekme { font-size:15px; padding:12px 4px; gap:6px; } .sekme-sayi { font-size:15px; min-width:26px; padding:2px 6px; } }
 </style>
 
 <p class="soluk" style="text-align:center">Ekran her 20 saniyede bir kendini yeniler · son yenileme <span id="son-yenileme">{% now "H:i:s" %}</span></p>
@@ -47,7 +59,7 @@
 
   try { localStorage.setItem("istasyon", "{{ asama.pk }}"); } catch (e) {}
 
-  // Devam eden / Bekleyen: seçim bu tablette hatırlanır, 20 sn yenilemede değişmez
+  // Öncelikli / Devam eden / Bekleyen: seçim bu tablette hatırlanır, 20 sn yenilemede değişmez
   const SEKME_ANAHTARI = "istasyon-sekme-{{ asama.pk }}";
   const sekmeli = document.getElementById("sekmeli");
   const adresSekme = new URLSearchParams(location.search).get("sekme");
@@ -57,19 +69,20 @@
     if (ad === "gelen") document.getElementById("yeni-gelen").hidden = true;
     if (kaydet) { try { localStorage.setItem(SEKME_ANAHTARI, ad); } catch (e) {} }
   }
-  if (adresSekme === "gelen" || adresSekme === "calisilan") {
+  const SEKMELER = ["oncelikli", "gelen", "calisilan"];
+  if (SEKMELER.includes(adresSekme)) {
     sekmeSec(adresSekme, true);  // işi başlatıp dönünce "Devam eden"
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
   } else {
     let kayitli = null;
     try { kayitli = localStorage.getItem(SEKME_ANAHTARI); } catch (e) {}
-    if (kayitli === "gelen" || kayitli === "calisilan") sekmeSec(kayitli, false);
+    if (SEKMELER.includes(kayitli)) sekmeSec(kayitli, false);
   }
   document.querySelectorAll(".ist-sekme").forEach((d) => d.addEventListener("click", () => sekmeSec(d.dataset.sekme, true)));
   function sayilariYaz(parca) {
-    for (const ad of ["gelen", "calisilan"]) {
+    for (const ad of SEKMELER) {
       document.getElementById("sayi-" + ad).textContent = parca.dataset[ad] || "0";
-      const g = parseInt(parca.dataset[ad === "gelen" ? "gelenGeciken" : "calisilanGeciken"] || "0", 10);
+      const g = parseInt(parca.dataset[ad + "Geciken"] || "0", 10);
       document.getElementById("nokta-" + ad).hidden = !g;
     }
   }

@@ -436,8 +436,8 @@ def tamir_ac(*, siparis, istasyonlar, neden, kaynak_lot=None, aciklama="", foto=
              kullanici=None):
     """Biten / sevk edilen siparişe tamir işi açar: seçilen istasyonlardan geçer, bitince sipariş eski durumuna döner.
     Bayi görmez; stoğa giriş yapılmaz."""
-    if siparis.durum not in ("tamamlandi", "sevk", "tamirde"):
-        raise ValidationError("Tamir / iade yalnız biten ya da sevk edilen siparişe açılır.")
+    if siparis.durum in ("onay", "iptal"):  # 2026-11-23: üretimdeki siparişte de (üretimde fark edilen hata) açılır
+        raise ValidationError("Onay bekleyen ya da iptal edilen siparişe tamir açılmaz.")
     istasyonlar = list(istasyonlar)
     if not istasyonlar:
         raise ValidationError("Tamirin geçeceği en az bir istasyon seçin.")
@@ -455,8 +455,28 @@ def tamir_ac(*, siparis, istasyonlar, neden, kaynak_lot=None, aciklama="", foto=
     kayit.istasyonlar.set(istasyonlar)
     if aciklama:
         not_ekle(lot=lot, metin=f"🔧 {kayit.get_neden_display()}: {aciklama}", kullanici=kullanici)
-    siparis.durum = "tamirde"
-    siparis.save(update_fields=["durum"])
+    if siparis.durum in ("tamamlandi", "sevk"):  # üretimdeki siparişin durumu değişmez
+        siparis.durum = "tamirde"
+        siparis.save(update_fields=["durum"])
+    return kayit
+
+
+TAMIR_ISTASYONLARI = ("zig", "biye", "lanfel", "kenar")
+
+
+def tamir_istasyonu_mu(asama):
+    """İstasyonda 🔧 Tamir düğmesi olan istasyonlar: Zig-zag, Biye, Lanfel, Kenar dikişi (2026-11-23)."""
+    ad = asama.ad.replace("İ", "i").replace("I", "ı").lower()
+    return any(ad.startswith(on) for on in TAMIR_ISTASYONLARI)
+
+
+@transaction.atomic
+def istasyon_tamiri(*, siparis, asama, neden, aciklama="", foto=None, personel=None, kullanici=None):
+    """İstasyonda açılan tamir: iş yalnız bu istasyondan geçer; personel biliniyorsa hemen başlar."""
+    kayit = tamir_ac(siparis=siparis, istasyonlar=[asama], neden=neden, aciklama=aciklama, foto=foto,
+                     kullanici=kullanici)
+    if personel is not None:
+        islem_baslat(lot=kayit.lot, asama=asama, personel=personel)
     return kayit
 
 
@@ -669,6 +689,61 @@ def kendi_istasyonu(kullanici):
     if getattr(kullanici, "is_staff", False):
         return None
     return hesap_istasyonu(kullanici)
+
+
+# --- Öncelik (2026-11-23): ofis ve lazer ustası işleri öne alır, sıralar; bütün istasyonlarda geçerli ----------
+
+ONCELIK_DURUMLARI = ("acik", "uretimde", "tamirde")
+
+
+def oncelik_yetkisi(kullanici):
+    """Öncelik sırasını ofis / yönetici ve lazer istasyonuna bağlı hesap (lazer ustası) değiştirir."""
+    if getattr(kullanici, "is_staff", False):
+        return True
+    istasyon = kendi_istasyonu(kullanici)
+    return istasyon is not None and istasyon.lazer_mi
+
+
+def oncelikli_siparisler():
+    """⚡ Öncelikli listesi sırasıyla: elle sıralananlar (oncelik_sira), sonra sırası verilmemiş acil siparişler."""
+    from django.db.models import F, Q
+
+    from .models import Siparis
+
+    return list(Siparis.objects.filter(Q(oncelik_sira__isnull=False) | Q(acil=True), durum__in=ONCELIK_DURUMLARI)
+                .order_by(F("oncelik_sira").asc(nulls_last=True), "teslim_tarihi", "pk"))
+
+
+@transaction.atomic
+def oncelik_degistir(*, siparis, islem):
+    """islem: 'ekle' (listenin sonuna), 'cikar', 'yukari', 'asagi'. Acil sipariş listeden çıkmaz (acil işareti kalır)."""
+    from django.db.models import Max
+
+    from .models import Siparis
+
+    if islem == "ekle":
+        if siparis.oncelik_sira is None:
+            son = Siparis.objects.filter(oncelik_sira__isnull=False).aggregate(m=Max("oncelik_sira"))["m"] or 0
+            siparis.oncelik_sira = son + 1
+            siparis.save(update_fields=["oncelik_sira"])
+        return
+    if islem == "cikar":
+        siparis.oncelik_sira = None
+        siparis.save(update_fields=["oncelik_sira"])
+        return
+    liste = oncelikli_siparisler()
+    for i, sp in enumerate(liste, 1):  # sıra numaraları 1, 2, 3… (acil olanlar da sıraya girer)
+        if sp.oncelik_sira != i:
+            Siparis.objects.filter(pk=sp.pk).update(oncelik_sira=i)
+            sp.oncelik_sira = i
+    yer = next((i for i, sp in enumerate(liste) if sp.pk == siparis.pk), None)
+    if yer is None:
+        return
+    komsu = yer - 1 if islem == "yukari" else yer + 1
+    if 0 <= komsu < len(liste):
+        a, b = liste[yer], liste[komsu]
+        Siparis.objects.filter(pk=a.pk).update(oncelik_sira=b.oncelik_sira)
+        Siparis.objects.filter(pk=b.pk).update(oncelik_sira=a.oncelik_sira)
 
 
 # --- Stok hareketleri ---------------------------------------------------------

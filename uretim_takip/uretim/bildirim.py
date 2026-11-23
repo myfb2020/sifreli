@@ -101,7 +101,7 @@ def _vapid_basligi(endpoint, iletisim):
     return f"vapid t={baslik}.{govde}.{imza}, k={acik}"
 
 
-def gonder(abonelik, baslik, metin, adres="/", iletisim="https://uretim.pythonanywhere.com"):
+def gonder(abonelik, baslik, metin, adres="/", iletisim="https://uretim.biennafur.com"):
     """Tek aboneliğe bildirim gönderir. True: gitti; False: abonelik geçersiz (silinmeli); None: geçici hata."""
     icerik = json.dumps({"baslik": baslik, "metin": metin, "adres": adres}, ensure_ascii=False).encode()
     govde = sifrele(icerik, abonelik.p256dh, abonelik.auth)

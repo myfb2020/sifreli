@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block baslik %}🔧 Tamir – {{ asama.ad }}{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:600px;margin:0 auto">
+  <p style="margin:0 0 8px"><a href="{% url 'istasyon_ekrani' asama.pk %}">← {{ asama.ad }}</a></p>
+  <h1>🔧 Tamir aç</h1>
+  <p class="soluk">Müşteriden dönen ya da üretimde hatası fark edilen halının tamiri <b>yalnız bu istasyonda ({{ asama.ad }})</b> yapılır.
+    Ofis bütün tamirleri <b>Tamirler</b> sayfasında görür. Bayi görmez.</p>
+  <form method="post" class="dikey" enctype="multipart/form-data">
+    {% include "uretim/_form.html" %}
+    <datalist id="tamir-siparisleri">{% for s in adaylar %}<option value="{{ s.siparis_no }}">{{ s.musteri }} · {{ s.urun|truncatechars:40 }}</option>{% endfor %}</datalist>
+    <button class="btn buyuk" type="submit" style="width:100%">🔧 Tamiri aç</button>
+  </form>
+</div>
+<style>
+  #id_neden { display:flex; gap:10px; flex-wrap:wrap; }
+  #id_neden label { font-weight:normal; display:flex; gap:6px; align-items:center; font-size:18px; padding:10px 14px; border:2px solid #e6ddd3; border-radius:12px; }
+  #id_neden input { width:auto; }
+</style>
+{% endblock %}

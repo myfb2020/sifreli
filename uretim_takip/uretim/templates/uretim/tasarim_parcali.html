@@ -170,7 +170,7 @@
       {% for alan in form %}{% if alan.name != "adet" %}
       <p><label for="{{ alan.id_for_label }}">{{ alan.label }}</label>{{ alan }}{% for e in alan.errors %}<span class="errorlist">{{ e }}</span>{% endfor %}</p>
       {% endif %}{% endfor %}
-      <button class="btn buyuk" type="submit" style="width:100%">📤 Siparişi gönder</button>
+      <button class="btn buyuk" id="gonder-dugme" type="submit" style="width:100%">📤 Siparişi gönder</button>
       <p class="soluk">Siparişiniz onaylanınca üretime alınır; kesim ve nakış listesini atölye hazırlar.</p>
     </section>
 
@@ -189,6 +189,7 @@
 {{ hazir_json|json_script:"hazir-veri" }}
 {{ kendi_zemin|json_script:"kendi-zemin" }}
 {{ h.uyarilar|json_script:"ilk-uyarilar" }}
+{{ aile_malzemeleri|json_script:"aile-malzemeleri" }}
 
 <style>
   .studyo { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
@@ -392,33 +393,33 @@
     new FormData(form).forEach((d, ad) => { if (!siparisAlanlari.includes(ad)) v.set(ad, d); });
     return v.toString();
   }
-  // Rono / Bienca modelinde zemin yalnız o serinin kartelası; bantlar, şerit, madalyon ve biye Rono + Bienca +
-  // altın / gümüş (Bienca halıya Rono bant ya da tersi olabilir)
-  const kartelaGrup = ["RNO", "BNA", "metal"];
+  // Model ailesine göre malzeme (2026-11-23): Peluş / Rono / Bienca modelinde her parça yalnız ailesinin kartelasından
+  // (aile_malzemeleri); modelin katalogdaki kendi rengi her zaman seçilebilir. Ailesiz serbest tasarımda hepsi açık.
+  const aileMalzemeleri = JSON.parse(document.getElementById("aile-malzemeleri").textContent);
+  const alanTuru = (alan) => ({zemin: "zemin", madalyon_malzeme: "madalyon", kenar_renk: "kenar"})[alan] || "bordur";
+  function secimSuz(etiketler, alan, aile, kendi) {
+    let secili = null, ilk = null;
+    etiketler.forEach((l) => {
+      const deger = l.querySelector("input").value;
+      l.hidden = !!aile && deger !== kendi && !aile[alanTuru(alan)].includes(deger);
+      if (!l.hidden && !ilk) ilk = l;
+      if (l.querySelector("input").checked) secili = l;
+    });
+    if (secili && secili.hidden && ilk) ilk.querySelector("input").checked = true;
+  }
   function kartelaFiltre() {
-    const on = (form.querySelector('[name="katalog"]').value || "").slice(0, 3);
-    const kartelali = on === "RNO" || on === "BNA";
+    const katalog = form.querySelector('[name="katalog"]').value || "";
+    const aile = aileMalzemeleri[katalog.slice(0, 3)] || null;
+    const model = hazirlar[katalog] || {};
     document.querySelectorAll(".mal-izgara").forEach((izgara) => {
-      let secili = null, ilk = null;
-      const zemin = izgara.dataset.alan === "zemin";
-      izgara.querySelectorAll("label.mal").forEach((l) => {
-        const g = l.dataset.grup;
-        // modelin katalogdaki kendi zemini (ör. BNA-010 kahve Rono, BNA-014 lacivert peluş) kartela dışında olsa da seçilebilir
-        const kendi = zemin && l.querySelector("input").value === kendiZemin[form.querySelector('[name="katalog"]').value];
-        l.hidden = kartelali && !kendi && (zemin ? g !== on : !kartelaGrup.includes(g));
-        if (!l.hidden && !ilk) ilk = l;
-        if (l.querySelector("input").checked) secili = l;
-      });
-      if (secili && secili.hidden && ilk) ilk.querySelector("input").checked = true;
+      const alan = izgara.dataset.alan;
+      secimSuz(izgara.querySelectorAll("label.mal"), alan, aile, alan === "zemin" ? (kendiZemin[katalog] || model.zemin) : model[alan]);
+      // süzülmüş liste kısa: "Tümünü göster" gerekmez
+      izgara.classList.toggle("acik", !!aile);
+      const tumu = izgara.nextElementSibling;
+      if (tumu && tumu.classList.contains("tumu")) tumu.hidden = !!aile;
     });
-    let kSecili = null, kIlk = null;
-    document.querySelectorAll("label.kenar-renk").forEach((l) => {
-      const g = l.dataset.grup;
-      l.hidden = kartelali ? !kartelaGrup.includes(g) : (g === "RNO" || g === "BNA");
-      if (!l.hidden && !kIlk) kIlk = l;
-      if (l.querySelector("input").checked) kSecili = l;
-    });
-    if (kSecili && kSecili.hidden && kIlk) kIlk.querySelector("input").checked = true;
+    secimSuz(document.querySelectorAll("label.kenar-renk"), "kenar_renk", aile, model.kenar_renk);
   }
   // keskin ekranda (iPad, telefon) çizim daha büyük istenir; yoksa bulanık görünür
   // Önizleme küçük ve hızlı (büyük resim yalnız resme dokununca); sunucu tek iş yaptığı için aynı anda tek resim
@@ -453,7 +454,7 @@
       const j = await (await fetch(veriAdresi + "?" + q)).json();
       if (benim !== sira) return;
       document.getElementById("ozet").textContent = j.ozet;
-      uyarilariGoster(j.uyarilar, j.kalan_yer);
+      uyarilariGoster(j.uyarilar, j.kalan_yer, j.madalyon_en_cok);
     } catch (e) { /* bağlantı yoksa eski bilgi kalır */ }
   }
   // uyarılar: üstte tek satırlık rozet (dokununca açılır); ayrıntı ilgili adımda, ilgili halkanın yanında
@@ -463,9 +464,26 @@
     liste.hidden = !liste.hidden;
     rozet.setAttribute("aria-expanded", String(!liste.hidden));
   });
-  function uyarilariGoster(uyarilar, kalan) {
+  // Madalyon çapı kutusunun üst sınırı yalnız madalyon kullanılırken; kapalıyken (gizli kutu) tarayıcı formu sessizce
+  // göndermiyordu (2026-11-23 bayi denemesi).
+  let madalyonEnCokSon = 80;
+  function madalyonSiniri() {
+    const mc = document.getElementById("madalyon_cap");
+    if (!mc) return;
+    const secili = (ad) => (form.querySelector(`[name="${ad}"]:checked`) || form.querySelector(`[name="${ad}"]`) || {}).value;
+    const kullaniliyor = secili("madalyon") !== "yok" && secili("orta") === "duz";
+    mc.max = kullaniliyor ? Math.max(15, madalyonEnCokSon) : 80;
+  }
+  document.getElementById("gonder-dugme")?.addEventListener("click", madalyonSiniri);
+  function uyarilariGoster(uyarilar, kalan, madalyonEnCok) {
     rozet.classList.toggle("sorun", uyarilar.length > 0);
-    rozet.textContent = uyarilar.length ? `⚠ ${uyarilar.length} uyarı` : "✓ Üretilebilir";
+    // madalyon sığmıyorsa (engel) sipariş gönderilemez; olduğu gibi siparişte çizim gitmez, engel yok
+    const engel = !form.querySelector('[name="aynen"]').value && uyarilar.some((u) => u.engel);
+    rozet.textContent = engel ? "⛔ Bu hâliyle üretilemez" : (uyarilar.length ? `⚠ ${uyarilar.length} uyarı` : "✓ Üretilebilir");
+    const gonder = document.getElementById("gonder-dugme");
+    if (gonder) { gonder.disabled = engel; gonder.title = engel ? "Önce uyarıyı giderin" : ""; }
+    if (madalyonEnCok !== undefined) madalyonEnCokSon = madalyonEnCok;
+    madalyonSiniri();
     liste.innerHTML = uyarilar.map((u) => `<div>• ${kac(u.metin)}</div>`).join("");
     if (!uyarilar.length) liste.hidden = true;
     form.querySelectorAll("[data-uyari-halka]").forEach((e) => {
@@ -486,7 +504,7 @@
       if (a) a.max = i <= n ? Math.floor((parseFloat(a.value) || 0) + kalan) : 50;
     }
   }
-  uyarilariGoster(JSON.parse(document.getElementById("ilk-uyarilar").textContent), {{ h.kalan_yer|stringformat:"s" }});
+  uyarilariGoster(JSON.parse(document.getElementById("ilk-uyarilar").textContent), {{ h.kalan_yer|stringformat:"s" }}, {{ h.madalyon_en_cok|stringformat:"s" }});
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
   const yakinda = () => { goster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 400); };
   const aynenBirak = (e) => { if (!siparisAlanlari.includes(e.target.name) && !["en", "boy"].includes(e.target.name)) form.querySelector('[name="aynen"]').value = ""; };

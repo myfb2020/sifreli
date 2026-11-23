@@ -25,7 +25,7 @@ const ADRES = 'http://127.0.0.1:8765';
     return { sira, ad, q, foto: src.includes('/medya/') || src.includes('katalog') };
   };
   const tumunuAc = async (kap) => { const t = p.locator(`${kap} + button.tumu`);
-    for (let i = 0; i < await t.count(); i++) if ((await t.nth(i).textContent()).includes('Tümünü')) await t.nth(i).click(); };
+    for (let i = 0; i < await t.count(); i++) if (await t.nth(i).isVisible() && (await t.nth(i).textContent()).includes('Tümünü')) await t.nth(i).click(); };
   const sec = async (kap, secici, n = 0) => {  // görünür, seçili olmayan n. seçeneğe tıkla
     await tumunuAc(kap);
     const e = p.locator(`${kap} ${secici}:visible:not(:has(input:checked)):not(:has(input:disabled))`);

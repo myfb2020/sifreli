@@ -44,8 +44,8 @@
   #istasyon .buyuk-adim > li::before { width:26px; height:26px; line-height:26px; font-size:13pt; top:5px; left:9px; }
   #istasyon table { margin:4px 0 6px; }
   footer { margin-top:14px; font-size:9pt; color:var(--soluk); border-top:1px solid var(--cizgi); padding-top:5px; }
-  #buro footer { margin-top:6px; }
-  #buro h2 { margin-top:12px; }
+  #buro footer { margin-top:2px; }
+  #buro h2 { margin-top:9px; }
 </style>
 </head>
 <body>
@@ -54,14 +54,14 @@
 <section class="bolum" id="buro">
 <header class="kapak">
   <div><div class="marka">BIENNA FUR</div><h1>Büro (Ofis) Rehberi</h1></div>
-  <div class="alt">Üretim Takip programı<br><span class="adres">uretim.pythonanywhere.com</span></div>
+  <div class="alt">Üretim Takip programı<br><span class="adres">uretim.biennafur.com</span></div>
 </header>
 
 <p>Bu rehber siparişleri, stoğu ve bayi tasarımlarını yöneten büro çalışanı içindir. Program telefonda, tablette ve bilgisayarda aynı şekilde çalışır.</p>
 
 <h2>1. Giriş ve telefona kurma</h2>
 <ol>
-  <li>Tarayıcıda <span class="adres">uretim.pythonanywhere.com</span> adresini açın; size verilen kullanıcı adı ve şifreyle girin.</li>
+  <li>Tarayıcıda <span class="adres">uretim.biennafur.com</span> adresini açın; size verilen kullanıcı adı ve şifreyle girin.</li>
   <li><b>Android telefonda:</b> üstteki <b class="d">Uygulamayı yükle</b> düğmesine basın. Program ana ekranda simge olarak durur.</li>
   <li><b>iPhone'da:</b> Safari'de <b class="d">Paylaş ⬆</b> → <b class="d">Ana Ekrana Ekle</b>.</li>
 </ol>
@@ -78,7 +78,7 @@
   <tr><td>Ürün açıklaması</td><td>Renk, özel istek. Örn: <i>krem, altın biye</i>.</td></tr>
   <tr><td>Ölçüler: En, Boy, Adet</td><td>Örn. <b>160 × 230</b>, 2 adet. Aynı modelden başka ölçü için <b class="d">+ Ölçü ekle</b>. Bütün ölçüler <b>tek iş emrinde</b> (ör. <b>160 × 230 ×2 · 200 × 300</b>) kendiliğinden açılır ve lazerin ekranına düşer; m²'yi program hesaplar.</td></tr>
   <tr><td>Teslim tarihi</td><td>Müşteriye söz verilen tarih. İstasyonlarda "2 gün kaldı / gecikti" diye görünür; yakın olan üstte durur.</td></tr>
-  <tr><td>⚡ Acil · Not</td><td>Acil işaretli iş her istasyonda <b>en üstte</b> çıkar. Not (örn. <i>kenar altın biye</i>) istasyon ekranında görünür.</td></tr>
+  <tr><td>⚡ Acil · Not · Kenar</td><td>Acil iş istasyonlarda en üstte. Notta <b>biye / lanfel / kenar dikişi</b> yazıyorsa iş yalnız o istasyona düşer.</td></tr>
 </table>
 <p><b class="d">Kaydet</b>'e basınca sipariş numarası (SP-2026-…) verilir ve iş ilk istasyonun ekranına <b>"Yeni sipariş"</b> olarak düşer.</p>
 
@@ -138,7 +138,7 @@
 
 <h2>Bayiler</h2>
 <p><b class="d">🤝 Bayiler</b> → <b>+ Yeni bayi</b> (ad, telefon) → <b class="d">📲 WhatsApp'ta gönder</b>. Bayi bağlantıyı açıp kendi şifresini koyar (bağlantı 7 gün, tek kullanım). Bayi sipariş gönderince ekranda ses + yeşil bant çıkar; telefona bildirim için bu sayfada <b class="d">🔔 Bildirimleri aç</b>. <b>Yanlışlıkla Başla / Bitti:</b> yönetici işin sayfasında son işlemin yanındaki <b class="d">↩ Geri al</b> ile düzeltir. Düzeltme yetkili lazer tableti de geri alır, çift işi/siparişi iptal eder (<b class="d">🛠 Düzeltmeler</b>).</p>
-<p><b>Tamir / iade:</b> biten ya da sevk edilen siparişte <b class="d">↩ Tamir / iade aç</b>: neden, açıklama, fotoğraf, hangi halı, geçeceği istasyonlar, hata kimin. Ekranlara 🔧 TAMİR olarak düşer; bayi görmez, stoğa girmez. Raporlarda sayısı ve nedenleri görünür.</p>
+<p><b>Tamir:</b> <b class="d">🔧 Tamirler</b> → sipariş no → <b class="d">+ Yeni tamir</b>; kenar istasyonları da kendi ekranından açar. Bayi görmez. <b>Öncelik:</b> siparişte <b class="d">⚡ Öne al</b>, sıra istasyonda ↑ ↓. <b>Katalog:</b> bayi yalnız seçili 9 modeli görür; <b>Pasif modeller</b> iyi fotoğraf gelince <b class="d">Aktif yap</b> / <b class="d">Bayiye aç</b>.</p>
 
 <h2>Çalışan hesapları (yönetici)</h2>
 <p><b class="d">Hesaplar</b> → hesabı açın → tür <b>İstasyon tableti</b>. <b>"Bu hesap kimin?"</b> kutusundan çalışanı, <b>"Hangi istasyonda?"</b> kutusundan istasyonunu seçin. Kendi telefonunu kullanan çalışana artık <b>ad ve PIN sorulmaz</b>, iş onun adına yazılır. Kimin olduğu seçilmeyen ortak tablet ise ad ve PIN sormaya devam eder.</p>
@@ -161,9 +161,9 @@
 
 <h2>Ekranda ne var?</h2>
 <table>
-  <tr><th style="width:34%">🔧 Devam eden · 📥 Bekleyen</th><td>Üstteki iki düğme: basılan liste görünür. <b>Devam eden</b> = sizde yapılan işler (sorun varsa <b class="d">📝 Not</b>). <b>Bekleyen</b> = size gelen işler; yeni iş gelince <b>kırmızı bant</b>, ses ve düğmede <b>YENİ</b>.</td></tr>
+  <tr><th style="width:34%">⚡ Öncelikli · 🔧 Devam eden · 📥 Bekleyen</th><td>Üstteki üç düğme. <b>Öncelikli</b> = ofisin / lazer ustasının öne aldığı ve acil işler, <b>önce bunlar, bu sırayla</b>. <b>Devam eden</b> = sizde yapılan işler (sorun varsa <b class="d">📝 Not</b>). <b>Bekleyen</b> = size gelen işler; yeni iş gelince <b>kırmızı bant</b>, ses ve <b>YENİ</b>.</td></tr>
   <tr><th>Resim</th><td>Siparişin fotoğrafı, katalog modeli ya da bayi tasarımı. <b>Dokunun, büyüsün</b>; ✕ ile kapatın.</td></tr>
-  <tr><th>Sıra</th><td>Ölçü, teslim günü ve not yazar. <b>⚡ ACİL</b> işler en üstte, sonra teslimi yakın olanlar. Sıraya göre çalışın.</td></tr>
+  <tr><th>Sıra · 🔧 Tamir</th><td>Öncelikli işler en üstte, sonra teslimi yakın olanlar; lazer ustası <b class="d">⚡ Öne al</b>, ↑ ↓ ile sıralar. Zig-zag, Biye, Lanfel, Kenar dikişi: dönen ya da hatalı halıya <b class="d">🔧 Tamir</b> → sipariş no, sorun → tamir sizde başlar.</td></tr>
   <tr><th>Kırmızı satır</th><td>Süre aşıldı: iş çok bekledi ya da çok uzun sürüyor. Ofise haber verin.</td></tr>
 </table>
 
@@ -184,10 +184,9 @@
 
 <div class="kutu uyari"><b>Unutmayın:</b>
   <ul>
-    <li>Telefonunuzu ve PIN'inizi kimseye vermeyin; yapılan iş sizin adınıza yazılır.</li>
-    <li>Başka birinin işini <b>bitirmeyin</b>; başlayan bitirir.</li>
-    <li>Lazerci, büyük parçanın keçe tarafına <b>sipariş numarasını</b> yazar; parçalar istasyonlar arasında karışmaz.</li>
-    <li>Ekranda bir terslik görürseniz (yanlış iş, yanlış miktar) <b>ofise söyleyin</b>; kendiniz silmeye çalışmayın.</li>
+    <li>Telefonunuzu ve PIN'inizi kimseye vermeyin. Başka birinin işini <b>bitirmeyin</b>; başlayan bitirir.</li>
+    <li>Lazerci, büyük parçanın keçe tarafına <b>sipariş numarasını</b> yazar.</li>
+    <li>Ekranda bir terslik görürseniz <b>ofise söyleyin</b>; kendiniz silmeye çalışmayın.</li>
   </ul>
 </div>
 <footer>Bienna Fur · Üretim Takip · İstasyon rehberi</footer>
@@ -197,7 +196,7 @@
 <section class="bolum" id="bayi">
 <header class="kapak">
   <div><div class="marka">BIENNA FUR</div><h1>Bayi Sipariş Rehberi</h1></div>
-  <div class="alt">Halınızı seçin, renklerini belirleyin, takip edin<br><span class="adres">uretim.pythonanywhere.com</span></div>
+  <div class="alt">Halınızı seçin, renklerini belirleyin, takip edin<br><span class="adres">uretim.biennafur.com</span></div>
 </header>
 
 <p>Bienna Fur'dan size verilen kullanıcı adı ve şifreyle girin. Telefonunuza kurmak için Android'de <b class="d">Uygulamayı yükle</b>'ye, iPhone'da Safari'de <b class="d">Paylaş ⬆ → Ana Ekrana Ekle</b>'ye dokunun.</p>
@@ -209,7 +208,7 @@
 
 <h2>1. Suni deri halı (Rono · Bienca · peluş)</h2>
 <ol>
-  <li><b class="d">🛒 Sipariş ver → Suni deri halı</b>. Üstteki sekmelerden seriyi seçin: <b>Rono · Bienca · İpek Peluş · Peluche</b>.</li>
+  <li><b class="d">🛒 Sipariş ver → Suni deri halı</b>. Üstteki sekmelerden seriyi seçin: <b>Rono · Bienca · İpek Peluş</b>.</li>
   <li>Bir modele dokunun. Olduğu gibi istiyorsanız rengi karteladan seçin (peluşta rengi yazın), ölçüleri girip gönderin.</li>
   <li><b>🎨 işaretli</b> modellerde <b class="d">🎨 Renk, desen ve nakışı değiştirerek tasarla</b>'ya dokunun. Halı parçalarından çizilir: zemin, bantlar ve biye için Rono / Bienca rengi, bantta lazer deseni ya da nakış bordürü (motif + iplik rengi) seçersiniz; resim her seçimde değişir. Son adımda aynı tasarımı başka ölçülerde de istiyorsanız <b class="d">+ Başka ölçü ekle</b>.</li>
 </ol>

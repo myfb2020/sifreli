@@ -178,6 +178,11 @@ def tasarim_gonder(*, bayi, kullanici, veri, adet, istenen_tarih=None, notlar=""
     return tasarim
 
 
+def _ilk_aktif_hazir():
+    pasifler = set(KatalogModeli.objects.filter(aktif=False).values_list("kod", flat=True))
+    return next((k for k, _, _ in cizim.HAZIRLAR if k not in pasifler and not k.startswith("SD-")), cizim.HAZIRLAR[0][0])
+
+
 @login_required
 def studyo(request):
     bayi = _bayi_gerekli(request)
@@ -199,12 +204,14 @@ def studyo(request):
         if kaynak:
             veri = _temizle(kaynak.veri)
         else:
-            veri = _temizle(cizim.hazir_degerler(request.GET.get("katalog") or cizim.HAZIRLAR[0][0]))
+            veri = _temizle(cizim.hazir_degerler(request.GET.get("katalog") or _ilk_aktif_hazir()))
     modeller = {m.kod: m for m in KatalogModeli.objects.filter(kod__in=cizim.HAZIR)}
     hazirlar = []
     suni = veri["model"] == "suni"  # suni deri artık Parçalı tasarımda; eski suni tasarımlar açılabilsin diye kalır
     for kod, ad, _ in cizim.HAZIRLAR:
         if kod.startswith("SD-") and not suni:
+            continue
+        if kod in modeller and not modeller[kod].aktif:  # pasif (fotoğrafı kötü) model stüdyoda da görünmez
             continue
         deger = cizim.temizle(cizim.hazir_degerler(kod), _desen_kodlari())
         model = modeller.get(kod)

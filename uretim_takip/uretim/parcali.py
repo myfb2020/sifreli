@@ -197,6 +197,35 @@ KENAR_RENKLERI = [("altin", "Altın"), ("gumus", "Gümüş"), ("siyah", "Siyah")
 KENAR_KARTELA = [(k, MALZEME_AD[k]) for liste in KARTELA_MALZEMELERI.values() for k in liste]
 
 
+# Model ailesine göre seçilebilen malzemeler (2026-11-23, kullanıcı: "tasarımda her şey seçilebiliyor, sadeleşsin").
+# Modelin katalogdaki kendi rengi her zaman seçilebilir (izinli_mi).
+PELUS = [k for k, _, _ in MALZEMELER if k.startswith("pelus_")]
+_RONO, _BIENCA = KARTELA_MALZEMELERI["RNO"], KARTELA_MALZEMELERI["BNA"]
+_PELUS_AILE = {"zemin": PELUS, "bordur": PELUS + _BIENCA, "madalyon": PELUS, "kenar": METALIK}
+AILE_MALZEMELERI = {
+    "IPS": _PELUS_AILE, "PCH": _PELUS_AILE,
+    "RNO": {"zemin": _RONO, "bordur": _RONO + _BIENCA, "madalyon": _RONO + _BIENCA, "kenar": _RONO + METALIK},
+    "BNA": {"zemin": _BIENCA, "bordur": _BIENCA + _RONO + METALIK, "madalyon": _BIENCA + _RONO,
+            "kenar": _BIENCA + METALIK},
+}
+
+
+def alan_turu(alan):
+    """Form alanı → malzeme parça türü (zemin / bordur / madalyon / kenar)."""
+    if alan in ("zemin", "madalyon_malzeme", "kenar_renk"):
+        return {"zemin": "zemin", "madalyon_malzeme": "madalyon", "kenar_renk": "kenar"}[alan]
+    return "bordur"  # h1..h4_malzeme, serit_malzeme, panel_malzeme
+
+
+def izinli_mi(katalog, alan, deger):
+    """Bu model ailesinde bu parçaya bu malzeme seçilebilir mi (ailesiz / serbest tasarımda hep evet)."""
+    aile = AILE_MALZEMELERI.get((katalog or "")[:3])
+    if not aile or not katalog:
+        return True
+    kendi = hazir_degerler(katalog).get(alan) if katalog in HAZIR or katalog in FOTO_RENK else None
+    return deger in aile[alan_turu(alan)] or deger == kendi
+
+
 def kenar_secenekleri():
     return KENAR_RENKLERI + KENAR_KARTELA
 
@@ -523,6 +552,10 @@ BAYIDE_GIZLI = {
 }
 SECILI_MODELLER[:] = [k for k in dict.fromkeys(list(FOTO_RENK) + [k for k in KATALOG_DEGER if k.startswith("IPS")])
                       if k not in BAYIDE_GIZLI]
+
+# Bayinin vitrini (2026-11-23, kullanıcı: "bayiye en iyisini gösterelim"): bayi Suni deri Sipariş ver'de yalnız bu
+# modeller (olduğu gibi + 🎨 Tasarla). Öteki suni deri modelleri bayide gizli (migration 0047); kötü fotoğraflılar pasif.
+BAYI_VITRINI = ["BNA-018", "BNA-019", "IPS-442", "IPS-457", "IPS-476", "RNO-004", "RNO-010", "RNO-011", "RNO-012"]
 
 
 def hazir_degerler(kod):
@@ -1402,8 +1435,8 @@ def halkali_uyari_listesi(v):
     """Uyarılar, ekranda nerede gösterileceğiyle: adim (2 halkalar, 3 orta), halka no; teknik olanlar bayiye gösterilmez."""
     u = []
     ps = parcalar(v)
-    ekle = lambda metin, adim, halka=None, teknik=False: u.append(  # noqa: E731
-        {"metin": metin, "adim": adim, "halka": halka, "teknik": teknik})
+    ekle = lambda metin, adim, halka=None, teknik=False, engel=False: u.append(  # noqa: E731
+        {"metin": metin, "adim": adim, "halka": halka, "teknik": teknik, "engel": engel})
     for i in range(1, v["halka_sayisi"] + 1):
         gen, tur = v[f"h{i}_gen"], v[f"h{i}_tur"]
         if gen < halka_en_az(tur, v[f"h{i}_nakis"]):
@@ -1421,10 +1454,28 @@ def halkali_uyari_listesi(v):
             ekle("Seçilen motif ortaya sığmıyor; daha küçük bir motif seçin ya da bordürleri daraltın.", 3)
         elif len(panel["motifler"]) < v["motif_adet"]:
             ekle(f"Ortaya {v['motif_adet']} motif sığmadı; {len(panel['motifler'])} motif kondu.", 3)
+    if v["orta"] == "duz" and v["madalyon"] != "yok":
+        # 2026-11-23: madalyon ortaya sığmayınca çizimden sessizce düşüyordu, özette 'Üretilebilir' yazıyordu
+        en_cok = madalyon_en_cok(v)
+        if en_cok < MADALYON_EN_AZ:
+            ekle("Ortada madalyona yer yok; madalyonu kaldırın ya da bordürleri / ara bantları daraltın.", 3, engel=True)
+        elif v["madalyon_cap"] > en_cok:
+            ekle(f"Madalyon bu halıda en fazla {en_cok} cm olabilir; çapı küçültün ya da bordürleri daraltın.", 3,
+                 engel=True)
     kucuk = [p for p in ps if min(p["en"], p["boy"]) < 4]
     if kucuk:
         ekle(f"{len(kucuk)} parça 4 cm'den dar; dikişi zor olabilir.", 2, teknik=True)
     return u
+
+
+MADALYON_EN_AZ = 15  # cm (çap kutusunun alt sınırı)
+
+
+def madalyon_en_cok(v):
+    """Ortaya sığan en büyük madalyon çapı (cm): `_madalyonlu_orta` ile aynı kural (her yanda 10 cm zemin + çerçeve)."""
+    kisa = min(v["en"], v["boy"]) - 2 * halka_toplami(v)
+    cerceve = MADALYON_CERCEVE if v["madalyon_cerceve"] else 0
+    return max(0, math.floor(kisa - 20 - 2 * cerceve))
 
 
 def kalan_yer(v):

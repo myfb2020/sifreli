@@ -355,7 +355,8 @@ class SiparisForm(forms.ModelForm):
 
     class Meta:
         model = Siparis
-        fields = ["hali_turu", "urun", "deri_turu", "renk", "renk_notu", "teslim_tarihi", "notlar", "lazer_deseni", "acil"]
+        fields = ["hali_turu", "urun", "deri_turu", "renk", "renk_notu", "teslim_tarihi", "notlar", "lazer_deseni", "acil",
+                  "kenar"]
         widgets = {
             "teslim_tarihi": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notlar": forms.Textarea(attrs={"rows": 2}),
@@ -363,7 +364,7 @@ class SiparisForm(forms.ModelForm):
         labels = {"notlar": "Not (isteğe bağlı)"}
 
     field_order = ["musteri", "yeni_musteri", "fotograflar", "model_kodu", "lazer_deseni", "hali_turu", "urun", "deri_turu",
-                   "renk", "renk_notu", "teslim_tarihi", "acil", "notlar"]
+                   "renk", "renk_notu", "teslim_tarihi", "acil", "notlar", "kenar"]
 
     def __init__(self, *args, foto_sayisi=0, **kwargs):
         super().__init__(*args, **kwargs)
@@ -715,11 +716,43 @@ class DeriDuzeltmeForm(forms.Form):
     aciklama = forms.CharField(label="Açıklama (isteğe bağlı)", required=False, max_length=200)
 
 
+class IstasyonTamirForm(forms.Form):
+    """İstasyonda 🔧 Tamir: müşteriden dönen ya da üretimde fark edilen hata; tamir bu istasyonda yapılır."""
+
+    siparis_no = forms.CharField(label="Sipariş no", max_length=20,
+                                 widget=forms.TextInput(attrs={"list": "tamir-siparisleri", "autocomplete": "off",
+                                                               "placeholder": "SP-2026-…", "autocapitalize": "characters"}))
+    neden = forms.ChoiceField(label="Neden", widget=forms.RadioSelect,
+                              choices=[("iade", "Müşteriden döndü"), ("uretim", "Üretimde fark edildi")])
+    aciklama = forms.CharField(label="Ne yapılacak / sorun ne?", max_length=1000,
+                               widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Ör. biye söküldü, köşe kalkmış"}))
+    foto = forms.FileField(label="📷 Fotoğraf (isteğe bağlı)", required=False,
+                           widget=forms.ClearableFileInput(attrs={"accept": "image/*", "capture": "environment"}))
+    personel = forms.ModelChoiceField(queryset=Personel.objects.filter(aktif=True), required=False, label="Kim yapıyor",
+                                      empty_label="— Sonra başlatılacak —")
+
+    def __init__(self, *args, personel_belli=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if personel_belli:  # kişisel hesapta personel sorulmaz, iş hemen başlar
+            del self.fields["personel"]
+
+    def clean_siparis_no(self):
+        no = self.cleaned_data["siparis_no"].strip().upper()
+        siparis = Siparis.objects.filter(siparis_no=no).first()
+        if siparis is None:
+            raise forms.ValidationError(f"“{no}” numaralı sipariş bulunamadı.")
+        if siparis.durum in ("onay", "iptal"):
+            raise forms.ValidationError("Onay bekleyen ya da iptal edilen siparişe tamir açılmaz.")
+        self.siparis = siparis
+        return no
+
+
 class TamirForm(forms.Form):
-    """Biten / sevk edilen siparişte iade, tamir, düzeltme (yalnız ofis; bayi görmez)."""
+    """Ofisin açtığı iade, tamir, düzeltme (bayi görmez)."""
 
     neden = forms.ChoiceField(label="Neden", choices=[("", "— Seçin —")] + [
-        ("iade", "Müşteri iadesi"), ("tamir", "Tamir"), ("duzeltme", "Düzeltme"), ("garanti", "Garanti")])
+        ("iade", "Müşteri iadesi"), ("tamir", "Tamir"), ("duzeltme", "Düzeltme"), ("garanti", "Garanti"),
+        ("uretim", "Üretimde fark edildi")])
     kaynak_lot = forms.ModelChoiceField(queryset=UretimLotu.objects.none(), label="Hangi halı", required=False,
                                         empty_label="— Siparişin tamamı / bilinmiyor —")
     aciklama = forms.CharField(label="Açıklama", required=False, max_length=1000,

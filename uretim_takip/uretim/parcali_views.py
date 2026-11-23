@@ -54,7 +54,7 @@ def bayi_hesap(v):
     """Bayi ekranı için yalnız gerekenler: özet, teknik olmayan uyarılar (yeriyle), halkalara kalan yer."""
     return {"ozet": parcali.ozet(v),
             "uyarilar": [u for u in parcali.halkali_uyari_listesi(v) if not u["teknik"]],
-            "kalan_yer": parcali.kalan_yer(v)}
+            "kalan_yer": parcali.kalan_yer(v), "madalyon_en_cok": parcali.madalyon_en_cok(v)}
 
 
 @login_required
@@ -69,6 +69,19 @@ def studyo(request):
         ek = ek_olculer(request.POST)
         if isinstance(ek, str):
             form.add_error(None, ek)
+        if not veri.get("aynen") and veri.get("duzen") == "halkali":  # olduğu gibi siparişte katalog fotoğrafı gider
+            for u in parcali.halkali_uyari_listesi(veri):
+                if u["engel"]:
+                    form.add_error(None, u["metin"])
+            # model ailesinin dışında malzeme (ekranda zaten gizli) gönderilemez
+            kullanilan = ["zemin", "kenar_renk"] + [f"h{i}_malzeme" for i in range(1, veri["halka_sayisi"] + 1)]
+            kullanilan += {"serit": ["serit_malzeme"], "panel": ["panel_malzeme"]}.get(veri["orta"], [])
+            kullanilan += ["madalyon_malzeme"] if veri["orta"] == "duz" and veri["madalyon"] != "yok" else []
+            for alan in kullanilan:
+                if alan in veri and not parcali.izinli_mi(veri.get("katalog"), alan, veri[alan]):
+                    form.add_error(None, f"{parcali.MALZEME_AD.get(veri[alan], parcali.KENAR_AD.get(veri[alan], veri[alan]))}"
+                                         " bu modelde kullanılamaz; kartelasından bir renk seçin.")
+                    break
         if form.is_valid():
             tasarim = tasarim_gonder(bayi=bayi, kullanici=request.user, veri=veri, ek=ek, **form.cleaned_data)
             messages.success(request, f"Tasarımınız gönderildi ({tasarim.siparis.siparis_no}). "
@@ -80,13 +93,16 @@ def studyo(request):
     yalniz_secili = bayi is not None and not getattr(settings, "STUDYO_BAYIYE_ACIK", False)
     veri = _temizle(parcali.eskiden_cevir(veri))  # ekran yalnız halkalı yapıyı düzenler
     desenler = LazerDeseni.objects.filter(kod__in=_desen_kodlari() - parcali.GIZLI_DESENLER)
+    pasifler = set(KatalogModeli.objects.filter(aktif=False).values_list("kod", flat=True))
+    bayiye = set(parcali.SECILI_MODELLER) & set(parcali.BAYI_VITRINI)
     hazirlar = [{"kod": k, "deger": _temizle(parcali.hazir_degerler(k))} for k, _, _ in parcali.HAZIRLAR
-                if not yalniz_secili or k in parcali.SECILI_MODELLER]
+                if k not in pasifler and (not yalniz_secili or k in bayiye)]
     seriler = []
     for on, ad in parcali.KATALOG_SERILERI + parcali.EK_SERILER:
-        modeller = KatalogModeli.objects.filter(kod__startswith=on + "-").exclude(resim="").order_by("kod")
-        if yalniz_secili:  # bayi yalnız gerçekçi çizimi hazır modelleri görür
-            modeller = modeller.filter(kod__in=parcali.SECILI_MODELLER)
+        # pasif (fotoğrafı kötü) modeller stüdyoda da görünmez (2026-11-23)
+        modeller = KatalogModeli.objects.filter(kod__startswith=on + "-", aktif=True).exclude(resim="").order_by("kod")
+        if yalniz_secili:  # bayi yalnız vitrindeki, gerçekçi çizimi hazır modelleri görür
+            modeller = modeller.filter(kod__in=bayiye)
         # "bu modelden başla" yönetici dahil herkese yalnız fotoğrafa göre kurulmuş (seçili) modellerde (2026-11-16:
         # öteki modellerde çizim katalog fotoğrafına benzemiyor, madalyon logosu kayboluyordu)
         seriler.append({"on": on, "ad": ad, "modeller": [{"kod": m.kod, "resim": m.resim.url,
@@ -106,6 +122,7 @@ def studyo(request):
         "iplikler": parcali.IPLIKLER,
         "kenarlar": parcali.KENARLAR, "kenar_renkleri": [(k, ad, _grup(k)) for k, ad in parcali.kenar_secenekleri()], "desenler": desenler,
         "seriler": seriler, "madalyonlar": parcali.MADALYONLAR, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "kendi_zemin": {k: d["zemin"] for k, d in parcali.FOTO_RENK.items()}, "en_cok_halka": parcali.EN_COK_HALKA,
+        "aile_malzemeleri": parcali.AILE_MALZEMELERI,
     })
 
 

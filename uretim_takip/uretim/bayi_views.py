@@ -219,7 +219,8 @@ def bayi_siparis(request):
     return render(request, "uretim/bayi_siparis.html", {"form": form, "olculer": olculer, "seriler": seriler,
                                                         "kartelalar": kartelalar, "tur": tur, "duzenlenir": set(),
                                                         # fotoğraf boyama kapalı (kullanıcı 2026-11-06); seçili modeller parçalı stüdyoda
-                                                        "foto_modeller": {}, "tasarlanir": set(parcali.SECILI_MODELLER)})
+                                                        "foto_modeller": {},
+                                                        "tasarlanir": set(parcali.SECILI_MODELLER) & set(parcali.BAYI_VITRINI)})
 
 
 GENISLIKLER = {"k": 260, "o": 520, "b": None}

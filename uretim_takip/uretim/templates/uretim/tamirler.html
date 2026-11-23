@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block baslik %}Tamirler{% endblock %}
+{% block icerik %}
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <h1 style="margin:0;margin-right:auto">🔧 Tamirler</h1>
+  <form method="get" class="filtre" style="margin:0">
+    <input name="siparis_no" placeholder="Sipariş no (SP-…)" autocapitalize="characters" required>
+    <button class="btn" type="submit">+ Yeni tamir</button>
+  </form>
+</div>
+<div class="sekmeler alt-sekme">
+  <a class="sekme{% if durum == 'acik' %} secili{% endif %}" href="?durum=acik">Açık <span class="soluk">{{ acik_sayi }}</span></a>
+  <a class="sekme{% if durum != 'acik' %} secili{% endif %}" href="?durum=hepsi">Hepsi</a>
+</div>
+<div class="kart" style="overflow-x:auto">
+  <table>
+    <thead><tr><th>Tamir</th><th>Sipariş</th><th>Neden</th><th>İstasyon</th><th>Açan</th><th>Tarih</th><th>Durum</th></tr></thead>
+    <tbody>
+    {% for t in kayitlar %}
+      <tr>
+        <td><b>{{ t.no }}</b>{% if t.lot %}<br><a class="soluk" href="{% url 'lot_detay' t.lot.pk %}">{{ t.lot.lot_no }}</a>{% endif %}</td>
+        <td><a href="{% url 'siparis_detay' t.siparis.pk %}">{{ t.siparis.siparis_no }}</a><br><span class="soluk">{{ t.siparis.musteri }}</span></td>
+        <td>{{ t.get_neden_display }}{% if t.aciklama %}<br><span class="soluk">{{ t.aciklama|truncatechars:80 }}</span>{% endif %}
+          {% if t.hata_asama %}<br><span class="soluk">Hata: {{ t.hata_asama }}</span>{% endif %}</td>
+        <td>{% for a in t.istasyonlar.all %}{{ a.ad }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+        <td>{{ t.kullanici.get_full_name|default:t.kullanici.username|default:"–" }}</td>
+        <td>{{ t.tarih|date:"d.m.Y H:i" }}</td>
+        <td>{% if t.bitis %}<span class="rozet tamamlandi">Bitti {{ t.bitis|date:"d.m" }}</span>{% else %}<span class="rozet acil">Açık</span>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="soluk">{% if durum == 'acik' %}Açık tamir yok.{% else %}Tamir kaydı yok.{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="soluk">Tamir istasyonlardan da açılır: Zig-zag, Biye, Lanfel ve Kenar dikişi ekranlarında <b>🔧 Tamir</b> düğmesi.</p>
+{% endblock %}

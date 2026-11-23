@@ -3,15 +3,18 @@
 {% block icerik %}
 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
   <h1 style="margin:0;margin-right:auto">Katalog</h1>
-  {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_katalogmodeli_add' %}">+ Model ekle</a>{% endif %}
+  {% if user.is_staff %}{% if pasif %}<a class="btn ikincil" href="?">← Aktif modeller</a>{% elif pasif_sayi %}<a class="btn ikincil" href="?pasif=1">Pasif modeller ({{ pasif_sayi }})</a>{% endif %}
+  <a class="btn ikincil" href="{% url 'admin:uretim_katalogmodeli_add' %}">+ Model ekle</a>{% endif %}
 </div>
 {% include "uretim/_katalog_sekmeleri.html" %}
+{% if pasif %}<p class="kart" style="padding:10px;margin:0 0 10px">Pasif modeller bayide ve tasarım stüdyosunda görünmez; ofis siparişinde seçilebilir. İyi bir fotoğraf yükledikten sonra <b>Aktif yap</b> ile geri açın.</p>{% endif %}
 <div class="sekmeler alt-sekme" style="flex-wrap:wrap">
-  <a class="sekme{% if not seri %} secili{% endif %}" href="?">Hepsi</a>
-  {% for sr in seriler %}<a class="sekme{% if seri == sr.pk|stringformat:'d' %} secili{% endif %}" href="?seri={{ sr.pk }}">{{ sr.ad }} <span class="soluk">{{ sr.sayi }}</span></a>{% endfor %}
+  <a class="sekme{% if not seri %} secili{% endif %}" href="?{% if pasif %}pasif=1{% endif %}">Hepsi</a>
+  {% for sr in seriler %}<a class="sekme{% if seri == sr.pk|stringformat:'d' %} secili{% endif %}" href="?seri={{ sr.pk }}{% if pasif %}&pasif=1{% endif %}">{{ sr.ad }} <span class="soluk">{{ sr.sayi }}</span></a>{% endfor %}
 </div>
 <form class="filtre" method="get">
   {% if seri %}<input type="hidden" name="seri" value="{{ seri }}">{% endif %}
+  {% if pasif %}<input type="hidden" name="pasif" value="1">{% endif %}
   <input name="ara" value="{{ ara }}" placeholder="Model kodu (ör. TOS-034) ya da seri">
   <button class="btn kucuk" type="submit">Ara</button>
 </form>
@@ -21,6 +24,11 @@
     {% if m.resim %}<a href="{{ m.resim.url }}" target="_blank"><img src="{{ m.resim.url }}" alt="{{ m.kod }}" loading="lazy"></a>{% endif %}
     <div><b>{{ m.kod }}</b> <span class="soluk">{{ m.seri }}</span>{% if not m.bayiye_acik %} <span class="rozet" title="Bayinin Sipariş ver sayfasında görünmez">bayide gizli</span>{% endif %}</div>
     {% if perms.uretim.add_siparis %}<a class="btn kucuk" href="{% url 'siparis_yeni' %}?model={{ m.kod|urlencode }}">+ Sipariş aç</a>{% endif %}
+    {% if user.is_staff %}<form method="post" action="{% url 'katalog_model_durum' m.pk %}" class="durum-dugmeleri">{% csrf_token %}
+      <input type="hidden" name="geri" value="{{ request.get_full_path }}">
+      {% if m.aktif %}<button class="btn kucuk ikincil" name="alan" value="bayi">{% if m.bayiye_acik %}Bayiden gizle{% else %}Bayiye aç{% endif %}</button>{% endif %}
+      <button class="btn kucuk ikincil" name="alan" value="aktif"{% if m.aktif %} onclick="return confirm('{{ m.kod }} pasif yapılsın mı? Bayide ve stüdyoda görünmez.')"{% endif %}>{% if m.aktif %}Pasif yap{% else %}Aktif yap{% endif %}</button>
+    </form>{% endif %}
   </div>
   {% empty %}
   <p class="soluk">Model bulunamadı.</p>
@@ -31,5 +39,7 @@
   .katalog-kart { padding:10px; display:flex; flex-direction:column; gap:6px; margin:0; }
   .katalog-kart img { width:100%; aspect-ratio:3/4; object-fit:contain; background:#1f1a17; border-radius:8px; display:block; }
   .katalog-kart .btn { text-align:center; }
+  .durum-dugmeleri { display:flex; gap:6px; flex-wrap:wrap; }
+  .durum-dugmeleri .btn { flex:1; font-size:12px; padding:4px 6px; }
 </style>
 {% endblock %}

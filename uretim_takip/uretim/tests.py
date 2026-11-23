@@ -1626,9 +1626,10 @@ class ParcaliTasarimTesti(TasarimStudyosuTesti):
         from .models import Tasarim
 
         self.client.force_login(self.bayi_hesap)
-        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "IPS-484"})
+        sayfa = self.client.get(reverse("parcali_studyo"), {"hazir": "IPS-442"})
         self.assertContains(sayfa, "Suni deri halı tasarla")
-        self.assertContains(sayfa, 'data-kod="PCH-010"')
+        self.assertContains(sayfa, 'data-kod="IPS-457"')
+        self.assertNotContains(sayfa, 'data-kod="PCH-010"')  # pasif model stüdyoda yok
         j = self.client.get(reverse("parcali_onizleme"), {"duzen": "oval_serit", "en": "130", "boy": "190",
                                                            "nakis": "grek_kare"}).json()
         self.assertEqual(len(j["parcalar"]), 3)
@@ -2499,19 +2500,19 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
     def test_fotografi_kotu_model_bayide_gorunmez(self):
         from .models import KatalogModeli
         from . import parcali
-        # migration 0045: kesik/eğik/kopya fotoğraflı modeller bayide gizli; ofis katalogunda "bayide gizli" rozeti
+        # migration 0045 + 0047: kesik/eğik/kopya fotoğraflı modeller bayide gizli; suni deride bayiye yalnız vitrin
         gizli = set(KatalogModeli.objects.filter(bayiye_acik=False).values_list("kod", flat=True))
-        self.assertTrue({"BNA-027", "IPS-482", "IPS-484", "PCH-016", "IPS-468", "TOS-040"} <= gizli)
-        self.assertEqual(len(gizli), 18)
-        self.assertTrue(KatalogModeli.objects.get(kod="PCH-006").bayiye_acik)
+        self.assertTrue({"BNA-027", "IPS-482", "IPS-484", "PCH-016", "IPS-468", "TOS-040", "PCH-006"} <= gizli)
+        suni = KatalogModeli.objects.filter(kod__regex=r"^(RNO|BNA|IPS|PCH)-", bayiye_acik=True)
+        self.assertEqual(set(suni.values_list("kod", flat=True)), set(parcali.BAYI_VITRINI))
         for kod in ("IPS-482", "IPS-484", "PCH-016"):
             self.assertNotIn(kod, parcali.SECILI_MODELLER)
-        self.assertIn("PCH-006", parcali.SECILI_MODELLER)
         # gri zeminli Rono fotoğrafları beyaz zeminli dosyaya geçti
         self.assertEqual(KatalogModeli.objects.get(kod="RNO-008").resim.name, "katalog/model/b/RNO-008.jpg")
         self.client.force_login(self.bayi_hesap)
         sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
-        self.assertContains(sayfa, 'data-kod="PCH-006"')
+        self.assertContains(sayfa, 'data-kod="IPS-442"')
+        self.assertNotContains(sayfa, 'data-kod="PCH-006"')
         self.assertNotContains(sayfa, 'data-kod="PCH-016"')
         self.assertNotContains(sayfa, 'data-kod="IPS-482"')
         self.assertNotContains(self.client.get(reverse("bayi_siparis") + "?tur=deri"), 'data-kod="TOS-040"')
@@ -2520,7 +2521,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.assertContains(yanit, "Katalogdan bir model seçin")
         self.assertFalse(Siparis.objects.filter(katalog_modeli__kod="IPS-482").exists())
         self.client.force_login(self.yonetici)
-        self.assertContains(self.client.get(reverse("katalog") + "?ara=TOS-040"), "bayide gizli")
+        self.assertContains(self.client.get(reverse("katalog") + "?ara=PCH-006"), "bayide gizli")
 
     def test_bayi_basit_siparis_ve_gorunum(self):
         from .models import Musteri, Renk
@@ -2530,22 +2531,22 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.client.force_login(self.bayi_hesap)
         self.assertRedirects(self.client.get(reverse("parcali_studyo")), reverse("bayi_siparis"))
         sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
-        self.assertContains(sayfa, 'data-kod="RNO-001"')
+        self.assertContains(sayfa, 'data-kod="RNO-004"')
         self.assertContains(sayfa, "RN06")
         self.assertNotContains(self.client.get(reverse("bayi_ana")), reverse("parcali_studyo"))
         # Rono: fotoğraflı model, renkler bölge bölge (kartela)
         yanit = self.client.post(reverse("bayi_siparis"), self._olcu(("160", "230", "2"), ("80", "150", ""),
-                                                                     model="RNO-001", bolgeler='{"orta": "RN06"}',
+                                                                     model="RNO-004", bolgeler='{"orta": "RN06"}',
                                                                      notlar="Acele"))
         self.assertRedirects(yanit, reverse("bayi_ana"))
-        sp = Siparis.objects.get(musteri=bayi, katalog_modeli__kod="RNO-001")
+        sp = Siparis.objects.get(musteri=bayi, katalog_modeli__kod="RNO-004")
         self.assertEqual((sp.durum, sp.renk, sp.kalemler.count(), sp.lotlar.count()), ("onay", None, 2, 0))
         self.assertIn("Orta: RN06", sp.renk_notu)
         self.assertContains(self.client.get(reverse("bayi_ana")), "Onay bekliyor")
         # Peluş: renk yazılır
-        self.assertContains(self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-449")),
+        self.assertContains(self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-442")),
                             "Rengi yazın")
-        self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-449", renk_notu="Krem"))
+        self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="IPS-442", renk_notu="Krem"))
         self.assertTrue(Siparis.objects.filter(musteri=bayi, renk_notu="Krem").exists())
         # ofis onaylar → her ölçüye iş; bayi istasyonu "Üretimde" olarak görür, "bekliyor" görmez
         self.client.force_login(self.yonetici)
@@ -2632,14 +2633,14 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         with mock.patch("urllib.request.urlopen") as urlopen:
             urlopen.return_value.__enter__.return_value = None
             self.client.force_login(self.bayi_hesap)
-            self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="RNO-002", renk="RN01"))
+            self.client.post(reverse("bayi_siparis"), self._olcu(("100", "100", "1"), model="RNO-010", renk="RN01"))
         istek = urlopen.call_args[0][0]
         self.assertEqual(istek.full_url, "https://fcm.googleapis.com/fcm/send/abc")
         self.assertTrue(istek.headers["Authorization"].startswith("vapid t="))
         self.client.force_login(self.ofis)
         durum = self.client.get(reverse("bildirim_durum")).json()
         self.assertEqual(durum["sayi"], Siparis.objects.filter(durum="onay").count())
-        self.assertIn("RNO-002", durum["metin"])
+        self.assertIn("RNO-010", durum["metin"])
 
     def test_tamir_iade(self):
         biye = Asama.objects.get(ad="Biye")
@@ -2716,7 +2717,7 @@ class FotoModelTesti(TasarimStudyosuTesti):
             sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
             self.assertContains(sayfa, 'data-tasarla="1"')
             self.assertNotContains(sayfa, "foto-model/RNO")
-            kod = parcali.SECILI_MODELLER[0]
+            kod = parcali.BAYI_VITRINI[0]
             studyo = self.client.get(reverse("parcali_studyo") + f"?hazir={kod}")
             self.assertEqual(studyo.status_code, 200)
             self.assertNotContains(studyo, 'data-kod="IPS-462"')  # yalnız seçili modeller
@@ -2742,8 +2743,8 @@ class FotoModelTesti(TasarimStudyosuTesti):
             suni = self.client.get(reverse("bayi_siparis") + "?tur=suni").content.decode()
             deri = self.client.get(reverse("bayi_siparis") + "?tur=deri").content.decode()
             self.assertIn('data-kod="RNO-010"', suni)
-            self.assertNotIn('data-kod="TOS-034"', suni)
-            self.assertIn('data-kod="TOS-034"', deri)
+            self.assertNotIn('data-kod="TOS-036"', suni)
+            self.assertIn('data-kod="TOS-036"', deri)
             self.assertNotIn('data-kod="RNO-010"', deri)
             self.client.force_login(self.ofis)
             self.assertRedirects(self.client.get(reverse("parcali_studyo")), reverse("pano"), fetch_redirect_response=False)
@@ -3122,7 +3123,7 @@ class BayiSecimDenetimi(FotoModelTesti):
         with self.settings(STUDYO_BAYIYE_ACIK=False):
             self.client.force_login(self.bayi_hesap)
             for kod in parcali.SECILI_MODELLER:
-                if not ft.uygun_mu(kod):
+                if not ft.uygun_mu(kod) or kod not in parcali.BAYI_VITRINI:
                     continue
                 form = self.form_degerleri(self.client.get(reverse("parcali_studyo") + f"?hazir={kod}").content.decode())
                 ref = ft.referans(kod)
@@ -3137,6 +3138,8 @@ class BayiSecimDenetimi(FotoModelTesti):
 
                 def baska(alan):  # bu modelde seçilebilen, şimdikinden farklı bir değer (kartelalı seride kartela)
                     for x in ["pelus_pembe", "pelus_lacivert"] + adaylar:
+                        if not parcali.izinli_mi(kod, alan, x):  # bayi yalnız modelin ailesinden seçer
+                            continue
                         if _temizle(QueryDict(urlencode({**form, alan: x})))[alan] != ref[alan]:
                             return x
                     raise AssertionError(f"{kod} {alan}: başka seçenek yok")
@@ -3545,3 +3548,152 @@ class TopluStokTesti(TemelVeri):
         self.assertFalse(DeriTuru.objects.filter(ad="Bienca").exists())
         self.client.post(reverse("admin:uretim_derituru_add"), {"ad": "Bienca", "toplu": "1"})
         self.assertTrue(DeriTuru.objects.get(ad="Bienca").toplu)
+
+
+class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
+    """2026-11-23: madalyon sığma, bayi vitrini + pasif modeller, aile malzemeleri, ⚡ öncelik, istasyon tamiri, kenar."""
+
+    test_bayi_tasarlar_ofis_siparisten_onaylar_bayi_takip_eder = None
+    test_ret = None
+
+    def test_madalyon_sigmazsa_engel(self):
+        from . import parcali
+
+        k = {"DB003"}
+        temel = {"duzen": "halkali", "en": 160, "boy": 230, "halka_sayisi": 2, "h1_gen": 10, "h2_gen": 10, "a1_gen": 10,
+                 "madalyon": "duz"}
+        v = parcali.temizle(temel, k)
+        en_cok = parcali.madalyon_en_cok(v)
+        self.assertLessEqual(en_cok, 160 - 2 * parcali.halka_toplami(v) - 20)  # kenardan 10 cm pay (+ çerçeve)
+        engel = lambda v: [u for u in parcali.halkali_uyari_listesi(v) if u.get("engel")]
+        self.assertFalse(engel(parcali.temizle({**temel, "madalyon_cap": en_cok}, k)))
+        self.assertTrue(engel(parcali.temizle({**temel, "madalyon_cap": en_cok + 10}, k)))
+        # bordürler ortayı doldurunca madalyona hiç yer yok
+        dar = parcali.temizle({**temel, "h1_gen": 25, "h2_gen": 25, "a1_gen": 10, "madalyon_cap": 20}, k)
+        if parcali.madalyon_en_cok(dar) < parcali.MADALYON_EN_AZ:
+            self.assertIn("yer yok", engel(dar)[0]["metin"])
+
+    def test_bayi_vitrini_dokuz_model_pasifler_gizli(self):
+        from .models import KatalogModeli
+        from . import parcali
+
+        self.assertEqual(len(parcali.BAYI_VITRINI), 9)
+        self.assertEqual(KatalogModeli.objects.filter(aktif=False).count(), 45)
+        self.client.force_login(self.bayi_hesap)
+        self.ayar_studyo = self.settings(STUDYO_BAYIYE_ACIK=False)
+        self.ayar_studyo.enable()
+        self.addCleanup(self.ayar_studyo.disable)
+        sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni").content.decode()
+        import re
+        kodlar = set(re.findall(r'data-kod="([A-Z]+-\d+)"', sayfa))
+        self.assertEqual(kodlar, set(parcali.BAYI_VITRINI))
+        self.assertNotIn("TOS-034", self.client.get(reverse("bayi_siparis") + "?tur=deri").content.decode())
+        # vitrin dışı model stüdyoda açılmaz
+        self.assertNotEqual(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-455").status_code, 200)
+        self.assertEqual(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-442").status_code, 200)
+        # yönetici stüdyosunda pasif model yok, katalogda "Pasif modeller" altında
+        self.client.force_login(self.yonetici)
+        self.assertNotIn('data-kod="IPS-453"', self.client.get(reverse("parcali_studyo")).content.decode())
+        pasif = self.client.get(reverse("katalog") + "?pasif=1")
+        self.assertContains(pasif, "IPS-453")
+        self.assertNotContains(self.client.get(reverse("katalog")), "IPS-453")
+        m = KatalogModeli.objects.get(kod="IPS-453")
+        self.client.post(reverse("katalog_model_durum", args=[m.pk]), {"alan": "aktif", "geri": "https://kotu.example/"})
+        m.refresh_from_db()
+        self.assertTrue(m.aktif)
+        self.client.post(reverse("katalog_model_durum", args=[m.pk]), {"alan": "aktif"})
+        m.refresh_from_db()
+        self.assertEqual((m.aktif, m.bayiye_acik), (False, False))
+
+    def test_aile_malzemeleri(self):
+        from . import parcali
+
+        self.assertTrue(parcali.izinli_mi("RNO-004", "zemin", "kahve_keten"))
+        self.assertFalse(parcali.izinli_mi("RNO-004", "zemin", "pelus_krem"))
+        self.assertTrue(parcali.izinli_mi("IPS-442", "h1_malzeme", "bienca_bn01"))
+        self.assertFalse(parcali.izinli_mi("IPS-442", "zemin", "kahve_keten"))
+        # modelin kendi rengi her zaman seçilebilir
+        kendi = parcali.hazir_degerler("BNA-018")["zemin"]
+        self.assertTrue(parcali.izinli_mi("BNA-018", "zemin", kendi))
+
+    def test_oncelik_sirasi(self):
+        from .models import HesapAyari
+
+        a = self.siparis
+        b = Siparis.objects.create(musteri=a.musteri, urun="B", teslim_tarihi=timezone.localdate())
+        c = Siparis.objects.create(musteri=a.musteri, urun="C", teslim_tarihi=timezone.localdate(), acil=True)
+        Siparis.objects.filter(pk__in=[a.pk, b.pk, c.pk]).update(durum="uretimde")
+        for s in (a, b, c):
+            s.refresh_from_db()
+        self.client.force_login(self.ofis)
+        for s in (a, b):
+            self.client.post(reverse("oncelik_degistir", args=[s.pk]), {"islem": "ekle"})
+        self.assertEqual([s.pk for s in servisler.oncelikli_siparisler()], [a.pk, b.pk, c.pk])  # acil sırasızlar sonda
+        self.client.post(reverse("oncelik_degistir", args=[b.pk]), {"islem": "yukari"})
+        self.assertEqual([s.pk for s in servisler.oncelikli_siparisler()][:2], [b.pk, a.pk])
+        self.client.post(reverse("oncelik_degistir", args=[b.pk]), {"islem": "cikar"})
+        self.assertEqual([s.pk for s in servisler.oncelikli_siparisler()], [a.pk, c.pk])
+        # tablet (lazer dışı) değiştiremez, lazer ustası değiştirir
+        zig = get_user_model().objects.create_user("zig_tab", password="x")
+        HesapAyari.objects.create(kullanici=zig, istasyon=Asama.objects.get(ad="Zig-zag"))
+        self.client.force_login(zig)
+        self.assertEqual(self.client.post(reverse("oncelik_degistir", args=[b.pk]), {"islem": "ekle"}).status_code, 403)
+        lazerci = get_user_model().objects.create_user("lazer_tab", password="x")
+        HesapAyari.objects.create(kullanici=lazerci, istasyon=Asama.objects.get(ad="Lazer kesim 1"))
+        self.client.force_login(lazerci)
+        self.client.post(reverse("oncelik_degistir", args=[b.pk]), {"islem": "ekle"})
+        b.refresh_from_db()
+        self.assertIsNotNone(b.oncelik_sira)
+        # her istasyonda ⚡ Öncelikli listesi
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        parca = self.client.get(reverse("istasyon_parca", args=[lazer.pk]))
+        self.assertContains(parca, 'id="liste-oncelikli"')
+        self.assertContains(self.client.get(reverse("istasyon_ekrani", args=[lazer.pk])), "⚡ Öncelikli")
+
+    def test_istasyon_tamiri(self):
+        biye = Asama.objects.get(ad="Biye")
+        Siparis.objects.filter(pk=self.siparis.pk).update(durum="uretimde")
+        self.client.force_login(self.yonetici)
+        ekran = self.client.get(reverse("istasyon_ekrani", args=[biye.pk]))
+        self.assertContains(ekran, reverse("istasyon_tamir", args=[biye.pk]))
+        self.assertNotContains(self.client.get(reverse("istasyon_ekrani", args=[Asama.objects.get(ad="Lazer kesim 1").pk])),
+                               "/tamir/")
+        yanit = self.client.post(reverse("istasyon_tamir", args=[biye.pk]), {
+            "siparis_no": self.siparis.siparis_no.lower(), "neden": "uretim", "aciklama": "Biye kaydı", "personel": self.ayse.pk})
+        self.assertRedirects(yanit, reverse("istasyon_ekrani", args=[biye.pk]) + "?sekme=calisilan", fetch_redirect_response=False)
+        self.siparis.refresh_from_db()
+        tamir = self.siparis.tamirler.get()
+        self.assertEqual((self.siparis.durum, tamir.neden, tamir.lot.durum), ("uretimde", "uretim", "islemde"))
+        self.assertEqual([a.ad for _, a in tamir.lot.rota()], ["Biye"])
+        # ofis Tamirler sayfasında görür
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("tamirler")), tamir.no)
+        # onay bekleyen siparişe açılmaz
+        Siparis.objects.filter(pk=self.siparis.pk).update(durum="onay")
+        self.client.force_login(self.yonetici)
+        yanit = self.client.post(reverse("istasyon_tamir", args=[biye.pk]), {
+            "siparis_no": self.siparis.siparis_no, "neden": "iade", "aciklama": "x"})
+        self.assertContains(yanit, "tamir açılmaz")
+
+    def test_kenar_istasyonu_yazidan(self):
+        lazerli = HaliTuru.objects.get(ad="Lazerli halı")
+        zig = Asama.objects.get(ad="Zig-zag")
+        biye, lanfel = Asama.objects.get(ad="Biye"), Asama.objects.get(ad="Lanfel")
+
+        def hazir(**kw):
+            sp = Siparis.objects.create(musteri=self.siparis.musteri, urun="H", hali_turu=lazerli,
+                                        teslim_tarihi=timezone.localdate(), durum="uretimde", **kw)
+            lot = self.yeni_lot(siparis=sp)
+            i = servisler.islem_baslat(lot=lot, asama=zig, personel=self.ahmet)
+            servisler.islem_bitir(islem=i, personel=self.ahmet)
+            return lot
+
+        lanfelli = hazir(notlar="Kenarı LANFEL olsun")
+        serbest = hazir()
+        secili = hazir(kenar="biye", notlar="lanfel")  # ofisin seçimi yazıdan önce gelir
+        gelen = lambda a: {k.lot.pk for k in uyarilar.gelenler(a) if k.lot}
+        self.assertIn(lanfelli.pk, gelen(lanfel))
+        self.assertNotIn(lanfelli.pk, gelen(biye))
+        self.assertTrue({serbest.pk} <= gelen(biye) & gelen(lanfel))
+        self.assertIn(secili.pk, gelen(biye))
+        self.assertNotIn(secili.pk, gelen(lanfel))

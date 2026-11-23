@@ -1,0 +1,13 @@
+{# ⚡ Öncelik: ofis ve lazer ustası işi öne alır / sıralar (sipariş bazında, bütün istasyonlarda geçerli) #}
+{% if oncelik_yetkisi and s %}
+<form method="post" action="{% url 'oncelik_degistir' s.pk %}" class="oncelik-dugmeleri">{% csrf_token %}
+  <input type="hidden" name="geri" value="{{ ekran_adresi }}?sekme={% if oncelik_satiri %}oncelikli{% elif k.tur == 'calisilan' %}calisilan{% else %}gelen{% endif %}">
+  {% if oncelik_satiri %}
+    <button class="btn kucuk ikincil" name="islem" value="yukari" title="Yukarı al">↑</button>
+    <button class="btn kucuk ikincil" name="islem" value="asagi" title="Aşağı al">↓</button>
+    {% if s.oncelik_sira and not s.acil %}<button class="btn kucuk ikincil" name="islem" value="cikar" title="Öncelikten çıkar">✕</button>{% endif %}
+  {% elif not s.oncelik_sira and not s.acil %}
+    <button class="btn kucuk ikincil" name="islem" value="ekle">⚡ Öne al</button>
+  {% endif %}
+</form>
+{% endif %}

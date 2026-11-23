@@ -54,6 +54,7 @@
       <tr><th>Müşteri</th><td><b>{{ siparis.musteri }}</b>{% if siparis.musteri.telefon %}<br><span class="soluk">{{ siparis.musteri.telefon }}</span>{% endif %}</td></tr>
       <tr><th>Halı türü</th><td>{% if siparis.hali_turu %}<b>{{ siparis.hali_turu }}</b><br><span class="soluk">{{ siparis.hali_turu.rota_metni }}</span>{% else %}–{% endif %}</td></tr>
       <tr><th>Ürün</th><td>{% if siparis.acil %}<span class="rozet acil">⚡ ACİL</span> {% endif %}{{ siparis.urun }}</td></tr>
+      {% with kt=siparis.kenar_turu %}{% if kt %}<tr><th>Kenar</th><td>{% if kt == "biye" %}Biye{% elif kt == "lanfel" %}Lanfel{% else %}Kenar dikişi{% endif %}{% if not siparis.kenar %} <span class="soluk">(sipariş yazısından bulundu; iş yalnız bu istasyona düşer)</span>{% endif %}</td></tr>{% endif %}{% endwith %}
       {% if siparis.olcu_metni and siparis.kalemler.all|length < 2 %}<tr><th>Ölçü</th><td><b>{{ siparis.olcu_metni }}</b></td></tr>{% endif %}
       {% if not siparis.tasarim %}{% if siparis.katalog_modeli or siparis.lazer_deseni %}<tr><th>Model / desen</th><td>{% include "uretim/_siparis_resim.html" with s=siparis boy=180 fotosuz=1 %}</td></tr>{% endif %}{% endif %}
       <tr><th>📷 Fotoğraf</th><td>
@@ -95,8 +96,15 @@
       <form method="post" action="{% url 'siparis_durum' siparis.pk %}" onsubmit="return confirm('Sipariş iptal edilsin mi?')">
         {% csrf_token %}<button class="btn ikincil" name="durum" value="iptal">İptal et</button></form>
       {% endif %}
-      {% if siparis.durum == "sevk" or siparis.durum == "tamamlandi" or siparis.durum == "tamirde" %}
+      {% if siparis.durum != "onay" and siparis.durum != "iptal" %}
       <a class="btn ikincil" href="{% url 'tamir_ac' siparis.pk %}">↩ Tamir / iade aç</a>
+      {% endif %}
+      {% if siparis.durum == "acik" or siparis.durum == "uretimde" or siparis.durum == "tamirde" %}
+      <form method="post" action="{% url 'oncelik_degistir' siparis.pk %}">
+        {% csrf_token %}<input type="hidden" name="geri" value="{{ request.path }}">
+        {% if siparis.oncelik_sira %}<button class="btn" name="islem" value="cikar" title="İstasyonlarda ⚡ Öncelikli sekmesinden çıkar">⚡ Öncelik {{ siparis.oncelik_sira }} · çıkar</button>
+        {% elif not siparis.acil %}<button class="btn ikincil" name="islem" value="ekle" title="Bütün istasyonlarda ⚡ Öncelikli sekmesine alır">⚡ Öne al</button>{% endif %}
+      </form>
       {% endif %}
       {% if siparis.durum == "sevk" %}
       <form method="post" action="{% url 'siparis_durum' siparis.pk %}">

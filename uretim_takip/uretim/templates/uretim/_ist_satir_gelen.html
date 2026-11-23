@@ -1,0 +1,27 @@
+{# İstasyon ekranında bekleyen iş satırı (Bekleyen ve ⚡ Öncelikli listeleri ortak) #}
+    <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}" data-anahtar="{{ k.anahtar }}">
+      <div class="ist-bilgi">
+        {% include "uretim/_oncelik_rozeti.html" with s=k.siparis %}
+        {% if k.tur == "siparis" %}
+          <span class="rozet bekliyor">Yeni sipariş</span> <b>{{ k.siparis.siparis_no }}</b> · <b>{{ k.siparis.musteri }}</b><br>
+          <span class="soluk">{{ k.siparis.urun }}</span>
+          {% include "uretim/_is_bilgisi.html" with s=k.siparis %}
+          {% include "uretim/_siparis_resim.html" with s=k.siparis %}
+        {% else %}
+          {% if k.lot.tur == "tamir" %}<span class="rozet acil">🔧 TAMİR</span> {% endif %}<b>{{ k.lot.lot_no }}</b>{% if k.on_islem %} <span class="rozet bekliyor">({{ k.on_islem }})</span>{% endif %}{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %}<br>
+          <span class="soluk">{% if k.siparis %}{{ k.siparis.siparis_no }} · {{ k.siparis.urun }} · {% endif %}{% if k.lot.son_asama %}{{ k.lot.son_asama.ad }} bitti{% else %}başlamadı{% endif %}</span>
+          {% include "uretim/_is_bilgisi.html" with s=k.siparis l=k.lot %}
+          {% if k.siparis %}{% include "uretim/_siparis_resim.html" with s=k.siparis %}{% endif %}
+        {% endif %}
+        <div class="ist-sure">⏳ {{ k.sure_metni }} bekliyor{% if k.sinir_saat %} <span class="soluk">(sınır {{ k.sinir_saat|floatformat:"-1" }} sa)</span>{% endif %}
+          {% if k.gecikti %}<b class="uyari"> · {{ k.asim_metni }} gecikti</b>{% endif %}</div>
+      </div>
+      {% if not U.is_staff or U.is_superuser %}
+        {% if k.tur == "siparis" %}
+          <a class="btn" href="{% url 'yeni_is' %}?siparis={{ k.siparis.pk }}&amp;geri={{ ekran_devam_adresi|urlencode }}">🆕 İşi başlat</a>
+        {% else %}
+          <a class="btn" href="{% url 'islem_baslat' %}?lot={{ k.lot.pk }}&amp;geri={{ ekran_devam_adresi|urlencode }}">▶ Başlat</a>
+        {% endif %}
+      {% endif %}
+      {% include "uretim/_oncelik_dugmeleri.html" with s=k.siparis %}
+    </div>

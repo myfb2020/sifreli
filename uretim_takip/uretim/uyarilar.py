@@ -25,10 +25,31 @@ def sure_metni(sure):
     return f"{dakika} dk"
 
 
+def oncelikli_mi(siparis):
+    """⚡ Öncelikli sekmesinde mi: ofis / lazer ustası öne aldı ya da acil."""
+    return siparis is not None and (siparis.acil or siparis.oncelik_sira is not None)
+
+
 def oncelik(kalem):
-    """İstasyon listelerinin sırası: önce ⚡ acil, sonra teslim tarihi en yakın, sonra en uzun bekleyen."""
+    """İstasyon listelerinin sırası: önce ⚡ öncelikliler (elle verilen sırayla, sonra acil), sonra teslim tarihi en yakın,
+    sonra en uzun bekleyen."""
     sp = kalem.siparis
-    return (not (sp and sp.acil), sp.teslim_tarihi if sp else date.max, -kalem.sure)
+    sira = sp.oncelik_sira if sp is not None and sp.oncelik_sira is not None else 10 ** 9
+    return (not oncelikli_mi(sp), sira, not (sp and sp.acil), sp.teslim_tarihi if sp else date.max, -kalem.sure)
+
+
+# Biye / Lanfel / Kenar dikişi gibi alternatif istasyonlarda iş yalnız siparişin kenar türüne uyan istasyona düşer
+KENAR_ISTASYON = {"biye": ("biye",), "lanfel": ("lanfel", "lanfer"), "kenar_dikisi": ("kenar",)}
+
+
+def kenara_gore(hedefler, siparis):
+    if len(hedefler) < 2 or siparis is None:
+        return hedefler
+    tur = siparis.kenar_turu()
+    if not tur:
+        return hedefler
+    uyan = [h for h in hedefler if any(s in h.ad.replace("İ", "i").replace("I", "ı").lower() for s in KENAR_ISTASYON[tur])]
+    return uyan or hedefler
 
 
 @dataclass
@@ -101,9 +122,10 @@ def gelenler(asama=None):
     for adimlar in rotalar.values():
         adimlar.sort(key=lambda x: (x[0], x[1].sira))
 
-    def hedefler(hali_turu_id, son_asama):
-        # Alternatif istasyonlar (ör. Biye / Lanfel) varsa iş hepsinin ekranına düşer; hangisi başlarsa o alır.
-        sonuc = sonraki_asamalar(rotalar.get(hali_turu_id, []), son_asama)
+    def hedefler(hali_turu_id, son_asama, siparis=None):
+        # Alternatif istasyonlar (ör. Biye / Lanfel): siparişte kenar türü yazıyorsa yalnız o istasyona, yoksa hepsinin
+        # ekranına düşer; hangisi başlarsa o alır.
+        sonuc = kenara_gore(sonraki_asamalar(rotalar.get(hali_turu_id, []), son_asama), siparis)
         return [h for h in sonuc if asama is None or h.pk == asama.pk]
 
     sonuc = []
@@ -119,12 +141,12 @@ def gelenler(asama=None):
         if lot.tur == "tamir":  # tamir işi ofisin seçtiği istasyonlardan geçer
             tamir_hedefleri = [h for h in lot.asama_sonrasi(lot.son_asama) if asama is None or h.pk == asama.pk]
         for hedef in (tamir_hedefleri if lot.tur == "tamir" else
-                      hedefler(lot.siparis.hali_turu_id if lot.siparis else None, lot.son_asama)):
+                      hedefler(lot.siparis.hali_turu_id if lot.siparis else None, lot.son_asama, lot.siparis)):
             sonuc.append(Kalem("gelen", f"l{lot.pk}-{lot.son_asama_id}", hedef, bekleme, hedef.azami_bekleme_saat,
                                lot=lot, siparis=lot.siparis))
 
     for sp in Siparis.objects.filter(durum="acik", lotlar__isnull=True).select_related("musteri", "katalog_modeli", "lazer_deseni", "tasarim"):
-        for hedef in hedefler(sp.hali_turu_id, None):
+        for hedef in hedefler(sp.hali_turu_id, None, sp):
             sonuc.append(Kalem("siparis", f"s{sp.pk}", hedef, simdi - sp.olusturma, hedef.azami_bekleme_saat,
                                siparis=sp))
     return sorted(sonuc, key=oncelik)
