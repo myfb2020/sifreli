@@ -22,10 +22,16 @@ kod=$(curl -s -m 600 -o /tmp/pa_yanit -w "%{http_code}" -F "content=@uretim_taki
 echo "==> kurulum görevi (bir kerelik, 2 dk sonra)"
 read -r SAAT DAKIKA < <(date -u -d "+2 min" "+%-H %-M")
 KOMUT="cd /home/uretim && unzip -oq uretim_takip.zip && cd uretim_takip && USER=uretim HOME=/home/uretim bash kurulum.sh $ALAN"
-GOREV=$(curl -s -m 60 -X POST "$A/schedule/" -d "command=$KOMUT" -d "enabled=true" -d "interval=daily" \
-  -d "hour=$SAAT" -d "minute=$DAKIKA" -d "description=Claude güncelleme (bir kerelik)" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+# komuttaki & işaretleri bölünmesin: --data-urlencode (ilk denemede yalnız 'cd' çalışmıştı)
+CEVAP=$(curl -s -m 60 -X POST "$A/schedule/" --data-urlencode "command=$KOMUT" -d "enabled=true" -d "interval=daily" \
+  -d "hour=$SAAT" -d "minute=$DAKIKA" --data-urlencode "description=Claude güncelleme (bir kerelik)")
+GOREV=$(echo "$CEVAP" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+KAYITLI=$(echo "$CEVAP" | python3 -c "import sys,json; print(json.load(sys.stdin)['command'])")
 echo "    görev $GOREV, $SAAT:$DAKIKA UTC"
+if [ "$KAYITLI" != "$KOMUT" ]; then
+  echo "!!! görev komutu bozuk kaydedildi: $KAYITLI"
+  curl -s -m 30 -X DELETE "$A/schedule/$GOREV/" -o /dev/null; exit 1
+fi
 GUNLUK="/var/log/schedule-log-$GOREV.log"
 for i in $(seq 1 60); do  # en çok ~15 dk
   sleep 15
