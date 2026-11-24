@@ -34,12 +34,12 @@
 
     <section class="kart adim" data-adim="1">
       <h2>1. Şekil ve ölçü</h2>
-      <div class="secim-izgara">{% for k, ad in sekiller %}<label class="secim buyuk-secim"><input type="radio" name="sekil" value="{{ k }}"{% if v.sekil == k %} checked{% endif %}><span>{% if k == "oval" %}⬭{% else %}▭{% endif %} {{ ad }}</span></label>{% endfor %}</div>
+      {# yuvarlak = eni boyuna eşit oval (sunucuda sekil 'oval'); ekranda ayrı seçenek, tek ölçü: çap #}
+      <div class="secim-izgara">{% for k, ad in sekiller %}<label class="secim buyuk-secim"><input type="radio" name="sekil" value="{{ k }}"{% if v.sekil == k %}{% if k != "oval" or v.en != v.boy %} checked{% endif %}{% endif %}><span>{% if k == "oval" %}⬭{% else %}▭{% endif %} {{ ad }}</span></label>{% endfor %}<label class="secim buyuk-secim"><input type="radio" name="sekil" value="yuvarlak"{% if v.sekil == "oval" and v.en == v.boy %} checked{% endif %}><span>◯ Yuvarlak</span></label></div>
       <div class="iki-sutun">
-        <p><label for="en">En (cm)</label><input id="en" name="en" type="number" min="60" max="400" step="5" value="{{ v.en|stringformat:"g" }}"></p>
-        <p><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" min="60" max="600" step="5" value="{{ v.boy|stringformat:"g" }}"></p>
+        <p><label for="en" id="en-etiket">En (cm)</label><input id="en" name="en" type="number" min="60" max="400" step="5" value="{{ v.en|stringformat:"g" }}"></p>
+        <p id="boy-kutu"><label for="boy">Boy (cm)</label><input id="boy" name="boy" type="number" min="60" max="600" step="5" value="{{ v.boy|stringformat:"g" }}"></p>
       </div>
-      <p class="soluk" style="margin-top:0">Oval seçip eni ve boyu eşit yazarsanız halı yuvarlak olur.</p>
       <label class="alt-baslik">Katalogdan model seçin</label>
       <div class="seri-sekme" role="tablist">{% for sr in seriler %}<button type="button" data-seri="{{ sr.on }}"{% if forloop.first %} class="etkin"{% endif %}>{{ sr.ad }} <small>({{ sr.modeller|length }})</small></button>{% endfor %}</div>
       {% for sr in seriler %}<div class="hazir-izgara katalog-izgara" data-seri-izgara="{{ sr.on }}"{% if not forloop.first %} hidden{% endif %}>
@@ -544,7 +544,19 @@
         else a.value = String(deg).replace(/\.0$/, "");
       });
     });
+    if (d.sekil === "oval" && Number(d.en) === Number(d.boy)) form.querySelector('[name="sekil"][value="yuvarlak"]').checked = true;
+    yuvarlakAyarla();
   }
+  // ◯ Yuvarlak: tek ölçü (çap); boy kutusu gizlenir ve hep ene eşit tutulur
+  function yuvarlakAyarla() {
+    const yuvarlak = deger("sekil") === "yuvarlak";
+    document.getElementById("boy-kutu").hidden = yuvarlak;
+    document.getElementById("en-etiket").textContent = yuvarlak ? "Çap (cm)" : "En (cm)";
+    if (yuvarlak) form.querySelector('[name="boy"]').value = form.querySelector('[name="en"]').value;
+  }
+  form.querySelectorAll('[name="sekil"]').forEach((r) => r.addEventListener("change", yuvarlakAyarla));
+  form.querySelector('[name="en"]').addEventListener("input", yuvarlakAyarla);
+  yuvarlakAyarla();
   function secimiIsaretle(d) {
     document.querySelectorAll(".hazir").forEach((h) => h.classList.toggle("secili", h === d));
     goster(); guncelle();
@@ -588,10 +600,10 @@
   document.getElementById("fikir-dugme").addEventListener("click", async () => {
     const kap = document.getElementById("fikirler");
     kap.innerHTML = '<span class="soluk">Fikirler hazırlanıyor…</span>';
-    // seçili model (Rono / Bienca) varsa öneriler onun üzerinden: yapı aynı, renkler kartelada değişir
+    // öneriler seçili modelin yapısından (yalnız renkler değişir); model yoksa vitrindeki güzel modellerden
     const katalog = (secilen && !secimKutusu.hidden) ? secilen.dataset.kod : form.querySelector('[name="katalog"]').value;
     const seri = (document.querySelector(".seri-sekme button.etkin") || {}).dataset?.seri || "";
-    const q = new URLSearchParams({ en: deger("en"), boy: deger("boy"), katalog: katalog || "", seri });
+    const q = new URLSearchParams({ en: deger("en"), boy: deger("boy"), sekil: deger("sekil") || "", katalog: katalog || "", seri });
     const liste = await (await fetch("{% url 'parcali_fikir' %}?" + q)).json();
     secimKutusu.hidden = true;
     kap.innerHTML = "";

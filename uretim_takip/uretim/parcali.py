@@ -645,6 +645,8 @@ def _halkali_temizle(v, g, desen):
     v["sekil"] = _sec(g("sekil"), SEKILLER, "dikdortgen")
     v["en"] = _sayi(g("en"), 120, 60, 400)
     v["boy"] = _sayi(g("boy"), 180, 60, 600)
+    if g("sekil") == "yuvarlak":  # yuvarlak = eni boyuna eşit oval; tek ölçü (çap) girilir
+        v["sekil"], v["boy"] = "oval", v["en"]
     kisa = min(v["en"], v["boy"])
     v["halka_sayisi"] = int(_sayi(g("halka_sayisi"), 2, 0, EN_COK_HALKA))
     kalan = kisa / 2 - 15  # ortada en az 30 cm kalsın
@@ -1504,7 +1506,10 @@ def _halkali_montaj(v):
 def _halkali_ozet(v):
     if v.get("aynen"):
         return f"Suni deri halı – katalog modeli {v['katalog']} (olduğu gibi) · {v['en']:g}×{v['boy']:g} cm"
-    p = [f"Suni deri halı – {dict(SEKILLER)[v['sekil']].lower()} {v['en']:g}×{v['boy']:g} cm"]
+    if v["sekil"] == "oval" and v["en"] == v["boy"]:
+        p = [f"Suni deri halı – yuvarlak Ø{v['en']:g} cm"]
+    else:
+        p = [f"Suni deri halı – {dict(SEKILLER)[v['sekil']].lower()} {v['en']:g}×{v['boy']:g} cm"]
     for h in halkalar(v):
         if h.get("ara"):
             p.append(f"ara bant {h['gen']:g} cm (orta renginde)")
@@ -1536,46 +1541,6 @@ def _rastlar(adet, tohum):
 
     ana = random.Random(tohum)
     return [(i, random.Random(ana.randint(1, 10 ** 9))) for i in range(adet)]
-
-
-# 'Bana fikir ver' renk takımları: katalogdaki gibi peluş zemin + metal bant + ikinci peluş
-FIKIR_TAKIMLARI = [
-    ("pelus_krem", "altin", "pelus_siyah"), ("pelus_siyah", "altin", "pelus_krem"), ("pelus_gri", "gumus", "pelus_beyaz"),
-    ("pelus_beyaz", "gumus", "pelus_siyah"), ("pelus_taba", "altin", "pelus_beyaz"), ("pelus_lacivert", "altin", "pelus_krem"),
-    ("pelus_krem", "altin", "pelus_pembe"), ("bienca_krem", "bienca_gri", "pelus_siyah"), ("pelus_vizon", "altin", "pelus_krem"),
-]
-
-
-def _halkali_fikir(i, rast, desen_kodlari, olcu):
-    """Bir öneri: katalogdaki modeller gibi peluş zemin, metal/desenli bantlar; şekil, orta ve kenar karışık."""
-    desenler = sorted(desen_kodlari)
-    zemin, metal, ikinci = rast.choice(FIKIR_TAKIMLARI)
-    en, boy = olcu or rast.choice([(120, 180), (160, 230), (200, 290)])
-    sekil = "oval" if i % 3 == 1 else "dikdortgen"
-    v = {"duzen": "halkali", "sekil": sekil, "en": en, "boy": boy, "pay": 1, "zemin": zemin,
-         "halka_sayisi": rast.choice([1, 2, 2, 3]), "kenar": "biye",
-         "kenar_renk": "altin" if metal == "altin" else rast.choice(["gumus", "siyah", "beyaz"]), "aralik": 4}
-    kucukler = [k for k, *_ in NAKIS_MOTIFLERI if motif_kisa(k) <= 16]  # halka ve şeride sığanlar
-    for n in range(1, v["halka_sayisi"] + 1):
-        tur = rast.choice(["duz", "desenli", "desenli"] if desenler else ["duz"]) if n != 2 else "duz"
-        mal = metal if n != 2 else ikinci
-        v.update({f"h{n}_tur": tur, f"h{n}_gen": rast.choice([10, 12, 14]) if tur == "desenli" else rast.choice([4, 8, 12]),
-                  f"h{n}_malzeme": mal, f"h{n}_desen": rast.choice(desenler) if tur == "desenli" else "",
-                  f"h{n}_nakis": rast.choice(kucukler)})
-    orta = rast.choice(["duz", "duz", "panel", "serit"])
-    v["orta"] = orta
-    if orta == "duz" and rast.random() < 0.6:
-        v.update(madalyon=rast.choice(["duz", "nakisli"]), madalyon_malzeme=ikinci, madalyon_cerceve=metal,
-                 madalyon_cap=rast.choice([24, 28, 34]), madalyon_motif=rast.choice(["61.01", "75.01", "56.01"]))
-    elif orta == "panel":
-        v.update(panel_malzeme=ikinci, nakis=rast.choice([k for k, _, _, _, t in NAKIS_MOTIFLERI if t == "tek"]),
-                 motif_adet=rast.choice([1, 1, 2, 3]))
-    elif orta == "serit":
-        v.update(serit_tur="desenli" if desenler else "nakisli", serit_yon=rast.choice(["boyuna", "enine"]),
-                 serit_adet=rast.choice([1, 2]), serit=rast.choice([14, 18, 22]), serit_malzeme=metal,
-                 serit_desen=rast.choice(desenler) if desenler else "", nakis=rast.choice(kucukler))
-    v["iplik"] = "altin" if metal == "altin" else "gumus"
-    return temizle(v, desen_kodlari)
 
 
 def nakis_bilgisi(v):
@@ -1674,26 +1639,29 @@ def ozet(v):
     return " · ".join(p)
 
 
-def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None, katalog="", seri=""):
-    """'Bana fikir ver'. Kartelalı seriden bir model seçiliyse (Rono / Bienca) modelin yapısı aynen kalır, yalnız
-    renkler kartelada değişir; model seçilmeyip sekmesi açık seri kartelalıysa serbest öneri o kartelayla boyanır;
-    yoksa atölye kurallarına uyan serbest öneriler."""
-    on = seri_kartelasi(katalog) or (seri if seri in KARTELA_MALZEMELERI else None)
+def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None, katalog="", seri="", sekil=None):
+    """'Bana fikir ver' (2026-11-24, kullanıcı): öneriler HER ZAMAN bir modelin kendi yapısından — bordür sayısı,
+    genişliği, deseni, ara bantlar, madalyon aynen kalır; yalnız renkler model ailesinin malzemelerinden değişir
+    (AILE_MALZEMELERI). Seçili model yoksa bayi vitrinindeki güzel modellerden (sekmesi açık seri varsa o seriden)
+    biri alınır. Öneride ortaya şerit / nakış paneli konmaz (vitrin modellerinin ortası düz); bayi isterse kendisi ekler."""
+    katalog = (katalog or "").upper()
+    if katalog in HAZIR and katalog[:3] in AILE_MALZEMELERI:
+        modeller = [katalog]
+    else:
+        modeller = [k for k in BAYI_VITRINI if k.startswith(seri)] if seri else []
+        modeller = modeller or list(BAYI_VITRINI)
     sonuc, gorulen = [], set()
-    for i, rast in _rastlar(adet * 4, tohum):
+    for i, rast in _rastlar(adet * 6, tohum):
         if len(sonuc) == adet:
             break
-        if on and katalog in HAZIR:
-            v = hazir_degerler(katalog)
-            if olcu:
-                v["en"], v["boy"] = olcu
-            v = _kartela_renklendir(v, on, rast)
-        else:
-            v = _halkali_fikir(len(sonuc), rast, desen_kodlari, olcu)
-            if on:
-                v = _kartela_renklendir(v, on, rast)
-        v = temizle(v, desen_kodlari)
-        anahtar = tuple(v.get(a) for a in MALZEME_ALANLARI + ["kenar_renk"])
+        kod = modeller[i % len(modeller)] if len(modeller) > 1 else modeller[0]
+        v = hazir_degerler(kod)
+        if olcu:
+            v["en"], v["boy"] = olcu
+        if sekil in ("dikdortgen", "oval", "yuvarlak"):
+            v["sekil"] = sekil
+        v = temizle(_aile_renklendir(v, kod, rast), desen_kodlari)
+        anahtar = (kod,) + tuple(v.get(a) for a in MALZEME_ALANLARI + ["kenar_renk"])
         if anahtar in gorulen:
             continue
         gorulen.add(anahtar)
@@ -1701,37 +1669,49 @@ def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None, katalog="", seri="
     return sonuc
 
 
+def _aile_renklendir(v, kod, rast):
+    """Yapıya dokunmadan renkleri modelin ailesinde değiştirir: zemin ailenin zemin renklerinden, bordürler zeminden
+    belirgin ayrı (açık zemine koyu, koyu zemine açık), metal bordür / çerçeve metal kalır (hepsi aynı metal),
+    madalyon ve kenar da ailenin listesinden."""
+    aile = AILE_MALZEMELERI[kod[:3]]
+    v = dict(v)
+    zemin = rast.choice(aile["zemin"])
+    zp = _parlaklik(zemin)
+    bordur = [m for m in aile["bordur"] if m not in METALIK and m != zemin]
+    vurgu = rast.choice([m for m in bordur if abs(_parlaklik(m) - zp) > 45] or bordur)
+    # metal parçalar: hepsi aynı metal; ailede o parçaya izinli değilse (ör. peluşta modelin kendi altını) aynen kalır
+    metal_alanlar = [f"h{i}_malzeme" for i in range(1, int(v.get("halka_sayisi") or 0) + 1) if v.get(f"h{i}_malzeme") in METALIK]
+    if v.get("madalyon", "yok") != "yok" and v.get("madalyon_malzeme") in METALIK:
+        metal_alanlar.append("madalyon_malzeme")
+    metaller = [m for m in METALIK if all(izinli_mi(kod, a, m) for a in metal_alanlar)]
+    metal = rast.choice(metaller) if metaller else None
+    v["zemin"] = zemin
+    for i in range(1, int(v.get("halka_sayisi") or 0) + 1):
+        alan = f"h{i}_malzeme"
+        if v.get(alan) in METALIK:
+            v[alan] = metal or v[alan]
+        else:
+            v[alan] = vurgu
+    if v.get("madalyon", "yok") != "yok":
+        if v.get("madalyon_malzeme") in METALIK:
+            v["madalyon_malzeme"] = metal or v["madalyon_malzeme"]
+        else:
+            secenek = [m for m in aile["madalyon"] if m != zemin]
+            v["madalyon_malzeme"] = rast.choice([m for m in secenek if abs(_parlaklik(m) - zp) > 45] or secenek)
+    metal = metal or rast.choice(METALIK)  # çerçeve ve kenar biyesi her ailede altın / gümüş olabilir
+    if v.get("madalyon_cerceve") in METALIK:
+        v["madalyon_cerceve"] = metal
+    kenarlar = [m for m in (vurgu, zemin) if m in aile["kenar"]] + [metal]
+    v["kenar_renk"] = rast.choice(kenarlar)
+    v["kenar"] = v.get("kenar") or "biye"
+    v["katalog"], v["hazir"] = kod, v.get("hazir", "")
+    return v
+
+
 def _parlaklik(ad):
     h = MALZEME_HEX.get(ad, "#888888").lstrip("#")
     r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
     return 0.299 * r + 0.587 * g + 0.114 * b
-
-
-def _kartela_renklendir(v, on, rast):
-    """Yapıya dokunmadan renkleri kartelada değiştirir: zemin bir renk, kartela parçaları zeminden belirgin ayrı
-    (açık zemine koyu, koyu zemine açık), ince çizgiler metalik kalır, kenar kartela renginden."""
-    v = dict(v)
-    renkler = KARTELA_MALZEMELERI[on]
-    zemin = rast.choice(renkler)
-    v["zemin"] = zemin
-    zemin_p = _parlaklik(zemin)
-    karsit = [r for r in renkler if r != zemin and abs(_parlaklik(r) - zemin_p) > 45] or [r for r in renkler if r != zemin]
-    vurgu = rast.choice(karsit)
-    metal = rast.choice(["altin", "gumus"])  # ince çizgiler: hepsi aynı metal (altın ya da gümüş)
-    for alan in MALZEME_ALANLARI:
-        if alan == "zemin" or alan not in v:
-            continue
-        if v[alan] in ("altin", "gumus"):
-            v[alan] = metal
-        elif v[alan] not in METALIK:
-            v[alan] = vurgu if alan != "madalyon_malzeme" else rast.choice([zemin, vurgu])
-    if v.get("madalyon_cerceve") in ("altin", "gumus"):
-        v["madalyon_cerceve"] = metal
-    # nakış ipliği kenar / metal rengine bağlı değil: kullanıcının seçtiği iplik kalır
-    v["kenar_renk"] = rast.choice([vurgu, vurgu, zemin])
-    v["kenar"] = v.get("kenar") or "biye"
-    v["katalog"], v["hazir"] = v.get("katalog", ""), v.get("hazir", "")
-    return v
 
 
 def dxf(v, malzeme=None, baslik=""):

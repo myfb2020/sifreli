@@ -134,6 +134,13 @@ def onizleme(request):
     return JsonResponse({"v": v, **hesap(v)})
 
 
+def _kisa_ad(k):
+    """'Rono RN06 Koyu kahve' → 'RN06', 'Krem peluş' → 'Krem peluş', 'Altın' → 'Altın'."""
+    ad = (parcali.MALZEME_AD.get(k) or parcali.KENAR_AD.get(k) or k).split(" (")[0]
+    parca = ad.split(" ")
+    return parca[1] if len(parca) > 2 and parca[0] in ("Rono", "Bienca") else ad
+
+
 @login_required
 def fikir(request):
     """'Bana fikir ver': kurallara uygun 6 farklı öneri (bayi ölçüsü korunur)."""
@@ -143,13 +150,9 @@ def fikir(request):
         olcu = None
     sonuc = []
     for v in parcali.fikirler(6, None, _desen_kodlari() - parcali.GIZLI_DESENLER, olcu,
-                              katalog=str(request.GET.get("katalog", "")).upper(), seri=request.GET.get("seri", "")):
-        orta = dict(parcali.ORTA_TURLERI)[v["orta"]].lower()
-        if parcali.seri_kartelasi(v.get("katalog")):
-            baslik = (f"{v['katalog']} · zemin {parcali.MALZEME_AD[v['zemin']].split(' ', 2)[1]}"
-                      f" · kenar {parcali.KENAR_AD[v['kenar_renk']].split(' ', 2)[1]}")
-        else:
-            baslik = f"{dict(parcali.SEKILLER)[v['sekil']]} · {v['halka_sayisi']} bordür · orta {orta}"
+                              katalog=str(request.GET.get("katalog", "")).upper(), seri=request.GET.get("seri", ""),
+                              sekil=request.GET.get("sekil")):
+        baslik = f"{v['katalog']} · zemin {_kisa_ad(v['zemin'])} · kenar {_kisa_ad(v['kenar_renk'])}"
         sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()}, "baslik": baslik})
     return JsonResponse(sonuc, safe=False)
 

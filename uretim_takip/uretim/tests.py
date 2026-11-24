@@ -3697,3 +3697,35 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
         self.assertTrue({serbest.pk} <= gelen(biye) & gelen(lanfel))
         self.assertIn(secili.pk, gelen(biye))
         self.assertNotIn(secili.pk, gelen(lanfel))
+
+    def test_fikir_hep_secili_modelden_ve_yuvarlak(self):
+        """2026-11-24: Fikir ver seçili modelin yapısını korur (peluş dahil), yalnız ailenin izinli renkleri; öneride
+        şerit / nakış paneli yok; modelsizken vitrin modellerinden. ◯ Yuvarlak = eni boyuna eşit oval."""
+        from . import parcali
+
+        yapi = lambda x: (x["halka_sayisi"], x["orta"], x["madalyon"], [x.get(f"h{i}_tur") for i in range(1, 5)],
+                          [x.get(f"h{i}_desen") for i in range(1, 5)], [x.get(f"a{i}_gen") for i in range(1, 4)])
+        for kod in parcali.BAYI_VITRINI + [""]:
+            for tohum in range(3):
+                for f in parcali.fikirler(6, tohum, olcu=(160, 230), katalog=kod):
+                    k = f["katalog"]
+                    self.assertIn(k, parcali.BAYI_VITRINI)
+                    if kod:
+                        self.assertEqual(k, kod)
+                    self.assertEqual(yapi(f), yapi(parcali.temizle({**parcali.hazir_degerler(k), "en": 160, "boy": 230})))
+                    self.assertEqual(f["orta"], "duz")
+                    alanlar = ["zemin", "kenar_renk"] + [f"h{i}_malzeme" for i in range(1, f["halka_sayisi"] + 1)]
+                    alanlar += ["madalyon_malzeme"] if f["madalyon"] != "yok" else []
+                    for a in alanlar:
+                        self.assertTrue(parcali.izinli_mi(k, a, f[a]), (k, a, f[a]))
+        # bayi kendisi ortaya şerit koyabilir (öneride yok, seçim serbest)
+        v = parcali.temizle({**parcali.hazir_degerler("RNO-011"), "orta": "serit"})
+        self.assertEqual(v["orta"], "serit")
+        # yuvarlak
+        v = parcali.temizle({**parcali.hazir_degerler("IPS-457"), "sekil": "yuvarlak", "en": 200, "boy": 290})
+        self.assertEqual((v["sekil"], v["en"], v["boy"]), ("oval", 200, 200))
+        self.client.force_login(self.bayi_hesap)
+        liste = self.client.get(reverse("parcali_fikir"), {"en": "200", "boy": "200", "sekil": "yuvarlak",
+                                                           "katalog": "IPS-457"}).json()
+        self.assertTrue(all((f["v"]["sekil"], f["v"]["boy"]) == ("oval", 200.0) for f in liste))
+        self.assertTrue(all(f["baslik"].startswith("IPS-457 · zemin") for f in liste))
