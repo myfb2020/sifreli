@@ -242,7 +242,13 @@ def _kenar_olculeri(kod, ref):
     return sonuc
 
 
-def _eslestir(ref_oge, hedef_oge, sinirlar):
+# fotoğraftaki madalyon marka logosu (Medusa): tasarlarken ve Fikir ver'de sade daire çizilir (2026-11-24, kullanıcı);
+# "olduğu gibi" siparişte katalog fotoğrafı aynen kalır
+LOGOLU_MADALYON = {"IPS-457"}
+BIYE_CM = 2.2  # çizilen biye / lanfel şeridi (her zaman çizimden)
+
+
+def _eslestir(ref_oge, hedef_oge, sinirlar, dis=0.0):
     """Bir kenarda [(fotoğraf çizgisi, çizimde cm)] düğümleri, dış kenardan zeminin başına. Fotoğrafta olmayan
     (yeni) bordür / ara bant fotoğrafta sıfır genişlik alır (çizimden gelir); çizimde olmayan (çıkarılan) bordürün
     fotoğraftaki yeri sıfıra iner."""
@@ -252,6 +258,8 @@ def _eslestir(ref_oge, hedef_oge, sinirlar):
         onceki = son
     foto_zemin = onceki
     dugum, simdi, t = [((0.0, 0.0), 0.0)], (0.0, 0.0), 0.0
+    if dis:  # fotoğrafın dışındaki kenar şeridi (eski biye / metal çerçeve) çizilen biyenin altına sıkışır
+        dugum.append(((dis, dis), min(BIYE_CM, hedef_oge[0][1] / 2) if hedef_oge else BIYE_CM))
     for no, gen in hedef_oge:
         if no in yer:
             bas, son = yer[no]
@@ -314,7 +322,8 @@ def fotograf_yerlesimi(kod, v, px):
     fx, fy = foto.width / ref_en, foto.height / ref_boy  # fotoğrafta cm başına piksel
     kose_cm = kose_px / min(fx, fy)
     ro, ho = _ogeler(ref), _ogeler(v)
-    d = {k: _eslestir(ro, ho, kenar[k]) for k in kenar}
+    dis = HALKA.get(kod, {}).get("dis", 0.0)
+    d = {k: _eslestir(ro, ho, kenar[k], dis) for k in kenar}
     xk = _eksen(d["sol"], d["sag"], foto.width, fx, W, px)
     yk = _eksen(d["ust"], d["alt"], foto.height, fy, H, px)
     if _madalyonlu(ref):
@@ -380,12 +389,14 @@ def bilesik(v, uzun_kenar=900):
     degisen = degisenler(v, b)
     renkle = renklenecekler(v, b)
     degisen = degisen - set(renkle)
+    if kod in LOGOLU_MADALYON and _madalyonlu(v):  # marka logolu madalyon fotoğraftan alınmaz: sade daire çizilir
+        renkle.pop("madalyon", None)
+        degisen |= {"madalyon", "mcerceve"}
     if "madalyon" in renkle and v.get("madalyon_cerceve") == b.get("madalyon_cerceve"):
         degisen.discard("mcerceve")  # yalnız madalyonun malzemesi değişti: çerçevesi fotoğraftan kalır
-    ilk = _ogeler(v)[:1]
-    if ilk and _grup_adi(ilk[0][0]) not in degisen and v.get("kenar") == b.get("kenar") and \
-            v.get("kenar_renk") == b.get("kenar_renk"):
-        degisen.discard("kenar")  # dış bordür yalnız yeniden renklendiyse biye fotoğraftan kalır
+    # biye / lanfel her zaman çizimden (2026-11-24, kullanıcı: fotoğrafın kenarında siyah / beyaz kalıntılar,
+    # köşe izleri kötü görünüyordu); fotoğraftan yalnız içerisi alınır
+    degisen.add("kenar")
     px = uzun_kenar / max(v["en"], v["boy"])
     W, H = int(round(v["en"] * px)), int(round(v["boy"] * px))
     foto, kose_cm = fotograf_yerlesimi(kod, v, px)
@@ -488,7 +499,7 @@ def _bos_seritler(kod, b, v, px, boyut):
     W, H = boyut
     sutun, satir = Image.new("L", boyut, 0), Image.new("L", boyut, 0)
     ref = referans(kod)
-    dugum = _eslestir(_ogeler(ref), _ogeler(v), _kenar_olculeri(kod, ref)["sol"])
+    dugum = _eslestir(_ogeler(ref), _ogeler(v), _kenar_olculeri(kod, ref)["sol"], HALKA.get(kod, {}).get("dis", 0.0))
     for (k0, t0), (k1, t1) in zip(dugum, dugum[1:]):
         if k0 == k1 and t1 > t0:
             a, z = round(t0 * px), round(t1 * px)

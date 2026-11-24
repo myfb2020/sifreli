@@ -1,0 +1,112 @@
+{
+"BNA-018": [
+  {"zemin": "bienca_bn04", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gri_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn04", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gri_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn04", "madalyon_cerceve": "gumus"},
+  {"zemin": "bienca_bn03", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "vizon_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "bienca_bn03", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "antrasit_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn01", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gri_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn01", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn03", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gri_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"}
+],
+"BNA-019": [
+  {"zemin": "bienca_bn04", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "altin", "h2_malzeme": "altin", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn03", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "bienca_bn05", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "altin", "h2_malzeme": "altin", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn01", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn04", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn04", "madalyon_cerceve": "gumus"},
+  {"zemin": "bienca_bn04", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "bienca_bn02", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "altin", "h2_malzeme": "altin", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn02", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "altin", "h2_malzeme": "altin", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn02", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn05", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn05", "madalyon_cerceve": "gumus"},
+  {"zemin": "bienca_bn02", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn01", "madalyon_cerceve": "gumus"},
+  {"zemin": "bienca_bn01", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "altin", "h2_malzeme": "altin", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn01", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn03", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "altin", "h2_malzeme": "altin", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "bienca_bn03", "madalyon_malzeme": "bienca_bn01", "h1_malzeme": "altin", "h2_malzeme": "altin", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "bienca_bn03", "madalyon_cerceve": "altin"}
+],
+"IPS-442": [
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "bienca_bn04", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_gri", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "pelus_krem", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_siyah", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "pelus_beyaz", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_beyaz", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "pelus_vizon", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_siyah", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "bienca_bn03", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_beyaz", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "bienca_bn04", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_siyah", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "pelus_krem", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_gri", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "bienca_bn01", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"},
+  {"zemin": "pelus_gri", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "pelus_siyah", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "varak_altin"}
+],
+"IPS-457": [
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "bienca_bn04", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "pelus_siyah", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "altin", "h2_malzeme": "pelus_beyaz", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "altin", "h2_malzeme": "pelus_krem", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "altin", "h2_malzeme": "bienca_bn01", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "altin", "h2_malzeme": "pelus_beyaz", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "altin", "h2_malzeme": "pelus_krem", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "pelus_gri", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "altin", "h2_malzeme": "bienca_bn01", "h3_malzeme": "pelus_beyaz", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"}
+],
+"IPS-476": [
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_gri", "madalyon_malzeme": "pelus_siyah", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_siyah", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_vizon", "madalyon_malzeme": "pelus_siyah", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_beyaz", "madalyon_malzeme": "pelus_gri", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_siyah", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_beyaz", "madalyon_malzeme": "pelus_vizon", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_siyah", "madalyon_malzeme": "pelus_gri", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_gri", "madalyon_malzeme": "pelus_beyaz", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_krem", "madalyon_malzeme": "pelus_gri", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""},
+  {"zemin": "pelus_gri", "madalyon_malzeme": "pelus_krem", "h1_malzeme": "gumus", "h2_malzeme": "gumus", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": ""}
+],
+"RNO-004": [
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "kahve_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "gri_keten", "h2_malzeme": "gri_keten", "h3_malzeme": "gri_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "krem_keten", "h2_malzeme": "krem_keten", "h3_malzeme": "krem_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "antrasit_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "vizon_keten", "h3_malzeme": "vizon_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "antrasit_keten", "madalyon_cerceve": "gumus"},
+  {"zemin": "beyaz_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "vizon_keten", "h3_malzeme": "vizon_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "vizon_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "gri_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "bienca_bn03", "h3_malzeme": "bienca_bn03", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "bienca_bn03", "h3_malzeme": "bienca_bn03", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "kahve_keten", "h2_malzeme": "kahve_keten", "h3_malzeme": "kahve_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "gumus"}
+],
+"RNO-010": [
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "kahve_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "gri_keten", "h2_malzeme": "gri_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "krem_keten", "h2_malzeme": "krem_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "antrasit_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "vizon_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "antrasit_keten", "madalyon_cerceve": "gumus"},
+  {"zemin": "beyaz_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "vizon_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "vizon_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "gri_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "bienca_bn03", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "bienca_bn03", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "kahve_keten", "h2_malzeme": "kahve_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "gumus"}
+],
+"RNO-011": [
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "kahve_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "gri_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "krem_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "antrasit_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "antrasit_keten", "madalyon_cerceve": "gumus"},
+  {"zemin": "beyaz_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "vizon_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "gri_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "kahve_keten", "h2_malzeme": "antrasit_keten", "h3_malzeme": "antrasit_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "gumus"}
+],
+"RNO-012": [
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "kahve_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "gri_keten", "h2_malzeme": "gri_keten", "h3_malzeme": "gri_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "krem_keten", "h2_malzeme": "krem_keten", "h3_malzeme": "krem_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "antrasit_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "vizon_keten", "h3_malzeme": "vizon_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "antrasit_keten", "madalyon_cerceve": "gumus"},
+  {"zemin": "beyaz_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "vizon_keten", "h2_malzeme": "vizon_keten", "h3_malzeme": "vizon_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "vizon_keten", "madalyon_cerceve": "altin"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "gumus", "madalyon_cerceve": "gumus"},
+  {"zemin": "gri_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "bienca_bn03", "h3_malzeme": "bienca_bn03", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "vizon_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn04", "h2_malzeme": "bienca_bn04", "h3_malzeme": "bienca_bn04", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "kahve_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "bienca_bn03", "h2_malzeme": "bienca_bn03", "h3_malzeme": "bienca_bn03", "h4_malzeme": "beyaz_keten", "kenar_renk": "altin", "madalyon_cerceve": "altin"},
+  {"zemin": "krem_keten", "madalyon_malzeme": "krem_keten", "h1_malzeme": "kahve_keten", "h2_malzeme": "kahve_keten", "h3_malzeme": "kahve_keten", "h4_malzeme": "beyaz_keten", "kenar_renk": "krem_keten", "madalyon_cerceve": "gumus"}
+]
+}

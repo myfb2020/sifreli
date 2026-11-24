@@ -3729,3 +3729,26 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
                                                            "katalog": "IPS-457"}).json()
         self.assertTrue(all((f["v"]["sekil"], f["v"]["boy"]) == ("oval", 200.0) for f in liste))
         self.assertTrue(all(f["baslik"].startswith("IPS-457 · zemin") for f in liste))
+
+    def test_secili_fikirler_ve_kaldirilan_pelus(self):
+        """2026-11-24: Fikir ver yalnız kullanıcının seçtiği renk takımları; pembe / taba / lacivert peluş yok;
+        biye her zaman çizimden; IPS-457'nin logolu madalyonu sade daire çizilir."""
+        from . import foto_temel, parcali
+
+        self.assertEqual(set(parcali.SECILI_FIKIRLER), set(parcali.BAYI_VITRINI))
+        for kod in parcali.BAYI_VITRINI:
+            takimlar = [{a: r[a] for a in ("zemin", "kenar_renk")} for r in parcali.SECILI_FIKIRLER[kod]]
+            for f in parcali.fikirler(6, None, olcu=(160, 230), katalog=kod):
+                self.assertIn({"zemin": f["zemin"], "kenar_renk": f["kenar_renk"]}, takimlar)
+                for a in parcali.MALZEME_ALANLARI:
+                    self.assertNotIn(f.get(a), parcali.KALDIRILAN_MALZEMELER)
+        self.assertEqual(len(parcali.fikirler(6, 1, olcu=(160, 230), katalog="BNA-018")), 6)
+        self.assertFalse(parcali.izinli_mi("IPS-442", "zemin", "pelus_pembe"))
+        self.assertTrue(parcali.izinli_mi("IPS-442", "zemin", "pelus_siyah"))
+        self.assertNotIn("pelus_taba", parcali.AILE_MALZEMELERI["IPS"]["bordur"])
+        self.client.force_login(self.yonetici)
+        sayfa = self.client.get(reverse("parcali_studyo"))
+        self.assertContains(sayfa, 'id="kaldirilan-malzemeler"')
+        # IPS-457 madalyonu (logo) ve biye çizimden: bilesik yine fotoğraf esaslı çalışır
+        v = parcali.temizle({**parcali.hazir_degerler("IPS-457"), **parcali.SECILI_FIKIRLER["IPS-457"][0]})
+        self.assertIsNotNone(foto_temel.bilesik(v, 300))

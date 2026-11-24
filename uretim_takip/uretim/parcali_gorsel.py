@@ -442,6 +442,7 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
     # resim kenarına dayanan hat süzgeçte aşınmaz (kenar piksel uzatılır): önce siyah pay eklenir
     genis = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b * 2 + 1))
     serit = ImageChops.subtract(dis, genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H)))
+    delikler = ImageChops.subtract(delikler, serit)  # biye dış bordürün desen deliklerini kapatır (köşede siyah iz kalıyordu)
     kenar_renk = KENAR_HEX.get(v["kenar_renk"]) or pc.MALZEME_HEX.get(v["kenar_renk"], "#888888")
     kenar = (hg.malzeme(v["kenar_renk"], boyut, px) if v["kenar_renk"] in ("altin", "gumus")
              else malzeme_dokusu(v["kenar_renk"], boyut, px) if v["kenar_renk"] in pc.MALZEME_HEX

@@ -199,7 +199,10 @@ KENAR_KARTELA = [(k, MALZEME_AD[k]) for liste in KARTELA_MALZEMELERI.values() fo
 
 # Model ailesine göre seçilebilen malzemeler (2026-11-23, kullanıcı: "tasarımda her şey seçilebiliyor, sadeleşsin").
 # Modelin katalogdaki kendi rengi her zaman seçilebilir (izinli_mi).
-PELUS = [k for k, _, _ in MALZEMELER if k.startswith("pelus_")]
+# atölyede olmayan peluş renkleri (2026-11-24, kullanıcı): yeni tasarımda seçilemez, Fikir ver'de çıkmaz; eski kayıtta
+# seçiliyse görünür kalır
+KALDIRILAN_MALZEMELER = {"pelus_pembe", "pelus_taba", "pelus_lacivert"}
+PELUS = [k for k, _, _ in MALZEMELER if k.startswith("pelus_") and k not in KALDIRILAN_MALZEMELER]
 _RONO, _BIENCA = KARTELA_MALZEMELERI["RNO"], KARTELA_MALZEMELERI["BNA"]
 _PELUS_AILE = {"zemin": PELUS, "bordur": PELUS + _BIENCA, "madalyon": PELUS, "kenar": METALIK}
 AILE_MALZEMELERI = {
@@ -219,10 +222,12 @@ def alan_turu(alan):
 
 def izinli_mi(katalog, alan, deger):
     """Bu model ailesinde bu parçaya bu malzeme seçilebilir mi (ailesiz / serbest tasarımda hep evet)."""
+    kendi = hazir_degerler(katalog).get(alan) if katalog and (katalog in HAZIR or katalog in FOTO_RENK) else None
+    if deger in KALDIRILAN_MALZEMELER and deger != kendi:
+        return False
     aile = AILE_MALZEMELERI.get((katalog or "")[:3])
     if not aile or not katalog:
         return True
-    kendi = hazir_degerler(katalog).get(alan) if katalog in HAZIR or katalog in FOTO_RENK else None
     return deger in aile[alan_turu(alan)] or deger == kendi
 
 
@@ -1639,27 +1644,52 @@ def ozet(v):
     return " · ".join(p)
 
 
+def _secili_fikirler():
+    """Kullanıcının seçtiği öneri renk takımları (2026-11-24): {model: [{alan: malzeme}, …]}."""
+    import json
+    from pathlib import Path
+
+    return json.loads((Path(__file__).parent / "tasarim_varlik" / "fikir_secimi.json").read_text())
+
+
+SECILI_FIKIRLER = _secili_fikirler()
+
+
 def fikirler(adet=6, tohum=None, desen_kodlari=(), olcu=None, katalog="", seri="", sekil=None):
-    """'Bana fikir ver' (2026-11-24, kullanıcı): öneriler HER ZAMAN bir modelin kendi yapısından — bordür sayısı,
-    genişliği, deseni, ara bantlar, madalyon aynen kalır; yalnız renkler model ailesinin malzemelerinden değişir
-    (AILE_MALZEMELERI). Seçili model yoksa bayi vitrinindeki güzel modellerden (sekmesi açık seri varsa o seriden)
-    biri alınır. Öneride ortaya şerit / nakış paneli konmaz (vitrin modellerinin ortası düz); bayi isterse kendisi ekler."""
+    """'Bana fikir ver' (2026-11-24, kullanıcı): öneriler modelin kendi yapısından — bordür sayısı, genişliği, deseni,
+    ara bantlar, madalyon aynen kalır; renkler kullanıcının seçtiği takımlardan (SECILI_FIKIRLER; her basışta
+    karışık sırayla 6'sı). Seçili model yoksa bayi vitrinindeki modellerden (sekmesi açık seri varsa o seriden).
+    Listesi olmayan modelde (yalnız yönetici stüdyosu) renkler ailenin malzemelerinden rastgele (_aile_renklendir).
+    Öneride ortaya şerit / nakış paneli konmaz; bayi isterse kendisi ekler."""
+    import random
+
     katalog = (katalog or "").upper()
     if katalog in HAZIR and katalog[:3] in AILE_MALZEMELERI:
         modeller = [katalog]
     else:
         modeller = [k for k in BAYI_VITRINI if k.startswith(seri)] if seri else []
         modeller = modeller or list(BAYI_VITRINI)
-    sonuc, gorulen = [], set()
-    for i, rast in _rastlar(adet * 6, tohum):
-        if len(sonuc) == adet:
-            break
-        kod = modeller[i % len(modeller)] if len(modeller) > 1 else modeller[0]
+
+    def hazirla(kod, renk):
         v = hazir_degerler(kod)
         if olcu:
             v["en"], v["boy"] = olcu
         if sekil in ("dikdortgen", "oval", "yuvarlak"):
             v["sekil"] = sekil
+        v.update(renk)
+        v["katalog"], v["hazir"] = kod, ""
+        return temizle(v, desen_kodlari)
+
+    havuz = [(kod, renk) for kod in modeller for renk in SECILI_FIKIRLER.get(kod, [])]
+    if havuz:
+        random.Random(tohum).shuffle(havuz)
+        return [hazirla(kod, renk) for kod, renk in havuz[:adet]]
+    sonuc, gorulen = [], set()
+    for i, rast in _rastlar(adet * 6, tohum):
+        if len(sonuc) == adet:
+            break
+        kod = modeller[i % len(modeller)]
+        v = hazirla(kod, {})
         v = temizle(_aile_renklendir(v, kod, rast), desen_kodlari)
         anahtar = (kod,) + tuple(v.get(a) for a in MALZEME_ALANLARI + ["kenar_renk"])
         if anahtar in gorulen:

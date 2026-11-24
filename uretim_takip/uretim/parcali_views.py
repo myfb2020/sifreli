@@ -123,6 +123,7 @@ def studyo(request):
         "kenarlar": parcali.KENARLAR, "kenar_renkleri": [(k, ad, _grup(k)) for k, ad in parcali.kenar_secenekleri()], "desenler": desenler,
         "seriler": seriler, "madalyonlar": parcali.MADALYONLAR, "hazir_json": {h["kod"]: h["deger"] for h in hazirlar}, "kendi_zemin": {k: d["zemin"] for k, d in parcali.FOTO_RENK.items()}, "en_cok_halka": parcali.EN_COK_HALKA,
         "aile_malzemeleri": parcali.AILE_MALZEMELERI,
+        "kaldirilan_malzemeler": sorted(parcali.KALDIRILAN_MALZEMELER),
     })
 
 
@@ -152,7 +153,9 @@ def fikir(request):
     for v in parcali.fikirler(6, None, _desen_kodlari() - parcali.GIZLI_DESENLER, olcu,
                               katalog=str(request.GET.get("katalog", "")).upper(), seri=request.GET.get("seri", ""),
                               sekil=request.GET.get("sekil")):
-        baslik = f"{v['katalog']} · zemin {_kisa_ad(v['zemin'])} · kenar {_kisa_ad(v['kenar_renk'])}"
+        bordur = ", ".join(dict.fromkeys(_kisa_ad(v[f"h{i}_malzeme"]) for i in range(1, v["halka_sayisi"] + 1)))
+        baslik = (f"{v['katalog']} · zemin {_kisa_ad(v['zemin'])}" + (f" · bordür {bordur}" if bordur else "")
+                  + f" · kenar {_kisa_ad(v['kenar_renk'])}")
         sonuc.append({"v": {k: ("" if d is None else d) for k, d in v.items()}, "baslik": baslik})
     return JsonResponse(sonuc, safe=False)
 
