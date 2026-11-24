@@ -64,6 +64,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "uretim.olcum.YavasIstek",  # yavaş istekleri hata günlüğüne yazar (2026-11-24)
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

@@ -3823,3 +3823,20 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
             self.assertEqual(yanit.status_code, 200)
             self.assertContains(yanit, "peluşa lazer ve nakış yapılamaz")
             self.assertContains(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-442"), "pelusYasakliAlanlar")
+
+
+class YavasIstekTesti(TestCase):
+    def test_yavas_istek_gunluge_yazilir(self):
+        import contextlib
+        import io
+
+        hata = io.StringIO()
+        with self.settings(YAVAS_ISTEK_ESIGI=0), contextlib.redirect_stderr(hata):
+            yanit = self.client.get("/saglik/")
+        self.assertEqual(yanit.status_code, 200)
+        self.assertIn("YAVAŞ GET /saglik/ 200 toplam", hata.getvalue())
+        self.assertIn("sorgu", hata.getvalue())
+        hata = io.StringIO()
+        with contextlib.redirect_stderr(hata):  # eşiğin altı: satır yok
+            self.client.get("/giris/")
+        self.assertNotIn("YAVAŞ", hata.getvalue())
