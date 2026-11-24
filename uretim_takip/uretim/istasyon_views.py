@@ -56,21 +56,51 @@ def istasyon_ekrani(request, pk):
     return render(request, "uretim/istasyon_ekrani.html", _baglam(asama, request.GET.get("sekme"), request.user))
 
 
+CSRF_YERI = "__CSRF_ANAHTARI__"
+
+
 @login_required
 def istasyon_parca(request, pk):
-    """Ekranın kendini yenilemesi için yalnızca liste kısmı."""
-    asama = get_object_or_404(Asama, pk=pk, aktif=True)
-    yanit = render(request, "uretim/_istasyon_parca.html", _baglam(asama, kullanici=request.user))
-    # 20 sn'de bir yenilenir: liste değişmediyse içerik gönderilmez (2026-11-24, hız; tablet de sayfayı yeniden kurmaz)
+    """Ekranın kendini yenilemesi için yalnızca liste kısmı (20 sn'de bir).
+
+    Hız (2026-11-24): anahtar = istasyon + hesabın düğme yetkileri + değişiklik sayacı + dakika. Tablet son aldığı
+    anahtarı gönderir: aynıysa hiçbir şey hesaplanmaz (204). Değiştiyse liste bir kez hazırlanır ve aynı istasyona
+    bakan öteki tabletler de onu kullanır (önbellek); liste gerçekten aynıysa yine 204 (sürüm). Süreler dakikada bir
+    güncellenir.
+    """
     import hashlib
     import re
 
-    # formlardaki güvenlik anahtarı her seferinde farklı yazılır (aynı anahtarın maskeli hâli): karşılaştırmada sayılmaz
-    icerik = re.sub(rb'name="csrfmiddlewaretoken" value="[^"]*"', b"", yanit.content)
-    surum = hashlib.sha1(icerik).hexdigest()[:16]
+    from django.core.cache import cache
+    from django.middleware.csrf import get_token
+    from django.template.loader import render_to_string
+    from django.utils import timezone
+
+    from . import degisiklik
+
+    asama = get_object_or_404(Asama, pk=pk, aktif=True)
+    kullanici = request.user
+    yetki = servisler.oncelik_yetkisi(kullanici)
+    anahtar = (f"ist{asama.pk}-{int(kullanici.is_staff)}{int(kullanici.is_superuser)}{int(yetki)}-"
+               f"{degisiklik.numara()}-{timezone.now():%Y%m%d%H%M}")
+    if request.headers.get("X-Son-Anahtar") == anahtar:
+        yanit = HttpResponse(status=204)
+        yanit["X-Anahtar"] = anahtar
+        return yanit
+    kayit = cache.get(anahtar)
+    if kayit is None:
+        html = render_to_string("uretim/_istasyon_parca.html", _baglam(asama, kullanici=kullanici), request=request)
+        # formlardaki güvenlik anahtarı her tablette başka: önbellekte yer tutucu, gönderirken tabletin kendi anahtarı
+        icerik = re.sub(r'(name="csrfmiddlewaretoken" value=")[^"]*"', r'\1' + CSRF_YERI + '"', html)
+        kayit = (icerik, hashlib.sha1(icerik.encode()).hexdigest()[:16])
+        cache.set(anahtar, kayit, 120)
+    icerik, surum = kayit
     if request.headers.get("X-Son-Surum") == surum:
         yanit = HttpResponse(status=204)
+    else:
+        yanit = HttpResponse(icerik.replace(CSRF_YERI, get_token(request)))
     yanit["X-Surum"] = surum
+    yanit["X-Anahtar"] = anahtar
     return yanit
 
 

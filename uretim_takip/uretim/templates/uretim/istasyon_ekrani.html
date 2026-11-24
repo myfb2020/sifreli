@@ -55,6 +55,7 @@
   const ANAHTAR = "istasyon-gorulen-{{ asama.pk }}";
   const parcaAdresi = "{% url 'istasyon_parca' asama.pk %}";
   let sonSurum = "";  // son alınan listenin sürümü: değişmediyse sunucu boş (204) döner
+  let sonAnahtar = "";  // son yenilemenin anahtarı (veri + dakika): aynıysa sunucu hiç hesaplamaz
   let sesAcik = false;
   let ses = null;
 
@@ -145,8 +146,9 @@
 
   async function yenile() {
     try {
-      const yanit = await fetch(parcaAdresi, { headers: { "X-Requested-With": "fetch", "X-Son-Surum": sonSurum }, cache: "no-store" });
+      const yanit = await fetch(parcaAdresi, { headers: { "X-Requested-With": "fetch", "X-Son-Surum": sonSurum, "X-Son-Anahtar": sonAnahtar }, cache: "no-store" });
       if (!yanit.ok) return;
+      sonAnahtar = yanit.headers.get("X-Anahtar") || "";
       if (yanit.status === 204) {  // liste değişmedi
         document.getElementById("son-yenileme").textContent = new Date().toLocaleTimeString("tr-TR");
         return;

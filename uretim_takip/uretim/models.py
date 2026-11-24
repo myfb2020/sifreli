@@ -1546,6 +1546,8 @@ class SistemAyari(models.Model):
     son_foto_kucultme = models.DateField("son fotoğraf küçültme", null=True, blank=True, editable=False)
     vapid_ozel = models.TextField(blank=True, editable=False)
     vapid_acik = models.CharField(max_length=200, blank=True, editable=False)
+    # her veri değişikliğinde bir artar (`degisiklik.py`); istasyon ekranı yenilenirken bakılır (2026-11-24, hız)
+    degisiklik_no = models.PositiveBigIntegerField(default=0, editable=False)
 
     class Meta:
         verbose_name = "sistem ayarı"

@@ -3799,6 +3799,58 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
             call_command("onizleme_hazirla", stdout=io.StringIO())
             self.assertGreater(len(list((Path(klasor) / "onizleme").glob("*.jpg"))), 50)
 
+    def test_degisiklik_sayaci_ve_istasyon_onbellegi(self):
+        """2026-11-24 hız: veri değişince sayaç artar; aynı anahtarda liste hiç hesaplanmaz (204, az sorgu); ortak
+        önbellekte her tablet kendi güvenlik anahtarını alır."""
+        from django.core.cache import cache
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        from . import degisiklik
+        from .models import Asama, SistemAyari
+
+        once = degisiklik.numara()
+        Siparis.objects.create(musteri=self.siparis.musteri, urun="Sayaç", durum="acik", teslim_tarihi=timezone.localdate(),
+                               hali_turu=HaliTuru.objects.get(ad="Lazerli halı"))
+        self.assertGreater(degisiklik.numara(), once)
+        ara = degisiklik.numara()
+        SistemAyari.yukle().save()  # ayarın kendisi sayılmaz
+        self.assertEqual(degisiklik.numara(), ara)
+
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        adres = reverse("istasyon_parca", args=[lazer.pk])
+        locmem = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "deneme"}}
+        with self.settings(CACHES=locmem):
+            cache.clear()
+            self.client.force_login(self.yonetici)
+            ilk = self.client.get(adres)
+            self.assertEqual(ilk.status_code, 200)
+            self.assertIn("Sayaç", ilk.content.decode())
+            self.assertNotIn(b"__CSRF_ANAHTARI__", ilk.content)
+            with CaptureQueriesContext(connection) as q:
+                bos = self.client.get(adres, HTTP_X_SON_ANAHTAR=ilk["X-Anahtar"])
+            self.assertEqual(bos.status_code, 204)
+            self.assertLess(len(q.captured_queries), 8)  # oturum + hesap + istasyon + sayaç; liste hesaplanmadı
+            # ikinci tablet: aynı liste önbellekten, kendi güvenlik anahtarıyla
+            from django.test import Client
+
+            obur = Client()
+            obur.force_login(self.yonetici)
+            with CaptureQueriesContext(connection) as q:
+                ikinci = obur.get(adres)
+            self.assertEqual(ikinci["X-Surum"], ilk["X-Surum"])
+            self.assertLess(len(q.captured_queries), 8)
+            if b"csrfmiddlewaretoken" in ikinci.content:
+                self.assertNotIn(b"__CSRF_ANAHTARI__", ikinci.content)
+            # yeni iş gelince anahtar değişir, yeni liste gelir
+            Siparis.objects.create(musteri=self.siparis.musteri, urun="Yeni gelen", durum="acik",
+                                   teslim_tarihi=timezone.localdate(), hali_turu=HaliTuru.objects.get(ad="Lazerli halı"))
+            yeni = self.client.get(adres, HTTP_X_SON_ANAHTAR=ilk["X-Anahtar"], HTTP_X_SON_SURUM=ilk["X-Surum"])
+            self.assertEqual(yeni.status_code, 200)
+            self.assertIn("Yeni gelen", yeni.content.decode())
+            self.assertNotEqual(yeni["X-Anahtar"], ilk["X-Anahtar"])
+            cache.clear()
+
     def test_pelusa_lazer_ve_nakis_yok(self):
         """2026-11-24: peluşa lazer deseni ve nakış yapılamaz: desenli / nakışlı bordür, nakışlı madalyon, nakış paneli,
         desenli şerit peluş olamaz (uyarı engel, sipariş gönderilemez); düz parçada peluş serbest."""

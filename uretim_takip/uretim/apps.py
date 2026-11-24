@@ -17,6 +17,8 @@ class UretimConfig(AppConfig):
     name = "uretim"
 
     def ready(self):
-        from . import oturum  # noqa: F401  giriş/çıkış sinyallerini bağlar
+        from . import degisiklik, oturum  # noqa: F401  giriş/çıkış sinyallerini bağlar
+
+        degisiklik.bagla()
 
         post_migrate.connect(ofis_yetkilerini_guncelle, sender=self)
