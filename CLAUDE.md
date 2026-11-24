@@ -19,6 +19,7 @@ Yalnızca işin ilgili olduğu **dala** in ve orada adı geçen dosyaları aç. 
 - Kod Türkçe adlandırılır (`siparis`, `lot`, `asama`…). Ekran kontrolü: Playwright node betiği, giriş için `form.dikey button[type=submit]`.
 - **Dikkat:** `kurulum.sh` / `geri_al.sh` denemelerini yalnızca geçici kopyada ve `( set -e; … )` içinde yap. Gerçek klasörde bir kez yanlışlıkla çalıştı.
 - Ağ: biennafur.com bu ortamdan kapalı (proxy 403).
+- **PythonAnywhere API (2026-11-24):** token bu ortamın ('Varsayılan') ağ sırrı olarak kayıtlı (www.pythonanywhere.com, proxy ekler; değeri görmeyiz, başlık eklenmez). Taban `https://www.pythonanywhere.com/api/v0/user/uretim/`: `webapps/` (id 3261129, uretim.biennafur.com, venv /home/uretim/.venv-uretim), `cpu/`, `schedule/` (yedek görevi 1599806), `files/path/<yol>` (okuma; günlük `/var/log/uretim.biennafur.com.error.log`, yedek görevi kaydı `/var/log/schedule-log-1599806.log`, `/home/uretim/uretim_takip/yedekler/`). Yükleme/Reload (`webapps/uretim.biennafur.com/reload/` POST) dışa dönük işlem: kullanıcı onayı olmadan yapma. Hata günlüğündeki /js/…, /.git/HEAD 'Not Found' satırları internet tarayıcı botları; 'OSError: write error' = tarayıcı bağlantıyı yarıda kesti (zararsız).
 
 ## Dallar
 ```
