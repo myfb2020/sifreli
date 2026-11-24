@@ -3752,3 +3752,49 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
         # IPS-457 madalyonu (logo) ve biye çizimden: bilesik yine fotoğraf esaslı çalışır
         v = parcali.temizle({**parcali.hazir_degerler("IPS-457"), **parcali.SECILI_FIKIRLER["IPS-457"][0]})
         self.assertIsNotNone(foto_temel.bilesik(v, 300))
+
+    def test_hizli_cizim_ve_istasyon_yenilemesi(self):
+        """2026-11-24 hız: hızlı aşındırma rank süzgeciyle aynı; istasyon listesi değişmediyse 204; rota tek sorguda;
+        Fikir ver resimleri önceden hazırlanır."""
+        import io
+        import tempfile
+        from pathlib import Path
+
+        from django.core.management import call_command
+        from PIL import Image, ImageChops, ImageDraw, ImageFilter
+
+        from . import parcali_gorsel as pg
+
+        m = Image.new("L", (300, 200), 0)
+        ImageDraw.Draw(m).rounded_rectangle((0, 0, 299, 199), radius=12, fill=255)
+        ImageDraw.Draw(m).ellipse((60, 40, 140, 120), fill=0)
+        gri = Image.effect_noise((120, 90), 60).convert("L")
+        for k in (3, 5, 11, 23):
+            self.assertIsNone(ImageChops.difference(pg.asindir(m, k), m.filter(ImageFilter.MinFilter(k))).getbbox())
+            self.assertIsNone(ImageChops.difference(pg.genislet(m, k), m.filter(ImageFilter.MaxFilter(k))).getbbox())
+        for f, r in ((pg.asindir, ImageFilter.MinFilter), (pg.genislet, ImageFilter.MaxFilter)):
+            self.assertIsNone(ImageChops.difference(f(gri, 3), gri.filter(r(3))).getbbox())
+
+        lazer = Asama.objects.get(ad="Lazer kesim 1")
+        for _ in range(3):
+            self.yeni_lot(siparis=Siparis.objects.create(musteri=self.siparis.musteri, urun="H",
+                                                         hali_turu=HaliTuru.objects.get(ad="Lazerli halı"),
+                                                         teslim_tarihi=timezone.localdate()))
+        self.client.force_login(self.yonetici)
+        adres = reverse("istasyon_parca", args=[lazer.pk])
+        ilk = self.client.get(adres)
+        self.assertEqual(ilk.status_code, 200)
+        surum = ilk["X-Surum"]
+        self.assertEqual(self.client.get(adres, HTTP_X_SON_SURUM=surum).status_code, 204)
+        Siparis.objects.create(musteri=self.siparis.musteri, urun="Yeni", durum="acik", teslim_tarihi=timezone.localdate(),
+                               hali_turu=HaliTuru.objects.get(ad="Lazerli halı"))
+        self.assertEqual(self.client.get(adres, HTTP_X_SON_SURUM=surum).status_code, 200)  # yeni iş geldi
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        with CaptureQueriesContext(connection) as q:
+            uyarilar.gelenler(lazer)
+        self.assertLess(sum("uretim_rotaadimi" in x["sql"] for x in q.captured_queries), 2)
+
+        with tempfile.TemporaryDirectory() as klasor, self.settings(MEDIA_ROOT=Path(klasor)):
+            call_command("onizleme_hazirla", stdout=io.StringIO())
+            self.assertGreater(len(list((Path(klasor) / "onizleme").glob("*.jpg"))), 50)

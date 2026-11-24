@@ -871,6 +871,9 @@ class UretimLotu(models.Model):
             kayit = TamirKaydi.objects.filter(lot=self).first()
             if kayit is not None:
                 return [(i, a) for i, a in enumerate(kayit.istasyonlar.order_by("sira"), 1)]
+        hazir = getattr(self, "_rota", None)  # istasyon ekranı bütün rotaları bir kez okur (uyarilar._rota_haritasi)
+        if hazir is not None:
+            return list(hazir)
         return rota_adimlari(self.siparis.hali_turu_id if self.siparis_id else None)
 
     def asama_sonrasi(self, asama):

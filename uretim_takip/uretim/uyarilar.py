@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.db.models import Max, Sum
+from django.db.models import Max, Sum, prefetch_related_objects
 from django.utils import timezone
 
 from .models import Asama, DeriTuru, IslemKaydi, Malzeme, RotaAdimi, Siparis, UretimLotu, sonraki_asamalar
@@ -104,23 +104,37 @@ def calisilanlar(asama=None):
                                                                   "lot__siparis__tasarim")
     if asama:
         qs = qs.filter(asama=asama)
+    rotalar = _rota_haritasi()
     kalemler = [
         Kalem("calisilan", f"i{i.pk}", i.asama, simdi - i.baslangic, i.asama.azami_sure_saat, lot=i.lot, islem=i,
               siparis=i.lot.siparis)
         for i in qs.select_related("lot__kalem").prefetch_related("lot__siparis__fotograflar", "lot__siparis__kalemler", "lot__olculer__kalem",
                                                                   "lot__is_notlari__asama", "lot__is_notlari__personel")
     ]
+    for k in kalemler:
+        _rotayi_tak(k.lot, rotalar)
     return sorted(kalemler, key=oncelik)
 
 
-def gelenler(asama=None):
-    """Sıradaki aşamayı bekleyen işler ve (ilk istasyon için) henüz işi açılmamış yeni siparişler."""
-    simdi = timezone.now()
+def _rota_haritasi():
+    """{halı türü: [(sıra, istasyon)]} tek sorguda; işlerin rotası buradan (her iş için ayrı sorgu yapılıyordu)."""
     rotalar = {}
     for adim in RotaAdimi.objects.filter(asama__aktif=True).select_related("asama"):
         rotalar.setdefault(adim.hali_turu_id, []).append((adim.sira, adim.asama))
     for adimlar in rotalar.values():
         adimlar.sort(key=lambda x: (x[0], x[1].sira))
+    return rotalar
+
+
+def _rotayi_tak(lot, rotalar):
+    if lot is not None and lot.tur != "tamir":
+        lot._rota = rotalar.get(lot.siparis.hali_turu_id if lot.siparis_id else None, [])
+
+
+def gelenler(asama=None):
+    """Sıradaki aşamayı bekleyen işler ve (ilk istasyon için) henüz işi açılmamış yeni siparişler."""
+    simdi = timezone.now()
+    rotalar = _rota_haritasi()
 
     def hedefler(hali_turu_id, son_asama, siparis=None):
         # Alternatif istasyonlar (ör. Biye / Lanfel): siparişte kenar türü yazıyorsa yalnız o istasyona, yoksa hepsinin
@@ -133,10 +147,12 @@ def gelenler(asama=None):
         UretimLotu.objects.filter(durum="bekliyor")
         .select_related("son_asama", "kalem", "siparis__musteri", "siparis__katalog_modeli", "siparis__lazer_deseni",
                         "siparis__tasarim")
-        .prefetch_related("siparis__kalemler", "olculer__kalem", "siparis__fotograflar", "is_notlari__asama", "is_notlari__personel")
         .annotate(son_bitis=Max("islemler__bitis"))
     )
+    # ayrıntılar (ölçüler, fotoğraflar, notlar) yalnız bu istasyona düşen işler için okunur (2026-11-24, hız)
+    secilenler = []
     for lot in lotlar:
+        _rotayi_tak(lot, rotalar)
         bekleme = simdi - (lot.son_bitis or lot.olusturma)
         if lot.tur == "tamir":  # tamir işi ofisin seçtiği istasyonlardan geçer
             tamir_hedefleri = [h for h in lot.asama_sonrasi(lot.son_asama) if asama is None or h.pk == asama.pk]
@@ -144,8 +160,14 @@ def gelenler(asama=None):
                       hedefler(lot.siparis.hali_turu_id if lot.siparis else None, lot.son_asama, lot.siparis)):
             sonuc.append(Kalem("gelen", f"l{lot.pk}-{lot.son_asama_id}", hedef, bekleme, hedef.azami_bekleme_saat,
                                lot=lot, siparis=lot.siparis))
+            if not secilenler or secilenler[-1] is not lot:
+                secilenler.append(lot)
+    prefetch_related_objects(secilenler, "siparis__kalemler", "olculer__kalem", "siparis__fotograflar",
+                             "is_notlari__asama", "is_notlari__personel")
 
-    for sp in Siparis.objects.filter(durum="acik", lotlar__isnull=True).select_related("musteri", "katalog_modeli", "lazer_deseni", "tasarim"):
+    for sp in (Siparis.objects.filter(durum="acik", lotlar__isnull=True)
+               .select_related("musteri", "katalog_modeli", "lazer_deseni", "tasarim")
+               .prefetch_related("kalemler", "fotograflar")):
         for hedef in hedefler(sp.hali_turu_id, None, sp):
             sonuc.append(Kalem("siparis", f"s{sp.pk}", hedef, simdi - sp.olusturma, hedef.azami_bekleme_saat,
                                siparis=sp))

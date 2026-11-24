@@ -428,14 +428,26 @@
   // keskin ekranda (iPad, telefon) çizim daha büyük istenir; yoksa bulanık görünür
   // Önizleme küçük ve hızlı (büyük resim yalnız resme dokununca); sunucu tek iş yaptığı için aynı anda tek resim
   // istenir: yüklenirken gelen değişikliklerden yalnız sonuncusu çizilir.
-  const resimBoyu = 700;
-  let yukleniyor = false, bekleyenAdres = null;
+  // Önce küçük (hızlı) bir ön resim gösterilir, keskin resim hemen arkasından gelir (2026-11-24, hız).
+  const resimBoyu = 700, onResimBoyu = 300;
+  let yukleniyor = false, bekleyenAdres = null, hedefAdres = null;
   function resimYukle(adres) {
     if (yukleniyor) { bekleyenAdres = adres; return; }
-    yukleniyor = true; resim.classList.add("bekle"); resim.src = adres;
+    yukleniyor = true; hedefAdres = adres; resim.classList.add("bekle");
+    const kucuk = new Image();
+    kucuk.onload = kucuk.onerror = () => {
+      if (!yukleniyor || hedefAdres !== adres) return;
+      if (kucuk.naturalWidth) { resim.dataset.on = "1"; resim.classList.remove("bekle"); resim.src = kucuk.src; }
+      else resim.src = adres;
+    };
+    kucuk.src = adres.replace(/([?&])b=\d+/, `$1b=${onResimBoyu}`);
   }
   const resimBitti = () => {
-    yukleniyor = false; resim.classList.remove("bekle");
+    if (resim.dataset.on) {  // ön resim göründü: şimdi keskini
+      delete resim.dataset.on;
+      if (yukleniyor && hedefAdres) { resim.src = hedefAdres; return; }
+    }
+    yukleniyor = false; hedefAdres = null; resim.classList.remove("bekle");
     if (bekleyenAdres) { const a = bekleyenAdres; bekleyenAdres = null; resimYukle(a); }
   };
   resim.addEventListener("load", resimBitti);
@@ -448,9 +460,9 @@
     document.getElementById("aynen-not").hidden = !aynen;
     if (aynen) {
       document.getElementById("aynen-kod").textContent = form.querySelector('[name="katalog"]').value;
-      bekleyenAdres = null; resim.src = katalogResmi();
+      bekleyenAdres = null; hedefAdres = null; delete resim.dataset.on; resim.src = katalogResmi();
     } else if (fotoKalsin && katalogResmi()) {
-      bekleyenAdres = null; resim.src = katalogResmi();  // "bu modelden başla": bayi bir şey değiştirene kadar modelin kendi fotoğrafı
+      bekleyenAdres = null; hedefAdres = null; delete resim.dataset.on; resim.src = katalogResmi();  // "bu modelden başla": bayi bir şey değiştirene kadar modelin kendi fotoğrafı
     } else {
       resimYukle(resimAdresi + `?s=6&b=${resimBoyu}&` + q);
     }
@@ -510,7 +522,7 @@
   }
   uyarilariGoster(JSON.parse(document.getElementById("ilk-uyarilar").textContent), {{ h.kalan_yer|stringformat:"s" }}, {{ h.madalyon_en_cok|stringformat:"s" }});
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
-  const yakinda = () => { goster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 400); };
+  const yakinda = () => { goster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
   const aynenBirak = (e) => { if (!siparisAlanlari.includes(e.target.name) && !["en", "boy"].includes(e.target.name)) form.querySelector('[name="aynen"]').value = ""; };
   // bayinin kendi değişikliği (programın doldurduğu değil) fotoğraftan çizime geçirir
   const fotoBirak = (e) => { if (e.isTrusted && !siparisAlanlari.includes(e.target.name)) fotoKalsin = false; };
@@ -581,7 +593,7 @@
     document.getElementById("basla-yok").hidden = !!d.dataset.duzenlenir;
     secimKutusu.hidden = false;
     // seçilen modelin katalog fotoğrafı üstte görünsün (eski çizim yanıltmasın)
-    bekleyenAdres = null; resim.classList.remove("bekle"); resim.src = d.dataset.resim;
+    bekleyenAdres = null; hedefAdres = null; delete resim.dataset.on; resim.classList.remove("bekle"); resim.src = d.dataset.resim;
   }));
   document.getElementById("aynen-sec").addEventListener("click", () => {
     if (hazirlar[secilen.dataset.kod]) uygula(hazirlar[secilen.dataset.kod], secilen.dataset.kod);

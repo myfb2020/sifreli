@@ -19,6 +19,8 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps, ImageStat
 
 from . import parcali as pc
+from . import parcali_gorsel as pg
+from .parcali_gorsel import asindir
 
 _KLASOR = Path(__file__).parent
 FOTO_KLASORU = _KLASOR / "katalog_tohum" / "model"
@@ -434,7 +436,7 @@ def bilesik(v, uzun_kenar=900):
     else:
         ImageDraw.Draw(dis).rounded_rectangle((0, 0, W - 1, H - 1), radius=max(3, int(px * kose_cm)), fill=255)
     if cizilen.getbbox():
-        cizilen = cizilen.filter(ImageFilter.MaxFilter(2 * max(1, round(px * ORTUSME_CM)) + 1))
+        cizilen = pg.genislet(cizilen, 2 * max(1, round(px * ORTUSME_CM)) + 1)
         maske = ImageChops.subtract(maske, cizilen)
         # eski bordürden kalan kayık kenar: fotoğrafta komşu parçanın renginden doldurulur
         for kalinti, bolge in _kalintilar(v, degisen, foto, px, (W, H)):
@@ -468,7 +470,7 @@ def bilesik(v, uzun_kenar=900):
 
 def _zemin_dokusu(foto, zemin, px, boyut):
     """Zeminin üst bölümünden (madalyonun üstü) temiz bir parça, aynalı döşenerek bütün tuvali kaplar."""
-    ic = zemin.filter(ImageFilter.MinFilter(2 * max(1, round(px * 3)) + 1))
+    ic = asindir(zemin, 2 * max(1, round(px * 3)) + 1)
     kutu = ic.getbbox()
     if not kutu:
         return None
@@ -592,7 +594,7 @@ def _kalintilar(v, degisen, foto, px, boyut):
                 yakin = ImageChops.difference(foto, Image.new("RGB", boyut, tuple(round(c) for c in eski))).convert("L")
                 aykiri = ImageChops.lighter(aykiri, ImageChops.subtract(uzak, yakin).point(
                     lambda q: 255 if q > KALINTI_ESIK else 0))
-            aykiri = ImageChops.multiply(aykiri, yer).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(5))
+            aykiri = pg.genislet(asindir(ImageChops.multiply(aykiri, yer), 3), 5)
             aykiri = ImageChops.multiply(aykiri, yer)
             if aykiri.getbbox():
                 bolge = fark(sekil(ks), sekil(ke)) if ke < 10 ** 3 else sekil(ks)
@@ -676,5 +678,5 @@ def _doldur(foto, gecerli, delik, px, mesafeler=None):
 
 def _ic_hat(dis, b, W, H):
     """Dış hattın b piksel içeriden geçen eşi (resim kenarına dayanan hat da aşınır)."""
-    genis = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b * 2 + 1))
+    genis = asindir(ImageOps.expand(dis, b + 2, 0), b * 2 + 1)
     return genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H))

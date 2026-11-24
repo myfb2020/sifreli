@@ -3,6 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -59,7 +60,18 @@ def istasyon_ekrani(request, pk):
 def istasyon_parca(request, pk):
     """Ekranın kendini yenilemesi için yalnızca liste kısmı."""
     asama = get_object_or_404(Asama, pk=pk, aktif=True)
-    return render(request, "uretim/_istasyon_parca.html", _baglam(asama, kullanici=request.user))
+    yanit = render(request, "uretim/_istasyon_parca.html", _baglam(asama, kullanici=request.user))
+    # 20 sn'de bir yenilenir: liste değişmediyse içerik gönderilmez (2026-11-24, hız; tablet de sayfayı yeniden kurmaz)
+    import hashlib
+    import re
+
+    # formlardaki güvenlik anahtarı her seferinde farklı yazılır (aynı anahtarın maskeli hâli): karşılaştırmada sayılmaz
+    icerik = re.sub(rb'name="csrfmiddlewaretoken" value="[^"]*"', b"", yanit.content)
+    surum = hashlib.sha1(icerik).hexdigest()[:16]
+    if request.headers.get("X-Son-Surum") == surum:
+        yanit = HttpResponse(status=204)
+    yanit["X-Surum"] = surum
+    return yanit
 
 
 @login_required

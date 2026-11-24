@@ -65,7 +65,7 @@ def _tasarim_erisim(request, pk):
     return tasarim
 
 
-ONIZLEME_SINIR = 300  # diskte en çok bu kadar hazır önizleme tutulur
+ONIZLEME_SINIR = 1500  # diskte en çok bu kadar hazır önizleme tutulur (Fikir ver resimleri önceden hazırlanır)
 ONIZLEME_SURUM = 6  # çizim değişince artır: eski hazır resimler kullanılmaz
 
 

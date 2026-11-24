@@ -15,6 +15,49 @@ NAKIS_KLASORU = Path(__file__).resolve().parent / "tasarim_varlik" / "nakis"
 KENAR_HEX = {"altin": "#d6b26a", "gumus": "#c2c5c9", "siyah": "#1c1b1a", "beyaz": "#f1ede4", "bej": "#cdbd9f"}
 
 
+
+def _ikili_mi(maske):
+    h = maske.histogram()
+    return sum(h[1:255]) == 0
+
+
+def _uclu(maske, en_cok):
+    """3×3 penceredeki en büyük (en_cok) / en küçük değer: kaydırılmış kopyaların açığı / koyusu (gri maskede de
+    MaxFilter(3) / MinFilter(3) ile aynı; pay olarak eklenen satır pencerede zaten olan değeri değiştirmez)."""
+    w, h = maske.size
+    sec = ImageChops.lighter if en_cok else ImageChops.darker
+    dolgu = 0 if en_cok else 255
+    e = ImageOps.expand(maske, 1, dolgu)
+    yatay = sec(sec(e.crop((0, 1, w, h + 1)), e.crop((1, 1, w + 1, h + 1))), e.crop((2, 1, w + 2, h + 1)))
+    e = ImageOps.expand(yatay, 1, dolgu)
+    return sec(sec(e.crop((1, 0, w + 1, h)), e.crop((1, 1, w + 1, h + 1))), e.crop((1, 2, w + 1, h + 2)))
+
+
+def asindir(maske, k):
+    """MinFilter(k) ile aynı sonuç (kare pencere), çok daha hızlı (2026-11-24: rank süzgeçleri önizleme süresinin
+    çoğunu alıyordu). Siyah-beyaz maskede yatay + dikey kutu ortalaması, gri maskede 3×3 için kaydırma."""
+    if k <= 1:
+        return maske
+    if _ikili_mi(maske):
+        r = k // 2
+        esik = lambda q: 255 if q >= 253 else 0  # noqa: E731  pencerede tek siyah piksel ortalamayı ≥ 2,5 düşürür (k ≤ 101)
+        yatay = maske.filter(ImageFilter.BoxBlur((r, 0))).point(esik)
+        return yatay.filter(ImageFilter.BoxBlur((0, r))).point(esik)
+    if k == 3:
+        return _uclu(maske, False)
+    return maske.filter(ImageFilter.MinFilter(k))
+
+
+def genislet(maske, k):
+    """MaxFilter(k) ile aynı sonuç, hızlı."""
+    if k <= 1:
+        return maske
+    if _ikili_mi(maske):
+        return ImageOps.invert(asindir(ImageOps.invert(maske), k))
+    if k == 3:
+        return _uclu(maske, True)
+    return maske.filter(ImageFilter.MaxFilter(k))
+
 def _hex(h):
     return hg._hex(h)
 
@@ -377,7 +420,7 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
                               and abs(min(p["en"], p["boy"]) - gen) < 0.6), None)
             if delik is not None:
                 delik = ImageChops.multiply(delik, maske)
-                kenar = ImageChops.subtract(delik.filter(ImageFilter.MaxFilter(3)), delik)
+                kenar = ImageChops.subtract(genislet(delik, 3), delik)
                 if bos_alt:
                     delikler = ImageChops.lighter(delikler, delik)
                 else:
@@ -423,8 +466,8 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
         birlesik = Image.new("L", boyut, 0)
         for p in grup:
             birlesik.paste(255, (0, 0), _poli_maske(boyut, olc(p["poli"])))
-        birlesik = birlesik.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))  # yay arası boşluk kapanır
-        dikis = ImageChops.lighter(dikis, ImageChops.subtract(birlesik, birlesik.filter(ImageFilter.MinFilter(kalin * 2 + 1))))
+        birlesik = asindir(genislet(birlesik, 3), 3)  # yay arası boşluk kapanır
+        dikis = ImageChops.lighter(dikis, ImageChops.subtract(birlesik, asindir(birlesik, kalin * 2 + 1)))
     yumusak = dikis.filter(ImageFilter.GaussianBlur(max(1.5, px * 1.2)))
     resim = Image.composite(Image.new("RGB", boyut, (20, 16, 12)), resim, yumusak.point(lambda q: int(q * 0.55)))
     isik_kenar = ImageChops.offset(yumusak, -max(1, int(px * 0.6)), -max(1, int(px * 0.6)))
@@ -440,7 +483,7 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
         ImageDraw.Draw(dis).rounded_rectangle((0, 0, W - 1, H - 1), radius=max(3, int(px * kose_cm)), fill=255)
     b = max(3, int(px * 2.2))
     # resim kenarına dayanan hat süzgeçte aşınmaz (kenar piksel uzatılır): önce siyah pay eklenir
-    genis = ImageOps.expand(dis, b + 2, 0).filter(ImageFilter.MinFilter(b * 2 + 1))
+    genis = asindir(ImageOps.expand(dis, b + 2, 0), b * 2 + 1)
     serit = ImageChops.subtract(dis, genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H)))
     delikler = ImageChops.subtract(delikler, serit)  # biye dış bordürün desen deliklerini kapatır (köşede siyah iz kalıyordu)
     kenar_renk = KENAR_HEX.get(v["kenar_renk"]) or pc.MALZEME_HEX.get(v["kenar_renk"], "#888888")
@@ -461,12 +504,12 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
     resim.paste(kenar, (0, 0), serit)
     # biyenin içteki halıya düşen ince gölgesi (biye kabarık durur)
     ic = genis.crop((b + 2, b + 2, b + 2 + W, b + 2 + H))
-    biye_golge = ImageChops.subtract(ic, ic.filter(ImageFilter.MinFilter(max(3, int(px * 0.8)) | 1)))
+    biye_golge = ImageChops.subtract(ic, asindir(ic, max(3, int(px * 0.8)) | 1))
     biye_golge = biye_golge.filter(ImageFilter.GaussianBlur(max(1, px * 0.4))).point(lambda q: int(q * 0.45))
     resim = Image.composite(Image.new("RGB", boyut, (15, 12, 10)), resim, biye_golge)
     if v["kenar"] == "lanfel":
         # Lanfel (overlok): kenar şeridinin iç sınırında kesik kesik iplik izi.
-        dikis = ImageChops.subtract(ic, ic.filter(ImageFilter.MinFilter(3)))
+        dikis = ImageChops.subtract(ic, asindir(ic, 3))
         kesik = Image.effect_noise(boyut, 120).point(lambda q: 255 if q > 128 else 0)
         noktalar = ImageChops.multiply(dikis, kesik)
         resim = Image.composite(Image.new("RGB", boyut, (70, 60, 45)), resim, noktalar)
@@ -506,7 +549,7 @@ def _biye_profili(dis, b, W, H, metal):
     profil = Image.new("L", (W, H), 128)
     onceki = ImageOps.expand(dis, 2, 0)
     for k in range(b):
-        sonraki = onceki.filter(ImageFilter.MinFilter(3))
+        sonraki = asindir(onceki, 3)
         halka = ImageChops.subtract(onceki, sonraki).crop((2, 2, 2 + W, 2 + H))
         t = (k + 0.5) / b
         deger = 0.62 + 0.55 * math.sin(math.pi * min(1, t * 1.25)) ** 1.5 + (0.18 if metal and 0.25 < t < 0.45 else 0)

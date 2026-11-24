@@ -54,6 +54,8 @@ if ! "$VENV/bin/python" manage.py migrate --noinput; then
   exit 1
 fi
 "$VENV/bin/python" manage.py collectstatic --noinput -v0
+# Bayi "Bana fikir ver" küçük resimleri önceden çizilir (anında açılsın); olmazsa program yine çalışır
+"$VENV/bin/python" manage.py onizleme_hazirla || echo "(fikir resimleri hazırlanamadı; ilk açılışta çizilecek)"
 
 # Başarılı kurulan sürümün kopyası (geri_al.sh surum bununla bir önceki sürüme döner); son 2 tutulur.
 # Hiç değişmeyen büyük dosyalar (katalog resimleri, malzeme dokuları) kopyaya girmez: geri alırken yerinde kalırlar.
