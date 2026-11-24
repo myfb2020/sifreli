@@ -3798,3 +3798,28 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
         with tempfile.TemporaryDirectory() as klasor, self.settings(MEDIA_ROOT=Path(klasor)):
             call_command("onizleme_hazirla", stdout=io.StringIO())
             self.assertGreater(len(list((Path(klasor) / "onizleme").glob("*.jpg"))), 50)
+
+    def test_pelusa_lazer_ve_nakis_yok(self):
+        """2026-11-24: peluşa lazer deseni ve nakış yapılamaz: desenli / nakışlı bordür, nakışlı madalyon, nakış paneli,
+        desenli şerit peluş olamaz (uyarı engel, sipariş gönderilemez); düz parçada peluş serbest."""
+        from . import parcali
+
+        v = parcali.temizle({**parcali.hazir_degerler("IPS-442")})
+        self.assertEqual(parcali.pelus_yasaklari(v), [])
+        desenli = next(i for i in range(1, v["halka_sayisi"] + 1) if v[f"h{i}_tur"] == "desenli")
+        kotu = parcali.temizle({**v, f"h{desenli}_malzeme": "pelus_krem"})
+        self.assertEqual([a[0] for a in parcali.pelus_yasaklari(kotu)], [f"h{desenli}_malzeme"])
+        self.assertTrue(any(u["engel"] and "peluş olamaz" in u["metin"] for u in parcali.halkali_uyari_listesi(kotu)))
+        duz = parcali.temizle({**v, f"h{desenli}_tur": "duz", f"h{desenli}_malzeme": "pelus_krem"})
+        self.assertEqual(parcali.pelus_yasaklari(duz), [])
+        mad = parcali.temizle({**v, "orta": "duz", "madalyon": "nakisli", "madalyon_malzeme": "pelus_beyaz"})
+        self.assertIn("madalyon_malzeme", [a[0] for a in parcali.pelus_yasaklari(mad)])
+        # bayi gönderemez
+        with self.settings(STUDYO_BAYIYE_ACIK=False):
+            self.client.force_login(self.bayi_hesap)
+            veri = {k: ("on" if x is True else x) for k, x in kotu.items() if x not in (None, False)}
+            veri.update({"adet": "1", "katalog": "IPS-442"})
+            yanit = self.client.post(reverse("parcali_studyo"), veri)
+            self.assertEqual(yanit.status_code, 200)
+            self.assertContains(yanit, "peluşa lazer ve nakış yapılamaz")
+            self.assertContains(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-442"), "pelusYasakliAlanlar")

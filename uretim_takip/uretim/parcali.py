@@ -1438,6 +1438,27 @@ def _halkali_uyarilar(v):
     return [u["metin"] for u in halkali_uyari_listesi(v)]
 
 
+def pelus_yasakli_alanlar(v):
+    """Lazer deseni ya da nakış olan parçaların malzeme alanları: bunlar peluş olamaz (2026-11-24, kullanıcı:
+    'peluş üzerine lazer ya da nakış yapılamıyor'). [(alan, ekranda adı, adım, bordür no)]"""
+    alanlar = []
+    for i in range(1, int(v.get("halka_sayisi") or 0) + 1):
+        if v.get(f"h{i}_tur") in ("desenli", "nakisli"):
+            ad = "Lazer desenli" if v[f"h{i}_tur"] == "desenli" else "Nakışlı"
+            alanlar.append((f"h{i}_malzeme", f"{i}. bordür ({ad.lower()})", 2, i))
+    if v.get("orta") == "duz" and v.get("madalyon") == "nakisli":
+        alanlar.append(("madalyon_malzeme", "Nakışlı madalyon", 3, None))
+    if v.get("orta") == "panel":
+        alanlar.append(("panel_malzeme", "Nakış paneli", 3, None))
+    if v.get("orta") == "serit" and v.get("serit_tur") in ("desenli", "nakisli"):
+        alanlar.append(("serit_malzeme", "Desenli / nakışlı şerit", 3, None))
+    return alanlar
+
+
+def pelus_yasaklari(v):
+    return [a for a in pelus_yasakli_alanlar(v) if str(v.get(a[0], "")).startswith("pelus_")]
+
+
 def halkali_uyari_listesi(v):
     """Uyarılar, ekranda nerede gösterileceğiyle: adim (2 halkalar, 3 orta), halka no; teknik olanlar bayiye gösterilmez."""
     u = []
@@ -1461,6 +1482,8 @@ def halkali_uyari_listesi(v):
             ekle("Seçilen motif ortaya sığmıyor; daha küçük bir motif seçin ya da bordürleri daraltın.", 3)
         elif len(panel["motifler"]) < v["motif_adet"]:
             ekle(f"Ortaya {v['motif_adet']} motif sığmadı; {len(panel['motifler'])} motif kondu.", 3)
+    for alan, metin, adim, halka in pelus_yasaklari(v):
+        ekle(f"{metin} peluş olamaz: peluşa lazer ve nakış yapılamaz; başka bir renk seçin.", adim, halka, engel=True)
     if v["orta"] == "duz" and v["madalyon"] != "yok":
         # 2026-11-23: madalyon ortaya sığmayınca çizimden sessizce düşüyordu, özette 'Üretilebilir' yazıyordu
         en_cok = madalyon_en_cok(v)

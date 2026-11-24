@@ -400,12 +400,23 @@
   // atölyede olmayan renkler (pembe, taba, lacivert peluş): eski kayıtta seçili değilse hiç görünmez
   const kaldirilan = JSON.parse(document.getElementById("kaldirilan-malzemeler").textContent);
   const alanTuru = (alan) => ({zemin: "zemin", madalyon_malzeme: "madalyon", kenar_renk: "kenar"})[alan] || "bordur";
-  function secimSuz(etiketler, alan, aile, kendi) {
+  // Peluşa lazer deseni ve nakış yapılamaz (2026-11-24, kullanıcı): desenli / nakışlı parçada peluş renkleri gizli
+  function pelusYasakliAlanlar() {
+    const a = [], n = parseInt(document.getElementById("halka_sayisi").value, 10) || 0;
+    for (let i = 1; i <= n; i++) if (["desenli", "nakisli"].includes(deger(`h${i}_tur`))) a.push(`h${i}_malzeme`);
+    const orta = deger("orta");
+    if (orta === "duz" && deger("madalyon") === "nakisli") a.push("madalyon_malzeme");
+    if (orta === "panel") a.push("panel_malzeme");
+    if (orta === "serit" && ["desenli", "nakisli"].includes(deger("serit_tur"))) a.push("serit_malzeme");
+    return a;
+  }
+  function secimSuz(etiketler, alan, aile, kendi, pelusYok) {
     let secili = null, ilk = null;
     etiketler.forEach((l) => {
       const deger = l.querySelector("input").value;
       l.hidden = (!!aile && deger !== kendi && !aile[alanTuru(alan)].includes(deger))
-        || (kaldirilan.includes(deger) && deger !== kendi && !l.querySelector("input").checked);
+        || (kaldirilan.includes(deger) && deger !== kendi && !l.querySelector("input").checked)
+        || (!!pelusYok && deger.startsWith("pelus_"));
       if (!l.hidden && !ilk) ilk = l;
       if (l.querySelector("input").checked) secili = l;
     });
@@ -415,9 +426,24 @@
     const katalog = form.querySelector('[name="katalog"]').value || "";
     const aile = aileMalzemeleri[katalog.slice(0, 3)] || null;
     const model = hazirlar[katalog] || {};
+    // peluş ailesinde madalyon yalnız peluş: nakışlı madalyon seçilemez
+    const nakisliMad = form.querySelector('[name="madalyon"][value="nakisli"]');
+    if (nakisliMad) {
+      const olur = !aile || aile.madalyon.some((m) => !m.startsWith("pelus_"));
+      nakisliMad.disabled = !olur; nakisliMad.closest("label").classList.toggle("kapali", !olur);
+      if (!olur && nakisliMad.checked) { const d = form.querySelector('[name="madalyon"][value="duz"]'); if (d) d.checked = true; }
+    }
+    const pelusYasak = new Set(pelusYasakliAlanlar());
     document.querySelectorAll(".mal-izgara").forEach((izgara) => {
-      const alan = izgara.dataset.alan;
-      secimSuz(izgara.querySelectorAll("label.mal"), alan, aile, alan === "zemin" ? (kendiZemin[katalog] || model.zemin) : model[alan]);
+      const alan = izgara.dataset.alan, yasak = pelusYasak.has(alan);
+      secimSuz(izgara.querySelectorAll("label.mal"), alan, aile, alan === "zemin" ? (kendiZemin[katalog] || model.zemin) : model[alan], yasak);
+      let not = izgara.parentElement.querySelector(`.pelus-not[data-alan="${alan}"]`);
+      if (!not) {
+        not = document.createElement("p"); not.className = "soluk pelus-not"; not.dataset.alan = alan;
+        not.textContent = "Peluşa lazer deseni ve nakış yapılamaz; bu parça için peluş renkleri gösterilmiyor.";
+        izgara.insertAdjacentElement("beforebegin", not);  // önüne: arkasındaki "Tümünü göster" düğmesi bulunabilsin
+      }
+      not.hidden = !(yasak && (!aile || aile[alanTuru(alan)].some((m) => m.startsWith("pelus_"))));
       // süzülmüş liste kısa: "Tümünü göster" gerekmez
       izgara.classList.toggle("acik", !!aile);
       const tumu = izgara.nextElementSibling;
@@ -522,7 +548,7 @@
   }
   uyarilariGoster(JSON.parse(document.getElementById("ilk-uyarilar").textContent), {{ h.kalan_yer|stringformat:"s" }}, {{ h.madalyon_en_cok|stringformat:"s" }});
   resim.addEventListener("load", () => resim.classList.remove("bekle"));
-  const yakinda = () => { goster(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
+  const yakinda = () => { goster(); kartelaFiltre(); clearTimeout(zamanlayici); zamanlayici = setTimeout(guncelle, 250); };
   const aynenBirak = (e) => { if (!siparisAlanlari.includes(e.target.name) && !["en", "boy"].includes(e.target.name)) form.querySelector('[name="aynen"]').value = ""; };
   // bayinin kendi değişikliği (programın doldurduğu değil) fotoğraftan çizime geçirir
   const fotoBirak = (e) => { if (e.isTrusted && !siparisAlanlari.includes(e.target.name)) fotoKalsin = false; };
