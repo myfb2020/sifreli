@@ -9,10 +9,16 @@
   {{ form.model }}{{ form.renk }}{{ form.bolgeler }}{{ form.foto_renk }}
   <div class="kart">
     <h2>1. Model seçin</h2>
-    {% if tur == "suni" %}<p class="soluk" style="margin-top:0">🎨 işaretli modelleri renk, lazer deseni ve nakış bordürünü seçerek tasarlayabilirsiniz.</p>{% endif %}
-    <div class="seri-sekme">{% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}</div>
-    {% for x in seriler %}<div class="model-izgara" data-seri-izgara="{{ x.seri.pk }}"{% if not forloop.first %} hidden{% endif %}>
-      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}"{% if m.kod in tasarlanir %} data-tasarla="1"{% endif %}{% if m.kod in olculu %} data-olcu="1"{% endif %} data-kartela="{{ x.seri.kartela }}" data-resim="{{ m.resim.url }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{% if m.kod in tasarlanir %}🎨 {% endif %}{{ m.kod }}</span></button>{% endfor %}
+    {% if tasarla %}<p class="soluk" style="margin-top:0"><b class="tasarla-yazi">🎨 Tasarla</b> etiketli modellerde renk, desen ve nakışı siz seçersiniz; ötekiler fotoğraftaki gibi yapılır.</p>{% endif %}
+    <div class="seri-sekme">
+      {% if tasarla %}<button type="button" data-seri="tasarla" class="etkin tasarla-sekme">🎨 Tasarlanabilir <small>({{ tasarla|length }})</small></button>{% endif %}
+      {% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first and not tasarla %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}
+    </div>
+    {% if tasarla %}<div class="model-izgara" data-seri-izgara="tasarla">
+      {% for m, seri in tasarla %}{% include "uretim/_bayi_model_kart.html" %}{% endfor %}
+    </div>{% endif %}
+    {% for x in seriler %}<div class="model-izgara" data-seri-izgara="{{ x.seri.pk }}"{% if tasarla or not forloop.first %} hidden{% endif %}>
+      {% for m in x.modeller %}{% if forloop.counter0 == x.tasarla_sayi and x.tasarla_sayi %}<p class="izgara-ara">Fotoğraftaki gibi sipariş</p>{% endif %}{% include "uretim/_bayi_model_kart.html" with seri=x.seri %}{% endfor %}
     </div>{% endfor %}
     <p id="secilen-model" class="soluk">Henüz model seçilmedi.</p>
     <div id="model-buyuk" class="foto-onizleme" hidden><a class="buyut" id="model-buyuk-a" href=""><img id="model-buyuk-resim" alt="Seçilen modelin fotoğrafı"></a><span id="olcu-bekle" hidden>Çiziliyor…</span></div>
@@ -109,7 +115,7 @@
     document.querySelectorAll("[data-seri-izgara]").forEach((g) => { g.hidden = g.dataset.seriIzgara !== b.dataset.seri; });
   }));
   function modelSec(k) {
-    document.querySelectorAll(".model-kart").forEach((x) => x.classList.toggle("secili", x === k));
+    document.querySelectorAll(".model-kart").forEach((x) => x.classList.toggle("secili", x.dataset.kod === k.dataset.kod));
     modelAlan.value = k.dataset.kod;
     document.getElementById("secilen-model").innerHTML = `Seçilen model: <b>${k.dataset.kod}</b>` + (k.dataset.tasarla ?
       `<br><a class="btn" style="margin-top:8px" href="{% url 'parcali_studyo' %}?hazir=${encodeURIComponent(k.dataset.kod)}">🎨 Renk, desen ve nakışı değiştirerek tasarla</a>
@@ -243,6 +249,13 @@
   .model-kart img { width:100%; aspect-ratio:3/4; object-fit:contain; border-radius:6px; background:#fcfbf9; }
   .renk-kart img { width:100%; aspect-ratio:2/1; object-fit:cover; border-radius:6px; }
   .model-kart.secili, .renk-kart.secili { border-color:var(--ana); box-shadow:0 0 0 2px var(--ana); }
+  .model-kart { position:relative; }
+  .model-kart[data-tasarla] { border-color:var(--altin, #b08d57); background:#fffaf0; }
+  .tasarla-rozet { position:absolute; top:8px; left:8px; background:var(--altin, #b08d57); color:#fff; font-size:12px; font-weight:700; padding:2px 7px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  .tasarla-yazi { color:var(--altin, #b08d57); }
+  .seri-sekme button.tasarla-sekme { border-color:var(--altin, #b08d57); font-weight:700; }
+  .seri-sekme button.tasarla-sekme.etkin { background:var(--altin, #b08d57); border-color:var(--altin, #b08d57); }
+  .izgara-ara { grid-column:1 / -1; margin:8px 0 0; padding-top:8px; border-top:1px solid #eee3d8; font-size:13px; color:var(--soluk, #8a8178); }
   #foto-panel { display:grid; gap:12px; }
   .foto-onizleme { position:relative; background:#efece8; border-radius:12px; overflow:hidden; text-align:center; }
   .foto-onizleme img { width:100%; max-width:520px; display:block; margin:0 auto; }

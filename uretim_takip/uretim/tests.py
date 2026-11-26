@@ -2719,6 +2719,9 @@ class FotoModelTesti(TasarimStudyosuTesti):
             sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
             self.assertContains(sayfa, 'data-tasarla="1"')
             self.assertNotContains(sayfa, "foto-model/RNO")
+            # tasarlanabilenler ilk sekmede bir arada, sayfa o sekmeyle açılır
+            self.assertContains(sayfa, 'data-seri="tasarla" class="etkin tasarla-sekme"')
+            self.assertContains(sayfa, 'data-seri-izgara="tasarla"')
             kod = parcali.BAYI_VITRINI[0]
             studyo = self.client.get(reverse("parcali_studyo") + f"?hazir={kod}")
             self.assertEqual(studyo.status_code, 200)

@@ -213,22 +213,28 @@ def bayi_siparis(request):
             bildirim.yeni_bayi_siparisi(siparis)
             messages.success(request, f"Siparişiniz gönderildi ({siparis.siparis_no}). Onaylanınca üretime alınacak.")
             return redirect("bayi_ana")
-    seriler = []
+    from . import parcali
+    tasarlanir = set(parcali.SECILI_MODELLER) & set(parcali.BAYI_VITRINI)
+    seriler, tasarla = [], []
     for seri in sorted(KatalogSerisi.objects.all(), key=lambda x: (_kucuk(x.ad) not in ("rono", "bienca"), x.sira, x.ad)):
         if seri_turu(seri) not in (tur, "ikisi"):
             continue
         modeller = [m for m in seri.modeller.filter(aktif=True, bayiye_acik=True).order_by("kod") if m.resim]
+        # tasarlanabilen modeller her seride başta (2026-11-26, kullanıcı)
+        modeller.sort(key=lambda m: m.kod not in tasarlanir)
         if modeller:
-            seriler.append({"seri": seri, "modeller": modeller})
+            seriler.append({"seri": seri, "modeller": modeller,
+                            "tasarla_sayi": sum(m.kod in tasarlanir for m in modeller)})
+            tasarla += [(m, seri) for m in modeller if m.kod in tasarlanir]
+    tasarla.sort(key=lambda x: parcali.BAYI_VITRINI.index(x[0].kod) if x[0].kod in parcali.BAYI_VITRINI else 99)
     kartelalar = {g: list(Renk.objects.filter(grup=g, aktif=True)) for g, _ in Renk.GRUPLAR}
-    from . import parcali
     resimler = {r.kod: r.resim_adresi for liste in kartelalar.values() for r in liste}
     return render(request, "uretim/bayi_siparis.html", {"form": form, "olculer": olculer, "seriler": seriler,
                                                         "kartelalar": kartelalar, "tur": tur, "duzenlenir": set(),
                                                         # fotoğraf boyama kapalı (kullanıcı 2026-11-06); seçili modeller parçalı stüdyoda
                                                         "foto_modeller": {},
                                                         "olculu": {m.kod for x in seriler for m in x["modeller"] if olcuye_gore_mu(m.kod)},
-                                                        "tasarlanir": set(parcali.SECILI_MODELLER) & set(parcali.BAYI_VITRINI)})
+                                                        "tasarlanir": tasarlanir, "tasarla": tasarla})
 
 
 GENISLIKLER = {"k": 260, "o": 520, "b": None}
