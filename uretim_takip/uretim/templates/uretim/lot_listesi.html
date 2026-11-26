@@ -7,7 +7,13 @@
 {% block icerik %}
 <h1>İşler{% if istasyon %} <span class="soluk" style="font-size:16px;font-weight:normal">· {{ istasyon.ad }}</span>{% endif %}</h1>
 <form class="filtre" method="get">
-  <select name="durum">
+  {% if istasyon %}
+  <select name="kapsam" onchange="this.form.submit()">
+    <option value="burada" {% if kapsam == "burada" %}selected{% endif %}>Şu an bu istasyonda</option>
+    <option value="gecenler" {% if kapsam == "gecenler" %}selected{% endif %}>Buradan geçenler</option>
+  </select>
+  {% endif %}
+  <select name="durum"{% if kapsam == "burada" %} hidden disabled{% endif %}>
     <option value="aktif" {% if durum == "aktif" %}selected{% endif %}>Aktif (bitmemiş)</option>
     {% for kod, ad in durumlar %}<option value="{{ kod }}" {% if durum == kod %}selected{% endif %}>{{ ad }}</option>{% endfor %}
     <option value="hepsi" {% if durum == "hepsi" %}selected{% endif %}>Hepsi</option>
@@ -18,7 +24,7 @@
 <div class="kart tablo-kap">
   <table>
     <tr><th></th><th>İş</th><th>Stok lotları</th><th>Sipariş</th><th>Son aşama</th><th>Durum</th>
-        <th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th><th></th></tr>
+        <th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th><th>Bitiş</th><th></th></tr>
     {% for l in lotlar %}
     <tr>
       <td class="resim-hucre">{% if l.siparis %}{% include "uretim/_siparis_kucuk_resim.html" with s=l.siparis %}{% endif %}</td>
@@ -31,10 +37,11 @@
       <td class="sayi">{{ l.baslangic_m2 }}</td>
       <td class="sayi">{{ l.mevcut_m2 }}</td>
       <td class="sayi">{{ l.mevcut_kg }}</td>
+      <td class="soluk" style="white-space:nowrap">{% if l.durum == "tamamlandi" and l.son_bitis %}{{ l.son_bitis|date:"d.m.Y H:i" }}{% else %}–{% endif %}</td>
       <td>{% if not user.is_staff or user.is_superuser %}{% if l.durum == "bekliyor" %}<a class="btn kucuk" href="{% url 'islem_baslat' %}?lot={{ l.pk }}">▶</a>{% endif %}{% endif %}</td>
     </tr>
     {% empty %}
-    <tr><td colspan="10" class="soluk">Kayıt bulunamadı.</td></tr>
+    <tr><td colspan="11" class="soluk">Kayıt bulunamadı.</td></tr>
     {% endfor %}
   </table>
 </div>

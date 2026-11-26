@@ -12,8 +12,8 @@ from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 
 from . import fotograf, oturum, servisler, uyarilar
-from .forms import IstasyonTamirForm
-from .models import Asama, Siparis, hesap_personeli
+from .forms import IstasyonTamirForm, PinliForm
+from .models import Asama, Siparis, UretimLotu, hesap_personeli
 
 
 @login_required
@@ -150,3 +150,34 @@ def istasyon_tamir(request, pk):
     adaylar = (Siparis.objects.filter(durum__in=("uretimde", "tamamlandi", "sevk", "tamirde"))
                .select_related("musteri").order_by("-pk")[:200])
     return render(request, "uretim/istasyon_tamir.html", {"form": form, "asama": asama, "adaylar": adaylar})
+
+
+@login_required
+@require_POST
+def hizli_bitir(request, pk):
+    """✓ Bitti (bilgi istemeyen istasyonlar: Zig-zag, Biye, Lanfel, Kenar dikişi…): bekleyen işi tek dokunuşla başlatıp
+    bitirir, iş sıradaki istasyona geçer. Kişisel hesapta hemen; ortak tablette ad + PIN sorulur."""
+    if request.user.is_staff and not request.user.is_superuser:
+        raise PermissionDenied  # ofis kalan istasyonları iş sayfasından topluca işaretler
+    asama = get_object_or_404(Asama, pk=pk, aktif=True)
+    lot = get_object_or_404(UretimLotu.objects.select_related("siparis", "son_asama"), pk=request.POST.get("lot") or 0)
+    ekran = reverse("istasyon_ekrani", args=[asama.pk])
+    if not servisler.hizli_bitirilir_mi(lot, asama):
+        messages.error(request, f"{lot.lot_no} şu an {asama.ad} istasyonunu beklemiyor (başka ekranda başlatılmış "
+                                "ya da bitmiş olabilir).")
+        return redirect(f"{ekran}?sekme=gelen")
+    personel = hesap_personeli(request.user)
+    form = PinliForm(request.POST if "pin" in request.POST else None, personel=personel)
+    if personel is not None or form.is_valid():
+        kisi = personel or form.cleaned_data["personel"]
+        try:
+            islem = servisler.hizli_bitir(lot=lot, asama=asama, personel=kisi)
+        except ValidationError as hata:
+            messages.error(request, " ".join(hata.messages))
+        else:
+            islem.lot.refresh_from_db()
+            sonraki = ", ".join(a.ad for a in islem.lot.siradaki_asamalar)
+            messages.success(request, f"✓ {lot.lot_no} {asama.ad} bitti ({kisi})"
+                                      + (f" → {sonraki}." if sonraki else " · iş tamamlandı."))
+        return redirect(f"{ekran}?sekme=gelen")
+    return render(request, "uretim/hizli_bitir.html", {"form": form, "lot": lot, "asama": asama, "ekran": ekran})

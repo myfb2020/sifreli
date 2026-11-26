@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block baslik %}Kalan istasyonlar{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:620px;margin:0 auto">
+  <h1>✓ Kalan istasyonlar yapıldı</h1>
+  <p><b>{{ lot.lot_no }}</b> <span class="rozet {{ lot.durum }}">{{ lot.konum_metni }}</span>
+    {% if lot.siparis %}<br>{{ lot.siparis.siparis_no }} · {{ lot.siparis.musteri }} · <span class="soluk">{{ lot.siparis.urun }}</span>{% endif %}
+    {% if lot.olcu_metni %}<br><span class="soluk">{{ lot.olcu_metni }}{% if lot.adet > 1 %} ({{ lot.adet }} halı){% endif %}</span>{% endif %}</p>
+  <p class="soluk">İstasyonlarda programa girilmeden yapılmış adımlar şimdi girilir. Her adıma
+    “Sonradan girildi” notu düşülür, saat olarak bugün yazılır. Yanlışlıkla girilirse iş sayfasından son işlem geri alınabilir.</p>
+  {% if hata %}<div class="mesaj error">{{ hata }}</div>{% endif %}
+  {% if adimlar and lot.son_asama_id %}
+  <form method="post" class="dikey">
+    {% csrf_token %}
+    <label>Yapılacak adımlar</label>
+    <ol style="margin:0 0 8px 20px;padding:0">
+      {% for secenekler in adimlar %}
+      <li style="margin:6px 0">
+        {% if secenekler|length > 1 %}
+          <select name="adim_{{ forloop.counter0 }}">
+            {% for a in secenekler %}<option value="{{ a.pk }}">{{ a.ad }}</option>{% endfor %}
+          </select>
+        {% else %}<b>{{ secenekler.0.ad }}</b>{% if forloop.first and lot.acik_islem %} <span class="soluk">(açık işlem bitirilir)</span>{% endif %}
+          <input type="hidden" name="adim_{{ forloop.counter0 }}" value="{{ secenekler.0.pk }}">{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    <label for="personel">Kim yaptı?</label>
+    <select name="personel" id="personel" required>
+      <option value="">— Seçin —</option>
+      {% for p in personeller %}<option value="{{ p.pk }}"{% if secili_personel == p.pk|stringformat:"s" %} selected{% endif %}>{{ p }}</option>{% endfor %}
+    </select>
+    <button class="btn buyuk" type="submit" style="width:100%;margin-top:12px">✓ Hepsini yapıldı olarak gir</button>
+  </form>
+  {% endif %}
+  <p style="margin-top:12px"><a href="{% url 'lot_detay' lot.pk %}">← İşe dön</a></p>
+</div>
+{% endblock %}

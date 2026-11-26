@@ -20,7 +20,17 @@
         {% if k.tur == "siparis" %}
           <a class="btn" href="{% url 'yeni_is' %}?siparis={{ k.siparis.pk }}&amp;geri={{ ekran_devam_adresi|urlencode }}">🆕 İşi başlat</a>
         {% else %}
+          <div class="ist-dugmeler">
           <a class="btn" href="{% url 'islem_baslat' %}?lot={{ k.lot.pk }}&amp;geri={{ ekran_devam_adresi|urlencode }}">▶ Başlat</a>
+          {% if k.lot.son_asama_id and not k.asama.lazer_mi %}
+          {# bilgi istemeyen istasyon: başlat + bitir tek dokunuşta, iş sıradaki istasyona geçer #}
+          <form method="post" action="{% url 'istasyon_hizli_bitir' k.asama.pk %}" class="hizli-bitti"
+                onsubmit="return confirm('{{ k.lot.lot_no }} · {{ k.asama.ad }} bitti mi?{% if k.lot.adet > 1 %} ({{ k.lot.adet }} halı){% endif %}')">{% csrf_token %}
+            <input type="hidden" name="lot" value="{{ k.lot.pk }}">
+            <button class="btn yesil" type="submit">✓ Bitti</button>
+          </form>
+          {% endif %}
+          </div>
         {% endif %}
       {% endif %}
       {% include "uretim/_oncelik_dugmeleri.html" with s=k.siparis %}

@@ -365,6 +365,87 @@ def islem_bitir(*, islem, personel, cikis_kg=None, cikis_m2=None, aciklama="", m
     return islem
 
 
+# --- Hızlı bitirme (2026-11-26): bilgi istemeyen istasyonlarda (Zig-zag, Biye, Lanfel, Kenar dikişi…) tek dokunuş ---
+
+def hizli_bitirilir_mi(lot, asama):
+    """Bu iş bu istasyonda tek dokunuşla (başlat + bitir) bitirilebilir mi? Lazer ve işin ilk istasyonu hariç:
+    oralarda malzeme / ölçü girilir."""
+    if lot is None or asama is None or asama.lazer_mi or lot.son_asama_id is None or lot.durum != "bekliyor":
+        return False
+    return any(h.pk == asama.pk for h in lot.asama_sonrasi(lot.son_asama))
+
+
+@transaction.atomic
+def hizli_bitir(*, lot, asama, personel, aciklama=""):
+    """İşi bu istasyonda başlatıp hemen bitirir (bütün halılar); iş sıradaki istasyona geçer."""
+    lot = UretimLotu.objects.select_for_update().get(pk=lot.pk)
+    if not hizli_bitirilir_mi(lot, asama):
+        raise ValidationError(f"{lot} işi şu an “{asama.ad}” istasyonunu beklemiyor.")
+    islem = islem_baslat(lot=lot, asama=asama, personel=personel)
+    return islem_bitir(islem=islem, personel=personel, aciklama=aciklama)
+
+
+SONRADAN_YAZISI = "Sonradan girildi"
+
+
+def kalan_istasyonlar(lot):
+    """İşin bitmesi için kalan istasyon adımları: [[seçenek, ...], ...] (aynı sıradaki alternatifler bir adımda;
+    siparişin kenar türüne uyan istasyon önce). Açık işlem varsa onun istasyonu ilk adımdır."""
+    from .uyarilar import kenara_gore
+
+    if lot.durum in ("tamamlandi", "iptal"):
+        return []
+    adimlar, son = [], lot.son_asama
+    acik = lot.islemler.filter(bitis__isnull=True).select_related("asama").first()
+    if acik is not None:
+        adimlar.append([acik.asama])
+        son = acik.asama
+    for _ in range(30):  # rota sonsuz olamaz; güvenlik sınırı
+        sonrakiler = lot.asama_sonrasi(son)
+        if not sonrakiler:
+            break
+        uyan = kenara_gore(sonrakiler, lot.siparis) if lot.tur != "tamir" else sonrakiler
+        adimlar.append(uyan + [a for a in sonrakiler if a not in uyan])
+        son = uyan[0]
+    return adimlar
+
+
+@transaction.atomic
+def kalanlari_tamamla(*, lot, personel, secimler=None, kullanici=None):
+    """Ofis / yönetici: istasyonlarda girilmemiş kalan adımları 'yapıldı' sayar (her biri başlat + bitir, not
+    'Sonradan girildi'); iş tamamlanır, siparişin bütün işleri bittiyse sipariş de. secimler: adım sırasına göre
+    seçilen istasyonlar (alternatifli adımda); verilmezse ilk seçenek. Lazer / ilk istasyon malzeme ister: orada
+    açık işlem ya da hiç başlamamış iş varsa yapılmaz."""
+    lot = UretimLotu.objects.select_for_update().get(pk=lot.pk)
+    adimlar = kalan_istasyonlar(lot)
+    if not adimlar:
+        raise ValidationError(f"{lot} işinde kalan istasyon yok.")
+    if lot.son_asama_id is None:
+        raise ValidationError(f"{lot} işi hiç başlamamış; ilk istasyonda malzemesiyle başlatılmalı.")
+    yazi = SONRADAN_YAZISI + (f" ({kullanici.get_username()})" if kullanici is not None else "")
+    secimler = list(secimler or [])
+    yapilan = []
+    for i, secenekler in enumerate(adimlar):
+        acik = lot.islemler.filter(bitis__isnull=True).first()
+        if acik is not None:
+            if ilk_adim_mi(acik):
+                raise ValidationError(f"{lot} işi ilk istasyonda ({acik.asama.ad}) açık; önce orada bitirilmeli.")
+            islem = acik
+        else:
+            secilen = secimler[i] if i < len(secimler) and secimler[i] is not None else secenekler[0]
+            hedefler = lot.asama_sonrasi(lot.son_asama)
+            if not any(h.pk == secilen.pk for h in hedefler):
+                raise ValidationError(f"{secilen.ad} bu iş için sıradaki istasyon değil.")
+            islem = islem_baslat(lot=lot, asama=secilen, personel=personel)
+        islem = islem_bitir(islem=islem, personel=personel)
+        IslemKaydi.objects.filter(pk=islem.pk).update(aciklama=f"{islem.aciklama}\n{yazi}".strip())
+        yapilan.append(islem.asama.ad)
+        lot.refresh_from_db()
+        if lot.durum == "tamamlandi":
+            break
+    return yapilan
+
+
 @transaction.atomic
 def yeni_is_baslat(*, personel, siparis, kaynaklar, asama, aciklama="", makine=None, eski_stok=None):
     """Stoktan malzeme alarak yeni bir iş açar ve ilk aşamasını başlatır.

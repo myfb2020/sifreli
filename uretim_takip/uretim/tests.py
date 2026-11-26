@@ -3951,3 +3951,117 @@ class YavasIstekTesti(TestCase):
         with contextlib.redirect_stderr(hata):  # eşiğin altı: satır yok
             self.client.get("/giris/")
         self.assertNotIn("YAVAŞ", hata.getvalue())
+
+
+class HizliBitirmeTesti(TemelVeri):
+    """✓ Bitti (bilgi istemeyen istasyonda tek dokunuş), ofisin kalan istasyonları 'yapıldı' girmesi, İşler sıralaması."""
+
+    def setUp(self):
+        from .models import HaliTuru, HesapAyari
+        self.ist = lambda ad: Asama.objects.get(ad=ad)
+        self.sp = Siparis.objects.create(musteri=self.siparis.musteri, urun="Halı",
+                                         hali_turu=HaliTuru.objects.get(ad="Suni deri halı"),
+                                         teslim_tarihi=timezone.localdate() + timedelta(days=5))
+        self.lot = self.yeni_lot(siparis=self.sp)
+        i = servisler.islem_baslat(lot=self.lot, asama=self.ist("Lazer kesim 2"), personel=self.ahmet)
+        servisler.islem_bitir(islem=i, personel=self.ahmet)
+        self.lot.refresh_from_db()
+        self.tel = get_user_model().objects.create_user("zz_tel", password="x")
+        HesapAyari.objects.create(kullanici=self.tel, personel=self.ayse, istasyon=self.ist("Zig-zag"))
+
+    def test_bitti_dugmesi_tek_dokunusla_siradakine_gecirir(self):
+        zz = self.ist("Zig-zag")
+        self.client.force_login(self.tel)
+        ekran = self.client.get(reverse("istasyon_parca", args=[zz.pk]))
+        self.assertContains(ekran, reverse("istasyon_hizli_bitir", args=[zz.pk]))
+        self.assertContains(ekran, "✓ Bitti")
+        yanit = self.client.post(reverse("istasyon_hizli_bitir", args=[zz.pk]), {"lot": self.lot.pk})
+        self.assertRedirects(yanit, reverse("istasyon_ekrani", args=[zz.pk]) + "?sekme=gelen", fetch_redirect_response=False)
+        self.lot.refresh_from_db()
+        islem = self.lot.islemler.get(asama=zz)
+        self.assertEqual((islem.personel, islem.bitiren), (self.ayse, self.ayse))
+        self.assertEqual(self.lot.durum, "bekliyor")
+        self.assertEqual(self.lot.siradaki_metni, "Biye / Kenar dikişi")
+        self.assertEqual(uyarilar.gelenler(zz), [])
+        # ikinci basış (eski ekran) bir şey yapmaz
+        self.client.post(reverse("istasyon_hizli_bitir", args=[zz.pk]), {"lot": self.lot.pk})
+        self.assertEqual(self.lot.islemler.filter(asama=zz).count(), 1)
+        # lazerde ✓ Bitti yok, olsa da sunucu kabul etmez (malzeme / ölçü girilir)
+        lazer = self.ist("Lazer kesim 1")
+        yeni = self.yeni_lot(siparis=self.sp)
+        self.assertFalse(servisler.hizli_bitirilir_mi(yeni, lazer))
+        self.assertNotContains(self.client.get(reverse("istasyon_parca", args=[lazer.pk])), "✓ Bitti")
+
+    def test_ortak_tablette_pin_sorulur_ofis_kullanamaz(self):
+        zz = self.ist("Zig-zag")
+        ortak = get_user_model().objects.create_user("ortak", password="x")
+        self.client.force_login(ortak)
+        sayfa = self.client.post(reverse("istasyon_hizli_bitir", args=[zz.pk]), {"lot": self.lot.pk})
+        self.assertContains(sayfa, 'name="pin"')
+        self.assertFalse(self.lot.islemler.filter(asama=zz).exists())
+        self.client.post(reverse("istasyon_hizli_bitir", args=[zz.pk]),
+                         {"lot": self.lot.pk, "personel": self.ahmet.pk, "pin": "1234"})
+        self.assertEqual(self.lot.islemler.get(asama=zz).bitiren, self.ahmet)
+        ofis = get_user_model().objects.create_user("ofis_k", password="x", is_staff=True)
+        self.client.force_login(ofis)
+        self.assertEqual(self.client.post(reverse("istasyon_hizli_bitir", args=[zz.pk]), {"lot": self.lot.pk}).status_code, 403)
+
+    def test_ofis_kalan_istasyonlari_yapildi_girer(self):
+        ofis = get_user_model().objects.create_user("ofis_k", password="x", is_staff=True)
+        self.client.force_login(ofis)
+        adres = reverse("lot_kalanlari_tamamla", args=[self.lot.pk])
+        self.assertContains(self.client.get(reverse("lot_detay", args=[self.lot.pk])), adres)
+        sayfa = self.client.get(adres)
+        self.assertContains(sayfa, "Zig-zag")
+        self.assertContains(sayfa, 'name="adim_1"')  # Biye / Kenar dikişi seçimi
+        kenar = self.ist("Kenar dikişi")
+        self.assertContains(self.client.post(adres, {"adim_1": kenar.pk}), "Kim yaptığını seçin")
+        yanit = self.client.post(adres, {"personel": self.ayse.pk, "adim_0": self.ist("Zig-zag").pk, "adim_1": kenar.pk})
+        self.assertRedirects(yanit, reverse("lot_detay", args=[self.lot.pk]))
+        self.lot.refresh_from_db()
+        self.sp.refresh_from_db()
+        self.assertEqual((self.lot.durum, self.sp.durum), ("tamamlandi", "tamamlandi"))
+        adlar = [i.asama.ad for i in self.lot.islemler.order_by("baslangic", "pk")]
+        self.assertEqual(adlar, ["Lazer kesim 2", "Zig-zag", "Kenar dikişi"])
+        self.assertIn("Sonradan girildi", self.lot.islemler.get(asama=kenar).aciklama)
+        from .models import IsNotu
+        self.assertFalse(IsNotu.objects.filter(lot=self.lot).exists())  # notlar listesine düşmez
+        # istasyon hesabı bu sayfayı açamaz
+        self.client.force_login(self.tel)
+        self.assertEqual(self.client.get(adres).status_code, 403)
+
+    def test_acik_islem_bitirilir_ilk_istasyonda_acik_olmaz(self):
+        zz = self.ist("Zig-zag")
+        servisler.islem_baslat(lot=self.lot, asama=zz, personel=self.ahmet)
+        yapilan = servisler.kalanlari_tamamla(lot=self.lot, personel=self.ayse)
+        self.assertEqual(yapilan, ["Zig-zag", "Biye"])
+        self.assertEqual(self.lot.islemler.get(asama=zz).personel, self.ahmet)
+        yeni = self.yeni_lot(siparis=self.sp)
+        servisler.islem_baslat(lot=yeni, asama=self.ist("Lazer kesim 1"), personel=self.ahmet)
+        with self.assertRaises(ValidationError):
+            servisler.kalanlari_tamamla(lot=yeni, personel=self.ayse)
+
+    def test_isler_tamamlananlar_bitis_tarihine_gore_ve_istasyon_kapsami(self):
+        eski = self.lot
+        servisler.kalanlari_tamamla(lot=eski, personel=self.ayse)
+        yeni = self.yeni_lot(siparis=self.sp)
+        i = servisler.islem_baslat(lot=yeni, asama=self.ist("Lazer kesim 1"), personel=self.ahmet)
+        servisler.islem_bitir(islem=i, personel=self.ahmet)
+        servisler.kalanlari_tamamla(lot=yeni, personel=self.ayse)
+        IslemKaydi.objects.filter(lot=eski).update(bitis=timezone.now() - timedelta(days=3))
+        ofis = get_user_model().objects.create_user("ofis_k", password="x", is_staff=True)
+        self.client.force_login(ofis)
+        sayfa = self.client.get(reverse("lot_listesi") + "?durum=tamamlandi").content.decode()
+        self.assertLess(sayfa.index(yeni.lot_no), sayfa.index(eski.lot_no))
+        self.assertIn("Bitiş", sayfa)
+        # istasyon hesabı: varsayılan şu an burada olanlar, 'Buradan geçenler' bitmişleri de gösterir
+        bekleyen = self.yeni_lot(siparis=self.sp)
+        i = servisler.islem_baslat(lot=bekleyen, asama=self.ist("Lazer kesim 1"), personel=self.ahmet)
+        servisler.islem_bitir(islem=i, personel=self.ahmet)
+        self.client.force_login(self.tel)
+        burada = self.client.get(reverse("lot_listesi")).content.decode()
+        self.assertIn(bekleyen.lot_no, burada)
+        self.assertNotIn(eski.lot_no, burada)
+        gecenler = self.client.get(reverse("lot_listesi") + "?kapsam=gecenler&durum=hepsi").content.decode()
+        self.assertIn(eski.lot_no, gecenler)
+        self.assertNotIn(bekleyen.lot_no, gecenler)

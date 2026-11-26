@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block baslik %}✓ Bitti{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:560px;margin:0 auto">
+  <h1>✓ {{ asama.ad }} bitti</h1>
+  <p><b>{{ lot.lot_no }}</b>{% if lot.siparis %} · {{ lot.siparis.siparis_no }} · {{ lot.siparis.musteri }}{% endif %}
+    {% if lot.olcu_metni %}<br><span class="soluk">{{ lot.olcu_metni }}{% if lot.adet > 1 %} ({{ lot.adet }} halı){% endif %}</span>{% endif %}</p>
+  <form method="post" class="dikey">
+    <input type="hidden" name="lot" value="{{ lot.pk }}">
+    {% include "uretim/_form.html" %}
+    <button class="btn buyuk" type="submit" style="width:100%">✓ Bitti</button>
+  </form>
+  <p style="margin-top:12px"><a href="{{ ekran }}?sekme=gelen">← Vazgeç</a></p>
+</div>
+{% endblock %}

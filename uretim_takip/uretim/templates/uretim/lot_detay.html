@@ -8,6 +8,8 @@
   {% elif lot.durum == "bekliyor" %}
     <a class="btn" href="{% url 'islem_baslat' %}?lot={{ lot.pk }}">▶ Sıradaki: {{ lot.siradaki_metni|default:"aşama seç" }}</a>
   {% endif %}{% endif %}
+  {% if user.is_staff and lot.son_asama_id and lot.durum != "tamamlandi" and lot.durum != "iptal" %}
+    <a class="btn ikincil" href="{% url 'lot_kalanlari_tamamla' lot.pk %}">✓ Kalan istasyonlar yapıldı</a>{% endif %}
   {% if user.is_staff %}<a class="btn ikincil" href="{% url 'admin:uretim_uretimlotu_change' lot.pk %}">Düzenle</a>{% endif %}
 </div>
 {% if is_iptal_edilir or siparis_iptal_edilir %}

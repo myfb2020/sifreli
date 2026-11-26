@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Q
+from django.db.models import F, OuterRef, Q, Subquery
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -14,7 +14,7 @@ from openpyxl.styles import Font
 
 from . import raporlar, servisler, uyarilar
 from .forms import IslemBaslatForm, IslemBitirForm, IsNotuForm, MalzemeKullanimFormSet, TarihAraligiForm
-from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Siparis, SistemAyari, UretimLotu, hesap_personeli
+from .models import Asama, IslemKaydi, Malzeme, OturumKaydi, Personel, Siparis, SistemAyari, UretimLotu, hesap_personeli
 
 
 def geri_don(request, varsayilan):
@@ -187,18 +187,30 @@ def lot_listesi(request):
     elif durum in dict(UretimLotu.DURUM):
         lotlar = lotlar.filter(durum=durum)
     istasyon = servisler.kendi_istasyonu(request.user)
+    kapsam = ""
     if istasyon is not None:
-        # İstasyon hesabı: yalnız bu istasyona gelen, burada çalışılan ya da burada işlem görmüş işler.
-        burada = {k.lot.pk for k in uyarilar.gelenler(istasyon) + uyarilar.calisilanlar(istasyon) if k.lot}
-        lotlar = lotlar.filter(Q(pk__in=burada) | Q(islemler__asama=istasyon))
+        # İstasyon hesabı: varsayılan yalnız şu an bu istasyonda olanlar (bekleyen + devam eden); "Buradan geçenler"
+        # burada işlem görmüş işler (şimdi nerede oldukları Durum sütununda).
+        kapsam = "gecenler" if request.GET.get("kapsam") == "gecenler" else "burada"
+        if kapsam == "burada":
+            burada = {k.lot.pk for k in uyarilar.gelenler(istasyon) + uyarilar.calisilanlar(istasyon) if k.lot}
+            lotlar = lotlar.filter(pk__in=burada)
+        else:
+            lotlar = lotlar.filter(pk__in=IslemKaydi.objects.filter(asama=istasyon).values("lot"))
     ara = request.GET.get("ara", "").strip()
     if ara:
         lotlar = lotlar.filter(
             Q(lot_no__icontains=ara) | Q(kaynaklar__ham_deri__lot_no__icontains=ara) | Q(siparis__siparis_no__icontains=ara)
         )
+    # son bitirilen işlemin saati: tamamlanan işler bitiş tarihine göre (en yeni üstte)
+    lotlar = lotlar.annotate(son_bitis=Subquery(IslemKaydi.objects.filter(lot=OuterRef("pk"), bitis__isnull=False)
+                                                .order_by("-bitis").values("bitis")[:1]))
+    if durum == "tamamlandi" or kapsam == "gecenler":
+        lotlar = lotlar.order_by(F("son_bitis").desc(nulls_last=True), "-pk")
     return render(
         request, "uretim/lot_listesi.html",
-        {"lotlar": lotlar.distinct()[:300], "durum": durum, "ara": ara, "durumlar": UretimLotu.DURUM, "istasyon": istasyon},
+        {"lotlar": lotlar.distinct()[:300], "durum": durum, "ara": ara, "durumlar": UretimLotu.DURUM, "istasyon": istasyon,
+         "kapsam": kapsam},
     )
 
 
@@ -220,6 +232,42 @@ def lot_detay(request, pk):
         "siparis_iptal_edilir": lot.siparis_id and not request.user.is_staff
         and servisler.siparis_iptal_edilebilir(request.user, lot.siparis)})
 
+
+@login_required
+def lot_kalanlari_tamamla(request, pk):
+    """Ofis / yönetici: istasyonda girilmemiş kalan adımları 'yapıldı' sayar (her adım 'Sonradan girildi' notuyla);
+    alternatifli adımda (Biye / Lanfel / Kenar dikişi) hangi istasyon olduğu seçilir."""
+    if not request.user.is_staff:
+        raise PermissionDenied
+    lot = get_object_or_404(UretimLotu.objects.select_related("siparis__musteri", "son_asama"), pk=pk)
+    adimlar = servisler.kalan_istasyonlar(lot)
+    personeller = list(Personel.objects.filter(aktif=True))
+    hata = ""
+    if lot.son_asama_id is None:
+        hata = "Bu iş hiç başlamamış; ilk istasyonda malzemesiyle başlatılmalı."
+    elif not adimlar:
+        hata = "Bu işte kalan istasyon yok."
+    kendi = hesap_personeli(request.user)
+    if request.method == "POST" and not hata:
+        kisi = next((p for p in personeller if str(p.pk) == request.POST.get("personel")), None)
+        secimler = []
+        for i, secenekler in enumerate(adimlar):
+            secimler.append(next((a for a in secenekler if str(a.pk) == request.POST.get(f"adim_{i}")), None))
+        if kisi is None:
+            hata = "Kim yaptığını seçin."
+        else:
+            try:
+                yapilan = servisler.kalanlari_tamamla(lot=lot, personel=kisi, secimler=secimler, kullanici=request.user)
+            except ValidationError as e:
+                hata = " ".join(e.messages)
+            else:
+                lot.refresh_from_db()
+                messages.success(request, f"{lot.lot_no}: {', '.join(yapilan)} yapıldı olarak girildi"
+                                          + (" · iş tamamlandı." if lot.durum == "tamamlandi" else "."))
+                return redirect("lot_detay", lot.pk)
+    return render(request, "uretim/lot_tamamla.html", {
+        "lot": lot, "adimlar": adimlar, "personeller": personeller, "hata": hata,
+        "secili_personel": request.POST.get("personel") or (str(kendi.pk) if kendi else "")})
 
 @require_POST
 @login_required
