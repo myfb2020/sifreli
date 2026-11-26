@@ -2,6 +2,7 @@
 
 import io
 import math
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -459,6 +460,10 @@ def ciz(v, uzun_kenar=900, arka=(252, 251, 249), kose_cm=3):
             continue  # 140 cm'lik rulo ek yeri: üretim bilgisi, görüntüde gösterilmez
         if egri and p.get("halka"):  # ovalde bir bordürün yay parçaları: aralarındaki ek yeri çizilmez
             gruplar.setdefault(p["halka"], []).append(p)
+            continue
+        bolum = re.match(r"(.*) \d+/\d+$", p.get("ad", ""))
+        if bolum:  # lazer tablasına (300 cm) sığmadığı için bölünen kenar: ek yeri üretim bilgisi, görüntüde çizilmez
+            gruplar.setdefault(("bol", bolum.group(1)), []).append(p)
             continue
         poli = olc(p["poli"])
         cizgi.line(poli + [poli[0]], fill=255, width=kalin)

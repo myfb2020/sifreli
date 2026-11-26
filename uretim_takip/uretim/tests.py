@@ -1401,7 +1401,7 @@ class KatalogTesti(TemelVeri):
         from .models import KatalogModeli, LazerDeseni
 
         self.assertEqual(KatalogModeli.objects.count(), 202)  # 192 katalog + 10 fotoğraflı model
-        self.assertEqual(LazerDeseni.objects.count(), 23)
+        self.assertEqual(LazerDeseni.objects.count(), 30)  # DB001–015 + LZ01–15
         model = KatalogModeli.objects.get(kod="LTS-003")
         # Resimler yalnızca giriş yapanlara
         self.assertEqual(self.client.get(model.resim.url).status_code, 302)
@@ -1554,7 +1554,7 @@ class HaliGorselTesti(TestCase):
         from . import hali_gorsel
 
         desenler = set(hali_gorsel.desen_bilgisi())
-        self.assertEqual(len(desenler), 23)  # DB001–015 + atölye DXF LZ01–08
+        self.assertEqual(len(desenler), 30)  # DB001–015 + atölye DXF LZ01–15
         for kod, _, _ in tasarim_cizim.HAZIRLAR:
             resim = hali_gorsel.ciz(tasarim_cizim.temizle(tasarim_cizim.hazir_degerler(kod), desenler), 300)
             self.assertGreater(resim.width, 100)
@@ -2502,9 +2502,11 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         from . import parcali
         # migration 0045 + 0047: kesik/eğik/kopya fotoğraflı modeller bayide gizli; suni deride bayiye yalnız vitrin
         gizli = set(KatalogModeli.objects.filter(bayiye_acik=False).values_list("kod", flat=True))
-        self.assertTrue({"BNA-027", "IPS-482", "IPS-484", "PCH-016", "IPS-468", "TOS-040", "PCH-006"} <= gizli)
+        self.assertTrue({"BNA-027", "IPS-482", "IPS-484", "PCH-016", "IPS-468", "TOS-040", "IPS-453"} <= gizli)
         suni = KatalogModeli.objects.filter(kod__regex=r"^(RNO|BNA|IPS|PCH)-", bayiye_acik=True)
-        self.assertEqual(set(suni.values_list("kod", flat=True)), set(parcali.BAYI_VITRINI))
+        import importlib
+        acilan = importlib.import_module("uretim.migrations.0051_olcuye_gore_bayiye_ac").ACILAN
+        self.assertEqual(set(suni.values_list("kod", flat=True)), set(parcali.BAYI_VITRINI) | set(acilan))
         for kod in ("IPS-482", "IPS-484", "PCH-016"):
             self.assertNotIn(kod, parcali.SECILI_MODELLER)
         # gri zeminli Rono fotoğrafları beyaz zeminli dosyaya geçti
@@ -2512,7 +2514,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.client.force_login(self.bayi_hesap)
         sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
         self.assertContains(sayfa, 'data-kod="IPS-442"')
-        self.assertNotContains(sayfa, 'data-kod="PCH-006"')
+        self.assertContains(sayfa, 'data-kod="PCH-006"')  # 2026-11-26: ölçüye göre çizilen modeller açıldı
         self.assertNotContains(sayfa, 'data-kod="PCH-016"')
         self.assertNotContains(sayfa, 'data-kod="IPS-482"')
         self.assertNotContains(self.client.get(reverse("bayi_siparis") + "?tur=deri"), 'data-kod="TOS-040"')
@@ -2521,7 +2523,7 @@ class IkinciGuncellemeTesti(TasarimStudyosuTesti):
         self.assertContains(yanit, "Katalogdan bir model seçin")
         self.assertFalse(Siparis.objects.filter(katalog_modeli__kod="IPS-482").exists())
         self.client.force_login(self.yonetici)
-        self.assertContains(self.client.get(reverse("katalog") + "?ara=PCH-006"), "bayide gizli")
+        self.assertContains(self.client.get(reverse("katalog") + "?ara=TOS-052"), "bayide gizli")
 
     def test_bayi_basit_siparis_ve_gorunum(self):
         from .models import Musteri, Renk
@@ -3586,7 +3588,9 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
         sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni").content.decode()
         import re
         kodlar = set(re.findall(r'data-kod="([A-Z]+-\d+)"', sayfa))
-        self.assertEqual(kodlar, set(parcali.BAYI_VITRINI))
+        import importlib
+        acilan = importlib.import_module("uretim.migrations.0051_olcuye_gore_bayiye_ac").ACILAN
+        self.assertEqual(kodlar, set(parcali.BAYI_VITRINI) | set(acilan))  # 2026-11-26: + yalnız sipariş, ölçüye göre
         self.assertNotIn("TOS-034", self.client.get(reverse("bayi_siparis") + "?tur=deri").content.decode())
         # vitrin dışı model stüdyoda açılmaz
         self.assertNotEqual(self.client.get(reverse("parcali_studyo") + "?hazir=IPS-455").status_code, 200)
@@ -3850,6 +3854,61 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
             self.assertIn("Yeni gelen", yeni.content.decode())
             self.assertNotEqual(yeni["X-Anahtar"], ilk["X-Anahtar"])
             cache.clear()
+
+    def test_cizimler_desen_nakis_ve_olcuye_gore_siparis(self):
+        """2026-11-26: DXF desenleri (4 değişen + LZ09–15), DSZ nakışları, İşler resmi, istasyon süzgeci, bayiye açılan
+        40 model + ölçüye göre resim + 'Fotoğraftaki renklerle'."""
+        from . import bayi_views, hali_gorsel, parcali, parcali_gorsel
+        from .models import LazerDeseni
+
+        def olcu(*satirlar, **ek):
+            v = {"olcu-TOTAL_FORMS": str(len(satirlar)), "olcu-INITIAL_FORMS": "0"}
+            for i, (en, boy, adet) in enumerate(satirlar):
+                v.update({f"olcu-{i}-en_cm": en, f"olcu-{i}-boy_cm": boy, f"olcu-{i}-adet": adet})
+            return {**v, **ek}
+
+        bilgi = hali_gorsel.desen_bilgisi()
+        for kod in ("DB003", "DB007", "DB013", "DB015", "LZ09", "LZ10", "LZ11", "LZ12", "LZ13", "LZ14", "LZ15"):
+            self.assertEqual(bilgi[kod]["tur"], "lz", kod)
+            self.assertTrue((hali_gorsel.VARLIK / "desen" / f"{kod}.png").exists())
+            self.assertTrue(LazerDeseni.objects.filter(kod=kod).exclude(resim="").exists(), kod)
+        self.assertIn("DB003", parcali.GIZLI_DESENLER)  # LZ03 ile aynı dosya
+        self.assertEqual(parcali.MOTIF["79.01"]["boy"], 18.0)
+        # 300 cm'den uzun bordür bölünse de çizim olur
+        v = parcali.temizle({**parcali.hazir_degerler("BNA-009"), "en": 200, "boy": 320}, set(bilgi))
+        self.assertTrue(any(p["ad"].endswith("1/2") for p in parcali.parcalar(v)))
+        self.assertTrue(parcali_gorsel.jpeg(v, 200))
+
+        # bayi: ölçüye göre resim
+        self.client.force_login(self.bayi_hesap)
+        adres = reverse("model_olcu_resmi", args=["IPS-440"])
+        yanit = self.client.get(adres, {"en": 200, "boy": 300})
+        self.assertEqual((yanit.status_code, yanit["Content-Type"]), (200, "image/jpeg"))
+        self.assertNotIn("X-Olcu", yanit)
+        self.assertIn("X-Uyari", self.client.get(adres, {"en": 80, "boy": 150}))  # madalyon sığmaz: uyarı
+        self.assertEqual(self.client.get(reverse("model_olcu_resmi", args=["BNA-015"]), {"en": 80, "boy": 150})["X-Olcu"], "yok")
+        self.assertEqual(self.client.get(reverse("model_olcu_resmi", args=["IPS-453"]), {"en": 160, "boy": 230}).status_code, 404)
+        sayfa = self.client.get(reverse("bayi_siparis") + "?tur=suni")
+        self.assertContains(sayfa, 'data-kod="RNO-001"')
+        self.assertContains(sayfa, "Fotoğraftaki renklerle")
+        # Rono kartelalı model: kartela rengi seçmeden 'Fotoğraftaki renklerle' gider, ölçüdeki resim eklenir
+        yanit = self.client.post(reverse("bayi_siparis"), olcu(("80", "150", "1"), ("200", "300", "2"), model="IPS-440", foto_renk="1"))
+        self.assertEqual(yanit.status_code, 302)
+        s = Siparis.objects.filter(katalog_modeli__kod="IPS-440").latest("pk")
+        self.assertEqual((s.renk, s.renk_notu, s.durum), (None, bayi_views.FOTO_RENK_YAZISI, "onay"))
+        self.assertEqual(s.fotograflar.count(), 1)
+        self.assertIn("madalyon sığmıyor", s.notlar)
+        yanit = self.client.post(reverse("bayi_siparis"), olcu(("160", "230", "1"), model="RNO-001", foto_renk="1"))
+        self.assertEqual(yanit.status_code, 302)
+        self.assertEqual(Siparis.objects.filter(katalog_modeli__kod="RNO-001").latest("pk").renk_notu, bayi_views.FOTO_RENK_YAZISI)
+
+        # İşler listesinde küçük resim, istasyon satırında süzgeç bilgisi
+        self.client.force_login(self.yonetici)
+        lot = self.yeni_lot(siparis=s)
+        self.assertContains(self.client.get(reverse("lot_listesi")), "kucuk-resim")
+        self.assertTrue(lot.pk)
+        ekran = self.client.get(reverse("istasyon_ekrani", args=[Asama.objects.get(ad="Lazer kesim 1").pk]))
+        self.assertContains(ekran, 'id="sz-musteri"')
 
     def test_pelusa_lazer_ve_nakis_yok(self):
         """2026-11-24: peluşa lazer deseni ve nakış yapılamaz: desenli / nakışlı bordür, nakışlı madalyon, nakış paneli,

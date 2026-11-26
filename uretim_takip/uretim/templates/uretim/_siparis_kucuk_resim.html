@@ -1,0 +1,6 @@
+{# Listelerde siparişin tek küçük resmi (yazısız): müşteri fotoğrafı, bayi tasarımı ya da katalog modeli / lazer deseni. s: sipariş #}
+{% with f=s.fotograflar.all|first %}{% if f %}<a href="{{ f.resim.url }}" class="buyut kucuk-resim" title="Müşteri fotoğrafı"><img src="{{ f.resim.url }}" alt="" loading="lazy"></a>
+{% elif s.tasarim %}<a href="{% url 'tasarim_resim' s.tasarim.pk %}?b=1400" class="buyut kucuk-resim" title="Bayi tasarımı"><img src="{% url 'tasarim_resim' s.tasarim.pk %}?b=300" alt="" loading="lazy"></a>
+{% elif s.katalog_modeli and s.katalog_modeli.resim %}<a href="{{ s.katalog_modeli.resim.url }}" class="buyut kucuk-resim" title="{{ s.katalog_modeli.kod }}"><img src="{{ s.katalog_modeli.resim.url }}" alt="" loading="lazy"></a>
+{% elif s.lazer_deseni and s.lazer_deseni.resim %}<a href="{{ s.lazer_deseni.resim.url }}" class="buyut kucuk-resim" title="Desen {{ s.lazer_deseni.kod }}"><img src="{{ s.lazer_deseni.resim.url }}" alt="" loading="lazy" style="background:#fff"></a>
+{% endif %}{% endwith %}

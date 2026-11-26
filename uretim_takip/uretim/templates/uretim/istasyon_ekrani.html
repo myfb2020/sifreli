@@ -27,6 +27,28 @@
     <span class="sekme-yeni" id="yeni-gelen" hidden>YENİ</span>
   </button>
 </div>
+<div class="ist-suzgec" id="ist-suzgec">
+  <input type="search" id="sz-ara" placeholder="🔍 SP no, müşteri, model…" autocomplete="off" aria-label="Ara">
+  <select id="sz-musteri" aria-label="Sipariş veren"><option value="">👤 Bütün müşteriler</option></select>
+  <select id="sz-tarih" aria-label="Tarih">
+    <option value="">📅 Bütün tarihler</option>
+    <optgroup label="Teslim tarihi">
+      <option value="gecikti">Teslimi geçmiş</option>
+      <option value="3gun">Teslimi 3 gün içinde</option>
+      <option value="hafta">Teslimi 7 gün içinde</option>
+    </optgroup>
+    <optgroup label="Sipariş tarihi">
+      <option value="bugun">Bugün gelen sipariş</option>
+      <option value="hafta-gelen">Son 7 günde gelen</option>
+    </optgroup>
+  </select>
+  <select id="sz-sira" aria-label="Sıralama">
+    <option value="">↕ Sıra: acil önce</option>
+    <option value="teslim">↕ Teslim tarihine göre</option>
+    <option value="tarih">↕ Sipariş tarihine göre</option>
+  </select>
+</div>
+<div id="suzgec-bandi" class="suzgec-bandi" hidden>🔎 Süzgeç açık — bazı işler gizli. <button type="button" id="sz-temizle" class="btn kucuk ikincil">✕ Süzgeci temizle</button></div>
 <div id="sekmeli" data-sekme="{{ sekme }}">
 {% include "uretim/_istasyon_parca.html" %}
 </div>
@@ -45,6 +67,13 @@
   .oncelik-dugmeleri { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
   .oncelik-dugmeleri .btn { min-width:44px; font-size:18px; }
   .oncelik-rozet { background:#fde8c8; color:#8a4b0a; }
+  .ist-suzgec { display:grid; grid-template-columns:2fr 1.4fr 1.4fr 1.2fr; gap:8px; margin:0 0 10px; }
+  .ist-suzgec input, .ist-suzgec select { font-size:17px; padding:10px; border-radius:10px; border:1px solid #d8cfc4; background:#fff; min-width:0; }
+  .ist-suzgec .acik { border-color:var(--altin, #b08d57); box-shadow:0 0 0 2px var(--altin, #b08d57); }
+  .suzgec-bandi { background:#fff4d6; border:1px solid #e9c46a; border-radius:10px; padding:8px 12px; margin:0 0 10px; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-weight:600; }
+  .suzgec-bandi[hidden], .ist-satir[hidden], .suzgec-bos[hidden] { display:none; }
+  .sekme-toplam { font-size:.75em; opacity:.85; }
+  @media (max-width:760px) { .ist-suzgec { grid-template-columns:1fr 1fr; } }
   @media (max-width:560px) { .ist-sekme { font-size:15px; padding:12px 4px; gap:6px; } .sekme-sayi { font-size:15px; min-width:26px; padding:2px 6px; } }
 </style>
 
@@ -89,6 +118,70 @@
     }
   }
 
+
+  // Süzgeç (2026-11-26): müşteri, tarih, arama, sıralama — tablette süzülür, sunucuya yük yok; 20 sn yenilemede korunur
+  const SUZGEC_ANAHTARI = "istasyon-suzgec-{{ asama.pk }}";
+  const sz = { ara: document.getElementById("sz-ara"), musteri: document.getElementById("sz-musteri"),
+               tarih: document.getElementById("sz-tarih"), sira: document.getElementById("sz-sira") };
+  try {
+    const k = JSON.parse(localStorage.getItem(SUZGEC_ANAHTARI) || "{}");
+    for (const a in sz) if (k[a]) { if (a === "musteri") sz.musteri.dataset.bekleyen = k[a]; else sz[a].value = k[a]; }
+  } catch (e) {}
+  const kucuk = (m) => (m || "").replace(/İ/g, "i").replace(/I/g, "ı").toLocaleLowerCase("tr-TR");
+  const gunSonra = (n) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  function musterileriDoldur(parca) {
+    const secili = sz.musteri.value || sz.musteri.dataset.bekleyen || "";
+    const adlar = [...new Set([...parca.querySelectorAll(".ist-satir")].map((x) => x.dataset.musteri).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "tr"));
+    if (secili && !adlar.includes(secili)) adlar.unshift(secili);
+    sz.musteri.innerHTML = '<option value="">👤 Bütün müşteriler</option>' +
+      adlar.map((a) => `<option>${a.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</option>`).join("");
+    sz.musteri.value = secili; delete sz.musteri.dataset.bekleyen;
+  }
+  function uyar(x) {
+    const ara = kucuk(sz.ara.value.trim()), m = sz.musteri.value, t = sz.tarih.value;
+    if (ara && !ara.split(/\s+/).every((p) => kucuk(x.dataset.ara).includes(p))) return false;
+    if (m && x.dataset.musteri !== m) return false;
+    const teslim = x.dataset.teslim || "", tarih = x.dataset.tarih || "";
+    if (t === "gecikti" && !(teslim && teslim < gunSonra(0))) return false;
+    if (t === "3gun" && !(teslim && teslim <= gunSonra(3))) return false;
+    if (t === "hafta" && !(teslim && teslim <= gunSonra(7))) return false;
+    if (t === "bugun" && tarih !== gunSonra(0)) return false;
+    if (t === "hafta-gelen" && !(tarih && tarih >= gunSonra(-7))) return false;
+    return true;
+  }
+  function suz() {
+    const parca = document.getElementById("istasyon-parca");
+    if (!parca) return;
+    if (sz.musteri.options.length <= 1 || parca.dataset.musteriDolu !== "1") { musterileriDoldur(parca); parca.dataset.musteriDolu = "1"; }
+    const acik = !!(sz.ara.value.trim() || sz.musteri.value || sz.tarih.value);
+    for (const a in sz) sz[a].classList.toggle("acik", !!sz[a].value.trim());
+    document.getElementById("suzgec-bandi").hidden = !acik;
+    for (const ad of SEKMELER) {
+      const liste = document.getElementById("liste-" + ad);
+      if (!liste) continue;
+      const satirlar = [...liste.querySelectorAll(":scope > .ist-satir")];
+      satirlar.forEach((x, i) => { if (!x.dataset.sira) x.dataset.sira = i; });
+      const sira = sz.sira.value;
+      const anahtar = (x) => sira === "teslim" ? (x.dataset.teslim || "9999") : sira === "tarih" ? (x.dataset.tarih || "9999") : "";
+      const dizili = sira ? [...satirlar].sort((a, b) => anahtar(a).localeCompare(anahtar(b)) || a.dataset.sira - b.dataset.sira)
+                          : [...satirlar].sort((a, b) => a.dataset.sira - b.dataset.sira);
+      dizili.forEach((x) => liste.appendChild(x));
+      let gorunen = 0;
+      satirlar.forEach((x) => { const u = uyar(x); x.hidden = !u; if (u) gorunen++; });
+      let bos = liste.querySelector(".suzgec-bos");
+      if (!bos) { bos = document.createElement("p"); bos.className = "soluk suzgec-bos"; bos.textContent = "Süzgece uyan iş yok."; liste.appendChild(bos); }
+      bos.hidden = !(acik && satirlar.length && !gorunen);
+      const yer = document.getElementById("sayi-" + ad);
+      yer.innerHTML = acik ? `${gorunen}<span class="sekme-toplam"> / ${satirlar.length}</span>` : String(satirlar.length);
+    }
+    try { localStorage.setItem(SUZGEC_ANAHTARI, JSON.stringify({ ara: sz.ara.value, musteri: sz.musteri.value, tarih: sz.tarih.value, sira: sz.sira.value })); } catch (e) {}
+  }
+  sz.ara.addEventListener("input", suz);
+  ["musteri", "tarih", "sira"].forEach((a) => sz[a].addEventListener("change", suz));
+  document.getElementById("sz-temizle").addEventListener("click", () => { sz.ara.value = ""; sz.musteri.value = ""; sz.tarih.value = ""; suz(); });
+
   function gorulenler() {
     // null: bu tablet bu istasyonu ilk kez açıyor (o anki işler için uyarı verilmez)
     try {
@@ -130,6 +223,7 @@
       if (yeniler.includes(satir.dataset.anahtar)) satir.classList.add("yeni");
     });
     sayilariYaz(parca);
+    suz();
     if (yeniler.length) {
       if (sekmeli.dataset.sekme !== "gelen") document.getElementById("yeni-gelen").hidden = false;
       const bant = document.getElementById("yeni-is-bandi");

@@ -1,5 +1,9 @@
 {% extends "base.html" %}
-{% block baslik %}İşler{% endblock %}
+{% block baslik %}İşler<style>
+  .resim-hucre { width:56px; padding-right:0; }
+  .kucuk-resim img { width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #e6ddd3; display:block; background:#faf8f5; }
+</style>
+{% endblock %}
 {% block icerik %}
 <h1>İşler{% if istasyon %} <span class="soluk" style="font-size:16px;font-weight:normal">· {{ istasyon.ad }}</span>{% endif %}</h1>
 <form class="filtre" method="get">
@@ -13,10 +17,11 @@
 </form>
 <div class="kart tablo-kap">
   <table>
-    <tr><th>İş</th><th>Stok lotları</th><th>Sipariş</th><th>Son aşama</th><th>Durum</th>
+    <tr><th></th><th>İş</th><th>Stok lotları</th><th>Sipariş</th><th>Son aşama</th><th>Durum</th>
         <th class="sayi">Başl. m²</th><th class="sayi">Mevcut m²</th><th class="sayi">Mevcut kg</th><th></th></tr>
     {% for l in lotlar %}
     <tr>
+      <td class="resim-hucre">{% if l.siparis %}{% include "uretim/_siparis_kucuk_resim.html" with s=l.siparis %}{% endif %}</td>
       <td><a href="{% url 'lot_detay' l.pk %}"><b>{{ l.lot_no }}</b></a></td>
       <td>{% for k in l.kaynaklar.all %}{{ k.ham_deri.lot_no }}{% if not forloop.last %}, {% endif %}{% endfor %}<br><span class="soluk">{% for k in l.kaynaklar.all %}{% ifchanged k.ham_deri.deri_turu %}{{ k.ham_deri.deri_turu }} {% endifchanged %}{% endfor %}</span></td>
       <td>{{ l.siparis.siparis_no|default:"–" }}{% if l.siparis %}<br><span class="soluk">{% if l.siparis.katalog_modeli %}{{ l.siparis.katalog_modeli.kod }}{% else %}{{ l.siparis.urun|truncatechars:40 }}{% endif %}</span>{% endif %}
@@ -29,8 +34,12 @@
       <td>{% if not user.is_staff or user.is_superuser %}{% if l.durum == "bekliyor" %}<a class="btn kucuk" href="{% url 'islem_baslat' %}?lot={{ l.pk }}">▶</a>{% endif %}{% endif %}</td>
     </tr>
     {% empty %}
-    <tr><td colspan="9" class="soluk">Kayıt bulunamadı.</td></tr>
+    <tr><td colspan="10" class="soluk">Kayıt bulunamadı.</td></tr>
     {% endfor %}
   </table>
 </div>
+<style>
+  .resim-hucre { width:56px; padding-right:0; }
+  .kucuk-resim img { width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #e6ddd3; display:block; background:#faf8f5; }
+</style>
 {% endblock %}

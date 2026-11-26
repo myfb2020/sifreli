@@ -20,7 +20,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import bildirim, foto_model, fotograf, servisler
+from . import bildirim, foto_model, foto_temel, fotograf, servisler
 from .forms import CokluResimAlani, olcu_formseti
 from .models import (
     BayiDavet, BildirimAboneligi, HesapAyari, KatalogModeli, KatalogSerisi, Musteri, Renk, Siparis, UretimLotu,
@@ -101,12 +101,14 @@ def _asama_cizgisi(d):
 
 
 BAYI_FOTO = 3
+FOTO_RENK_YAZISI = "Fotoğraftaki renklerle"
 
 
 class BayiSiparisForm(forms.Form):
     model = forms.CharField(widget=forms.HiddenInput)
     renk = forms.CharField(required=False, widget=forms.HiddenInput)
     bolgeler = forms.CharField(required=False, widget=forms.HiddenInput)  # fotoğraflı model: bölge → renk (JSON)
+    foto_renk = forms.BooleanField(required=False, widget=forms.HiddenInput)  # "📷 Fotoğraftaki renklerle" (2026-11-26)
     renk_notu = forms.CharField(label="Renk", required=False, max_length=100,
                                 widget=forms.TextInput(attrs={"placeholder": "Ör. krem zemin, altın biye"}))
     teslim = forms.DateField(label="İstediğiniz teslim tarihi (isteğe bağlı)", required=False,
@@ -140,6 +142,9 @@ class BayiSiparisForm(forms.Form):
                 gelen = {}
             veri["foto_secim"] = foto_model.secim_temizle(model.kod, gelen if isinstance(gelen, dict) else {})
             veri["renk_notu"] = foto_model.metin(model.kod, veri["foto_secim"])[:100]
+        elif veri.get("foto_renk") and not (veri.get("renk") or "").strip():
+            # olduğu gibi: fotoğraftaki renkler; bayi isterse değişikliği not olarak yazar
+            veri["renk_notu"] = ((veri.get("renk_notu") or "").strip() or FOTO_RENK_YAZISI)[:100]
         elif model.seri.kartela:
             renk = Renk.objects.filter(kod=veri.get("renk", ""), grup=model.seri.kartela, aktif=True).first()
             if renk is None:
@@ -199,6 +204,8 @@ def bayi_siparis(request):
                     + (f"\nRenkler: {foto_model.metin(model.kod, v['foto_secim'])}" if v["foto_secim"] else ""),
                 )
                 servisler.kalemleri_kaydet(siparis, satirlar)
+                # resim yalnız 'Fotoğraftaki renklerle': kartela rengi seçildiyse çizim başka renkte olurdu
+                _olcu_resmi_ekle(siparis, model.kod, satirlar, resim=bool(v.get("foto_renk")) and not renk and not v["foto_secim"])
                 if v["foto_secim"]:  # bayinin gördüğü boyanmış fotoğraf siparişin resmi olur (ofis + istasyon görür)
                     fotograf.kaydet(siparis, foto_model.jpeg(model.kod, v["foto_secim"]))
                 for icerik in v.get("foto_icerik") or []:  # bayinin eklediği fotoğraflar
@@ -220,10 +227,112 @@ def bayi_siparis(request):
                                                         "kartelalar": kartelalar, "tur": tur, "duzenlenir": set(),
                                                         # fotoğraf boyama kapalı (kullanıcı 2026-11-06); seçili modeller parçalı stüdyoda
                                                         "foto_modeller": {},
+                                                        "olculu": {m.kod for x in seriler for m in x["modeller"] if olcuye_gore_mu(m.kod)},
                                                         "tasarlanir": set(parcali.SECILI_MODELLER) & set(parcali.BAYI_VITRINI)})
 
 
 GENISLIKLER = {"k": 260, "o": 520, "b": None}
+
+# --- Ölçüye göre model resmi (2026-11-26) --------------------------------------------------
+# Bayi "olduğu gibi" siparişte ölçüyü yazınca model o ölçüde gösterilir: bordürler gerçek genişliğinde kalır,
+# orta uzar / kısalır (katalog fotoğrafı parça parça esnetilir, `foto_temel.bilesik`).
+OVAL_EN_AZ = 120  # bundan dar ovalde fotoğraf bozuluyor: katalog fotoğrafı gösterilir
+
+
+def olcuye_gore_mu(kod):
+    return foto_temel.uygun_mu(kod)
+
+
+def olcu_degerleri(kod, en, boy):
+    """Modelin bu ölçüdeki değerleri ve bayiye gösterilecek uyarılar; çizilemiyorsa (None, [])."""
+    from . import parcali
+    from .tasarim_views import _desen_kodlari
+
+    if not olcuye_gore_mu(kod):
+        return None, []
+    hd = parcali.hazir_degerler(kod)
+    if hd.get("sekil") == "oval" and min(en, boy) < OVAL_EN_AZ:
+        return None, []
+    v = parcali.temizle({**hd, "en": en, "boy": boy}, _desen_kodlari())
+    uyarilar = [_bayi_uyarisi(u["metin"]) for u in parcali.halkali_uyari_listesi(v) if u.get("engel")]
+    return v, uyarilar
+
+
+def _bayi_uyarisi(metin):
+    """Stüdyonun 'şunu değiştirin' uyarısı olduğu gibi siparişte bayiye sade söylenir (değiştiremez, atölye uyarlar)."""
+    if "madalyon" in metin.lower():
+        return "Bu ölçüde ortadaki madalyon sığmıyor."
+    return metin
+
+
+def olcu_jpeg(kod, en, boy, boyut):
+    """Ölçüye göre resim (JPEG) ya da None; aynı istek ikinci kez çizilmez (medya/onizleme)."""
+    import io
+
+    from .tasarim_views import _hazir_onizleme
+
+    v, _ = olcu_degerleri(kod, en, boy)
+    if v is None:
+        return None
+
+    def ciz():
+        resim = foto_temel.bilesik(v, boyut)
+        if resim is None:
+            return b""
+        tampon = io.BytesIO()
+        resim.convert("RGB").save(tampon, "JPEG", quality=85)
+        return tampon.getvalue()
+    return _hazir_onizleme({"olcu_modeli": kod, **v}, boyut, ciz) or None
+
+
+def _olcu_sayisi(deger, en_az, en_cok):
+    try:
+        return min(max(int(float(str(deger).replace(",", "."))), en_az), en_cok)
+    except (TypeError, ValueError):
+        return None
+
+
+def _olcu_resmi_ekle(siparis, kod, satirlar, resim=True):
+    """Bayinin gördüğü ölçüye göre resim siparişin resmi olur (ilk ölçü); sığmayan parça uyarısı nota yazılır."""
+    if not olcuye_gore_mu(kod):
+        return
+    notlar = []
+    for _, en, boy, _ in satirlar:
+        _, uyarilar = olcu_degerleri(kod, int(en), int(boy))
+        notlar += [f"⚠ {en:g}×{boy:g} cm: {u}" for u in uyarilar[:1]]
+    _, en, boy, _ = satirlar[0]
+    icerik = olcu_jpeg(kod, int(en), int(boy), 1200) if resim else None
+    if icerik:
+        fotograf.kaydet(siparis, icerik)
+    if notlar:
+        siparis.notlar = (siparis.notlar + "\n" + "\n".join(notlar) + "\n(Bayiye gösterildi; atölye ölçüye uyarlayacak.)").strip()
+        siparis.save(update_fields=["notlar"])
+
+
+@login_required
+def model_olcu_resmi(request, kod):
+    """?en=200&boy=300&b=700 → modelin o ölçüdeki resmi; çizilemiyorsa katalog fotoğrafı (X-Olcu: yok).
+    X-Uyari: bu ölçüde sığmayan parça (ör. madalyon) — URL kodlu."""
+    from urllib.parse import quote
+
+    model = KatalogModeli.objects.filter(kod=kod, aktif=True).first()
+    if model is None or not (model.bayiye_acik or request.user.is_staff):
+        raise Http404
+    en, boy = _olcu_sayisi(request.GET.get("en"), 40, 600), _olcu_sayisi(request.GET.get("boy"), 40, 1000)
+    boyut = 1200 if request.GET.get("b") == "1200" else 700
+    icerik = olcu_jpeg(kod, en, boy, boyut) if en and boy else None
+    if icerik is None:
+        if not model.resim:
+            raise Http404
+        yanit = HttpResponse(model.resim.open("rb").read(), content_type="image/jpeg")
+        yanit["X-Olcu"] = "yok"
+    else:
+        yanit = HttpResponse(icerik, content_type="image/jpeg")
+        _, uyarilar = olcu_degerleri(kod, en, boy)
+        if uyarilar:
+            yanit["X-Uyari"] = quote(uyarilar[0])
+    yanit["Cache-Control"] = "private, max-age=86400"
+    return yanit
 
 
 @login_required

@@ -66,7 +66,7 @@ def _tasarim_erisim(request, pk):
 
 
 ONIZLEME_SINIR = 1500  # diskte en çok bu kadar hazır önizleme tutulur (Fikir ver resimleri önceden hazırlanır)
-ONIZLEME_SURUM = 6  # çizim değişince artır: eski hazır resimler kullanılmaz
+ONIZLEME_SURUM = 7  # çizim değişince artır: eski hazır resimler kullanılmaz
 
 
 def _hazir_onizleme(veri, boyut, ciz):
@@ -75,7 +75,9 @@ def _hazir_onizleme(veri, boyut, ciz):
     import json
     import os
     anahtar = hashlib.sha1(json.dumps([ONIZLEME_SURUM, boyut, veri], sort_keys=True, default=str).encode()).hexdigest()
-    klasor = settings.MEDIA_ROOT / "onizleme"
+    from pathlib import Path
+
+    klasor = Path(settings.MEDIA_ROOT) / "onizleme"
     yol = klasor / f"{anahtar}.jpg"
     try:
         if yol.exists():

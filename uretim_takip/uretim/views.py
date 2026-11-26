@@ -179,8 +179,9 @@ def islem_bitir(request, pk):
 @login_required
 def lot_listesi(request):
     durum = request.GET.get("durum", "aktif")
-    lotlar = UretimLotu.objects.select_related("siparis__musteri", "siparis__katalog_modeli", "son_asama", "kalem").prefetch_related(
-        "kaynaklar__ham_deri__deri_turu", "olculer__kalem")
+    lotlar = UretimLotu.objects.select_related("siparis__musteri", "siparis__katalog_modeli", "siparis__lazer_deseni",
+                                               "siparis__tasarim", "son_asama", "kalem").prefetch_related(
+        "kaynaklar__ham_deri__deri_turu", "olculer__kalem", "siparis__fotograflar")
     if durum == "aktif":
         lotlar = lotlar.exclude(durum__in=["tamamlandi", "iptal"])
     elif durum in dict(UretimLotu.DURUM):

@@ -164,10 +164,10 @@ NAKIS_MOTIFLERI = [  # atölye nakış kataloğu (2026-11-06, marka logoları yo
     ("68.01", "İnce Grek şerit", 40.0, 6.0, "serit"),
     ("62.01", "Madalyon şeridi", 40.0, 9.8, "serit"),
     ("65.01", "Zincir", 39.7, 3.2, "serit"),
-    ("79.01", "Çiçek dalı", 40.0, 13.2, "serit"),
+    ("79.01", "Çiçek dalı", 40.0, 18.0, "serit"),  # 2026-11-26: ölçü ve maske makinenin dikiş dosyasından (DSZ)
     ("81.01", "Dalgalı örgü", 40.0, 18.0, "serit"),
     ("82.01", "Dalgalı örgü (dar)", 18.0, 10.0, "tek"),
-    ("77.03", "Grek harf (G)", 40.0, 18.0, "serit"),
+    ("77.03", "Grek harf (G)", 40.0, 18.0, "serit"),  # 2026-11-26: maske DSZ dosyasından (üst/alt bant dahil)
 ]
 MOTIF = {k: {"ad": a, "en": e, "boy": b, "tur": t} for k, a, e, b, t in NAKIS_MOTIFLERI}
 MOTIFLER = [(k, f"{k} {a}") for k, a, _, _, _ in NAKIS_MOTIFLERI]
@@ -181,7 +181,8 @@ IPLIK_HEX = {k: h for k, _, h in IPLIKLER}
 MOTIF_PAY = 2  # motifin iki yanında kalan en az pay (cm)
 # suni deri tasarımda gösterilmeyen lazer desenleri; DB012 / DB014 yalnız köşeye motif koyar, bordür boş görünür
 # (2026-11-16, bayi denemesi: bayi desensiz bordür sanıyordu)
-GIZLI_DESENLER = {"DB002", "DB007", "DB010", "DB011", "DB012", "DB014"}
+# DB003 = LZ03 Dama, DB007 = LZ05 Line (2026-11-26 aynı DXF): seçimde bir kez görünsün, eski kayıtlar çalışır
+GIZLI_DESENLER = {"DB002", "DB003", "DB007", "DB010", "DB011", "DB012", "DB014"}
 MADALYONLAR = [("yok", "Yok"), ("duz", "Düz"), ("nakisli", "Nakışlı")]
 
 

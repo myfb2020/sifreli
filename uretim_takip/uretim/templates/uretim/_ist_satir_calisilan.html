@@ -1,5 +1,5 @@
 {# İstasyon ekranında devam eden iş satırı (Devam eden ve ⚡ Öncelikli listeleri ortak) #}
-    <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}">
+    <div class="ist-satir{% if k.gecikti %} gecikmis{% endif %}"{% include "uretim/_ist_suzgec_veri.html" %}>
       <div class="ist-bilgi">
         {% include "uretim/_oncelik_rozeti.html" with s=k.siparis %}
         {% if k.lot.tur == "tamir" %}<span class="rozet acil">🔧 TAMİR</span> {% endif %}<b>{{ k.lot.lot_no }}</b>{% if k.on_islem %} <span class="rozet bekliyor">({{ k.on_islem }})</span>{% endif %}{% if k.siparis %} · <b>{{ k.siparis.musteri }}</b>{% endif %} · {{ k.islem.personel }}{% if k.islem.makine %} · {{ k.islem.makine }}{% endif %}<br>

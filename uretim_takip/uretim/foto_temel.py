@@ -358,22 +358,42 @@ def _daire(cap):
     return maske.resize((cap, cap), Image.LANCZOS)
 
 
-def _madalyonu_sil(foto, kutu, zemin):
-    """Madalyonun yerini zeminin başka bir yerinden (yukarı / aşağı / yana kaydırılmış) bir parçayla kapatır."""
+def _tonu_esitle(foto, yama, kutu, zemin):
+    """Yamanın ortalama rengini madalyonun hemen çevresindeki zeminin rengine çeker (soluk halka kalmasın)."""
+    from PIL import ImageStat
+
     x0, y0, x1, y1 = kutu
-    g, y = x1 - x0, y1 - y0
-    zx0, zy0, zx1, zy1 = zemin
-    adaylar = [(0, -round(y * 1.15)), (0, round(y * 1.15)), (-round(g * 1.15), 0), (round(g * 1.15), 0)]
-    for dx, dy in adaylar:
-        if zx0 <= x0 + dx and x1 + dx <= zx1 and zy0 <= y0 + dy and y1 + dy <= zy1:
-            break
-    else:
-        return foto  # zemin dar: madalyon olduğu gibi kalır (üstüne yenisi konur)
-    sonuc = foto.copy()
-    yama = foto.crop((x0 + dx, y0 + dy, x1 + dx, y1 + dy))
-    maske = _daire(max(g, y)).resize((g, y)).filter(ImageFilter.GaussianBlur(max(1, g / 40)))
-    sonuc.paste(yama, (x0, y0), maske)
-    return sonuc
+    p = max(4, (x1 - x0) // 8)
+    cevre = foto.crop((max(zemin[0], x0 - p), max(zemin[1], y0 - p), min(zemin[2], x1 + p), min(zemin[3], y1 + p)))
+    halka = Image.new("L", cevre.size, 255)
+    ImageDraw.Draw(halka).ellipse((p, p, cevre.width - p, cevre.height - p), fill=0)
+    if not halka.getbbox():
+        return yama
+    hedef = ImageStat.Stat(cevre.convert("RGB"), halka).mean
+    simdi = ImageStat.Stat(yama.convert("RGB")).mean
+    kanal = [b.point(lambda q, f=hedef[i] - simdi[i]: max(0, min(255, int(q + f)))) for i, b in enumerate(yama.convert("RGB").split())]
+    return Image.merge("RGB", kanal)
+
+
+def _madalyonu_sil(foto, kutu, zemin):
+    """Madalyonun yerini zeminin başka bir yerinden (yukarı / aşağı / yana kaydırılmış) bir parçayla kapatır.
+    Madalyonun kabartma gölgesi kutunun biraz dışına taşar: önce %12 geniş yama denenir (2026-11-26, büyük ölçüde
+    soluk halka kalıyordu), zemine sığmazsa kutu kadar."""
+    for oran in (0.12, 0.0):
+        pay = round(oran * max(kutu[2] - kutu[0], kutu[3] - kutu[1]))
+        x0, y0, x1, y1 = kutu[0] - pay, kutu[1] - pay, kutu[2] + pay, kutu[3] + pay
+        g, y = x1 - x0, y1 - y0
+        zx0, zy0, zx1, zy1 = zemin
+        adaylar = [(0, -round(y * 1.15)), (0, round(y * 1.15)), (-round(g * 1.15), 0), (round(g * 1.15), 0)]
+        for dx, dy in adaylar:
+            if zx0 <= x0 + dx and x1 + dx <= zx1 and zy0 <= y0 + dy and y1 + dy <= zy1:
+                sonuc = foto.copy()
+                yama = foto.crop((x0 + dx, y0 + dy, x1 + dx, y1 + dy))
+                yama = _tonu_esitle(foto, yama, (x0, y0, x1, y1), zemin)
+                maske = _daire(max(g, y)).resize((g, y)).filter(ImageFilter.GaussianBlur(max(1, g / 40)))
+                sonuc.paste(yama, (x0, y0), maske)
+                return sonuc
+    return foto  # zemin dar: madalyon olduğu gibi kalır (üstüne yenisi konur)
 
 
 def bilesik(v, uzun_kenar=900):

@@ -10,9 +10,14 @@
   "tur": "periyodik"
  },
  "DB003": {
-  "bant": 141,
-  "periyot": null,
-  "tur": "ayna"
+  "tur": "lz",
+  "ad": "Dama",
+  "en_cm": 15.0,
+  "boy_cm": 108.2,
+  "alan": false,
+  "bant": 600,
+  "periyot": 4327,
+  "kaynak": "DAMA_MODEL.dxf"
  },
  "DB004": {
   "bant": 146,
@@ -30,9 +35,14 @@
   "tur": "ayna"
  },
  "DB007": {
-  "bant": 154,
-  "periyot": 52,
-  "tur": "periyodik"
+  "tur": "lz",
+  "ad": "Line",
+  "en_cm": 15.0,
+  "boy_cm": 75.0,
+  "alan": false,
+  "bant": 600,
+  "periyot": 3000,
+  "kaynak": "LINE_MODEL_120X180.dxf"
  },
  "DB008": {
   "bant": 179,
@@ -60,9 +70,14 @@
   "tur": "kose"
  },
  "DB013": {
-  "bant": 147,
-  "periyot": 92,
-  "tur": "periyodik"
+  "tur": "lz",
+  "ad": "Yıldız",
+  "en_cm": 24.7,
+  "boy_cm": 75.0,
+  "alan": false,
+  "bant": 990,
+  "periyot": 3000,
+  "kaynak": "YILDIZ_DESEN_UFAK.dxf"
  },
  "DB014": {
   "bant": 170,
@@ -70,9 +85,14 @@
   "tur": "kose"
  },
  "DB015": {
-  "bant": 100,
-  "periyot": 100,
-  "tur": "periyodik"
+  "tur": "lz",
+  "ad": "Grek",
+  "en_cm": 14.0,
+  "boy_cm": 66.0,
+  "alan": false,
+  "bant": 560,
+  "periyot": 2640,
+  "kaynak": "VERSACE_DESEN.dxf"
  },
  "LZ01": {
   "tur": "lz",
@@ -145,5 +165,75 @@
   "alan": true,
   "bant": 840,
   "periyot": 1600
+ },
+ "LZ09": {
+  "tur": "lz",
+  "ad": "Adobe",
+  "en_cm": 3.8,
+  "boy_cm": 17.6,
+  "alan": false,
+  "bant": 154,
+  "periyot": 705,
+  "kaynak": "ADOBE_MODEL.dxf"
+ },
+ "LZ10": {
+  "tur": "lz",
+  "ad": "Çiçek",
+  "en_cm": 8.6,
+  "boy_cm": 17.7,
+  "alan": false,
+  "bant": 343,
+  "periyot": 710,
+  "kaynak": "CICEK_DESEN.dxf"
+ },
+ "LZ11": {
+  "tur": "lz",
+  "ad": "Major",
+  "en_cm": 25.0,
+  "boy_cm": 67.5,
+  "alan": false,
+  "bant": 1000,
+  "periyot": 2700,
+  "kaynak": "MAJOR_DESEN_BOY.dxf"
+ },
+ "LZ12": {
+  "tur": "lz",
+  "ad": "Prenses",
+  "en_cm": 12.0,
+  "boy_cm": 62.0,
+  "alan": false,
+  "bant": 480,
+  "periyot": 2480,
+  "kaynak": "PRENSES.dxf"
+ },
+ "LZ13": {
+  "tur": "lz",
+  "ad": "Tall",
+  "en_cm": 10.0,
+  "boy_cm": 10.0,
+  "alan": false,
+  "bant": 400,
+  "periyot": 400,
+  "kaynak": "TALL_DESEN.dxf"
+ },
+ "LZ14": {
+  "tur": "lz",
+  "ad": "Tamamlar",
+  "en_cm": 15.0,
+  "boy_cm": 66.6,
+  "alan": false,
+  "bant": 600,
+  "periyot": 2664,
+  "kaynak": "TAMAMLAR_DESEN.dxf"
+ },
+ "LZ15": {
+  "tur": "lz",
+  "ad": "There",
+  "en_cm": 23.4,
+  "boy_cm": 28.8,
+  "alan": false,
+  "bant": 934,
+  "periyot": 1150,
+  "kaynak": "THERE_DESEN.dxf"
  }
 }

@@ -6,20 +6,23 @@
 <form method="post" class="dikey bayi-siparis" enctype="multipart/form-data">
   {% csrf_token %}<input type="hidden" name="tur" value="{{ tur }}">
   {% if form.non_field_errors %}<div class="mesaj error">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
-  {{ form.model }}{{ form.renk }}{{ form.bolgeler }}
+  {{ form.model }}{{ form.renk }}{{ form.bolgeler }}{{ form.foto_renk }}
   <div class="kart">
     <h2>1. Model seçin</h2>
     {% if tur == "suni" %}<p class="soluk" style="margin-top:0">🎨 işaretli modelleri renk, lazer deseni ve nakış bordürünü seçerek tasarlayabilirsiniz.</p>{% endif %}
     <div class="seri-sekme">{% for x in seriler %}<button type="button" data-seri="{{ x.seri.pk }}"{% if forloop.first %} class="etkin"{% endif %}>{{ x.seri.ad }} <small>({{ x.modeller|length }})</small></button>{% endfor %}</div>
     {% for x in seriler %}<div class="model-izgara" data-seri-izgara="{{ x.seri.pk }}"{% if not forloop.first %} hidden{% endif %}>
-      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}"{% if m.kod in tasarlanir %} data-tasarla="1"{% endif %} data-kartela="{{ x.seri.kartela }}" data-resim="{{ m.resim.url }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{% if m.kod in tasarlanir %}🎨 {% endif %}{{ m.kod }}</span></button>{% endfor %}
+      {% for m in x.modeller %}<button type="button" class="model-kart" data-kod="{{ m.kod }}"{% if m.kod in tasarlanir %} data-tasarla="1"{% endif %}{% if m.kod in olculu %} data-olcu="1"{% endif %} data-kartela="{{ x.seri.kartela }}" data-resim="{{ m.resim.url }}"><img src="{{ m.resim.url }}" alt="" loading="lazy"><span>{% if m.kod in tasarlanir %}🎨 {% endif %}{{ m.kod }}</span></button>{% endfor %}
     </div>{% endfor %}
     <p id="secilen-model" class="soluk">Henüz model seçilmedi.</p>
-    <div id="model-buyuk" class="foto-onizleme" hidden><a class="buyut" id="model-buyuk-a" href=""><img id="model-buyuk-resim" alt="Seçilen modelin fotoğrafı"></a></div>
+    <div id="model-buyuk" class="foto-onizleme" hidden><a class="buyut" id="model-buyuk-a" href=""><img id="model-buyuk-resim" alt="Seçilen modelin fotoğrafı"></a><span id="olcu-bekle" hidden>Çiziliyor…</span></div>
+    <p id="olcu-yazi" class="soluk" hidden></p>
+    <p id="olcu-uyari" class="mesaj warning" hidden></p>
   </div>
   <div class="kart">
     <h2>2. Renk</h2>
     <p id="renk-once" class="soluk">Önce model seçin.</p>
+    <button type="button" id="foto-renk" class="renk-kart foto-renk-kart" hidden><span style="font-size:28px">📷</span><span><b>Fotoğraftaki renklerle</b><br><small class="soluk">Halı fotoğraftaki gibi yapılır. Değişiklik isterseniz aşağıdan kartela rengi seçin ya da notunuza yazın.</small></span></button>
     <div id="foto-panel" hidden>
       <div class="foto-onizleme"><img id="foto-resim" alt="Seçtiğiniz renklerle halı"><span id="foto-bekle" hidden>Boyanıyor…</span></div>
       <p class="soluk foto-not">Fotoğraf gerçek halıdır; renge dokununca halı o renkle boyanır. Ölçüyü aşağıda yazın.</p>
@@ -115,6 +118,9 @@
     document.getElementById("model-buyuk").hidden = false;
     document.getElementById("model-buyuk-resim").src = k.dataset.resim;
     document.getElementById("model-buyuk-a").href = k.dataset.resim;
+    document.getElementById("foto-renk").hidden = false;
+    if (!renkAlan.value) fotoRenkSec(true);
+    olcuGoster();
     let kartela = k.dataset.kartela;
     document.getElementById("renk-once").hidden = true;
     const foto = !!FOTO[k.dataset.kod];
@@ -131,10 +137,58 @@
     if (!kartela) renkAlan.value = "";
   }
   document.querySelectorAll(".model-kart").forEach((k) => k.addEventListener("click", () => modelSec(k)));
-  document.querySelectorAll(".renk-kart").forEach((k) => k.addEventListener("click", () => {
-    document.querySelectorAll(".renk-kart").forEach((x) => x.classList.toggle("secili", x === k));
+  const fotoRenkAlan = document.getElementById("id_foto_renk"), fotoRenkDugme = document.getElementById("foto-renk");
+  function fotoRenkSec(acik) {
+    fotoRenkAlan.value = acik ? "1" : "";
+    fotoRenkDugme.classList.toggle("secili", acik);
+    if (acik) { renkAlan.value = ""; document.querySelectorAll(".renk-kart[data-kod]").forEach((x) => x.classList.remove("secili")); }
+  }
+  fotoRenkDugme.addEventListener("click", () => fotoRenkSec(true));
+  document.querySelectorAll(".renk-kart[data-kod]").forEach((k) => k.addEventListener("click", () => {
+    document.querySelectorAll(".renk-kart[data-kod]").forEach((x) => x.classList.toggle("secili", x === k));
     renkAlan.value = k.dataset.kod;
+    fotoRenkSec(false);
   }));
+  if (fotoRenkAlan.value) fotoRenkDugme.classList.add("secili");
+  // ölçüye göre resim (2026-11-26): yazılan / dokunulan ölçü satırı o ölçüde gösterilir
+  const olcuAdresi = "{% url 'model_olcu_resmi' 'KOD' %}";
+  let olcuZaman = null, olcuSatir = null, olcuIstek = 0;
+  function olcuGoster() {
+    clearTimeout(olcuZaman);
+    olcuZaman = setTimeout(async () => {
+      const k = document.querySelector(".model-kart.secili");
+      const yazi = document.getElementById("olcu-yazi"), uyari = document.getElementById("olcu-uyari");
+      const resim = document.getElementById("model-buyuk-resim");
+      uyari.hidden = true; yazi.hidden = true;
+      if (!k) return;
+      const satirlar = [...document.querySelectorAll("#olcu-satirlari .olcu-satir:not([hidden])")];
+      const s_ = (olcuSatir && !olcuSatir.hidden && satirlar.includes(olcuSatir)) ? olcuSatir : satirlar[0];
+      const deger = (a) => s_ && parseFloat((s_.querySelector(`[name$="-${a}"]`).value || "").replace(",", "."));
+      const en = deger("en_cm"), boy = deger("boy_cm");
+      if (!k.dataset.olcu || !(en >= 40 && boy >= 40)) {
+        resim.src = k.dataset.resim; document.getElementById("model-buyuk-a").href = k.dataset.resim;
+        if (k.dataset.olcu) { yazi.textContent = "Ölçüyü yazınca halıyı o ölçüde gösteririz."; yazi.hidden = false; }
+        return;
+      }
+      const no = ++olcuIstek, adres = olcuAdresi.replace("KOD", k.dataset.kod) + `?en=${Math.round(en)}&boy=${Math.round(boy)}`;
+      document.getElementById("olcu-bekle").hidden = false;
+      try {
+        const yanit = await fetch(adres + "&b=700");
+        if (no !== olcuIstek || !yanit.ok) return;
+        resim.src = URL.createObjectURL(await yanit.blob());
+        document.getElementById("model-buyuk-a").href = adres + "&b=1200";
+        if (yanit.headers.get("X-Olcu") === "yok") {
+          yazi.textContent = "Bu ölçüde görünüm çizilemiyor; fotoğraf gösteriliyor. Halı yazdığınız ölçüde yapılır.";
+        } else {
+          yazi.innerHTML = `Görünüm: <b>${Math.round(en)} × ${Math.round(boy)} cm</b> · bordürler gerçek genişliğinde, orta ölçüye göre. Görünüm temsilîdir.`;
+        }
+        yazi.hidden = false;
+        const u = yanit.headers.get("X-Uyari");
+        if (u) { uyari.textContent = "⚠ " + decodeURIComponent(u) + " Siparişi yine gönderebilirsiniz; atölye ölçüye uyarlar."; uyari.hidden = false; }
+      } catch (e) { /* bağlantı yoksa fotoğraf kalır */ }
+      finally { if (no === olcuIstek) document.getElementById("olcu-bekle").hidden = true; }
+    }, 450);
+  }
   if (modelAlan.value) {
     const k = document.querySelector(`.model-kart[data-kod="${modelAlan.value}"]`);
     if (k) {
@@ -171,10 +225,16 @@
     if (kap.querySelectorAll(".olcu-satir:not([hidden])").length > 1) satir.hidden = true;
     toplamYaz();
   });
-  kap.addEventListener("input", toplamYaz); toplamYaz();
+  kap.addEventListener("input", (e) => { toplamYaz(); olcuSatir = e.target.closest(".olcu-satir"); olcuGoster(); });
+  kap.addEventListener("focusin", (e) => { const s_ = e.target.closest(".olcu-satir"); if (s_ && s_ !== olcuSatir) { olcuSatir = s_; olcuGoster(); } });
+  toplamYaz();
 })();
 </script>
 <style>
+  .foto-renk-kart { flex-direction:row !important; text-align:left; gap:10px !important; padding:10px !important; width:100%; margin-bottom:10px; }
+  #model-buyuk { position:relative; }
+  #olcu-bekle { position:absolute; right:8px; top:8px; background:rgba(0,0,0,.6); color:#fff; padding:3px 8px; border-radius:8px; font-size:13px; }
+  #olcu-bekle[hidden], #olcu-yazi[hidden], #olcu-uyari[hidden], #foto-renk[hidden] { display:none; }
   .seri-sekme { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
   .seri-sekme button { border:1px solid var(--cizgi, #ddd); background:#fff; border-radius:20px; padding:6px 12px; }
   .seri-sekme button.etkin { background:var(--ana); color:#fff; border-color:var(--ana); }
