@@ -20,6 +20,7 @@ function kabuk() {
   kap.innerHTML = `
     <div class="ucb-ust"><b>🧊 3B görünüm</b><span class="ucb-ipucu">Parmakla çevirin · iki parmakla yakınlaştırın</span>
       <button type="button" class="ucb-kapat" aria-label="Kapat">✕</button></div>
+    <div class="ucb-not" hidden></div>
     <div class="ucb-sahne"><div class="ucb-bekle">Hazırlanıyor…</div></div>
     <div class="ucb-alt">
       <button type="button" data-aci="egik">Eğik</button>
@@ -33,6 +34,8 @@ function kabuk() {
     .ucb-ust { display:flex; align-items:center; gap:12px; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; }
     .ucb-ust b { font-size:18px; } .ucb-ipucu { color:#b9ad9c; font-size:13px; }
     .ucb-kapat { margin-left:auto; flex:none; width:46px; height:46px; border-radius:50%; border:0; background:#fff; color:#1b1714; font-size:22px; cursor:pointer; }
+    .ucb-not { padding:0 14px 8px; color:#d8c9ad; font-size:13px; }
+    .ucb-not[hidden] { display:none; }
     .ucb-sahne { position:relative; flex:1; min-height:0; touch-action:none; }
     .ucb-sahne canvas { display:block; width:100%; height:100%; }
     .ucb-bekle { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:17px; color:#d8c9ad; }
@@ -85,7 +88,7 @@ async function resimYukle(adres) {
   return { resim, bilgi, url };
 }
 
-export async function ac({ yuzey, kabartma }) {
+export async function ac({ yuzey, kabartma, not = "" }) {
   if (acik) acik.kapat();
   const kap = kabuk();
   const sahneKap = kap.querySelector(".ucb-sahne");
@@ -121,6 +124,9 @@ export async function ac({ yuzey, kabartma }) {
   if (durdu) return;
   temizlikler.push(() => { URL.revokeObjectURL(y.url); URL.revokeObjectURL(k.url); });
   const b = y.bilgi || { en: 160, boy: 230, sekil: "dikdortgen", kose: 3, kalinlik: 1.4 };
+  const notlar = [`${Math.round(b.en)} × ${Math.round(b.boy)} cm`, b.not, not].filter(Boolean);
+  const notKutu = kap.querySelector(".ucb-not");
+  notKutu.textContent = notlar.join(" · "); notKutu.hidden = false;
   bekle.remove();
 
   const cizici = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false });

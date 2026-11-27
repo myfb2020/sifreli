@@ -105,8 +105,9 @@ def bilgi(v):
             "kenar": v.get("kenar") or ""}
 
 
-def onbellekli(v, tur, uzun_kenar=UZUN_KENAR):
-    """'yuzey' (JPEG) ya da 'kabartma' (PNG) baytları; ikisi birlikte üretilir ve medya/onizleme/3b'de saklanır."""
+def onbellekli(v, tur, uzun_kenar=UZUN_KENAR, uret=None):
+    """'yuzey' (JPEG) ya da 'kabartma' (PNG) baytları; ikisi birlikte üretilir ve medya/onizleme/3b'de saklanır.
+    uret: (yüzey, kabartma) baytlarını veren işlev (verilmezse v parçalı tasarım değerleridir)."""
     import hashlib
     import json
     from pathlib import Path
@@ -123,7 +124,7 @@ def onbellekli(v, tur, uzun_kenar=UZUN_KENAR):
             return yollar[tur].read_bytes()
     except OSError:
         pass
-    yuzey_b, kabartma_b = dosyalar(v, uzun_kenar)
+    yuzey_b, kabartma_b = uret() if uret else dosyalar(v, uzun_kenar)
     try:
         klasor.mkdir(parents=True, exist_ok=True)
         yollar["yuzey"].write_bytes(yuzey_b)
@@ -146,5 +147,105 @@ def yanit(v, tur):
         raise Http404
     r = HttpResponse(onbellekli(v, tur), content_type="image/jpeg" if tur == "yuzey" else "image/png")
     r["X-Bilgi"] = json.dumps(bilgi(v))
+    r["Cache-Control"] = "private, max-age=86400"
+    return r
+
+
+# --- Katalog fotoğrafından 3B (2026-11-27): deri / kürk ve çizimi olmayan modeller ---------------------------
+KURK_KALINLIK_CM = 3.0
+FOTO_NOTU = "Katalog fotoğrafından · görünüm temsilîdir"
+
+
+def foto_mu(kod):
+    from . import foto_temel
+    return kod in foto_temel.KUTU and ((foto_temel.FOTO_KLASORU / f"{kod}.jpg").exists()
+                                       or (foto_temel.DUZ_KLASORU / f"{kod}.jpg").exists())
+
+
+def foto_olcusu(kod, en=None, boy=None):
+    """(en, boy, şekil): yazılan ölçü; yoksa fotoğrafın oranında, kısa kenar 160 cm (yuvarlakta çap 150)."""
+    from . import foto_temel
+    x0, y0, x1, y1, sekil_adi = foto_temel.KUTU[kod]
+    sekil_ = "dikdortgen" if sekil_adi == "dikdortgen" else "oval"
+    if en and boy:
+        return float(en), float(boy), sekil_
+    if sekil_adi == "yuvarlak":
+        return 150.0, 150.0, sekil_
+    w, h = max(1, x1 - x0), max(1, y1 - y0)
+    kisa = 160.0
+    if w <= h:
+        return kisa, float(round(kisa * h / w / 10) * 10), sekil_
+    return float(round(kisa * w / h / 10) * 10), kisa, sekil_
+
+
+def _bos_kenari_kirp(resim, en_cok=0.08):
+    """Fotoğraf kutusu halıdan biraz geniş kalmışsa kenardaki beyaz zemin şeritleri kırpılır (her kenarda en çok %8).
+    Satır / sütunun %60'ından çoğu açık ve renksizse boş sayılır."""
+    k = resim.convert("RGB").resize((max(1, resim.width // 2), max(1, resim.height // 2)))
+    w, h = k.size
+    veri = k.load()
+
+    def bos(cizgi):
+        acik = sum(1 for r, g, b in cizgi if min(r, g, b) > 225 and max(r, g, b) - min(r, g, b) < 18)
+        return acik > len(cizgi) * 0.6
+
+    # her kenarda, kenar şeridi içindeki EN İÇTEKİ boş çizgiye kadar kırpılır (dışta ince gri çerçeve çizgisi olabilir)
+    sinir_x, sinir_y = int(w * en_cok), int(h * en_cok)
+    sol = max([x + 1 for x in range(sinir_x) if bos([veri[x, y] for y in range(h)])], default=0)
+    sag = min([x for x in range(w - sinir_x, w) if bos([veri[x, y] for y in range(h)])], default=w)
+    ust = max([y + 1 for y in range(sinir_y) if bos([veri[x, y] for x in range(w)])], default=0)
+    alt = min([y for y in range(h - sinir_y, h) if bos([veri[x, y] for x in range(w)])], default=h)
+    pay = 1  # kenarda kalan yarım beyaz çizgi de gitsin
+    kutu = (min(w, sol + (pay if sol else 0)) * 2, min(h, ust + (pay if ust else 0)) * 2,
+            max(0, sag - (pay if sag < w else 0)) * 2, max(0, alt - (pay if alt < h else 0)) * 2)
+    if kutu[2] - kutu[0] < resim.width * 0.6 or kutu[3] - kutu[1] < resim.height * 0.6:
+        return resim
+    return resim.crop(kutu)
+
+
+def foto_dosyalari(kod, en, boy, sekil_, uzun_kenar=UZUN_KENAR):
+    """Katalog fotoğrafındaki halı yazılan ölçünün oranına getirilir (yüzey JPEG, kabartma PNG)."""
+    from . import foto_temel
+    resim, _ = foto_temel._foto(kod)
+    if sekil_ != "oval":
+        resim = _bos_kenari_kirp(resim)
+    px = uzun_kenar / max(en, boy)
+    W, H = int(round(en * px)), int(round(boy * px))
+    resim = resim.resize((W, H), Image.LANCZOS)
+    dis = Image.new("L", (W, H), 0)
+    if sekil_ == "oval":
+        ImageDraw.Draw(dis).ellipse((0, 0, W - 1, H - 1), fill=255)
+    else:
+        ImageDraw.Draw(dis).rounded_rectangle((0, 0, W - 1, H - 1), radius=max(3, int(px * KOSE_CM)), fill=255)
+    # kenar dışındaki beyaz fotoğraf zemini dokuya karışmasın: halının kendi kenar rengiyle doldurulur
+    ic = pg.asindir(dis, max(3, int(px * 1.5)) | 1)
+    yuzey_ = Image.composite(resim, resim.filter(ImageFilter.BoxBlur(max(2, int(px * 2)))), ic)
+    # kabartma: fotoğrafın yerel ışık farkı (kürk tüyü, deri dikişi, desen); kenara doğru hafif yuvarlanır
+    L = yuzey_.convert("L")
+    yerel = L.filter(ImageFilter.GaussianBlur(max(2, px * 1.2)))
+    fark = ImageChops.subtract(L, yerel, scale=1, offset=128)
+    harita = fark.point(lambda q: max(0, min(255, int(128 + (q - 128) * 0.7))))
+    kenar = ImageChops.subtract(dis, pg.asindir(dis, max(3, int(px * 2)) | 1)).filter(ImageFilter.GaussianBlur(max(1, px)))
+    harita = ImageChops.subtract(harita, kenar.point(lambda q: int(q * 0.25))).filter(ImageFilter.GaussianBlur(0.6))
+    harita = Image.composite(harita, Image.new("L", (W, H), 96), dis)
+    t1, t2 = io.BytesIO(), io.BytesIO()
+    yuzey_.save(t1, "JPEG", quality=86)
+    harita.save(t2, "PNG", optimize=True)
+    return t1.getvalue(), t2.getvalue()
+
+
+def foto_yanit(kod, en, boy, tur, kalinlik=KALINLIK_CM):
+    import json
+
+    from django.http import Http404, HttpResponse
+
+    if tur not in ("yuzey", "kabartma") or not foto_mu(kod):
+        raise Http404
+    en, boy, sekil_ = foto_olcusu(kod, en, boy)
+    veri = {"foto3b": kod, "en": en, "boy": boy, "sekil": sekil_}
+    icerik = onbellekli(veri, tur, uret=lambda: foto_dosyalari(kod, en, boy, sekil_))
+    r = HttpResponse(icerik, content_type="image/jpeg" if tur == "yuzey" else "image/png")
+    r["X-Bilgi"] = json.dumps({"en": en, "boy": boy, "sekil": sekil_, "kose": KOSE_CM, "kalinlik": kalinlik,
+                               "kenar": "", "not": FOTO_NOTU})
     r["Cache-Control"] = "private, max-age=86400"
     return r

@@ -168,8 +168,10 @@
   ucbDugme.addEventListener("click", async () => {
     ucbDugme.disabled = true;
     try {
-      const m = await import("{% static 'uretim/ucboyut.js' %}?v=1");
-      await m.ac({ yuzey: ucbAdres.replace("TUR", "yuzey"), kabartma: ucbAdres.replace("TUR", "kabartma") });
+      const m = await import("{% static 'uretim/ucboyut.js' %}?v=2");
+      // kartela rengi seçildiyse 3B yine fotoğraftaki renkleri gösterir
+      const not = renkAlan.value ? "Renkler fotoğraftaki gibi gösteriliyor; seçtiğiniz kartela rengiyle yapılır." : "";
+      await m.ac({ yuzey: ucbAdres.replace("TUR", "yuzey"), kabartma: ucbAdres.replace("TUR", "kabartma"), not });
     } catch (e) { alert("3B görünüm açılamadı. Sayfayı yenileyip yeniden deneyin."); }
     finally { ucbDugme.disabled = false; }
   });
@@ -185,7 +187,10 @@
       const s_ = (olcuSatir && !olcuSatir.hidden && satirlar.includes(olcuSatir)) ? olcuSatir : satirlar[0];
       const deger = (a) => s_ && parseFloat((s_.querySelector(`[name$="-${a}"]`).value || "").replace(",", "."));
       const en = deger("en_cm"), boy = deger("boy_cm");
-      if (!k.dataset.olcu || !(en >= 40 && boy >= 40)) {
+      const olcuVar = en >= 40 && boy >= 40;
+      ucbAdres = olcu3bAdresi.replace("KOD", k.dataset.kod) + (olcuVar ? `?en=${Math.round(en)}&boy=${Math.round(boy)}` : "");
+      ucbDugme.hidden = !webgl;
+      if (!k.dataset.olcu || !olcuVar) {
         resim.src = k.dataset.resim; document.getElementById("model-buyuk-a").href = k.dataset.resim;
         if (k.dataset.olcu) { yazi.textContent = "Ölçüyü yazınca halıyı o ölçüde gösteririz."; yazi.hidden = false; }
         return;
@@ -200,8 +205,6 @@
         if (yanit.headers.get("X-Olcu") === "yok") {
           yazi.textContent = "Bu ölçüde görünüm çizilemiyor; fotoğraf gösteriliyor. Halı yazdığınız ölçüde yapılır.";
         } else {
-          ucbAdres = olcu3bAdresi.replace("KOD", k.dataset.kod) + `?en=${Math.round(en)}&boy=${Math.round(boy)}`;
-          ucbDugme.hidden = !webgl;
           yazi.innerHTML = `Görünüm: <b>${Math.round(en)} × ${Math.round(boy)} cm</b> · bordürler gerçek genişliğinde, orta ölçüye göre. Görünüm temsilîdir.`;
         }
         yazi.hidden = false;

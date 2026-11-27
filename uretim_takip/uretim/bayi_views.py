@@ -317,14 +317,22 @@ def _olcu_resmi_ekle(siparis, kod, satirlar, resim=True):
 
 @login_required
 def model_olcu_3b(request, kod, tur):
-    """Olduğu gibi siparişte yazılan ölçüdeki halının 🧊 3B görünümü için yüzey / kabartma (ölçüye göre resim modelleri)."""
-    from . import ucboyut
+    """Olduğu gibi siparişte 🧊 3B görünüm için yüzey / kabartma. Ölçüye göre çizilen modelde çizimden (ölçü yoksa
+    modelin katalog ölçüsü), öteki modellerde (deri / kürk) katalog fotoğrafından, yazılan ölçünün oranında."""
+    from . import parcali, ucboyut
 
+    kod = kod.upper()
+    model = get_object_or_404(KatalogModeli.objects.select_related("seri"), kod=kod, aktif=True)
     en, boy = _olcu_sayisi(request.GET.get("en"), 40, 600), _olcu_sayisi(request.GET.get("boy"), 40, 1000)
-    v = olcu_degerleri(kod.upper(), en, boy)[0] if en and boy else None
-    if v is None:
-        raise Http404
-    return ucboyut.yanit(v, tur)
+    if not (en and boy):
+        en = boy = None
+    if olcuye_gore_mu(kod):
+        hd = parcali.hazir_degerler(kod)
+        v = olcu_degerleri(kod, en or int(float(hd["en"])), boy or int(float(hd["boy"])))[0]
+        if v is not None:
+            return ucboyut.yanit(v, tur)
+    kalin = ucboyut.KURK_KALINLIK_CM if seri_turu(model.seri) == "deri" else ucboyut.KALINLIK_CM
+    return ucboyut.foto_yanit(kod, en, boy, tur, kalin)
 
 @login_required
 def model_olcu_resmi(request, kod):

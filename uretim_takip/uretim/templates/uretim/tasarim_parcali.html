@@ -489,7 +489,7 @@
       const q = "s=7&" + sorgu();
       d.disabled = true;
       try {
-        const m = await import("{% static 'uretim/ucboyut.js' %}?v=1");
+        const m = await import("{% static 'uretim/ucboyut.js' %}?v=2");
         await m.ac({ yuzey: "{% url 'parcali_3b' 'yuzey' %}?" + q, kabartma: "{% url 'parcali_3b' 'kabartma' %}?" + q });
       } catch (e) { alert("3B görünüm açılamadı. Sayfayı yenileyip yeniden deneyin."); }
       finally { d.disabled = false; }

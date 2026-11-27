@@ -2743,7 +2743,25 @@ class FotoModelTesti(TasarimStudyosuTesti):
             y = self.client.get(adres + "?en=200&boy=300")
             self.assertEqual(y.status_code, 200)
             self.assertEqual((json.loads(y["X-Bilgi"])["en"], json.loads(y["X-Bilgi"])["boy"]), (200, 300))
-            self.assertEqual(self.client.get(adres).status_code, 404)  # ölçü yazılmadan yok
+            # ölçü yazılmadan da: modelin katalog ölçüsünde
+            self.assertEqual(self.client.get(adres).status_code, 200)
+            # deri / kürk: katalog fotoğrafından, yazılan ölçünün oranında, kürk kalınlığında
+            from .models import KatalogModeli
+            from .bayi_views import seri_turu
+            from . import foto_temel
+            deri = next(m.kod for m in KatalogModeli.objects.filter(aktif=True).select_related("seri")
+                        if seri_turu(m.seri) == "deri" and m.kod in foto_temel.KUTU
+                        and foto_temel.KUTU[m.kod][4] == "dikdortgen")
+            y = self.client.get(reverse("model_olcu_3b", args=[deri, "yuzey"]) + "?en=200&boy=300")
+            b = json.loads(y["X-Bilgi"])
+            self.assertEqual((y.status_code, b["en"], b["boy"], b["kalinlik"]), (200, 200, 300, 3.0))
+            self.assertIn("temsilî", b["not"])
+            resim = Image.open(io.BytesIO(y.content))
+            self.assertAlmostEqual(resim.width / resim.height, 200 / 300, places=2)
+            self.assertNotEqual(resim.convert("L").getpixel((1, resim.height // 2)), 255)  # kenarda beyaz şerit yok
+            k = self.client.get(reverse("model_olcu_3b", args=[deri, "kabartma"]))  # ölçüsüz: fotoğraf oranında
+            self.assertEqual((k.status_code, k["Content-Type"], json.loads(k["X-Bilgi"])["en"]), (200, "image/png", 160))
+            self.assertEqual(self.client.get(reverse("model_olcu_3b", args=["YOK-999", "yuzey"])).status_code, 404)
 
     def test_bayi_secili_modeli_parcali_studyoda_tasarlar(self):
         from . import parcali
