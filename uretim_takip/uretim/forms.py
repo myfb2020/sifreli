@@ -716,6 +716,39 @@ class DeriDuzeltmeForm(forms.Form):
     aciklama = forms.CharField(label="Açıklama (isteğe bağlı)", required=False, max_length=200)
 
 
+class KayitsizHaliForm(forms.Form):
+    """Sipariş numarası olmayan (sisteme girilmeden üretilip gönderilmiş) halı: tamir için kayıt açılır."""
+
+    musteri = forms.ModelChoiceField(queryset=Musteri.objects.order_by("ad"), required=False, label="Müşteri",
+                                     empty_label="— Listeden seçin —")
+    yeni_musteri = forms.CharField(label="Listede yoksa müşterinin adı", max_length=120, required=False)
+    model = forms.CharField(label="Model kodu (biliniyorsa)", max_length=30, required=False,
+                            widget=forms.TextInput(attrs={"list": "kayitsiz-modeller", "autocomplete": "off",
+                                                          "placeholder": "Ör. RNO-010", "autocapitalize": "characters"}))
+    urun = forms.CharField(label="Halı (kısaca)", max_length=200, required=False,
+                           widget=forms.TextInput(attrs={"placeholder": "Ör. Rono krem, altın biyeli"}))
+    en = ondalik_alan("En (cm)", required=False)
+    boy = ondalik_alan("Boy (cm)", required=False)
+
+    def clean(self):
+        veri = super().clean()
+        ad = (veri.get("yeni_musteri") or "").strip()
+        if veri.get("musteri") is None and not ad:
+            self.add_error("musteri", "Müşteriyi seçin ya da adını yazın.")
+        kod = (veri.get("model") or "").strip().upper()
+        veri["katalog_modeli"] = None
+        if kod:
+            veri["katalog_modeli"] = KatalogModeli.objects.filter(kod=kod).select_related("seri").first()
+            if veri["katalog_modeli"] is None:
+                self.add_error("model", f"“{kod}” kodlu model yok. Boş bırakıp halıyı kısaca yazabilirsiniz.")
+        if not kod and not (veri.get("urun") or "").strip():
+            self.add_error("urun", "Model kodunu ya da halıyı kısaca yazın.")
+        en, boy = veri.get("en"), veri.get("boy")
+        if bool(en) != bool(boy):
+            self.add_error("boy" if en else "en", "Eni ve boyu birlikte yazın (ya da ikisini de boş bırakın).")
+        return veri
+
+
 class IstasyonTamirForm(forms.Form):
     """İstasyonda 🔧 Tamir: müşteriden dönen ya da üretimde fark edilen hata; tamir bu istasyonda yapılır."""
 
@@ -731,10 +764,12 @@ class IstasyonTamirForm(forms.Form):
     personel = forms.ModelChoiceField(queryset=Personel.objects.filter(aktif=True), required=False, label="Kim yapıyor",
                                       empty_label="— Sonra başlatılacak —")
 
-    def __init__(self, *args, personel_belli=False, **kwargs):
+    def __init__(self, *args, personel_belli=False, kayitsiz=False, **kwargs):
         super().__init__(*args, **kwargs)
         if personel_belli:  # kişisel hesapta personel sorulmaz, iş hemen başlar
             del self.fields["personel"]
+        if kayitsiz:  # sisteme girilmemiş halı: sipariş kaydı tamirle birlikte açılır
+            del self.fields["siparis_no"]
 
     def clean_siparis_no(self):
         no = self.cleaned_data["siparis_no"].strip().upper()

@@ -21,7 +21,7 @@ def medya(request, yol):
     bayi = getattr(request, "bayi", None)
     if yol.startswith("siparis/") and bayi is not None:
         from .models import SiparisFotografi  # bayi yalnız kendi siparişinin fotoğraflarını görür
-        if not SiparisFotografi.objects.filter(resim=yol, siparis__musteri=bayi).exists():
+        if not SiparisFotografi.objects.filter(resim=yol, siparis__musteri=bayi, siparis__bayide_gizli=False).exists():
             raise Http404
     yanit = serve(request, yol, document_root=settings.MEDIA_ROOT)
     yanit["Cache-Control"] = "private, max-age=604800"

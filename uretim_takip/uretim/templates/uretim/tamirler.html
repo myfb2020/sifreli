@@ -7,6 +7,7 @@
     <input name="siparis_no" placeholder="Sipariş no (SP-…)" autocapitalize="characters" required>
     <button class="btn" type="submit">+ Yeni tamir</button>
   </form>
+  <a class="btn ikincil" href="{% url 'tamir_kayitsiz' %}">+ Sipariş numarası yok</a>
 </div>
 <div class="sekmeler alt-sekme">
   <a class="sekme{% if durum == 'acik' %} secili{% endif %}" href="?durum=acik">Açık <span class="soluk">{{ acik_sayi }}</span></a>

@@ -561,6 +561,36 @@ def istasyon_tamiri(*, siparis, asama, neden, aciklama="", foto=None, personel=N
     return kayit
 
 
+KAYITSIZ_NOTU = "Sisteme sonradan girildi: üretimde kayda geçmemiş, tamir için geldi."
+
+
+@transaction.atomic
+def kayitsiz_siparis(*, musteri=None, yeni_musteri="", katalog_modeli=None, urun="", en=None, boy=None, kullanici=None):
+    """Sipariş numarası olmayan (sisteme girilmeden üretilip gönderilmiş) halı için kayıt: durumu 'Sevk edildi',
+    bayinin Siparişlerim'inde görünmez; ardından tamir açılır (2026-11-27, kullanıcı)."""
+    from .models import Musteri, Siparis
+
+    if musteri is None:
+        ad = " ".join((yeni_musteri or "").split())
+        if not ad:
+            raise ValidationError("Müşteriyi seçin ya da adını yazın.")
+        musteri = Musteri.objects.filter(ad__iexact=ad).first() or Musteri.objects.create(ad=ad[:120])
+    urun = (urun or "").strip()
+    if katalog_modeli is not None:
+        urun = f"{katalog_modeli.kod} · {urun}" if urun else katalog_modeli.kod
+    if not urun:
+        raise ValidationError("Model kodunu ya da halıyı kısaca yazın.")
+    kim = (kullanici.get_full_name() or kullanici.username) if kullanici is not None else ""
+    siparis = Siparis.objects.create(
+        musteri=musteri, durum="sevk", bayide_gizli=True, katalog_modeli=katalog_modeli,
+        hali_turu=katalog_modeli.seri.hali_turu if katalog_modeli is not None else None, urun=urun[:200],
+        teslim_tarihi=timezone.localdate(),
+        notlar=f"{KAYITSIZ_NOTU} ({timezone.localdate():%d.%m.%Y}{', ' + kim if kim else ''})")
+    if en and boy:
+        kalemleri_kaydet(siparis, [(None, en, boy, 1)])  # sevk edilmiş siparişte üretim işi açılmaz
+    return siparis
+
+
 def tamir_bitti(lot):
     kayit = TamirKaydi.objects.filter(lot=lot).select_related("siparis").first()
     if kayit is None:

@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import fotograf, servisler
-from .forms import FotografForm, SiparisForm, TamirForm, olcu_formseti
+from .forms import FotografForm, KayitsizHaliForm, SiparisForm, TamirForm, olcu_formseti
 from .katalog_views import secim_verisi
 from .models import IsNotu, Siparis, SiparisFotografi, UretimLotu
 
@@ -223,6 +223,36 @@ def tamir_ac(request, pk):
             return redirect("siparis_detay", pk=pk)
     return render(request, "uretim/tamir_ac.html", {"form": form, "siparis": siparis})
 
+
+@login_required
+@permission_required("uretim.view_siparis", raise_exception=True)
+def tamir_kayitsiz(request):
+    """Sipariş numarası olmayan (sisteme girilmeden üretilip gönderilmiş) halının tamiri: kayıt + tamir birlikte açılır;
+    kayıt bayide görünmez."""
+    from .models import KatalogModeli
+
+    hali = KayitsizHaliForm(request.POST or None, prefix="h")
+    form = TamirForm(request.POST or None, request.FILES or None)
+    del form.fields["kaynak_lot"]
+    if request.method == "POST" and hali.is_valid() and form.is_valid():
+        h, v = hali.cleaned_data, form.cleaned_data
+        try:
+            foto = fotograf.kucult(v["foto"]) if v.get("foto") else None
+            with transaction.atomic():
+                siparis = servisler.kayitsiz_siparis(
+                    musteri=h.get("musteri"), yeni_musteri=h.get("yeni_musteri", ""), katalog_modeli=h["katalog_modeli"],
+                    urun=h.get("urun", ""), en=h.get("en"), boy=h.get("boy"), kullanici=request.user)
+                kayit = servisler.tamir_ac(siparis=siparis, istasyonlar=v["istasyonlar"], neden=v["neden"],
+                                           aciklama=v.get("aciklama", ""), foto=foto, hata_asama=v.get("hata_asama"),
+                                           hata_personel=v.get("hata_personel"), kullanici=request.user)
+        except (fotograf.FotografHatasi, ValidationError) as e:
+            form.add_error(None, str(e) if isinstance(e, fotograf.FotografHatasi) else " ".join(e.messages))
+        else:
+            messages.success(request, f"{siparis.siparis_no} kaydı ve {kayit.no} açıldı; tamir işi "
+                                      f"{kayit.istasyonlar.order_by('sira').first().ad} ekranına düştü. Bayi bunu görmez.")
+            return redirect("siparis_detay", pk=siparis.pk)
+    return render(request, "uretim/tamir_kayitsiz.html", {
+        "hali": hali, "form": form, "modeller": KatalogModeli.objects.filter(aktif=True).order_by("kod")})
 
 @login_required
 @permission_required("uretim.view_siparis", raise_exception=True)

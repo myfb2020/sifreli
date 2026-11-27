@@ -3,6 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -12,8 +13,8 @@ from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 
 from . import fotograf, oturum, servisler, uyarilar
-from .forms import IstasyonTamirForm, PinliForm
-from .models import Asama, Siparis, UretimLotu, hesap_personeli
+from .forms import IstasyonTamirForm, KayitsizHaliForm, PinliForm
+from .models import Asama, KatalogModeli, Siparis, UretimLotu, hesap_personeli
 
 
 @login_required
@@ -130,26 +131,39 @@ def istasyon_tamir(request, pk):
     if not servisler.tamir_istasyonu_mu(asama):
         raise PermissionDenied
     personel = hesap_personeli(request.user)
+    kayitsiz = request.GET.get("kayitsiz") == "1" or request.POST.get("kayitsiz") == "1"
     form = IstasyonTamirForm(request.POST or None, request.FILES or None, personel_belli=personel is not None,
-                             initial={"siparis_no": request.GET.get("siparis", "")})
-    if request.method == "POST" and form.is_valid():
+                             kayitsiz=kayitsiz, initial={"siparis_no": request.GET.get("siparis", "")})
+    hali = KayitsizHaliForm(request.POST or None, prefix="h") if kayitsiz else None
+    if request.method == "POST" and form.is_valid() and (hali is None or hali.is_valid()):
         v = form.cleaned_data
         try:
             foto = fotograf.kucult(v["foto"]) if v.get("foto") else None
-            kayit = servisler.istasyon_tamiri(siparis=form.siparis, asama=asama, neden=v["neden"],
-                                              aciklama=v["aciklama"], foto=foto, personel=personel or v.get("personel"),
-                                              kullanici=request.user)
+            with transaction.atomic():
+                if hali is not None:  # sisteme girilmemiş halı: kayıt da açılır (bayide görünmez)
+                    h = hali.cleaned_data
+                    siparis = servisler.kayitsiz_siparis(
+                        musteri=h.get("musteri"), yeni_musteri=h.get("yeni_musteri", ""),
+                        katalog_modeli=h["katalog_modeli"], urun=h.get("urun", ""), en=h.get("en"), boy=h.get("boy"),
+                        kullanici=request.user)
+                else:
+                    siparis = form.siparis
+                kayit = servisler.istasyon_tamiri(siparis=siparis, asama=asama, neden=v["neden"],
+                                                  aciklama=v["aciklama"], foto=foto,
+                                                  personel=personel or v.get("personel"), kullanici=request.user)
         except (fotograf.FotografHatasi, ValidationError) as e:
             form.add_error(None, str(e) if isinstance(e, fotograf.FotografHatasi) else " ".join(e.messages))
         else:
             kayit.lot.refresh_from_db()
             basladi = kayit.lot.durum == "islemde"
-            messages.success(request, f"{kayit.no} açıldı ({form.siparis.siparis_no}); tamir işi "
+            messages.success(request, f"{kayit.no} açıldı ({siparis.siparis_no}); tamir işi "
                                       + ("başladı, bitince ■ Bitir'e basın." if basladi else "Bekleyen listesinde."))
             return redirect(f"{reverse('istasyon_ekrani', args=[asama.pk])}?sekme={'calisilan' if basladi else 'gelen'}")
     adaylar = (Siparis.objects.filter(durum__in=("uretimde", "tamamlandi", "sevk", "tamirde"))
                .select_related("musteri").order_by("-pk")[:200])
-    return render(request, "uretim/istasyon_tamir.html", {"form": form, "asama": asama, "adaylar": adaylar})
+    modeller = KatalogModeli.objects.filter(aktif=True).order_by("kod") if kayitsiz else []
+    return render(request, "uretim/istasyon_tamir.html", {"form": form, "asama": asama, "adaylar": adaylar,
+                                                          "hali": hali, "kayitsiz": kayitsiz, "modeller": modeller})
 
 
 @login_required

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block baslik %}Kayıtsız halı tamiri{% endblock %}
+{% block icerik %}
+<div class="kart" style="max-width:600px;margin:0 auto">
+  <p style="margin:0 0 8px"><a href="{% url 'tamirler' %}">← Tamirler</a></p>
+  <h1>↩ Tamir aç · sipariş numarası yok</h1>
+  <p class="soluk">Sisteme girilmeden üretilip gönderilmiş halı tamire geldiyse: halının bilgilerini yazın, program kaydı ve tamir işini
+    birlikte açar. Tamir işi seçtiğiniz istasyonlardan geçer, ekranlarda 🔧 TAMİR olarak görünür. <b>Bayi bunu görmez.</b></p>
+  <form method="post" class="dikey" enctype="multipart/form-data">
+    {% include "uretim/_kayitsiz_hali.html" %}
+    {% include "uretim/_form.html" %}
+    <button class="btn buyuk" type="submit" style="width:100%">Kaydet ve tamir işini aç</button>
+  </form>
+</div>
+<style>
+  #id_istasyonlar { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  #id_istasyonlar label { font-weight:normal; display:flex; gap:6px; align-items:center; }
+  #id_istasyonlar input { width:auto; }
+</style>
+{% endblock %}

@@ -3682,6 +3682,56 @@ class UcuncuGuncellemeTesti(TasarimStudyosuTesti):
             "siparis_no": self.siparis.siparis_no, "neden": "iade", "aciklama": "x"})
         self.assertContains(yanit, "tamir açılmaz")
 
+    def test_siparis_numarasi_olmayan_halinin_tamiri(self):
+        """2026-11-27: sisteme girilmeden gönderilmiş halı tamire gelince kayıt + tamir birlikte; kayıt bayide görünmez."""
+        from .models import Musteri, TamirKaydi
+        bayi = Musteri.objects.get(ad="Ankara Bayi")
+        biye, zig = Asama.objects.get(ad="Biye"), Asama.objects.get(ad="Zig-zag")
+        # ofis: Tamirler → + Sipariş numarası yok
+        self.client.force_login(self.ofis)
+        self.assertContains(self.client.get(reverse("tamirler")), reverse("tamir_kayitsiz"))
+        adres = reverse("tamir_kayitsiz")
+        self.assertContains(self.client.get(adres), "sistemde kaydı yok")
+        eksik = self.client.post(adres, {"neden": "iade", "istasyonlar": [biye.pk]})
+        self.assertContains(eksik, "Müşteriyi seçin ya da adını yazın")
+        self.assertFalse(TamirKaydi.objects.exists())
+        yanit = self.client.post(adres, {"h-musteri": bayi.pk, "h-model": "", "h-urun": "Rono krem altın biyeli",
+                                         "h-en": "160", "h-boy": "230", "neden": "iade", "aciklama": "Biye söküldü",
+                                         "istasyonlar": [zig.pk, biye.pk]})
+        kayit = TamirKaydi.objects.get()
+        sp = kayit.siparis
+        self.assertRedirects(yanit, reverse("siparis_detay", args=[sp.pk]), fetch_redirect_response=False)
+        self.assertEqual((sp.musteri, sp.durum, sp.bayide_gizli, sp.urun), (bayi, "tamirde", True, "Rono krem altın biyeli"))
+        self.assertIn("Sisteme sonradan girildi", sp.notlar)
+        self.assertEqual(sp.kalemler.get().olcu_metni(), "160 × 230 cm")
+        self.assertFalse(sp.lotlar.filter(tur="uretim").exists())  # üretim işi açılmaz, yalnız tamir işi
+        self.assertEqual([a.ad for _, a in kayit.lot.rota()], ["Zig-zag", "Biye"])
+        self.assertIn(kayit.lot, [k.lot for k in uyarilar.gelenler(zig)])
+        # bayi bu kaydı görmez; normal siparişini görür
+        Siparis.objects.filter(pk=self.siparis.pk).update(musteri=bayi)
+        self.client.force_login(self.bayi_hesap)
+        ana = self.client.get(reverse("bayi_ana"))
+        self.assertContains(ana, f"<b>{self.siparis.siparis_no}</b>")
+        self.assertNotContains(ana, f"<b>{sp.siparis_no}</b>")
+        # istasyon: 🔧 Tamir → Sipariş numarası yok, yeni müşteri adıyla; iş hemen başlar
+        self.client.force_login(self.yonetici)
+        ekran = reverse("istasyon_tamir", args=[biye.pk])
+        self.assertContains(self.client.get(ekran), "?kayitsiz=1")
+        sayfa = self.client.get(ekran + "?kayitsiz=1")
+        self.assertNotContains(sayfa, 'name="siparis_no"')
+        self.assertContains(sayfa, 'name="h-yeni_musteri"')
+        yanit = self.client.post(ekran, {"kayitsiz": "1", "h-yeni_musteri": "  Yeni   Halıcı ", "h-model": "yok-999",
+                                         "neden": "iade", "aciklama": "Köşe kalkmış", "personel": self.ayse.pk})
+        self.assertContains(yanit, "kodlu model yok")
+        yanit = self.client.post(ekran, {"kayitsiz": "1", "h-yeni_musteri": "  Yeni   Halıcı ", "h-urun": "Peluş gri",
+                                         "neden": "iade", "aciklama": "Köşe kalkmış", "personel": self.ayse.pk})
+        self.assertRedirects(yanit, reverse("istasyon_ekrani", args=[biye.pk]) + "?sekme=calisilan",
+                             fetch_redirect_response=False)
+        ikinci = TamirKaydi.objects.exclude(pk=kayit.pk).get()
+        self.assertEqual((ikinci.siparis.musteri.ad, ikinci.siparis.bayide_gizli, ikinci.lot.durum),
+                         ("Yeni Halıcı", True, "islemde"))
+        self.assertEqual(Musteri.objects.filter(ad__iexact="yeni halıcı").count(), 1)
+
     def test_kenar_istasyonu_yazidan(self):
         lazerli = HaliTuru.objects.get(ad="Lazerli halı")
         zig = Asama.objects.get(ad="Zig-zag")

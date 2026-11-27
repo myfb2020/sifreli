@@ -1,0 +1,19 @@
+{# Sipariş numarası olmayan halının bilgileri (tamirle birlikte kayıt açılır; bayide görünmez) #}
+<fieldset class="kayitsiz-hali">
+  <legend>Halı (sistemde kaydı yok)</legend>
+  {% if hali.non_field_errors %}<div class="mesaj error">{% for e in hali.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
+  {% for alan in hali %}
+  <p{% if alan.name == "en" or alan.name == "boy" %} class="yarim"{% endif %}>
+    <label for="{{ alan.id_for_label }}">{{ alan.label }}</label>
+    {{ alan }}
+    {% if alan.errors %}<ul class="errorlist">{% for e in alan.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </p>
+  {% endfor %}
+  <datalist id="kayitsiz-modeller">{% for m in modeller %}<option value="{{ m.kod }}">{% endfor %}</datalist>
+  <p class="soluk" style="margin:0">Program bu halı için bir kayıt açar (“Sisteme sonradan girildi” notuyla). Kayıt bayide görünmez.</p>
+</fieldset>
+<style>
+  .kayitsiz-hali { border:2px dashed #e6ddd3; border-radius:12px; padding:10px 14px; margin:0 0 12px; }
+  .kayitsiz-hali legend { font-weight:700; padding:0 6px; }
+  .kayitsiz-hali p.yarim { display:inline-block; width:calc(50% - 8px); margin-right:4px; vertical-align:top; }
+</style>

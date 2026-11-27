@@ -43,7 +43,7 @@ def _bayi(request):
 def bayi_ana(request):
     bayi = _bayi(request)
     siparisler = (
-        Siparis.objects.filter(musteri=bayi)
+        Siparis.objects.filter(musteri=bayi, bayide_gizli=False)
         .select_related("katalog_modeli", "renk", "tasarim")
         .prefetch_related(Prefetch("lotlar", queryset=UretimLotu.objects.select_related("son_asama", "kalem").prefetch_related("olculer__kalem")),
                           "kalemler", "tamirler", "fotograflar")

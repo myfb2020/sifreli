@@ -7,7 +7,10 @@
   <p class="soluk">Müşteriden dönen ya da üretimde hatası fark edilen halının tamiri <b>yalnız bu istasyonda ({{ asama.ad }})</b> yapılır.
     Ofis bütün tamirleri <b>Tamirler</b> sayfasında görür. Bayi görmez.</p>
   <form method="post" class="dikey" enctype="multipart/form-data">
+    {% if kayitsiz %}<input type="hidden" name="kayitsiz" value="1">{% include "uretim/_kayitsiz_hali.html" %}{% endif %}
     {% include "uretim/_form.html" %}
+    {% if kayitsiz %}<p style="margin:0"><a href="{% url 'istasyon_tamir' asama.pk %}">← Sipariş numarası var</a></p>
+    {% else %}<p style="margin:0"><a href="{% url 'istasyon_tamir' asama.pk %}?kayitsiz=1">Sipariş numarası yok mu? (sisteme girilmemiş halı)</a></p>{% endif %}
     <datalist id="tamir-siparisleri">{% for s in adaylar %}<option value="{{ s.siparis_no }}">{{ s.musteri }} · {{ s.urun|truncatechars:40 }}</option>{% endfor %}</datalist>
     <button class="btn buyuk" type="submit" style="width:100%">🔧 Tamiri aç</button>
   </form>

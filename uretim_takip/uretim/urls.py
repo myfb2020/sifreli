@@ -11,6 +11,7 @@ urlpatterns = [
     path("istasyon/<int:pk>/tamir/", istasyon_views.istasyon_tamir, name="istasyon_tamir"),
     path("istasyon/<int:pk>/bitti/", istasyon_views.hizli_bitir, name="istasyon_hizli_bitir"),
     path("tamirler/", siparis_views.tamirler, name="tamirler"),
+    path("tamirler/kayitsiz/", siparis_views.tamir_kayitsiz, name="tamir_kayitsiz"),
     path("islem/", stok_views.islem_merkezi, name="islem_merkezi"),
     path("islem/yeni/", stok_views.yeni_is, name="yeni_is"),
     path("islem/baslat/", views.islem_baslat, name="islem_baslat"),

@@ -590,6 +590,9 @@ class Siparis(models.Model):
     teslim_tarihi = models.DateField("teslim tarihi")
     durum = models.CharField(max_length=12, choices=DURUM, default="acik")
     sevk_tarihi = models.DateField("sevk tarihi", null=True, blank=True)
+    bayide_gizli = models.BooleanField(
+        "bayide gizli", default=False,
+        help_text="Sisteme sonradan girilen kayıt (ör. kaydı yokken tamir için gelen halı); bayinin Siparişlerim'inde görünmez.")
     notlar = models.TextField(blank=True)
 
     class Meta:
