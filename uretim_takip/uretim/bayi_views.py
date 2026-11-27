@@ -316,6 +316,17 @@ def _olcu_resmi_ekle(siparis, kod, satirlar, resim=True):
 
 
 @login_required
+def model_olcu_3b(request, kod, tur):
+    """Olduğu gibi siparişte yazılan ölçüdeki halının 🧊 3B görünümü için yüzey / kabartma (ölçüye göre resim modelleri)."""
+    from . import ucboyut
+
+    en, boy = _olcu_sayisi(request.GET.get("en"), 40, 600), _olcu_sayisi(request.GET.get("boy"), 40, 1000)
+    v = olcu_degerleri(kod.upper(), en, boy)[0] if en and boy else None
+    if v is None:
+        raise Http404
+    return ucboyut.yanit(v, tur)
+
+@login_required
 def model_olcu_resmi(request, kod):
     """?en=200&boy=300&b=700 → modelin o ölçüdeki resmi; çizilemiyorsa katalog fotoğrafı (X-Olcu: yok).
     X-Uyari: bu ölçüde sığmayan parça (ör. madalyon) — URL kodlu."""

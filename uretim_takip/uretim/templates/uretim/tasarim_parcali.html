@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block baslik %}Suni Deri Halı{% endblock %}
 {% block icerik %}
 <h1 style="margin-top:0">🧩 Suni deri halı tasarla</h1>
@@ -18,6 +19,7 @@
     <img id="onizleme" alt="Halı önizlemesi" src="{% url 'parcali_onizleme_resmi' %}?b=700">
     <div id="aynen-not" class="aynen-not" hidden>📷 Katalog modeli <b id="aynen-kod"></b> olduğu gibi sipariş edilecek. <button type="button" class="btn kucuk ikincil" id="aynen-birak">Değiştirmek istiyorum</button></div>
     <div class="soluk" style="font-size:12px;text-align:center">🔍 Büyük görmek için resme dokunun</div>
+    <div style="text-align:center;margin:6px 0"><button type="button" id="ucb-ac" class="btn kucuk altin" hidden>🧊 3B görünüm</button></div>
     <div id="ozet" class="soluk">{{ h.ozet }}</div>
     <button type="button" id="rozet" class="rozet{% if h.uyarilar %} sorun{% endif %}" aria-expanded="false">{% if h.uyarilar %}⚠ {{ h.uyarilar|length }} uyarı{% else %}✓ Üretilebilir{% endif %}</button>
     <div id="uyari-listesi" class="uyari-listesi" hidden></div>
@@ -479,6 +481,20 @@
   resim.addEventListener("load", resimBitti);
   resim.addEventListener("error", resimBitti);
   let fotoKalsin = false;
+  // 🧊 3B görünüm: halı kalınlığıyla, parmakla çevrilir (2026-11-27); WebGL yoksa düğme görünmez
+  (function () {
+    const d = document.getElementById("ucb-ac");
+    try { const c = document.createElement("canvas"); d.hidden = !(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { d.hidden = true; }
+    d.addEventListener("click", async () => {
+      const q = "s=7&" + sorgu();
+      d.disabled = true;
+      try {
+        const m = await import("{% static 'uretim/ucboyut.js' %}?v=1");
+        await m.ac({ yuzey: "{% url 'parcali_3b' 'yuzey' %}?" + q, kabartma: "{% url 'parcali_3b' 'kabartma' %}?" + q });
+      } catch (e) { alert("3B görünüm açılamadı. Sayfayı yenileyip yeniden deneyin."); }
+      finally { d.disabled = false; }
+    });
+  })();
   async function guncelle() {
     kartelaFiltre();
     const benim = ++sira, q = sorgu();

@@ -2712,6 +2712,39 @@ class FotoModelTesti(TasarimStudyosuTesti):
         self.ayar.disable()
         self.medya.cleanup()
 
+    def test_3b_gorunum_yuzey_ve_kabartma(self):
+        """2026-11-27: 🧊 3B görünüm — tasarım ekranında ve olduğu gibi siparişte (ölçüye göre resim) yüzey + kabartma."""
+        import io
+        import json
+        from urllib.parse import urlencode
+
+        from PIL import Image
+
+        from . import parcali
+        from .bayi_views import olcuye_gore_mu
+        kod = parcali.BAYI_VITRINI[0]
+        with self.settings(STUDYO_BAYIYE_ACIK=False):
+            self.client.force_login(self.bayi_hesap)
+            self.assertContains(self.client.get(reverse("parcali_studyo") + f"?hazir={kod}"), 'id="ucb-ac"')
+            self.assertContains(self.client.get(reverse("bayi_siparis") + "?tur=suni"), 'id="ucb-ac"')
+            q = urlencode({k: ("" if x is None else x) for k, x in parcali.hazir_degerler(kod).items()})
+            yuzey = self.client.get(reverse("parcali_3b", args=["yuzey"]) + "?" + q)
+            self.assertEqual((yuzey.status_code, yuzey["Content-Type"]), (200, "image/jpeg"))
+            bilgi = json.loads(yuzey["X-Bilgi"])
+            resim = Image.open(io.BytesIO(yuzey.content))
+            self.assertAlmostEqual(resim.width / resim.height, bilgi["en"] / bilgi["boy"], places=2)  # arka zemin yok
+            kabartma = self.client.get(reverse("parcali_3b", args=["kabartma"]) + "?" + q)
+            harita = Image.open(io.BytesIO(kabartma.content))
+            self.assertEqual((harita.mode, harita.size), ("L", resim.size))
+            self.assertGreater(harita.getpixel((int(resim.width * 0.004) + 2, resim.height // 2)), 140)  # biye kabarık
+            self.assertEqual(self.client.get(reverse("parcali_3b", args=["baska"]) + "?" + q).status_code, 404)
+            olculu = next(k for k in parcali.FOTO_RENK if olcuye_gore_mu(k) and k not in parcali.BAYI_VITRINI)
+            adres = reverse("model_olcu_3b", args=[olculu, "yuzey"])
+            y = self.client.get(adres + "?en=200&boy=300")
+            self.assertEqual(y.status_code, 200)
+            self.assertEqual((json.loads(y["X-Bilgi"])["en"], json.loads(y["X-Bilgi"])["boy"]), (200, 300))
+            self.assertEqual(self.client.get(adres).status_code, 404)  # ölçü yazılmadan yok
+
     def test_bayi_secili_modeli_parcali_studyoda_tasarlar(self):
         from . import parcali
         with self.settings(STUDYO_BAYIYE_ACIK=False):

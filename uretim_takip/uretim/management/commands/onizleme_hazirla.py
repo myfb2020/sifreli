@@ -48,3 +48,20 @@ class Command(BaseCommand):
                     _jpeg(_temizle(q), FIKIR_BOYU)
                     sayi += 1
         self.stdout.write(f"{sayi} fikir resmi hazır ({time.time() - bas:.0f} sn)")
+        # 🧊 3B görünüm: vitrin modellerinin kendi hâli (ilk açılış beklemesin; 2026-11-27)
+        from uretim import ucboyut
+        bas, sayi = time.time(), 0
+        for kod in parcali.BAYI_VITRINI:
+            v = parcali.hazir_degerler(kod)
+            v["katalog"] = kod
+            q = QueryDict(mutable=True)
+            for a, d in parcali.temizle(v, desenler).items():
+                q[a] = _js_yazi(d)
+            q["hazir"] = kod  # ekran (Bu modelden başla) hazir=KOD gönderir, şerit desenini göndermez
+            q.pop("serit_desen", None)
+            try:
+                ucboyut.onbellekli(_temizle(q), "yuzey")
+                sayi += 1
+            except Exception as hata:  # noqa: BLE001 — kurulum 3B yüzünden durmasın
+                self.stderr.write(f"{kod} 3B: {hata}")
+        self.stdout.write(f"{sayi} 3B görünüm hazır ({time.time() - bas:.0f} sn)")

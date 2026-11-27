@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block baslik %}Sipariş ver{% endblock %}
 {% block icerik %}
 <h1>🛒 Sipariş ver · {% if tur == "suni" %}Suni deri halı{% else %}Deri / kürk halı{% endif %}</h1>
@@ -23,6 +24,7 @@
     <p id="secilen-model" class="soluk">Henüz model seçilmedi.</p>
     <div id="model-buyuk" class="foto-onizleme" hidden><a class="buyut" id="model-buyuk-a" href=""><img id="model-buyuk-resim" alt="Seçilen modelin fotoğrafı"></a><span id="olcu-bekle" hidden>Çiziliyor…</span></div>
     <p id="olcu-yazi" class="soluk" hidden></p>
+    <p style="margin:4px 0"><button type="button" id="ucb-ac" class="btn kucuk altin" hidden>🧊 3B görünüm</button></p>
     <p id="olcu-uyari" class="mesaj warning" hidden></p>
   </div>
   <div class="kart">
@@ -159,13 +161,25 @@
   // ölçüye göre resim (2026-11-26): yazılan / dokunulan ölçü satırı o ölçüde gösterilir
   const olcuAdresi = "{% url 'model_olcu_resmi' 'KOD' %}";
   let olcuZaman = null, olcuSatir = null, olcuIstek = 0;
+  // 🧊 3B görünüm (2026-11-27): yazılan ölçüdeki halı kalınlığıyla, parmakla çevrilir
+  const ucbDugme = document.getElementById("ucb-ac"), olcu3bAdresi = "{% url 'model_olcu_3b' 'KOD' 'TUR' %}";
+  let ucbAdres = "";
+  const webgl = (() => { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { return false; } })();
+  ucbDugme.addEventListener("click", async () => {
+    ucbDugme.disabled = true;
+    try {
+      const m = await import("{% static 'uretim/ucboyut.js' %}?v=1");
+      await m.ac({ yuzey: ucbAdres.replace("TUR", "yuzey"), kabartma: ucbAdres.replace("TUR", "kabartma") });
+    } catch (e) { alert("3B görünüm açılamadı. Sayfayı yenileyip yeniden deneyin."); }
+    finally { ucbDugme.disabled = false; }
+  });
   function olcuGoster() {
     clearTimeout(olcuZaman);
     olcuZaman = setTimeout(async () => {
       const k = document.querySelector(".model-kart.secili");
       const yazi = document.getElementById("olcu-yazi"), uyari = document.getElementById("olcu-uyari");
       const resim = document.getElementById("model-buyuk-resim");
-      uyari.hidden = true; yazi.hidden = true;
+      uyari.hidden = true; yazi.hidden = true; ucbDugme.hidden = true;
       if (!k) return;
       const satirlar = [...document.querySelectorAll("#olcu-satirlari .olcu-satir:not([hidden])")];
       const s_ = (olcuSatir && !olcuSatir.hidden && satirlar.includes(olcuSatir)) ? olcuSatir : satirlar[0];
@@ -186,6 +200,8 @@
         if (yanit.headers.get("X-Olcu") === "yok") {
           yazi.textContent = "Bu ölçüde görünüm çizilemiyor; fotoğraf gösteriliyor. Halı yazdığınız ölçüde yapılır.";
         } else {
+          ucbAdres = olcu3bAdresi.replace("KOD", k.dataset.kod) + `?en=${Math.round(en)}&boy=${Math.round(boy)}`;
+          ucbDugme.hidden = !webgl;
           yazi.innerHTML = `Görünüm: <b>${Math.round(en)} × ${Math.round(boy)} cm</b> · bordürler gerçek genişliğinde, orta ölçüye göre. Görünüm temsilîdir.`;
         }
         yazi.hidden = false;

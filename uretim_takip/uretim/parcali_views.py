@@ -166,6 +166,12 @@ def onizleme_resmi(request):
 
 
 @login_required
+def ucb_resmi(request, tur):
+    """🧊 3B görünüm: halının yüzey resmi (yuzey.jpg) ve kabartma haritası (kabartma.png); ölçü/şekil X-Bilgi'de."""
+    from . import ucboyut
+    return ucboyut.yanit(_temizle(request.GET), tur)
+
+@login_required
 def motif_ornegi(request, kod):
     if kod not in parcali.MOTIF:
         raise Http404
