@@ -36,6 +36,7 @@ urlpatterns = [
     path("bayi/siparis/", bayi_views.bayi_siparis, name="bayi_siparis"),
     path("bayi/foto-model/<str:kod>.jpg", bayi_views.foto_model_resmi, name="foto_model_resmi"),
     path("bayi/model-olcu/<str:kod>.jpg", bayi_views.model_olcu_resmi, name="model_olcu_resmi"),
+    path("bayi/model-resim/<str:kod>.jpg", katalog_views.model_ortali_resim, name="model_ortali_resim"),
     path("bayi/model-olcu/<str:kod>/3b/<str:tur>/", bayi_views.model_olcu_3b, name="model_olcu_3b"),
     path("davet/<str:anahtar>/", bayi_views.davet_ac, name="davet_ac"),
     path("bayiler/", bayi_views.bayi_listesi, name="bayi_listesi"),

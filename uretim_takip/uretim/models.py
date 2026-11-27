@@ -335,6 +335,24 @@ class KatalogModeli(models.Model):
     def __str__(self):
         return f"{self.kod} ({self.seri})"
 
+    def ortali_adres(self, b=300):
+        """Halı her yanında eşit beyaz payla (katalog fotoğrafında halı ortada değil; 2026-11-27). Asıl fotoğraf aynı kalır."""
+        import hashlib
+
+        from django.urls import reverse
+        if not self.resim:
+            return ""
+        surum = hashlib.sha1(self.resim.name.encode()).hexdigest()[:8]
+        return f"{reverse('model_ortali_resim', args=[self.kod])}?b={b}&v={surum}"
+
+    @property
+    def ortali_kucuk(self):
+        return self.ortali_adres(320)
+
+    @property
+    def ortali_buyuk(self):
+        return self.ortali_adres(1000)
+
 
 class LazerDeseni(models.Model):
     kod = models.CharField("desen kodu", max_length=20, unique=True, help_text="Ör. DB001")

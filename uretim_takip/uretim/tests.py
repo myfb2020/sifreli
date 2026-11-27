@@ -2763,6 +2763,29 @@ class FotoModelTesti(TasarimStudyosuTesti):
             self.assertEqual((k.status_code, k["Content-Type"], json.loads(k["X-Bilgi"])["en"]), (200, "image/png", 160))
             self.assertEqual(self.client.get(reverse("model_olcu_3b", args=["YOK-999", "yuzey"])).status_code, 404)
 
+    def test_katalog_resmi_ortali_esit_payli(self):
+        """2026-11-27: katalog fotoğrafında halı ortada değil (IPS-446 sol 66, sağ 36 px) → kartta / büyük görünümde eşit pay."""
+        import io
+
+        from PIL import Image, ImageChops
+
+        from .models import KatalogModeli
+        model = KatalogModeli.objects.get(kod="IPS-446")
+        self.client.force_login(self.bayi_hesap)
+        from . import parcali
+        vitrin = KatalogModeli.objects.get(kod=parcali.BAYI_VITRINI[0])
+        self.assertContains(self.client.get(reverse("bayi_siparis") + "?tur=suni"), vitrin.ortali_kucuk.replace("&", "&amp;"))
+        yanit = self.client.get(model.ortali_buyuk)
+        self.assertEqual((yanit.status_code, yanit["Content-Type"]), (200, "image/jpeg"))
+        resim = Image.open(io.BytesIO(yanit.content)).convert("RGB")
+        kutu = ImageChops.difference(resim, Image.new("RGB", resim.size, (255, 255, 255))).convert("L").point(
+            lambda q: 255 if q > 40 else 0).getbbox()
+        sol, sag = kutu[0], resim.width - kutu[2]
+        ust, alt = kutu[1], resim.height - kutu[3]
+        self.assertLessEqual(abs(sol - sag), max(4, resim.width * 0.015))
+        self.assertLessEqual(abs(ust - alt), max(4, resim.height * 0.015))
+        self.assertEqual(self.client.get(reverse("model_ortali_resim", args=["YOK-1"])).status_code, 404)
+
     def test_bayi_secili_modeli_parcali_studyoda_tasarlar(self):
         from . import parcali
         with self.settings(STUDYO_BAYIYE_ACIK=False):

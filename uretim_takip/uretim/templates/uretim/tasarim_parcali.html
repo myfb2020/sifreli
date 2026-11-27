@@ -46,7 +46,7 @@
       <div class="seri-sekme" role="tablist">{% for sr in seriler %}<button type="button" data-seri="{{ sr.on }}"{% if forloop.first %} class="etkin"{% endif %}>{{ sr.ad }} <small>({{ sr.modeller|length }})</small></button>{% endfor %}</div>
       {% for sr in seriler %}<div class="hazir-izgara katalog-izgara" data-seri-izgara="{{ sr.on }}"{% if not forloop.first %} hidden{% endif %}>
         {% for m in sr.modeller %}<button type="button" class="hazir katalog-model{% if v.katalog == m.kod %} secili{% endif %}" data-kod="{{ m.kod }}" data-resim="{{ m.resim }}"{% if m.duzenlenir %} data-duzenlenir="1"{% endif %}>
-          <img src="{{ m.resim }}" alt="" loading="lazy"><span>{{ m.kod }}</span></button>{% endfor %}
+          <img src="{{ m.kucuk }}" alt="" loading="lazy"><span>{{ m.kod }}</span></button>{% endfor %}
       </div>{% endfor %}
       <div class="model-secim" id="model-secim" hidden>
         <b id="model-secim-kod"></b>
@@ -486,11 +486,28 @@
     const d = document.getElementById("ucb-ac");
     try { const c = document.createElement("canvas"); d.hidden = !(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { d.hidden = true; }
     d.addEventListener("click", async () => {
-      const q = "s=7&" + sorgu();
+      // önizlemede ne görünüyorsa o açılır (2026-11-27): seçilmiş ama onaylanmamış katalog modeli ya da olduğu gibi
+      // siparişteki model → o modelin 3B'si (parça parça kurulamayan çizgili modellerde katalog fotoğrafından);
+      // tasarlanan halı → tasarım değerleriyle
+      const secimAcik = !secimKutusu.hidden && secilen;
+      const kod = secimAcik ? secilen.dataset.kod
+        : (form.querySelector('[name="aynen"]').value ? form.querySelector('[name="katalog"]').value : "");
+      let yuzey, kabartma;
+      if (kod) {
+        const en = parseFloat(form.querySelector('[name="en"]').value);
+        const sekilSecili = (form.querySelector('[name="sekil"]:checked') || form.querySelector('[name="sekil"]') || {}).value;
+        const boy = sekilSecili === "yuvarlak" ? en : parseFloat(form.querySelector('[name="boy"]').value);
+        const olcu = en >= 40 && boy >= 40 ? `?en=${Math.round(en)}&boy=${Math.round(boy)}` : "";
+        const taban = "{% url 'model_olcu_3b' 'KOD' 'TUR' %}".replace("KOD", encodeURIComponent(kod));
+        yuzey = taban.replace("TUR", "yuzey") + olcu; kabartma = taban.replace("TUR", "kabartma") + olcu;
+      } else {
+        const q = "s=7&" + sorgu();
+        yuzey = "{% url 'parcali_3b' 'yuzey' %}?" + q; kabartma = "{% url 'parcali_3b' 'kabartma' %}?" + q;
+      }
       d.disabled = true;
       try {
-        const m = await import("{% static 'uretim/ucboyut.js' %}?v=2");
-        await m.ac({ yuzey: "{% url 'parcali_3b' 'yuzey' %}?" + q, kabartma: "{% url 'parcali_3b' 'kabartma' %}?" + q });
+        const m = await import("{% static 'uretim/ucboyut.js' %}?v=3");
+        await m.ac({ yuzey, kabartma });
       } catch (e) { alert("3B görünüm açılamadı. Sayfayı yenileyip yeniden deneyin."); }
       finally { d.disabled = false; }
     });

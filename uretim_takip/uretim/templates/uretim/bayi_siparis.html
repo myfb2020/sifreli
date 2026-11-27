@@ -168,7 +168,7 @@
   ucbDugme.addEventListener("click", async () => {
     ucbDugme.disabled = true;
     try {
-      const m = await import("{% static 'uretim/ucboyut.js' %}?v=2");
+      const m = await import("{% static 'uretim/ucboyut.js' %}?v=3");
       // kartela rengi seçildiyse 3B yine fotoğraftaki renkleri gösterir
       const not = renkAlan.value ? "Renkler fotoğraftaki gibi gösteriliyor; seçtiğiniz kartela rengiyle yapılır." : "";
       await m.ac({ yuzey: ucbAdres.replace("TUR", "yuzey"), kabartma: ucbAdres.replace("TUR", "kabartma"), not });

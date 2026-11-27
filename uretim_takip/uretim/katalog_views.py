@@ -82,3 +82,67 @@ def secim_verisi():
         "katalog_modelleri": KatalogModeli.objects.select_related("seri").order_by("-aktif", "seri__sira", "kod"),
         "lazer_desenleri": LazerDeseni.objects.filter(aktif=True),
     }
+
+
+ORTALI_BOYLAR = (320, 1000)
+
+
+def ortali_jpeg(model, boy):
+    """Katalog fotoğrafındaki halı kesilir (açık zeminden ayrılan bölge), her yanına eşit beyaz pay konur."""
+    import io
+
+    from PIL import Image, ImageChops, ImageFilter
+
+    from pathlib import Path
+
+    from . import foto_temel
+    yol = Path(model.resim.path)
+    if not yol.exists():  # medyada yoksa programın içindeki katalog fotoğrafı
+        yol = foto_temel.FOTO_KLASORU / f"{model.kod}.jpg"
+    if not yol.exists():
+        raise Http404
+    resim = Image.open(yol).convert("RGB")
+    beyaz = Image.new("RGB", resim.size, (255, 255, 255))
+    fark = ImageChops.difference(resim, beyaz).convert("L").point(lambda q: 255 if q > 26 else 0)
+    kutu = fark.filter(ImageFilter.MedianFilter(5)).getbbox()  # tek tük lekeler / JPEG kırıntısı sayılmaz
+    if kutu and (kutu[2] - kutu[0]) > resim.width * 0.4 and (kutu[3] - kutu[1]) > resim.height * 0.4:
+        resim = resim.crop(kutu)
+    pay = round(max(resim.size) * 0.045)
+    tuval = Image.new("RGB", (resim.width + 2 * pay, resim.height + 2 * pay), (255, 255, 255))
+    tuval.paste(resim, (pay, pay))
+    if max(tuval.size) > boy:
+        tuval.thumbnail((boy, boy), Image.LANCZOS)
+    tampon = io.BytesIO()
+    tuval.save(tampon, "JPEG", quality=86)
+    return tampon.getvalue()
+
+
+@login_required
+def model_ortali_resim(request, kod):
+    """Kartlarda ve büyük görünümde: halı ortalanmış, kenar payları eşit (2026-11-27)."""
+    import hashlib
+    from pathlib import Path
+
+    from django.http import HttpResponse
+
+    model = get_object_or_404(KatalogModeli, kod=kod.upper())
+    if not model.resim:
+        raise Http404
+    try:
+        boy = min(ORTALI_BOYLAR, key=lambda b: abs(b - int(request.GET.get("b", 320))))
+    except ValueError:
+        boy = ORTALI_BOYLAR[0]
+    surum = hashlib.sha1(model.resim.name.encode()).hexdigest()[:8]
+    yol = Path(settings.MEDIA_ROOT) / "onizleme" / "ortali" / f"{model.kod}-{surum}-{boy}.jpg"
+    try:
+        icerik = yol.read_bytes()
+    except OSError:
+        icerik = ortali_jpeg(model, boy)
+        try:
+            yol.parent.mkdir(parents=True, exist_ok=True)
+            yol.write_bytes(icerik)
+        except OSError:
+            pass
+    yanit = HttpResponse(icerik, content_type="image/jpeg")
+    yanit["Cache-Control"] = "private, max-age=604800"
+    return yanit
